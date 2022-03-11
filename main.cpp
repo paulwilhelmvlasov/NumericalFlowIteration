@@ -1,15 +1,19 @@
 #include <iostream>
 #include <fstream>
-#include <math.h>
-#include <fftw3.h>
 
-double rho(double x)
+#include "periodic_poisson_solver.h"
+
+namespace test
 {
-	return std::sin(x);
+	double rho(double x)
+	{
+		return std::sin(x);
+	}
 }
 
+
 int main(int argc, char **argv) {	
-	double Pi = M_PI;
+/*	double Pi = M_PI;
 	    
 	/// Grid size
 	int Nx = 2001;
@@ -22,6 +26,9 @@ int main(int argc, char **argv) {
 
 	out = (fftw_complex*)fftw_malloc(sizeof(fftw_complex) * Nx );
 	in = new double[Nx];
+
+	fftw_plan fwrd = fftw_plan_dft_r2c_1d(Nx,in,out,FFTW_MEASURE);
+	fftw_plan bwrd = fftw_plan_dft_c2r_1d(Nx,out,in,FFTW_MEASURE);
 
 	// Init in:
 	double L0=0.0;
@@ -36,10 +43,6 @@ int main(int argc, char **argv) {
 
 	for(size_t i = 0; i < Nx; i++)
 		std::cout << in[i] << std::endl;
-
-
-	fftw_plan fwrd = fftw_plan_dft_r2c_1d(Nx,in,out,FFTW_ESTIMATE);
-	fftw_plan bwrd = fftw_plan_dft_c2r_1d(Nx,out,in,FFTW_ESTIMATE);
 		
 	fftw_execute(fwrd);
 
@@ -86,6 +89,29 @@ int main(int argc, char **argv) {
 	}
 
 	delete [] in;
+*/
+
+	double *rho;
+	rho = new double[Nx];
+	double *phi;
+	phi = new double[Nx];
+
+	for(size_t i = 0; i < Nx; i++)
+	{
+		rho[i] = test::rho(i * dx);
+	}
+
+	periodic_poisson_1d(rho, phi);
+
+	std::ofstream str_phi("phi.txt");
+
+	for(size_t i = 0; i < Nx; i++ )
+	{
+		str_phi << i * dx << " " << phi[i] << std::endl;
+	}
+
+	delete [] rho;
+	delete [] phi;
 
 	return 0;
 }
