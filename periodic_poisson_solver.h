@@ -12,6 +12,8 @@
 
 #include "config.h"
 
+
+
 bool initialized_1d = false;
 
 fftw_complex *out_1d;
