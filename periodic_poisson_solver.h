@@ -76,7 +76,8 @@ void periodic_poisson_1d(const double* rho, double* phi)
 		init_1d();	
 	}
 
-	for(size_t i = 0; i < Nx; i++)
+	size_t N = Nx;
+	for(size_t i = 0; i < N; i++)
 	{
 		in_1d[i] = rho[i];
 	}
@@ -94,7 +95,7 @@ void periodic_poisson_1d(const double* rho, double* phi)
 		
 		k1 = 2*Pi*II/Lx;
 				
-		double fac = -1.0*pow(k1,2)*Nx;
+		double fac = -1.0*k1*k1*Nx;
 		if (fabs(fac) < 1e-14)
 		{
 			out_1d[i][0] = 0.0;
@@ -122,7 +123,49 @@ void periodic_poisson_2d(const double* rho, double* phi)
 		init_2d();	
 	}
 
-	/* TODO */
+	size_t N = Nx * Ny;
+	for(size_t i = 0; i < N; i++)
+	{
+		in_2d[i] = rho[i];
+	}
+
+	fftw_execute(fwrd_2d);
+
+
+	int II,JJ;
+	double k1,k2;
+	for (int i=0;i<Nx;i++)
+	{
+		if (2*i<Nx)
+        		II = i;
+        	else
+        		II = Nx-i;
+        	k1 = 2*Pi*II/Lx;
+                
+        	for (int j=0;j<Ny;j++)
+        	{
+            		if (2*j<Ny)
+                		JJ = j;
+            		else
+                		JJ = Ny-j;
+            		k2 = 2*Pi*JJ/Ly;
+                        
+	                double fac = -1.0*(k1*k1 + k2*k2)*Nx*Ny;
+			size_t curr = j + Ny * i;
+        	        if (fabs(fac) < 1e-14)
+                	{
+                    		out_2d[curr][0] = 0.0;
+                    		out_2d[curr][1] = 0.0;
+                	}
+                	else
+                	{
+                    		out_2d[curr][0] /= fac;
+                    		out_2d[curr][1] /= fac;
+                	}                
+		}
+	}
+        
+	fftw_execute(bwrd_2d);
 }
 
 void periodic_poisson_3d(const double* rho, double* phi)
