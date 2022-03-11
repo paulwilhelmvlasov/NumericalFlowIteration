@@ -101,6 +101,7 @@ int main(int argc, char **argv) {
 		rho[i] = test::rho(i * dx);
 	}
 
+//	init_1d();
 	periodic_poisson_1d(rho, phi);
 
 	std::ofstream str_phi("phi.txt");
