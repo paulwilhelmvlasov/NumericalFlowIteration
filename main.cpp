@@ -1,7 +1,9 @@
 #include <iostream>
 #include <fstream>
 
-#include "periodic_poisson_solver.h"
+//#include "periodic_poisson_solver.h"
+
+#include "poisson.h"
 
 namespace test
 {
@@ -91,6 +93,7 @@ int main(int argc, char **argv) {
 	delete [] in;
 */
 
+/*
 	double *rho;
 	rho = new double[Nx];
 	double *phi;
@@ -113,6 +116,7 @@ int main(int argc, char **argv) {
 
 	delete [] rho;
 	delete [] phi;
+*/
 
 	return 0;
 }

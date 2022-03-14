@@ -1,35 +1,39 @@
-#include <dergeraet/poisson.hpp>
+//#include "poisson.hpp"
+#include "poisson.h"
+
+#include <stdexcept>
 
 namespace dergeraet
 {
 
 namespace dim1
 {
-/************************************************************************************************/
+
 	// 1d-Definition for real = double.
-	template <>
 	poisson<double>::poisson( const config_t<double> &param )
-		: param { param }
+		: out   { reinterpret_cast<fftw_complex*>(fftw_malloc(sizeof(fftw_complex)*param.Nx)), fftw_free },
+		  param { param }
 	{
 		// Note: We do not reuse the out array but instead pass arrays everytime the 
 		// solve method is called. These arrays have to have the same shape as the initial
 		// in array.
-		out = (fftw_complex*)fftw_malloc(sizeof(fftw_complex) * param.Nx );
-		double *in = (double *) fftw_malloc(sizeof(double) * param.Nx);
 
-		forward = fftw_plan_dft_r2c_1d(param.Nx,in,out,FFTW_MEASURE);
-		backward = fftw_plan_dft_c2r_1d(param.Nx,out,in,FFTW_MEASURE);
+		if ( out == nullptr ) throw std::bad_alloc {};
 
-		fftw_free(in);
+		std::unique_ptr<double, decltype(fftw_free)* > in {
+                    reinterpret_cast<double*>(fftw_malloc(sizeof(double)*param.Nx)), fftw_free };
+		if ( in == nullptr ) throw std::bad_alloc {};
+
+		forward = fftw_plan_dft_r2c_1d(param.Nx,in.get(),out.get(),FFTW_MEASURE);
+		backward = fftw_plan_dft_c2r_1d(param.Nx,out.get(),in.get(),FFTW_MEASURE);
 	}
 
-	template <>
-	poisson<double>::~poisson() { fftw_free(out); }
 
-	template <>
 	void poisson<double>::solve( double *rho, double *phi )
 	{
-		fftw_execute(forward, rho, out);
+		// Note: rho* and phi* may point to the same array as the method uses only 1 array 
+		// to do the computations.
+		fftw_execute_dft_r2c(forward, rho, out.get());
 
 		int II = -5;
 		double k1;
@@ -45,59 +49,61 @@ namespace dim1
 			double fac = -1.0*k1*k1*param.Nx;
 			if (fabs(fac) < 1e-14)
 			{
-				out[i][0] = 0.0;
-				out[i][1] = 0.0;
+				out.get()[i][0] = 0.0;
+				out.get()[i][1] = 0.0;
 			}
 			else
 			{
-				out[i][0] /= fac;
-				out[i][1] /= fac;
+				out.get()[i][0] /= fac;
+				out.get()[i][1] /= fac;
 			}
 		}
 
-		fftw_execute(backward, out, phi);
+		fftw_execute_dft_c2r(backward, out.get(), phi);
 	}
 
-	template <>
 	void poisson<double>::conf( const config_t<double> &new_param )
 	{
 		// Note: This method not only updates the parameters but also has to
 		// recompute the plans. This can take some time.
 		param = new_param;
 
-		double *in = (double *) fftw_malloc(sizeof(double) * param.Nx);
+		out.reset ( reinterpret_cast<fftw_complex*>(fftw_malloc(sizeof(fftw_complex)*param.Nx)));
 
-		forward = fftw_plan_dft_r2c_1d(param.Nx,in,out,FFTW_MEASURE);
-		backward = fftw_plan_dft_c2r_1d(param.Nx,out,in,FFTW_MEASURE);
+		if ( out == nullptr ) throw std::bad_alloc {};
 
-		fftw_free(in);
+		std::unique_ptr<double, decltype(fftw_free)* > in {
+                    reinterpret_cast<double*>(fftw_malloc(sizeof(double)*param.Nx)), fftw_free };
+		if ( in == nullptr ) throw std::bad_alloc {};
+
+		forward = fftw_plan_dft_r2c_1d(param.Nx,in.get(),out.get(),FFTW_MEASURE);
+		backward = fftw_plan_dft_c2r_1d(param.Nx,out.get(),in.get(),FFTW_MEASURE);
 	}
 
-/************************************************************************************************/
+
 	// 1d-Definition for real = float.
-	template <>
+
 	poisson<float>::poisson( const config_t<float> &param )
-		: param { param }
+		: out   { reinterpret_cast<fftwf_complex*>(fftwf_malloc(sizeof(fftwf_complex)*param.Nx)), fftwf_free },
+		param { param }
 	{
 		// Note: We do not reuse the out array but instead pass arrays everytime the 
 		// solve method is called. These arrays have to have the same shape as the initial
 		// in array.
-		out = (fftwf_complex*)fftwf_malloc(sizeof(fftwf_complex) * param.Nx );
-		float *in = (float *) fftwf_malloc(sizeof(float) * param.Nx);
+		if ( out == nullptr ) throw std::bad_alloc {};
 
-		forward = fftwf_plan_dft_r2c_1d(param.Nx,in,out,FFTW_MEASURE);
-		backward = fftwf_plan_dft_c2r_1d(param.Nx,out,in,FFTW_MEASURE);
+		std::unique_ptr<float, decltype(fftwf_free)* > in {
+                    reinterpret_cast<float*>(fftwf_malloc(sizeof(float)*param.Nx)), fftwf_free };
+		if ( in == nullptr ) throw std::bad_alloc {};
 
-		fftwf_free(in);
+
+		forward = fftwf_plan_dft_r2c_1d(param.Nx,in.get(),out.get(),FFTW_MEASURE);
+		backward = fftwf_plan_dft_c2r_1d(param.Nx,out.get(),in.get(),FFTW_MEASURE);
 	}
 
-	template <>
-	poisson<float>::~poisson() { fftwf_free(out); }
-
-	template <>
 	void poisson<float>::solve( float *rho, float *phi )
 	{
-		fftwf_execute(forward, rho, out);
+		fftwf_execute_dft_r2c(forward, rho, out.get());
 
 		int II = -5;
 		float k1;
@@ -113,64 +119,65 @@ namespace dim1
 			float fac = -1.0*k1*k1*param.Nx;
 			if (fabs(fac) < 1e-14)
 			{
-				out[i][0] = 0.0;
-				out[i][1] = 0.0;
+				out.get()[i][0] = 0.0;
+				out.get()[i][1] = 0.0;
 			}
 			else
 			{
-				out[i][0] /= fac;
-				out[i][1] /= fac;
+				out.get()[i][0] /= fac;
+				out.get()[i][1] /= fac;
 			}
 		}
 
-		fftwf_execute(backward, out, phi);
+		fftwf_execute_dft_c2r(backward, out.get(), phi);
 	}
 
-	template <>
 	void poisson<float>::conf( const config_t<float> &new_param )
 	{
 		// Note: This method not only updates the parameters but also has to
 		// recompute the plans. This can take some time.
 		param = new_param;
 
-		float *in = (float *) fftwf_malloc(sizeof(float) * param.Nx);
-		
-		// Note: Upper-case FFTW remains the same even for float (or long double).
-		forward = fftwf_plan_dft_r2c_1d(param.Nx,in,out,FFTW_MEASURE); 
-		backward = fftwf_plan_dft_c2r_1d(param.Nx,out,in,FFTW_MEASURE);
+		out.reset ( reinterpret_cast<fftwf_complex*>(fftwf_malloc(sizeof(fftwf_complex)*param.Nx)));
 
-		fftwf_free(in);
+		if ( out == nullptr ) throw std::bad_alloc {};
+
+		std::unique_ptr<float, decltype(fftwf_free)* > in {
+                    reinterpret_cast<float*>(fftwf_malloc(sizeof(double)*param.Nx)), fftwf_free };
+		if ( in == nullptr ) throw std::bad_alloc {};
+
+		forward = fftwf_plan_dft_r2c_1d(param.Nx,in.get(),out.get(),FFTW_MEASURE);
+		backward = fftwf_plan_dft_c2r_1d(param.Nx,out.get(),in.get(),FFTW_MEASURE);
+
 	}
 }
-/************************************************************************************************/
+
 
 namespace dim2
 {
-/************************************************************************************************/
+
 	// 2d-Definition for real = double.
-	template <>
 	poisson<double>::poisson( const config_t<double> &param )
-		: param { param }
+		: out { reinterpret_cast<fftw_complex*>(fftw_malloc(sizeof(fftw_complex)*param.Nx*param.Ny)), 
+			fftw_free },
+		  param { param }
 	{
 		// Note: We do not reuse the out array but instead pass arrays everytime the 
 		// solve method is called. These arrays have to have the same shape as the initial
 		// in array.
-		out = (fftw_complex*)fftw_malloc(sizeof(fftw_complex) * param.Nx * param.Ny );
-		double *in = (double *) fftw_malloc(sizeof(double) * param.Nx * param.Ny );
+		if ( out == nullptr ) throw std::bad_alloc {};
 
-		forward = fftw_plan_dft_r2c_2d(param.Nx,param.Ny,in,out,FFTW_MEASURE);
-		backward = fftw_plan_dft_c2r_2d(param.Nx,param.Ny,out,in,FFTW_MEASURE);
+		std::unique_ptr<double, decltype(fftw_free)* > in {
+                    reinterpret_cast<double*>(fftw_malloc(sizeof(double)*param.Nx*param.Ny)), fftw_free };
+		if ( in == nullptr ) throw std::bad_alloc {};
 
-		fftw_free(in);
+		forward = fftw_plan_dft_r2c_2d(param.Nx,param.Ny,in.get(),out.get(),FFTW_MEASURE);
+		backward = fftw_plan_dft_c2r_2d(param.Nx,param.Ny,out.get(),in.get(),FFTW_MEASURE);
 	}
 
-	template <>
-	poisson<double>::~poisson() { fftw_free(out); }
-
-	template <>
 	void poisson<double>::solve( double *rho, double *phi )
 	{
-		fftw_execute(forward, rho, out);
+		fftw_execute_dft_r2c(forward, rho, out.get());
 
 		int II,JJ;
 		double k1,k2;
@@ -194,60 +201,64 @@ namespace dim2
 				size_t curr = j + param.Ny * i;
 			        if (fabs(fac) < 1e-14)
 		        	{
-		            		out[curr][0] = 0.0;
-		            		out[curr][1] = 0.0;
+		            		out.get()[curr][0] = 0.0;
+		            		out.get()[curr][1] = 0.0;
 		        	}
 		        	else
 		        	{
-		            		out[curr][0] /= fac;
-		            		out[curr][1] /= fac;
+		            		out.get()[curr][0] /= fac;
+		            		out.get()[curr][1] /= fac;
 		        	}                
 			}
 		}
 
-		fftw_execute(backward, out, phi);
+		fftw_execute_dft_c2r(backward, out.get(), phi);
 	}
 
-	template <>
 	void poisson<double>::conf( const config_t<double> &new_param )
 	{
 		// Note: This method not only updates the parameters but also has to
 		// recompute the plans. This can take some time.
 		param = new_param;
 
-		double *in = (double *) fftw_malloc(sizeof(double) * param.Nx * param.Ny);
+		out.reset ( reinterpret_cast<fftw_complex*>(fftw_malloc(sizeof(fftw_complex)*param.Nx*param.Ny)));
 
-		forward = fftw_plan_dft_r2c_2d(param.Nx,param.Ny,in,out,FFTW_MEASURE);
-		backward = fftw_plan_dft_c2r_2d(param.Nx,param.Ny,out,in,FFTW_MEASURE);
+		if ( out == nullptr ) throw std::bad_alloc {};
 
-		fftw_free(in);
+		std::unique_ptr<double, decltype(fftw_free)* > in {
+                    reinterpret_cast<double*>(fftw_malloc(sizeof(double)*param.Nx*param.Ny)), fftw_free };
+		if ( in == nullptr ) throw std::bad_alloc {};
+
+
+		forward = fftw_plan_dft_r2c_2d(param.Nx,param.Ny,in.get(),out.get(),FFTW_MEASURE);
+		backward = fftw_plan_dft_c2r_2d(param.Nx,param.Ny,out.get(),in.get(),FFTW_MEASURE);
 	}
 
-/************************************************************************************************/
+
 	// 2d-Definition for real = float.
-	template <>
+
 	poisson<float>::poisson( const config_t<float> &param )
-		: param { param }
+		: out   { reinterpret_cast<fftwf_complex*>(fftwf_malloc(sizeof(fftwf_complex)*param.Nx*param.Ny)), 
+			fftwf_free },
+		param { param }
 	{
 		// Note: We do not reuse the out array but instead pass arrays everytime the 
 		// solve method is called. These arrays have to have the same shape as the initial
 		// in array.
-		out = (fftwf_complex*)fftwf_malloc(sizeof(fftwf_complex) * param.Nx * param.Ny );
-		float *in = (float *) fftwf_malloc(sizeof(float) * param.Nx * param.Ny );
+		if ( out == nullptr ) throw std::bad_alloc {};
 
-		forward = fftwf_plan_dft_r2c_2d(param.Nx,param.Ny,in,out,FFTW_MEASURE);
-		backward = fftwf_plan_dft_c2r_2d(param.Nx,param.Ny,out,in,FFTW_MEASURE);
+		std::unique_ptr<float, decltype(fftwf_free)* > in {
+                    reinterpret_cast<float*>(fftwf_malloc(sizeof(float)*param.Nx*param.Ny)), fftwf_free };
+		if ( in == nullptr ) throw std::bad_alloc {};
 
-		fftwf_free(in);
+		forward = fftwf_plan_dft_r2c_2d(param.Nx,param.Ny,in.get(),out.get(),FFTW_MEASURE);
+		backward = fftwf_plan_dft_c2r_2d(param.Nx,param.Ny,out.get(),in.get(),FFTW_MEASURE);
 	}
 
-	template <>
-	poisson<float>::~poisson() { fftwf_free(out); }
 
-	template <>
 	void poisson<float>::solve( float *rho, float *phi )
 	{
-		fftwf_execute(forward, rho, out);
+		fftwf_execute_dft_r2c(forward, rho, out.get());
 
 		int II,JJ;
 		float k1,k2;
@@ -271,45 +282,46 @@ namespace dim2
 				size_t curr = j + param.Ny * i;
 			        if (fabs(fac) < 1e-14)
 		        	{
-		            		out[curr][0] = 0.0;
-		            		out[curr][1] = 0.0;
+		            		out.get()[curr][0] = 0.0;
+		            		out.get()[curr][1] = 0.0;
 		        	}
 		        	else
 		        	{
-		            		out[curr][0] /= fac;
-		            		out[curr][1] /= fac;
+		            		out.get()[curr][0] /= fac;
+		            		out.get()[curr][1] /= fac;
 		        	}                
 			}
 		}
 
 
-		fftwf_execute(backward, out, phi);
+		fftwf_execute_dft_c2r(backward, out.get(), phi);
 	}
 
-	template <>
 	void poisson<float>::conf( const config_t<float> &new_param )
 	{
 		// Note: This method not only updates the parameters but also has to
 		// recompute the plans. This can take some time.
 		param = new_param;
 
-		float *in = (float *) fftwf_malloc(sizeof(float) * param.Nx * param.Ny);
-		
-		// Note: Upper-case FFTW remains the same even for float (or long double).
-		forward = fftwf_plan_dft_r2c_2d(param.Nx,param.Ny,in,out,FFTW_MEASURE); 
-		backward = fftwf_plan_dft_c2r_2d(param.Nx,param.Ny,out,in,FFTW_MEASURE);
+		out.reset ( reinterpret_cast<fftwf_complex*>(fftwf_malloc(sizeof(fftwf_complex)*param.Nx*param.Ny)));
 
-		fftwf_free(in);
+		if ( out == nullptr ) throw std::bad_alloc {};
+
+		std::unique_ptr<float, decltype(fftwf_free)* > in {
+                    reinterpret_cast<float*>(fftwf_malloc(sizeof(double)*param.Nx*param.Ny)), fftwf_free };
+		if ( in == nullptr ) throw std::bad_alloc {};
+
+		forward = fftwf_plan_dft_r2c_2d(param.Nx,param.Ny,in.get(),out.get(),FFTW_MEASURE);
+		backward = fftwf_plan_dft_c2r_2d(param.Nx,param.Ny,out.get(),in.get(),FFTW_MEASURE);
 	}
 }
 
-/************************************************************************************************/
+/*
 
 namespace dim3
 {
-/************************************************************************************************/
+
 	// 3d-Definition for real = double.
-	template <>
 	poisson<double>::poisson( const config_t<double> &param )
 		: param { param }
 	{
@@ -325,10 +337,8 @@ namespace dim3
 		fftw_free(in);
 	}
 
-	template <>
 	poisson<double>::~poisson() { fftw_free(out); }
 
-	template <>
 	void poisson<double>::solve( double *rho, double *phi )
 	{
 		fftw_execute(forward, rho, out);
@@ -373,7 +383,6 @@ namespace dim3
 		fftw_execute(backward, out, phi);
 	}
 
-	template <>
 	void poisson<double>::conf( const config_t<double> &new_param )
 	{
 		// Note: This method not only updates the parameters but also has to
@@ -388,9 +397,8 @@ namespace dim3
 		fftw_free(in);
 	}
 
-/************************************************************************************************/
+
 	// 3d-Definition for real = float.
-	template <>
 	poisson<float>::poisson( const config_t<float> &param )
 		: param { param }
 	{
@@ -406,10 +414,8 @@ namespace dim3
 		fftwf_free(in);
 	}
 
-	template <>
 	poisson<float>::~poisson() { fftwf_free(out); }
 
-	template <>
 	void poisson<float>::solve( float *rho, float *phi )
 	{
 		fftwf_execute(forward, rho, out);
@@ -454,7 +460,6 @@ namespace dim3
 		fftwf_execute(backward, out, phi);
 	}
 
-	template <>
 	void poisson<float>::conf( const config_t<float> &new_param )
 	{
 		// Note: This method not only updates the parameters but also has to
@@ -469,10 +474,8 @@ namespace dim3
 
 		fftwf_free(in);
 	}
-}
-
-
-
+*/
 
 }
+
 
