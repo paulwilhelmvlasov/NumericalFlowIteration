@@ -22,9 +22,9 @@ configure
 depcomp
 install-sh
 makefile
-makefile.in
+*makefile.in
 Makefile
-Makefile.in
+*Makefile.in
 stamp-h1
 missing
 autom4te.cache
