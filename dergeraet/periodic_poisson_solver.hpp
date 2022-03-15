@@ -1,17 +1,26 @@
 /*
- * periodic_poisson_solver.h
+ * Copyright (C) 2022 Matthias Kirchhart and Paul Wilhelm
  *
- *  Created on: Mar 9, 2022
- *      Author: paul
+ * This file is part of Der Gerät, a solver for the Vlasov–Poisson equation.
+ *
+ * Der Gerät is free software; you can redistribute it and/or modify it under
+ * the terms of the GNU General Public License as published by the Free
+ * Software Foundation; either version 3, or (at your option) any later
+ * version.
+ *
+ * Der Gerät is distributed in the hope that it will be useful, but WITHOUT ANY
+ * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+ * FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+ * details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * Der Gerät; see the file COPYING.  If not see http://www.gnu.org/licenses.
  */
-
-#ifndef PERIODIC_POISSON_SOLVER_H_
-#define PERIODIC_POISSON_SOLVER_H_
+#ifndef DERGERAET_PERIODIC_POISSON_SOLVER_HPP
+#define DERGERAET_PERIODIC_POISSON_SOLVER_HPP
 
 #include <fftw3.h>
-
-#include "config.h"
-
+#include <dergeraet/config.hpp>
 
 
 bool initialized_1d = false;
@@ -181,4 +190,5 @@ void periodic_poisson_3d(const double* rho, double* phi)
 }
 
 
-#endif /* PERIODIC_POISSON_SOLVER_H_ */
+#endif
+
