@@ -62,9 +62,6 @@ namespace dim1
 		poisson() = delete;
 		poisson(const config_t<float> &param );
 
-		~poisson();
-
-
 		config_t<float> conf() { return param; }
 		void     conf( const config_t<float> &new_param );
 
@@ -96,9 +93,6 @@ namespace dim2
 		poisson() = delete;
 		poisson(const config_t<double> &param );
 
-		~poisson();
-
-
 		config_t<double> conf() { return param; }
 		void     conf( const config_t<double> &new_param );
 
@@ -120,9 +114,6 @@ namespace dim2
 	public:
 		poisson() = delete;
 		poisson(const config_t<float> &param );
-
-		~poisson();
-
 
 		config_t<float> conf() { return param; }
 		void     conf( const config_t<float> &new_param );

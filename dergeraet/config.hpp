@@ -24,46 +24,24 @@
 namespace dergeraet
 {
 
-const double Pi = M_PI;
-
-const double L0x = 0; 
-const double L0y = 0; 
-const double L0z = 0; 
-
-const double L1x = 2 * Pi; 
-const double L1y = 2 * Pi; 
-const double L1z = 2 * Pi; 
-
-const double Lx = L1x - L0x; 
-const double Ly = L1y - L0y; 
-const double Lz = L1z - L0z; 
-
-const size_t Nx = 21;
-const size_t Ny = 21;
-const size_t Nz = 21;
-
-const double dx = Lx / Nx;
-const double dy = Ly / Ny;
-const double dz = Lz / Nz;
-
 template <typename real>
 struct config_t
 {
-	real L0x = 0; 
-	real L0y = 0; 
+	real L0x = -1; 
+	real L0y = -1; 
 	real L0z = 0; 
 
-	real L1x = 2 * Pi; 
-	real L1y = 2 * Pi; 
-	real L1z = 2 * Pi; 
+	real L1x = 1; 
+	real L1y = 1; 
+	real L1z = 2 * M_PI; 
 
 	real Lx = L1x - L0x; 
 	real Ly = L1y - L0y; 
 	real Lz = L1z - L0z; 
 
-	size_t Nx = 21;
-	size_t Ny = 21;
-	size_t Nz = 21;
+	size_t Nx = 100;
+	size_t Ny = Nx;
+	size_t Nz = Nx;
 
 	real dx = Lx / Nx;
 	real dy = Ly / Ny;

@@ -60,7 +60,7 @@ namespace dim1
 			else
 				II = param.Nx-i;
 			
-			k1 = 2*Pi*II/param.Lx;
+			k1 = 2*M_PI*II/param.Lx;
 					
 			double fac = -1.0*k1*k1*param.Nx;
 			if (fabs(fac) < 1e-14)
@@ -92,8 +92,10 @@ namespace dim1
                     reinterpret_cast<double*>(fftw_malloc(sizeof(double)*param.Nx)), fftw_free };
 		if ( in == nullptr ) throw std::bad_alloc {};
 
-		forward = fftw_plan_dft_r2c_1d(param.Nx,in.get(),out.get(),FFTW_MEASURE);
-		backward = fftw_plan_dft_c2r_1d(param.Nx,out.get(),in.get(),FFTW_MEASURE);
+//		forward = fftw_plan_dft_r2c_1d(param.Nx,in.get(),out.get(),FFTW_MEASURE);
+//		backward = fftw_plan_dft_c2r_1d(param.Nx,out.get(),in.get(),FFTW_MEASURE);
+		forward = fftw_plan_dft_r2c_1d(param.Nx,in.get(),out.get(),FFTW_ESTIMATE);
+		backward = fftw_plan_dft_c2r_1d(param.Nx,out.get(),in.get(),FFTW_ESTIMATE);
 	}
 
 
@@ -130,7 +132,7 @@ namespace dim1
 			else
 				II = param.Nx-i;
 			
-			k1 = 2*Pi*II/param.Lx;
+			k1 = 2*M_PI*II/param.Lx;
 					
 			float fac = -1.0*k1*k1*param.Nx;
 			if (fabs(fac) < 1e-14)
@@ -203,7 +205,7 @@ namespace dim2
 				II = i;
 			else
 				II = param.Nx-i;
-			k1 = 2*Pi*II/param.Lx;
+			k1 = 2*M_PI*II/param.Lx;
 		        
 			for (int j=0;j<param.Ny;j++)
 			{
@@ -211,7 +213,7 @@ namespace dim2
 		        		JJ = j;
 		    		else
 		        		JJ = param.Ny-j;
-		    		k2 = 2*Pi*JJ/param.Ly;
+		    		k2 = 2*M_PI*JJ/param.Ly;
 		                
 			        double fac = -1.0*(k1*k1 + k2*k2)*param.Nx*param.Ny;
 				size_t curr = j + param.Ny * i;
@@ -284,7 +286,7 @@ namespace dim2
 				II = i;
 			else
 				II = param.Nx-i;
-			k1 = 2*Pi*II/param.Lx;
+			k1 = 2*M_PI*II/param.Lx;
 		        
 			for (int j=0;j<param.Ny;j++)
 			{
@@ -292,7 +294,7 @@ namespace dim2
 		        		JJ = j;
 		    		else
 		        		JJ = param.Ny-j;
-		    		k2 = 2*Pi*JJ/param.Ly;
+		    		k2 = 2*M_PI*JJ/param.Ly;
 		                
 			        float fac = -1.0*(k1*k1 + k2*k2)*param.Nx*param.Ny;
 				size_t curr = j + param.Ny * i;
@@ -367,7 +369,7 @@ namespace dim3
 				II = i;
 			else
 				II = param.Nx-i;
-			k1 = 2*Pi*II/param.Lx;
+			k1 = 2*M_PI*II/param.Lx;
 		        
 			for (int j=0;j<param.Ny;j++)
 			{
@@ -375,11 +377,11 @@ namespace dim3
 		        		JJ = j;
 		    		else
 		        		JJ = param.Ny-j;
-		    		k2 = 2*Pi*JJ/param.Ly;
+		    		k2 = 2*M_PI*JJ/param.Ly;
 		                
 				for (int k=0;k<param.Nz;k++)
 				{
-					k3 = 2*Pi*k/param.Lz;
+					k3 = 2*M_PI*k/param.Lz;
 					double fac = -1.0*(k1*k1 + k2*k2 + k3*k3)*param.Nx*param.Ny*param.Nz;
 					size_t curr = k + Nz * (j + param.Ny * i);
 					if (fabs(fac) < 1e-14)
@@ -444,7 +446,7 @@ namespace dim3
 				II = i;
 			else
 				II = param.Nx-i;
-			k1 = 2*Pi*II/param.Lx;
+			k1 = 2*M_PI*II/param.Lx;
 		        
 			for (int j=0;j<param.Ny;j++)
 			{
@@ -452,11 +454,11 @@ namespace dim3
 		        		JJ = j;
 		    		else
 		        		JJ = param.Ny-j;
-		    		k2 = 2*Pi*JJ/param.Ly;
+		    		k2 = 2*M_PI*JJ/param.Ly;
 		                
 				for (int k=0;k<param.Nz;k++)
 				{
-					k3 = 2*Pi*k/param.Lz;
+					k3 = 2*M_PI*k/param.Lz;
 					float fac = -1.0*(k1*k1 + k2*k2 + k3*k3)*param.Nx*param.Ny*param.Nz;
 					size_t curr = k + Nz * (j + param.Ny * i);
 					if (fabs(fac) < 1e-14)

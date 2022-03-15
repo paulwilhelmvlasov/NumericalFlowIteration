@@ -20,44 +20,82 @@
 #include <iostream>
 #include <fstream>
 
-//#include "periodic_poisson_solver.h"
+#include <chrono>
 
 #include <dergeraet/poisson.hpp>
 
 namespace test
 {
-	double rho(double x)
+	double rho1d(double x)
 	{
-		return std::sin(x);
+		return std::cos(x);
+	}
+
+	double rho2d(double x, double y)
+	{
+		return std::exp(-10*(x*x + y*y));
 	}
 }
 
 
 int main(int argc, char **argv) {	
-/*
-	double *rho;
-	rho = new double[Nx];
-	double *phi;
-	phi = new double[Nx];
+	dergeraet::config_t<double> conf;
+	std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
+	dergeraet::dim2::poisson<double> pois(conf);
+	std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
+	std::cout << "Initialisation time = " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]" << std::endl;
 
-	for(size_t i = 0; i < Nx; i++)
+	std::cout << conf.Nx << std::endl;
+
+	double *rho;
+	rho = (double*)fftw_malloc(sizeof(double)*conf.Nx*conf.Ny);
+	double *phi;
+	phi = (double*)fftw_malloc(sizeof(double)*conf.Nx*conf.Ny);
+
+	for(size_t i = 0; i < conf.Nx; i++ )
 	{
-		rho[i] = test::rho(i * dx);
+		for(size_t j = 0; j < conf.Ny; j++)
+		{
+			double x = conf.L0x + i * conf.dx;
+			double y = conf.L0y + j * conf.dy;
+			rho[j + conf.Ny * i] = test::rho2d(x, y);
+		}
 	}
 
-//	init_1d();
-	periodic_poisson_1d(rho, phi);
+	std::ofstream str_rho("rho.txt");
+
+	for(size_t i = 0; i < conf.Nx; i++ )
+	{
+		for(size_t j = 0; j < conf.Ny; j++)
+		{
+			double x = conf.L0x + i * conf.dx;
+			double y = conf.L0y + j * conf.dy;
+			str_rho << x << " " << y << " " << rho[j + i * conf.Ny] << std::endl;
+		}
+		str_rho << std::endl;
+	}
+
+	
+	begin = std::chrono::steady_clock::now();
+	pois.solve(rho,phi);
+	end = std::chrono::steady_clock::now();
+	std::cout << "Computation time = " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]" << std::endl;
 
 	std::ofstream str_phi("phi.txt");
 
-	for(size_t i = 0; i < Nx; i++ )
+	for(size_t i = 0; i < conf.Nx; i++ )
 	{
-		str_phi << i * dx << " " << phi[i] << std::endl;
+		for(size_t j = 0; j < conf.Ny; j++)
+		{
+			double x = conf.L0x + i * conf.dx;
+			double y = conf.L0y + j * conf.dy;
+			str_phi << x << " " << y << " " << phi[j + i * conf.Ny] << std::endl;
+		}
+		str_phi << std::endl;
 	}
 
-	delete [] rho;
-	delete [] phi;
-*/
+	fftw_free(rho);
+	fftw_free(phi);
 
 	return 0;
 }
