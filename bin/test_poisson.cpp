@@ -33,7 +33,9 @@ namespace test
 
 	double rho2d(double x, double y)
 	{
-		return std::exp(-10*(x*x + y*y));
+		double xx = x -  M_PI;
+		double yy = y -  M_PI;
+		return std::exp(-(xx*xx + yy*yy));
 	}
 }
 
