@@ -32,10 +32,13 @@ namespace test
 	}
 
 	double rho2d(double x, double y)
-	{
-		double xx = x -  M_PI;
-		double yy = y -  M_PI;
-		return std::exp(-(xx*xx + yy*yy));
+	{	
+
+		return std::exp( -10.0 * ( x*x + y*y ) ) 
+		- 0.3141543995431308468307567265064296442806759455912026276984236670508030703124557251542724156613499484
+		/ 4.0;
+
+//		return std::sin(x)
 	}
 }
 

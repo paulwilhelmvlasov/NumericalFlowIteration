@@ -197,6 +197,36 @@ namespace dim2
 	{
 		fftw_execute_dft_r2c(forward, rho, out.get());
 
+		int Nyh = param.Ny/2 + 1;
+		int II,JJ;
+		double k1,k2;
+		for (int i=0;i<param.Nx;i++)
+		{
+			if (2*i<param.Nx)
+				II = i;
+			else
+				II = param.Nx-i;
+			k1 = 2*M_PI*II/param.Lx;
+		        
+			for (int j=0;j<Nyh;j++)
+			{
+		    		k2 = 2*M_PI*j/param.Ly;
+		                
+			        double fac = -1.0*(k1*k1 + k2*k2)*param.Nx*param.Ny;
+				size_t curr = j + Nyh * i;
+			        if (fabs(fac) < 1e-14)
+		        	{
+		            		out.get()[curr][0] = 0.0;
+		            		out.get()[curr][1] = 0.0;
+		        	}
+		        	else
+		        	{
+		            		out.get()[curr][0] /= fac;
+		            		out.get()[curr][1] /= fac;
+		        	}                
+			}
+		}
+/*
 		int II,JJ;
 		double k1,k2;
 		for (int i=0;i<param.Nx;i++)
@@ -229,6 +259,7 @@ namespace dim2
 		        	}                
 			}
 		}
+*/
 
 		fftw_execute_dft_c2r(backward, out.get(), phi);
 	}
