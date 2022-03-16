@@ -27,19 +27,19 @@ namespace dergeraet
 template <typename real>
 struct config_t
 {
-	real L0x = -1; 
-	real L0y = -1; 
+	real L0x = 0; 
+	real L0y = 0; 
 	real L0z = 0; 
 
-	real L1x = 1;//2 * M_PI; 
-	real L1y = 1;//2 * M_PI; 
+	real L1x = 2 * M_PI; 
+	real L1y = 2 * M_PI; 
 	real L1z = 2 * M_PI; 
 
 	real Lx = L1x - L0x; 
 	real Ly = L1y - L0y; 
 	real Lz = L1z - L0z; 
 
-	size_t Nx = 1000;
+	size_t Nx = 128;
 	size_t Ny = Nx;
 	size_t Nz = Nx;
 
