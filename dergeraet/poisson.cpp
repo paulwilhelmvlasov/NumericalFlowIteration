@@ -176,7 +176,7 @@ namespace dim2
 
 	// 2d-Definition for real = double.
 	poisson<double>::poisson( const config_t<double> &param )
-		: out { reinterpret_cast<fftw_complex*>(fftw_malloc(sizeof(fftw_complex)*param.Nx*param.Ny)), 
+		: out { reinterpret_cast<fftw_complex*>(fftw_malloc(sizeof(fftw_complex)*param.Nx*(param.Ny/2 + 1))), 
 			fftw_free },
 		  param { param }
 	{
@@ -226,40 +226,6 @@ namespace dim2
 		        	}                
 			}
 		}
-/*
-		int II,JJ;
-		double k1,k2;
-		for (int i=0;i<param.Nx;i++)
-		{
-			if (2*i<param.Nx)
-				II = i;
-			else
-				II = param.Nx-i;
-			k1 = 2*M_PI*II/param.Lx;
-		        
-			for (int j=0;j<param.Ny;j++)
-			{
-		    		if (2*j<param.Ny)
-		        		JJ = j;
-		    		else
-		        		JJ = param.Ny-j;
-		    		k2 = 2*M_PI*JJ/param.Ly;
-		                
-			        double fac = -1.0*(k1*k1 + k2*k2)*param.Nx*param.Ny;
-				size_t curr = j + param.Ny * i;
-			        if (fabs(fac) < 1e-14)
-		        	{
-		            		out.get()[curr][0] = 0.0;
-		            		out.get()[curr][1] = 0.0;
-		        	}
-		        	else
-		        	{
-		            		out.get()[curr][0] /= fac;
-		            		out.get()[curr][1] /= fac;
-		        	}                
-			}
-		}
-*/
 
 		fftw_execute_dft_c2r(backward, out.get(), phi);
 	}
@@ -270,7 +236,7 @@ namespace dim2
 		// recompute the plans. This can take some time.
 		param = new_param;
 
-		out.reset ( reinterpret_cast<fftw_complex*>(fftw_malloc(sizeof(fftw_complex)*param.Nx*param.Ny)));
+		out.reset ( reinterpret_cast<fftw_complex*>(fftw_malloc(sizeof(fftw_complex)*param.Nx*(param.Ny/2 + 1))));
 
 		if ( out == nullptr ) throw std::bad_alloc {};
 
@@ -287,7 +253,7 @@ namespace dim2
 	// 2d-Definition for real = float.
 
 	poisson<float>::poisson( const config_t<float> &param )
-		: out   { reinterpret_cast<fftwf_complex*>(fftwf_malloc(sizeof(fftwf_complex)*param.Nx*param.Ny)), 
+		: out   { reinterpret_cast<fftwf_complex*>(fftwf_malloc(sizeof(fftwf_complex)*param.Nx*(param.Ny/2 + 1))), 
 			fftwf_free },
 		param { param }
 	{
@@ -309,6 +275,7 @@ namespace dim2
 	{
 		fftwf_execute_dft_r2c(forward, rho, out.get());
 
+		int Nyh = param.Ny/2 + 1;
 		int II,JJ;
 		float k1,k2;
 		for (int i=0;i<param.Nx;i++)
@@ -319,16 +286,12 @@ namespace dim2
 				II = param.Nx-i;
 			k1 = 2*M_PI*II/param.Lx;
 		        
-			for (int j=0;j<param.Ny;j++)
+			for (int j=0;j<Nyh;j++)
 			{
-		    		if (2*j<param.Ny)
-		        		JJ = j;
-		    		else
-		        		JJ = param.Ny-j;
-		    		k2 = 2*M_PI*JJ/param.Ly;
+		    		k2 = 2*M_PI*j/param.Ly;
 		                
 			        float fac = -1.0*(k1*k1 + k2*k2)*param.Nx*param.Ny;
-				size_t curr = j + param.Ny * i;
+				size_t curr = j + Nyh * i;
 			        if (fabs(fac) < 1e-14)
 		        	{
 		            		out.get()[curr][0] = 0.0;
@@ -352,7 +315,7 @@ namespace dim2
 		// recompute the plans. This can take some time.
 		param = new_param;
 
-		out.reset ( reinterpret_cast<fftwf_complex*>(fftwf_malloc(sizeof(fftwf_complex)*param.Nx*param.Ny)));
+		out.reset ( reinterpret_cast<fftwf_complex*>(fftwf_malloc(sizeof(fftwf_complex)*param.Nx*(param.Ny/2 + 1))));
 
 		if ( out == nullptr ) throw std::bad_alloc {};
 
