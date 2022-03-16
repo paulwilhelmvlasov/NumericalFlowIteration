@@ -328,33 +328,34 @@ namespace dim2
 	}
 }
 
-/*
-
 namespace dim3
 {
 
 	// 3d-Definition for real = double.
 	poisson<double>::poisson( const config_t<double> &param )
-		: param { param }
+		: out { reinterpret_cast<fftw_complex*>(fftw_malloc(sizeof(fftw_complex)
+			*param.Nx*param.Ny*(param.Nz/2 + 1))), 
+			fftw_free },
+		  param { param }
 	{
 		// Note: We do not reuse the out array but instead pass arrays everytime the 
 		// solve method is called. These arrays have to have the same shape as the initial
 		// in array.
-		out = (fftw_complex*)fftw_malloc(sizeof(fftw_complex) * param.Nx * param.Ny * param.Nz );
-		double *in = (double *) fftw_malloc(sizeof(double) * param.Nx * param.Ny * param.Nz );
+		if ( out == nullptr ) throw std::bad_alloc {};
 
-		forward = fftw_plan_dft_r2c_3d(param.Nx,param.Ny,param.Nz,in,out,FFTW_MEASURE);
-		backward = fftw_plan_dft_c2r_3d(param.Nx,param.Ny,param.Nz,out,in,FFTW_MEASURE);
+		std::unique_ptr<double, decltype(fftw_free)* > in {
+                    reinterpret_cast<double*>(fftw_malloc(sizeof(double)*param.Nx*param.Ny*param.Nz)), fftw_free };
+		if ( in == nullptr ) throw std::bad_alloc {};
 
-		fftw_free(in);
+		forward = fftw_plan_dft_r2c_3d(param.Nx,param.Ny,param.Nz,in.get(),out.get(),FFTW_MEASURE);
+		backward = fftw_plan_dft_c2r_3d(param.Nx,param.Ny,param.Nz,out.get(),in.get(),FFTW_MEASURE);
 	}
-
-	poisson<double>::~poisson() { fftw_free(out); }
 
 	void poisson<double>::solve( double *rho, double *phi )
 	{
-		fftw_execute(forward, rho, out);
+		fftw_execute_dft_r2c(forward, rho, out.get());
 
+		int Nzh = param.Nz/2 + 1;
 		int II,JJ;
 		double k1,k2,k3;
 		for (int i=0;i<param.Nx;i++)
@@ -373,26 +374,26 @@ namespace dim3
 		        		JJ = param.Ny-j;
 		    		k2 = 2*M_PI*JJ/param.Ly;
 		                
-				for (int k=0;k<param.Nz;k++)
+				for (int k=0;k<Nzh;k++)
 				{
 					k3 = 2*M_PI*k/param.Lz;
 					double fac = -1.0*(k1*k1 + k2*k2 + k3*k3)*param.Nx*param.Ny*param.Nz;
-					size_t curr = k + Nz * (j + param.Ny * i);
+					size_t curr = k + Nzh * (j + param.Ny * i);
 					if (fabs(fac) < 1e-14)
 					{
-				    		out[curr][0] = 0.0;
-				    		out[curr][1] = 0.0;
+				    		out.get()[curr][0] = 0.0;
+				    		out.get()[curr][1] = 0.0;
 					}
 					else
 					{
-				    		out[curr][0] /= fac;
-				    		out[curr][1] /= fac;
+				    		out.get()[curr][0] /= fac;
+				    		out.get()[curr][1] /= fac;
 					}                
 				}
 			}
 		}
 
-		fftw_execute(backward, out, phi);
+		fftw_execute_dft_c2r(backward, out.get(), phi);
 	}
 
 	void poisson<double>::conf( const config_t<double> &new_param )
@@ -401,37 +402,46 @@ namespace dim3
 		// recompute the plans. This can take some time.
 		param = new_param;
 
-		double *in = (double *) fftw_malloc(sizeof(double) * param.Nx * param.Ny * param.Nz);
+		out.reset ( reinterpret_cast<fftw_complex*>(fftw_malloc(sizeof(fftw_complex)
+				*param.Nx*param.Ny*(param.Nz/2 + 1))));
 
-		forward = fftw_plan_dft_r2c_3d(param.Nx,param.Ny,param.Nz,in,out,FFTW_MEASURE);
-		backward = fftw_plan_dft_c2r_3d(param.Nx,param.Ny,param.Nz,out,in,FFTW_MEASURE);
+		if ( out == nullptr ) throw std::bad_alloc {};
 
-		fftw_free(in);
+		std::unique_ptr<double, decltype(fftw_free)* > in {
+                    reinterpret_cast<double*>(fftw_malloc(sizeof(double)*param.Nx*param.Ny*param.Nz)), fftw_free };
+		if ( in == nullptr ) throw std::bad_alloc {};
+
+
+		forward = fftw_plan_dft_r2c_3d(param.Nx,param.Ny,param.Nz,in.get(),out.get(),FFTW_MEASURE);
+		backward = fftw_plan_dft_c2r_3d(param.Nx,param.Ny,param.Nz,out.get(),in.get(),FFTW_MEASURE);
 	}
 
 
 	// 3d-Definition for real = float.
 	poisson<float>::poisson( const config_t<float> &param )
-		: param { param }
+		: out { reinterpret_cast<fftwf_complex*>(fftwf_malloc(sizeof(fftwf_complex)
+			*param.Nx*param.Ny*(param.Nz/2 + 1))), 
+			fftwf_free },
+		  param { param }
 	{
 		// Note: We do not reuse the out array but instead pass arrays everytime the 
 		// solve method is called. These arrays have to have the same shape as the initial
 		// in array.
-		out = (fftwf_complex*)fftwf_malloc(sizeof(fftwf_complex) * param.Nx * param.Ny * param.Nz );
-		float *in = (float *) fftwf_malloc(sizeof(float) * param.Nx * param.Ny * param.Nz );
+		if ( out == nullptr ) throw std::bad_alloc {};
 
-		forward = fftwf_plan_dft_r2c_3d(param.Nx,param.Ny,param.Nz,in,out,FFTW_MEASURE);
-		backward = fftwf_plan_dft_c2r_3d(param.Nx,param.Ny,param.Nz,out,in,FFTW_MEASURE);
+		std::unique_ptr<float, decltype(fftwf_free)* > in {
+                    reinterpret_cast<float*>(fftwf_malloc(sizeof(float)*param.Nx*param.Ny*param.Nz)), fftwf_free };
+		if ( in == nullptr ) throw std::bad_alloc {};
 
-		fftwf_free(in);
+		forward = fftwf_plan_dft_r2c_3d(param.Nx,param.Ny,param.Nz,in.get(),out.get(),FFTW_MEASURE);
+		backward = fftwf_plan_dft_c2r_3d(param.Nx,param.Ny,param.Nz,out.get(),in.get(),FFTW_MEASURE);
 	}
-
-	poisson<float>::~poisson() { fftwf_free(out); }
 
 	void poisson<float>::solve( float *rho, float *phi )
 	{
-		fftwf_execute(forward, rho, out);
+		fftwf_execute_dft_r2c(forward, rho, out.get());
 
+		int Nzh = param.Nz/2 + 1;
 		int II,JJ;
 		float k1,k2,k3;
 		for (int i=0;i<param.Nx;i++)
@@ -450,26 +460,26 @@ namespace dim3
 		        		JJ = param.Ny-j;
 		    		k2 = 2*M_PI*JJ/param.Ly;
 		                
-				for (int k=0;k<param.Nz;k++)
+				for (int k=0;k<Nzh;k++)
 				{
 					k3 = 2*M_PI*k/param.Lz;
 					float fac = -1.0*(k1*k1 + k2*k2 + k3*k3)*param.Nx*param.Ny*param.Nz;
-					size_t curr = k + Nz * (j + param.Ny * i);
+					size_t curr = k + Nzh * (j + param.Ny * i);
 					if (fabs(fac) < 1e-14)
 					{
-				    		out[curr][0] = 0.0;
-				    		out[curr][1] = 0.0;
+				    		out.get()[curr][0] = 0.0;
+				    		out.get()[curr][1] = 0.0;
 					}
 					else
 					{
-				    		out[curr][0] /= fac;
-				    		out[curr][1] /= fac;
+				    		out.get()[curr][0] /= fac;
+				    		out.get()[curr][1] /= fac;
 					}                
 				}
 			}
 		}
 
-		fftwf_execute(backward, out, phi);
+		fftwf_execute_dft_c2r(backward, out.get(), phi);
 	}
 
 	void poisson<float>::conf( const config_t<float> &new_param )
@@ -478,16 +488,21 @@ namespace dim3
 		// recompute the plans. This can take some time.
 		param = new_param;
 
-		float *in = (float *) fftwf_malloc(sizeof(float) * param.Nx * param.Ny * param.Nz );
-		
-		// Note: Upper-case FFTW remains the same even for float (or long double).
-		forward = fftwf_plan_dft_r2c_3d(param.Nx,param.Ny,param.Nz,in,out,FFTW_MEASURE); 
-		backward = fftwf_plan_dft_c2r_3d(param.Nx,param.Ny,param.Nz,out,in,FFTW_MEASURE);
+		out.reset ( reinterpret_cast<fftwf_complex*>(fftwf_malloc(sizeof(fftwf_complex)
+				*param.Nx*param.Ny*(param.Nz/2 + 1))));
 
-		fftwf_free(in);
+		if ( out == nullptr ) throw std::bad_alloc {};
+
+		std::unique_ptr<float, decltype(fftwf_free)* > in {
+                    reinterpret_cast<float*>(fftwf_malloc(sizeof(float)*param.Nx*param.Ny*param.Nz)), fftwf_free };
+		if ( in == nullptr ) throw std::bad_alloc {};
+
+
+		forward = fftwf_plan_dft_r2c_3d(param.Nx,param.Ny,param.Nz,in.get(),out.get(),FFTW_MEASURE);
+		backward = fftwf_plan_dft_c2r_3d(param.Nx,param.Ny,param.Nz,out.get(),in.get(),FFTW_MEASURE);
 	}
-*/
 
+}
 }
 
 

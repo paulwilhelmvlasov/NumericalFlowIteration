@@ -39,7 +39,7 @@ struct config_t
 	real Ly = L1y - L0y; 
 	real Lz = L1z - L0z; 
 
-	size_t Nx = 100;
+	size_t Nx = 1000;
 	size_t Ny = Nx;
 	size_t Nz = Nx;
 

@@ -26,19 +26,27 @@
 
 namespace test
 {
-	double rho1d(double x)
+namespace dim2
+{
+	double example1(double x, double y)
 	{
-		return std::cos(x);
-	}
-
-	double rho2d(double x, double y)
-	{	
-
 		return std::exp( -10.0 * ( x*x + y*y ) ) 
 		- 0.3141543995431308468307567265064296442806759455912026276984236670508030703124557251542724156613499484
 		/ 4.0;
+	}
 
-//		return std::sin(x)
+	double example2(double x, double y)
+	{
+		return std::exp( -10.0 * ( 2*x*x + 4*x*y + 5*y*y ) ) - 0.128255 / 4.0;
+	}
+}
+	double rho(double x)
+	{
+		return std::cos(x);
+	}
+	double rho2d(double x, double y)
+	{	
+		return dim2::example2(x,y);		
 	}
 }
 

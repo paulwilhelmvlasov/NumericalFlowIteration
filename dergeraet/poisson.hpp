@@ -146,9 +146,6 @@ namespace dim3
 		poisson() = delete;
 		poisson(const config_t<double> &param );
 
-		~poisson();
-
-
 		config_t<double> conf() { return param; }
 		void     conf( const config_t<double> &new_param );
 
@@ -157,7 +154,7 @@ namespace dim3
 	private:
 		config_t<double> param;
 
-		fftw_complex *out;
+		std::unique_ptr<fftw_complex, decltype(fftw_free)*> out;
 
 		fftw_plan forward;
 		fftw_plan backward;
@@ -171,9 +168,6 @@ namespace dim3
 		poisson() = delete;
 		poisson(const config_t<float> &param );
 
-		~poisson();
-
-
 		config_t<float> conf() { return param; }
 		void     conf( const config_t<float> &new_param );
 
@@ -182,7 +176,7 @@ namespace dim3
 	private:
 		config_t<float> param;
 
-		fftwf_complex *out;
+		std::unique_ptr<fftwf_complex, decltype(fftwf_free)*> out;
 
 		fftwf_plan forward;
 		fftwf_plan backward;
