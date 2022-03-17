@@ -1,5 +1,5 @@
 lib_LTLIBRARIES = libdergeraet.la
 
 libdergeraet_la_SOURCES = poisson.cpp lapack.cpp blas.cpp
-libdergeraet_la_LDFLAGS = -version-info 0:0:0
+libdergeraet_la_LDFLAGS = -version-info 0:0:0 -lopenblas -lfftw3 -lfftw3f
 

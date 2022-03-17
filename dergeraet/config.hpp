@@ -57,17 +57,17 @@ struct config_t
 	real L1y = 2 * Pi; 
 	real L1z = 2 * Pi; 
 
-	real Lx = L1x - L0x; 
-	real Ly = L1y - L0y; 
-	real Lz = L1z - L0z; 
+	real Lx = L1x - L0x; real Lx_inv = real(1) / Lx;
+	real Ly = L1y - L0y; real Ly_inv = real(1) / Ly;
+	real Lz = L1z - L0z; real Lz_inv = real(1) / Lz;
 
 	size_t Nx = 21;
 	size_t Ny = 21;
 	size_t Nz = 21;
 
-	real dx = Lx / Nx;
-	real dy = Ly / Ny;
-	real dz = Lz / Nz;
+	real dx = Lx / Nx; real dx_inv = real(1) / dx;
+	real dy = Ly / Ny; real dy_inv = real(1) / dy;
+    real dz = Lz / Nz; real dz_inv = real(1) / dz;
 };
 
 }
