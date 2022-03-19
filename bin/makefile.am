@@ -1,7 +1,7 @@
 noinst_PROGRAMS = test_poisson test_gmres test_fields
 
 test_poisson_SOURCES = test_poisson.cpp
-test_poisson_LDADD   = $(top_builddir)/dergeraet/libdergeraet.la -lfftw3 -lfftw3f 
+test_poisson_LDADD   = $(top_builddir)/dergeraet/libdergeraet.la
 
 test_gmres_SOURCES = test_gmres.cpp
 test_gmres_LDADD   = $(top_builddir)/dergeraet/libdergeraet.la

@@ -20,7 +20,6 @@
 #define DERGERAET_POISSON_HPP
 
 #include <fftw3.h>
-#include <memory>
 
 #include <dergeraet/config.hpp>
 
@@ -36,22 +35,25 @@ namespace dim1
 	class poisson<double>
 	{
 	public:
+        const size_t alignment { 64 };
+
 		poisson() = delete;
+        poisson( const poisson  &rhs ) = delete;
+        poisson(       poisson &&rhs ) = delete;
+        poisson& operator=( const poisson  &rhs ) = delete;
+        poisson& operator=(       poisson &&rhs ) = delete;
 		poisson(const config_t<double> &param );
+        ~poisson();
 
+		config_t<double> conf() const noexcept { return param; }
+		void             conf( const config_t<double> &new_param );
 
-		config_t<double> conf() { return param; }
-		void     conf( const config_t<double> &new_param );
+		void solve( double *data ) const noexcept;
 
-		void solve( double *rho, double *phi );
 
 	private:
 		config_t<double> param;
-
-		std::unique_ptr<fftw_complex, decltype(fftw_free)*> out;
-
-		fftw_plan forward;
-		fftw_plan backward;
+        fftw_plan plan;
 	};
 
 	// Declaration for real = float.
@@ -59,30 +61,30 @@ namespace dim1
 	class poisson<float>
 	{
 	public:
+        size_t alignment { 64 };
+
 		poisson() = delete;
-		poisson(const config_t<float> &param );
+        poisson( const poisson  &rhs ) = delete;
+        poisson(       poisson &&rhs ) = delete;
+        poisson& operator=( const poisson  &rhs ) = delete;
+        poisson& operator=(       poisson &&rhs ) = delete;
+		poisson( const config_t<float> &param );
+        ~poisson();
 
-		config_t<float> conf() { return param; }
-		void     conf( const config_t<float> &new_param );
+		config_t<float> conf() const noexcept { return param; }
+		void            conf( const config_t<float> &new_param );
 
-		void solve( float *rho, float *phi );
+		void solve( float *data ) const noexcept;
 
 	private:
 		config_t<float> param;
-
-		std::unique_ptr<fftwf_complex, decltype(fftwf_free)*> out;
-
-		fftwf_plan forward;
-		fftwf_plan backward;
+		fftwf_plan plan;
 	};
-
 
 }
 
-/************************************************************************************************/
 namespace dim2
 {
-
 	template <typename real> class poisson;
 
 	// Defintion for real = double.
@@ -90,21 +92,25 @@ namespace dim2
 	class poisson<double>
 	{
 	public:
+        const size_t alignment { 64 };
+
 		poisson() = delete;
+        poisson( const poisson  &rhs ) = delete;
+        poisson(       poisson &&rhs ) = delete;
+        poisson& operator=( const poisson  &rhs ) = delete;
+        poisson& operator=(       poisson &&rhs ) = delete;
 		poisson(const config_t<double> &param );
+        ~poisson();
 
-		config_t<double> conf() { return param; }
-		void     conf( const config_t<double> &new_param );
+		config_t<double> conf() const noexcept { return param; }
+		void             conf( const config_t<double> &new_param );
 
-		void solve( double *rho, double *phi );
+		void solve( double *data ) const noexcept;
+
 
 	private:
 		config_t<double> param;
-
-		std::unique_ptr<fftw_complex, decltype(fftw_free)*> out;
-
-		fftw_plan forward;
-		fftw_plan backward;
+        fftw_plan plan;
 	};
 
 	// Declaration for real = float.
@@ -112,30 +118,30 @@ namespace dim2
 	class poisson<float>
 	{
 	public:
+        size_t alignment { 64 };
+
 		poisson() = delete;
-		poisson(const config_t<float> &param );
+        poisson( const poisson  &rhs ) = delete;
+        poisson(       poisson &&rhs ) = delete;
+        poisson& operator=( const poisson  &rhs ) = delete;
+        poisson& operator=(       poisson &&rhs ) = delete;
+		poisson( const config_t<float> &param );
+        ~poisson();
 
-		config_t<float> conf() { return param; }
-		void     conf( const config_t<float> &new_param );
+		config_t<float> conf() const noexcept { return param; }
+		void            conf( const config_t<float> &new_param );
 
-		void solve( float *rho, float *phi );
+		void solve( float *data ) const noexcept;
 
 	private:
 		config_t<float> param;
-
-		std::unique_ptr<fftwf_complex, decltype(fftwf_free)*> out;
-
-		fftwf_plan forward;
-		fftwf_plan backward;
+		fftwf_plan plan;
 	};
-
 
 }
 
-/************************************************************************************************/
 namespace dim3
 {
-
 	template <typename real> class poisson;
 
 	// Defintion for real = double.
@@ -143,21 +149,25 @@ namespace dim3
 	class poisson<double>
 	{
 	public:
+        const size_t alignment { 64 };
+
 		poisson() = delete;
+        poisson( const poisson  &rhs ) = delete;
+        poisson(       poisson &&rhs ) = delete;
+        poisson& operator=( const poisson  &rhs ) = delete;
+        poisson& operator=(       poisson &&rhs ) = delete;
 		poisson(const config_t<double> &param );
+        ~poisson();
 
-		config_t<double> conf() { return param; }
-		void     conf( const config_t<double> &new_param );
+		config_t<double> conf() const noexcept { return param; }
+		void             conf( const config_t<double> &new_param );
 
-		void solve( double *rho, double *phi );
+		void solve( double *data ) const noexcept;
+
 
 	private:
 		config_t<double> param;
-
-		std::unique_ptr<fftw_complex, decltype(fftw_free)*> out;
-
-		fftw_plan forward;
-		fftw_plan backward;
+        fftw_plan plan;
 	};
 
 	// Declaration for real = float.
@@ -165,26 +175,27 @@ namespace dim3
 	class poisson<float>
 	{
 	public:
+        size_t alignment { 64 };
+
 		poisson() = delete;
-		poisson(const config_t<float> &param );
+        poisson( const poisson  &rhs ) = delete;
+        poisson(       poisson &&rhs ) = delete;
+        poisson& operator=( const poisson  &rhs ) = delete;
+        poisson& operator=(       poisson &&rhs ) = delete;
+		poisson( const config_t<float> &param );
+        ~poisson();
 
-		config_t<float> conf() { return param; }
-		void     conf( const config_t<float> &new_param );
+		config_t<float> conf() const noexcept { return param; }
+		void            conf( const config_t<float> &new_param );
 
-		void solve( float *rho, float *phi );
+		void solve( float *data ) const noexcept;
 
 	private:
 		config_t<float> param;
-
-		std::unique_ptr<fftwf_complex, decltype(fftwf_free)*> out;
-
-		fftwf_plan forward;
-		fftwf_plan backward;
+		fftwf_plan plan;
 	};
 
-
 }
-
 
 }
 
