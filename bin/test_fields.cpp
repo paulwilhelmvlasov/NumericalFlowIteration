@@ -23,6 +23,7 @@
 #include <dergeraet/config.hpp>
 #include <dergeraet/random.hpp>
 #include <dergeraet/fields.hpp>
+#include <dergeraet/stopwatch.hpp>
 
 namespace dergeraet
 {
@@ -60,6 +61,7 @@ void test()
     real *coeffs = mem.get();
     real *values = coeffs + conf.Nx*conf.Ny*conf.Nz;
 
+    random_real<real> rand( 0, 2*3.1415926535 );
     for ( size_t l = 0; l < conf.Nx*conf.Ny*conf.Nz; ++l )
     {
         size_t k   = l / ( conf.Nx*conf.Ny );
@@ -71,7 +73,10 @@ void test()
         coeffs[ l ] = 0;
     }
 
+    stopwatch<real> clock;
     dim3::interpolate<real,4>( coeffs, values, conf ); 
+    real elapsed = clock.elapsed();
+    std::cout << "Time for solving system: " << elapsed << ".\n"; 
 
     real sum = 0, err = 0;
     for ( size_t l = 0; l < conf.Nx*conf.Ny*conf.Nz; ++l )
@@ -88,7 +93,6 @@ void test()
               << "Relative l²-Error: " << err/sum << ".\n";
 
     real max_err = 0;
-    random_real<real> rand( 0, 2*3.1415926535 );
     for ( size_t i = 0; i < 4096; ++i )
     {
         real x = rand(), y = rand(), z = rand();

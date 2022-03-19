@@ -8,5 +8,5 @@ test_gmres_LDADD   = $(top_builddir)/dergeraet/libdergeraet.la
 
 test_fields_SOURCES = test_fields.cpp
 test_fields_LDADD   = $(top_builddir)/dergeraet/libdergeraet.la
-test_fields_CXXFLAGS = -fopenmp
+test_fields_CXXFLAGS = -fopenmp -O3 -mavx
 

@@ -19,6 +19,8 @@
 #ifndef DERGERAET_FIELDS_HPP
 #define DERGERAET_FIELDS_HPP
 
+#include <limits>
+
 #include <dergeraet/gmres.hpp>
 #include <dergeraet/config.hpp>
 #include <dergeraet/splines.hpp>
@@ -33,7 +35,6 @@ template <typename real, size_t order>
 real eval( real x, const real *coeffs, const config_t<real> &config ) noexcept
 {
     using std::floor;
-    auto div_ceil = []( size_t a, size_t b ) noexcept { return a/b + (a%b!=0); };
 
     // Get "periodic position" in box at origin.
     x = x - config.Lx * floor( x*config.Lx_inv ); 
@@ -41,18 +42,22 @@ real eval( real x, const real *coeffs, const config_t<real> &config ) noexcept
     // Knot number
     real x_knot = floor( x*config.dx_inv ); 
 
-    // Index of lowest node required for evaluating the spline might be negative.
-    // The addition of a multiple of config.nx ensures that we stay positive.
-    size_t ii_offset = config.Nx * div_ceil(order-1,config.Nx) + 1 - order;
-    size_t ii = static_cast<size_t>(x_knot) + ii_offset;
+    size_t ii = static_cast<size_t>(x_knot);
 
-    real c[ order ];
-    for ( size_t i = 0; i < order; ++i )
-        c[ i ] = coeffs[ ( (ii+i) % config.Nx ) ];
-
-    // Convert to reference coordinates.
+    // Convert x to reference coordinates.
     x = x*config.dx_inv - x_knot;
-    return splines1d::eval<real,order>( x, c );
+
+    if ( ii + order < config.Nx )
+    {
+        return splines3d::eval<real,order>( x, coeffs + ii );
+    }
+    else
+    {
+        real c[ order ];
+        for ( size_t i = 0; i < order; ++i )
+            c[ i ] = coeffs[ (ii+i) % config.Nx  ];
+        return splines1d::eval<real,order>( x, c );
+    }
 }
 
 template <typename real, size_t order>
@@ -61,6 +66,12 @@ void interpolate( real *coeffs, const real *values, const config_t<real> &config
     struct mat_t
     {
         const config_t<real> &config;
+        real  N[ order ];
+
+        mat_t( const config_t<real> &conf ): config { conf }
+        {
+            splines1d::N<real,order>(0,N);
+        }
 
         void operator()( const real *in,  size_t stride_in,
                                real *out, size_t stride_out ) const
@@ -68,9 +79,22 @@ void interpolate( real *coeffs, const real *values, const config_t<real> &config
             if ( stride_in != 1 || stride_out != 1 )
                 throw std::runtime_error { "dergeraet::fields::interpolate: Expected stride 1." };
 
-            #pragma omp parallel for
+            #pragma omp parallel for 
             for ( size_t i = 0; i < config.Nx; ++i )
-                out[i] = eval<real,order>( i*config.dx, in, config );
+            {
+                real result = 0;
+                if ( i + order < config.Nx )
+                {
+                    for ( size_t ii = 0; ii < order; ++ii )
+                        result += N[ii] * in[ i + ii ];
+                }
+                else
+                {
+                    for ( size_t ii = 0; ii < order; ++ii )
+                        result += N[ii]*in[ (i+ii) % config.Nx ];
+                }
+                out[ i ] = result;
+            }
         }
     };
 
@@ -88,7 +112,6 @@ template <typename real, size_t order>
 real eval( real x, real y, const real *coeffs, const config_t<real> &config )
 {
     using std::floor;
-    auto div_ceil = []( size_t a, size_t b ) noexcept { return a/b + (a%b!=0); };
 
     // Get "periodic position" in box at origin.
     x = x - config.Lx * floor( x*config.Lx_inv ); 
@@ -98,24 +121,27 @@ real eval( real x, real y, const real *coeffs, const config_t<real> &config )
     real x_knot = floor( x*config.dx_inv ); 
     real y_knot = floor( y*config.dy_inv ); 
 
-    // Index of lowest node required for evaluating the spline might be negative.
-    // The addition of a multiple of config.nx ensures that we stay positive.
-    size_t ii_offset = config.Nx * div_ceil(order-1,config.Nx) + 1 - order;
-    size_t jj_offset = config.Ny * div_ceil(order-1,config.Ny) + 1 - order;
-    
-    size_t ii = static_cast<size_t>(x_knot) + ii_offset;
-    size_t jj = static_cast<size_t>(y_knot) + jj_offset;
-
-    real c[ order*order ];
-    for ( size_t j = 0; j < order; ++j )
-    for ( size_t i = 0; i < order; ++i )
-        c[ j*order + i ] = coeffs[ ( (jj+j) % config.Ny )*config.Nx +
-                                   ( (ii+i) % config.Nx )  ];
+    size_t ii = static_cast<size_t>(x_knot);
+    size_t jj = static_cast<size_t>(y_knot);
 
     // Convert x to reference coordinates.
     x = x*config.dx_inv - x_knot;
     y = y*config.dy_inv - y_knot;
-    return splines2d::eval<real,order>( x, y, c, order, 1 );
+
+    if ( ii + order < config.Nx && jj + order < config.Ny )
+    {
+        coeffs += jj*config.Nx + ii;
+        return splines2d::eval<real,order>( x, y, coeffs, config.Nx, 1 );
+    }
+    else
+    {
+        real c[ order*order ];
+        for ( size_t j = 0; j < order; ++j )
+        for ( size_t i = 0; i < order; ++i )
+            c[ j*order + i ] = coeffs[ ( (jj+j) % config.Ny )*config.Nx +
+                                       ( (ii+i) % config.Nx ) ];
+        return splines2d::eval<real,order>( x, y, c, order, 1 );
+    }
 }
 
 template <typename real, size_t order>
@@ -124,6 +150,12 @@ void interpolate( real *coeffs, const real *values, const config_t<real> &config
     struct mat_t
     {
         const config_t<real> &config;
+        real  N[ order ];
+
+        mat_t( const config_t<real> &conf ): config { conf }
+        {
+            splines1d::N<real,order>(0,N);
+        }
 
         void operator()( const real *in,  size_t stride_in,
                                real *out, size_t stride_out ) const
@@ -131,15 +163,38 @@ void interpolate( real *coeffs, const real *values, const config_t<real> &config
             if ( stride_in != 1 || stride_out != 1 )
                 throw std::runtime_error { "dergeraet::fields::interpolate: Expected stride 1." };
 
-            #pragma omp parallel for
+            #pragma omp parallel for 
             for ( size_t l = 0; l < config.Nx*config.Ny; ++l )
             {
-                size_t j = l / config.Nx;
-                size_t i = l % config.Nx;
-                out[ l ] = eval<real,order>( i*config.dx, j*config.dy, in, config );
+                size_t j =  l / config.Nx;
+                size_t i =  l % config.Nx;
+
+                if ( i + order < config.Nx && j + order < config.Ny )
+                {
+                    const real *c = in + j*config.Nx + i;
+                    real result = 0;
+                    for ( size_t jj = 0; jj < order; ++jj )
+                    for ( size_t ii = 0; ii < order; ++ii )
+                    {
+                        result += N[jj]*N[ii]*c[ jj*config.Nx + ii ];
+                    }
+                    out[ l ] = result;
+                }
+                else
+                {
+                    real result = 0;
+                    for ( size_t jj = 0; jj < order; ++jj )
+                    for ( size_t ii = 0; ii < order; ++ii )
+                    {
+                        result += N[jj]*N[ii]*in[ ( (j+jj) % config.Ny )*config.Nx+
+                                                  ( (i+ii) % config.Nx ) ];
+                    }
+                    out[ l ] = result;
+                }
             }
         }
     };
+
 
     mat_t M { config };
 
@@ -157,7 +212,6 @@ template <typename real, size_t order>
 real eval( real x, real y, real z, const real *coeffs, const config_t<real> &config )
 {
     using std::floor;
-    auto div_ceil = []( size_t a, size_t b ) noexcept { return a/b + (a%b!=0); };
 
     // Get "periodic position" in box at origin.
     x = x - config.Lx * floor( x*config.Lx_inv ); 
@@ -169,29 +223,31 @@ real eval( real x, real y, real z, const real *coeffs, const config_t<real> &con
     real y_knot = floor( y*config.dy_inv ); 
     real z_knot = floor( z*config.dz_inv ); 
 
-    // Index of lowest node required for evaluating the spline might be negative.
-    // The addition of a multiple of config.nx ensures that we stay positive.
-    size_t ii_offset = config.Nx * div_ceil(order-1,config.Nx) + 1 - order;
-    size_t jj_offset = config.Ny * div_ceil(order-1,config.Ny) + 1 - order;
-    size_t kk_offset = config.Nz * div_ceil(order-1,config.Nz) + 1 - order;
-    
-    size_t ii = static_cast<size_t>(x_knot) + ii_offset;
-    size_t jj = static_cast<size_t>(y_knot) + jj_offset;
-    size_t kk = static_cast<size_t>(z_knot) + kk_offset;
-
-    real c[ order*order*order ];
-    for ( size_t k = 0; k < order; ++k )
-    for ( size_t j = 0; j < order; ++j )
-    for ( size_t i = 0; i < order; ++i )
-        c[ k*order*order + j*order + i ] = coeffs[ ( (kk+k) % config.Nz )*config.Nx*config.Ny + 
-                                                   ( (jj+j) % config.Ny )*config.Nx +
-                                                   ( (ii+i) % config.Nx ) ];
+    size_t ii = static_cast<size_t>(x_knot);
+    size_t jj = static_cast<size_t>(y_knot);
+    size_t kk = static_cast<size_t>(z_knot);
 
     // Convert x to reference coordinates.
     x = x*config.dx_inv - x_knot;
     y = y*config.dy_inv - y_knot;
     z = z*config.dz_inv - z_knot;
-    return splines3d::eval<real,order>( x, y, z, c, order*order, order, 1 );
+
+    if ( ii + order < config.Nx && jj + order < config.Ny && kk + order < config.Nz )
+    {
+        coeffs += kk*config.Ny*config.Nx + jj*config.Nx + ii;
+        return splines3d::eval<real,order>( x, y, z, coeffs, config.Nx*config.Ny, config.Nx, 1 );
+    }
+    else
+    {
+        real c[ order*order*order ];
+        for ( size_t k = 0; k < order; ++k )
+        for ( size_t j = 0; j < order; ++j )
+        for ( size_t i = 0; i < order; ++i )
+            c[ k*order*order + j*order + i ] = coeffs[ ( (kk+k) % config.Nz )*config.Nx*config.Ny + 
+                                                       ( (jj+j) % config.Ny )*config.Nx +
+                                                       ( (ii+i) % config.Nx ) ];
+        return splines3d::eval<real,order>( x, y, z, c, order*order, order, 1 );
+    }
 }
 
 template <typename real, size_t order>
@@ -200,6 +256,12 @@ void interpolate( real *coeffs, const real *values, const config_t<real> &config
     struct mat_t
     {
         const config_t<real> &config;
+        real  N[ order ];
+
+        mat_t( const config_t<real> &conf ): config { conf }
+        {
+            splines1d::N<real,order>(0,N);
+        }
 
         void operator()( const real *in,  size_t stride_in,
                                real *out, size_t stride_out ) const
@@ -207,14 +269,39 @@ void interpolate( real *coeffs, const real *values, const config_t<real> &config
             if ( stride_in != 1 || stride_out != 1 )
                 throw std::runtime_error { "dergeraet::fields::interpolate: Expected stride 1." };
 
-            #pragma omp parallel for
+            #pragma omp parallel for 
             for ( size_t l = 0; l < config.Nx*config.Ny*config.Nz; ++l )
             {
                 size_t k   = l / (config.Nx*config.Ny);
                 size_t tmp = l % (config.Nx*config.Ny);
                 size_t j =  tmp / config.Nx;
                 size_t i =  tmp % config.Nx;
-                out[ l ] = eval<real,order>( i*config.dx, j*config.dy, k*config.dz, in, config );
+
+                if ( i + order < config.Nx && j + order < config.Ny && k + order < config.Nz )
+                {
+                    const real *c = in + k*config.Ny*config.Nx + j*config.Nx + i;
+                    real result = 0;
+                    for ( size_t kk = 0; kk < order; ++kk )
+                    for ( size_t jj = 0; jj < order; ++jj )
+                    for ( size_t ii = 0; ii < order; ++ii )
+                    {
+                        result += N[kk]*N[jj]*N[ii]*c[ kk*config.Ny*config.Nx + jj*config.Nx + ii ];
+                    }
+                    out[ l ] = result;
+                }
+                else
+                {
+                    real result = 0;
+                    for ( size_t kk = 0; kk < order; ++kk )
+                    for ( size_t jj = 0; jj < order; ++jj )
+                    for ( size_t ii = 0; ii < order; ++ii )
+                    {
+                        result += N[kk]*N[jj]*N[ii]*in[ ( (k+kk) % config.Nz )*config.Ny*config.Nx + 
+                                                        ( (j+jj) % config.Ny )*config.Nx+
+                                                        ( (i+ii) % config.Nx ) ];
+                    }
+                    out[ l ] = result;
+                }
             }
         }
     };
@@ -222,6 +309,7 @@ void interpolate( real *coeffs, const real *values, const config_t<real> &config
     mat_t M { config };
 
     gmres_config<real> opt;
+    opt.target_residual = std::numeric_limits<real>::epsilon() * 128;
     gmres<real,mat_t>( config.Nx*config.Ny*config.Nz, coeffs, 1, values, 1, M, opt ); 
 }
 
