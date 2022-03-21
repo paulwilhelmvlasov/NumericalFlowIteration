@@ -123,7 +123,8 @@ real eval_ftilda( size_t n, real x, real y, real u, real v,
     const size_t stride_y = stride_x*(conf.Nx + order - 1);
     const size_t stride_t = stride_y*(conf.Ny + order - 1);
 
-    real Ex, Ey, *c;
+    real Ex, Ey;
+    const real *c;
 
     // We omit the initial half-step.
 
@@ -164,7 +165,8 @@ real eval_f( size_t n, real x, real y, real u, real v,
     const size_t stride_y = stride_x*(conf.Nx + order - 1);
     const size_t stride_t = stride_y*(conf.Ny + order - 1);
 
-    real Ex, Ey, *c;
+    real Ex, Ey;
+    const real *c;
 
     // Initial half-step.
     c  = coeffs + n*stride_t;

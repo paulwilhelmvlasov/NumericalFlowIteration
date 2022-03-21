@@ -198,7 +198,7 @@ void interpolate( real *coeffs, const real *values, const config_t<real> &config
 
     mat_t M { config };
 
-    gmres_config<real> opt; opt.max_iter = 500; opt.target_residual = 1e-12;
+    gmres_config<real> opt; opt.print_frequency = 0;
     gmres<real,mat_t>( config.Nx*config.Ny, tmp.get(), 1, values, 1, M, opt ); 
 
     for ( size_t j = 0; j < config.Ny + order - 1; ++j )
