@@ -66,7 +66,7 @@ namespace dim1
     {
         fftw_execute_r2r( plan, data, data );
 
-        const double fac_N = float(1) / double( param.Nx );
+        const double fac_N = double(1) / double( param.Nx );
         const double fac_x = (2*M_PI*param.Lx_inv) * (2*M_PI*param.Lx_inv);
         for ( size_t i = 1; i < param.Nx; i++ )
         {

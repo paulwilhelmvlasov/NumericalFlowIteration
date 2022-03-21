@@ -194,7 +194,7 @@ void gmres( size_t n,       real *x, size_t stride_x,
             v[i-1] = c*aa - s*bb;
             v[i  ] = s*aa + c*bb;
 
-            aa = w[i-1]; bb = w[i];
+            aa = w[i-1]; bb = 0;
             w[i-1] = c*aa - s*bb;
             w[i]   = s*aa + c*bb;
             abs_r = std::abs( w[i] );

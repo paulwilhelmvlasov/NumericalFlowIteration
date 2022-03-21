@@ -37,8 +37,8 @@ real f0( real x, real u ) noexcept
 
 	constexpr real alpha = 0.01;
 	constexpr real k     = 0.5;
-    //return 0.39894228040143267793994 * ( 1. + alpha*cos(k*x) ) * exp( -u*u/2. ) * u*u;
-    return 0.39894228040143267793994 * ( 1. + alpha*cos(k*x) ) * exp( -u*u/2 );
+    return 0.39894228040143267793994 * ( 1. + alpha*cos(k*x) ) * exp( -u*u/2. ) * u*u;
+    //return 0.39894228040143267793994 * ( 1. + alpha*cos(k*x) ) * exp( -u*u/2 );
 }
 
 
@@ -60,20 +60,20 @@ void do_test()
 
     config_t<real> conf;
     conf.Nx = 128;
-    conf.Nu = 2048; conf.u_max = 10;
-    conf.Nt = 1024;
+    conf.Nu = 1024*4; conf.u_max = 10;
+    conf.Nt = 100*16;
     
     conf.L0x = 0;
     conf.L1x = 4*M_PI;
     conf.Lx  = 4*M_PI;            conf.Lx_inv = 1 / conf.Lx;
     conf.dx  = conf.Lx / conf.Nx; conf.dx_inv = 1 / conf.dx;
 
-    conf.dt = 1./64.;
+    conf.dt = 1./16.;
 
     const size_t stride_x = 1;
     const size_t stride_t = conf.Nx + order - 1;
 
-    std::unique_ptr<real[]> coeffs { new real[ conf.Nt*stride_t ] };
+    std::unique_ptr<real[]> coeffs { new real[ conf.Nt*stride_t ] {} };
     std::unique_ptr<real,decltype(std::free)*> rho { reinterpret_cast<real*>(std::aligned_alloc(64,sizeof(real)*conf.Nx)), std::free };
     if ( rho == nullptr ) throw std::bad_alloc {};
 
@@ -81,7 +81,7 @@ void do_test()
 
     for ( size_t n = 0; n < conf.Nt; ++n )
     {
-        //#pragma omp parallel for
+        #pragma omp parallel for
         for ( size_t i = 0; i < conf.Nx; ++i )
         {
             rho.get()[ i ] = dim1::eval_rho<real,order>( n, i, coeffs.get(), conf );
@@ -90,22 +90,21 @@ void do_test()
         poiss.solve( rho.get() );
         dim1::interpolate<real,order>( coeffs.get() + n*stride_t, rho.get(), conf );
 
-        std::stringstream filename; filename << "E_" << n << ".txt";
-        std::ofstream of( filename.str() );
-        for ( size_t i = 0; i < conf.Nx; ++i )
-            //of << i*conf.dx << " " << dim1::eval<real,order,1>( i*conf.dx/10, coeffs.get() + n*stride_t, conf ) << std::endl;
-            of << i*conf.dx << " " << -dim1::eval<real,order,1>( i*conf.dx, coeffs.get() + n*stride_t, conf )*conf.dx_inv << std::endl;
-            //of << i*conf.dx << " " << dim1::eval<real,order,2>( i*conf.dx, coeffs.get() + n*stride_t, conf )*conf.dx_inv*conv.dx_inv << std::endl;
-        of << std::endl;
-        of.close();
-        
-
         real Emax = 0;
         for ( size_t i = 0; i < conf.Nx; ++i )
             Emax = max( Emax, abs( dim1::eval<real,order,1>( i*conf.dx, coeffs.get() + n*stride_t, conf ) ) ); 
         Emax *= conf.dx_inv;
+
+        std::stringstream filename; filename << "E" << n << ".txt";
+        std::ofstream file( filename.str() ); file << std::scientific << std::setprecision(8);
+        for ( size_t i = 0; i < conf.Nx; ++i )
+        {
+            real E = -dim1::eval<real,order,1>( i*conf.dx, coeffs.get() + n*stride_t, conf )*conf.dx_inv;
+            file << std::setw(20) << i*conf.dx << std::setw(20) << E << '\n';
+        }
+        file.close();
    
-        std::cout << std::setw(15) << n*conf.dt << std::setw(15) << Emax << std::endl; 
+        std::cout << std::setw(15) << n*conf.dt << std::setw(15) << std::setprecision(5) << std::scientific << Emax << std::endl; 
     }
 }
 

@@ -41,19 +41,19 @@ real eval_ftilda( size_t n, real x, real u,
 
     // We omit the initial half-step.
 
-    for ( ; n > 0; n-- )
+    while ( --n )
     {
         x  = x - conf.dt*u;
-        c  = coeffs + (n-1)*stride_t;
+        c  = coeffs + n*stride_t;
         Ex = -eval<real,order,1>(x,c,conf) * conf.dx_inv;
         u  = u + conf.dt*Ex;
     }
 
     // The final half-step.
-    // x -= conf.dt*u;
-    // c  = coeffs + n*stride_t;
-    // Ex = -eval<real,order,1>(x,c,conf) * conf.dx_inv;
-    // u += 0.5*conf.dt*Ex;
+    x -= conf.dt*u;
+    c  = coeffs + n*stride_t;
+    Ex = -eval<real,order,1>(x,c,conf) * conf.dx_inv;
+    u += 0.5*conf.dt*Ex;
 
     return f0(x,u);
 }
@@ -98,9 +98,10 @@ real eval_rho( size_t n, size_t i, const real *coeffs, const config_t<real> &con
     const real du = 2*conf.u_max / conf.Nu;
     const real u_min = -conf.u_max + 0.5*du;
 
-    real rho = 1;
+    real rho = 0;
     for ( size_t ii = 0; ii < conf.Nu; ++ii )
-        rho -= du*eval_ftilda<real,order>( n, x, u_min + ii*du, coeffs, conf );
+        rho += eval_ftilda<real,order>( n, x, u_min + ii*du, coeffs, conf );
+    rho = 1 - du*rho; 
 
     return rho;
 }
@@ -212,15 +213,16 @@ real eval_rho( size_t n, size_t i, size_t j, const real *coeffs, const config_t<
     const real u_min = -conf.u_max + 0.5*du;
     const real v_min = -conf.v_max + 0.5*dv;
 
-    real rho = 1;
+    real rho = 0;
     for ( size_t jj = 0; jj < conf.Nv; ++jj )
     for ( size_t ii = 0; ii < conf.Nu; ++ii )
     {
         real u = u_min + ii*du;
         real v = v_min + jj*dv;
 
-        rho -= du*dv*eval_ftilda<real,order>( n, x, y, u, v, coeffs, conf );
+        rho += eval_ftilda<real,order>( n, x, y, u, v, coeffs, conf );
     }
+    rho = 1 - du*dv*rho;
 
     return rho;
 }
@@ -352,7 +354,7 @@ real eval_rho( size_t n, size_t i, size_t j, size_t k, const real *coeffs, const
     const real v_min = -conf.v_max + 0.5*dv;
     const real w_min = -conf.w_max + 0.5*dw;
 
-    real rho = 1;
+    real rho = 0;
     for ( size_t kk = 0; kk < conf.Nw; ++kk )
     for ( size_t jj = 0; jj < conf.Nv; ++jj )
     for ( size_t ii = 0; ii < conf.Nu; ++ii )
@@ -361,8 +363,9 @@ real eval_rho( size_t n, size_t i, size_t j, size_t k, const real *coeffs, const
         real v = v_min + jj*dv;
         real w = w_min + kk*dw;
 
-        rho -= du*dv*dw*eval_ftilda<real,order>( n, x, y, z, u, v, w, coeffs, conf );
+        rho += eval_ftilda<real,order>( n, x, y, z, u, v, w, coeffs, conf );
     }
+    rho = 1 - du*dv*dw*rho;
     
     return rho;
 }
