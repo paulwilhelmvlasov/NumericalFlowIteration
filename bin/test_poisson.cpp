@@ -53,7 +53,7 @@ namespace dim3
 {
     double example1(double x, double y, double z)
     {   
-        return std::cos(2*z) + std::sin(8*y) + std::sin(42*x);
+        return std::cos(2*z) + std::sin(8*y) + std::cos(42*x);
     }
 }
     double rho(double x)
@@ -71,8 +71,21 @@ namespace dim3
 }
 
 
-int main(int argc, char **argv) {   
+int main()
+{   
     dergeraet::config_t<double> conf;
+
+    conf.Nx     = 84;
+    conf.dx     = conf.Lx / conf.Nx;
+    conf.dx_inv = 1 / conf.dx;
+
+    conf.Ny     = 128;
+    conf.dy     = conf.Ly / conf.Ny;
+    conf.dy_inv = 1 / conf.dy;
+
+    conf.Nz     = 128;
+    conf.dz     = conf.Lz / conf.Nz;
+    conf.dz_inv = 1 / conf.dz;
 
     dergeraet::stopwatch<double> clock;
     dergeraet::dim3::poisson<double> pois(conf);
@@ -135,7 +148,7 @@ int main(int argc, char **argv) {
         double y = conf.L0y + j * conf.dy;
         double z = conf.L0z + k * conf.dz;
         double approx = data[ i + j*conf.Nx + k*conf.Nx*conf.Ny ];
-        double exact  = 0.25*cos(2*z) + sin(8*y)/64 + sin(42*x)/(42*42);
+        double exact  = 0.25*cos(2*z) + sin(8*y)/64 + cos(42*x)/(42*42);
         double err = approx - exact;
         l1_err  += std::abs(err);
         l1_norm += std::abs(exact);

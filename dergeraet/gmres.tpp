@@ -207,8 +207,8 @@ void gmres( size_t n,       real *x, size_t stride_x,
 
         memcpy( qr + (i-1)*n, v, sizeof(real)*i );
 
-        if ( r     < config.target_residual &&  config.relative_residual ||
-             abs_r < config.target_residual && !config.relative_residual  )
+        if ( (r     < config.target_residual &&  config.relative_residual) ||
+             (abs_r < config.target_residual && !config.relative_residual)  )
         {
             if ( config.print_frequency )
             {

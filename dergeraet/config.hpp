@@ -27,6 +27,15 @@ namespace dergeraet
 template <typename real>
 struct config_t
 {
+	size_t Nx = 128;
+	size_t Ny = Nx;
+	size_t Nz = Nx;
+    size_t Nu = 1024;
+    size_t Nv = 1024;
+    size_t Nw = 1024;
+    size_t Nt = 2048;
+    real   dt = 1./16.;
+
 	real L0x = 0; 
 	real L0y = 0; 
 	real L0z = 0; 
@@ -39,13 +48,13 @@ struct config_t
 	real Ly = L1y - L0y; real Ly_inv = real(1) / Ly;
 	real Lz = L1z - L0z; real Lz_inv = real(1) / Lz;
 
-	size_t Nx = 128;
-	size_t Ny = Nx;
-	size_t Nz = Nx;
-
 	real dx = Lx / Nx; real dx_inv = real(1) / dx;
 	real dy = Ly / Ny; real dy_inv = real(1) / dy;
     real dz = Lz / Nz; real dz_inv = real(1) / dz;
+
+    real u_max = 10;
+    real v_max = 10;
+    real w_max = 10;
 };
 
 }

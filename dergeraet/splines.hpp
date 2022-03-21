@@ -69,8 +69,8 @@ real eval( real x, const real *coefficients, size_t stride = 1 ) noexcept
 {
     static_assert( order > 0, "Splines must have order greater than zero." );
     static_assert( order > derivative, "Too high derivative requested." );
-    constexpr int n { order };
-    constexpr int d { derivative };
+    constexpr size_t n { order };
+    constexpr size_t d { derivative };
 
     if ( d >= n ) return 0;
     if ( n == 1 ) return *coefficients;
@@ -81,13 +81,13 @@ real eval( real x, const real *coefficients, size_t stride = 1 ) noexcept
         c[j] = coefficients[ stride * j ];
 
     // Differentiate if necessary.
-    for ( int j = 1; j <= d; ++j )
-        for ( int i = n; i-- > j; )
+    for ( size_t j = 1; j <= d; ++j )
+        for ( size_t i = n; i-- > j; )
             c[i] = c[i] - c[i-1];
 
     // Evaluate using de Boor’s algorithm.
-    for ( int j = 1; j < n-d; ++j )
-        for ( int i = n-d; i-- > j; )
+    for ( size_t j = 1; j < n-d; ++j )
+        for ( size_t i = n-d; i-- > j; )
             c[d+i] = (x+n-d-1-i)*c[d+i] + (i-j+1-x)*c[d+i-1];
 
     constexpr real factor = real(1) / faculty<real>(order-derivative-1);
@@ -105,7 +105,7 @@ template <typename real, size_t order, size_t dx = 0, size_t dy = 0>
 real eval( real x, real y, const real *coefficients, size_t stride_y, size_t stride_x = 1 ) noexcept
 {
     static_assert( order > 0, "Splines must have order greater than zero." );
-    constexpr int n { order };
+    constexpr size_t n { order };
 
     if ( dx >= n ) return 0;
     if ( dy >= n ) return 0;
@@ -118,29 +118,7 @@ real eval( real x, real y, const real *coefficients, size_t stride_y, size_t str
     return splines1d::eval<real,order,dy>(y,c);
 }
 
-template <typename real, size_t order>
-void grad( real &x, real &y, const real *coefficients, size_t stride_y, size_t stride_x = 1 ) noexcept
-{
-    static_assert( order > 0, "Splines must have order greater than zero." );
-    constexpr int n { order };
-
-    if ( n  == 1 ) { x = y = 0; return; }
-
-    const real xx { x };
-    const real yy { y };
-
-    real c[ order ];
-    for ( size_t j = 0; j < order; ++j )
-        c[ j ] = splines1d::eval<real,order,1>(xx, coefficients + j*stride_y, stride_x );
-    x = splines1d::eval<real,order,0>(yy,c);
-
-    for ( size_t j = 0; j < order; ++j )
-        c[ j ] = splines1d::eval<real,order,0>(xx, coefficients + j*stride_y, stride_x );
-    y = splines1d::eval<real,order,1>(yy,c);
 }
-
-}
-
 
 namespace splines3d
 {
@@ -149,7 +127,7 @@ template <typename real, size_t order, size_t dx = 0, size_t dy = 0, size_t dz =
 real eval( real x, real y, real z, const real *coefficients, size_t stride_z, size_t stride_y, size_t stride_x = 1 ) noexcept
 {
     static_assert( order > 0, "Splines must have order greater than zero." );
-    constexpr int n { order };
+    constexpr size_t n { order };
 
     if ( dx >= n ) return 0;
     if ( dy >= n ) return 0;
@@ -158,33 +136,9 @@ real eval( real x, real y, real z, const real *coefficients, size_t stride_z, si
 
     real c[ order ];
     for ( size_t k = 0; k < order; ++k )
-        c[ k ] = splines2d::eval<real,order,dx,dy>(x,y,coefficients + k*stride_z, stride_y, stride_x );
+        c[ k ] = splines2d::eval<real,order,dx,dy>( x, y, coefficients + k*stride_z, stride_y, stride_x );
 
     return splines1d::eval<real,order,dz>(z,c);
-}
-
-template <typename real, size_t order>
-void grad( real &x, real &y, real &z, const real *coefficients, size_t stride_y, size_t stride_x = 1 ) noexcept
-{
-    static_assert( order > 0, "Splines must have order greater than zero." );
-    constexpr int n { order };
-
-    if ( n  == 1 ) { x = y = z = 0; return; }
-
-    const real xx { x };
-    const real yy { y };
-    const real zz { z };
-
-    real cx[ order ], cy[ order ], cz[ order ];
-    for ( size_t j = 0; j < order; ++j )
-    {
-        cx[ j ] = xx, cy[ j ] =  yy;
-        splines2d::grad<real,order>( cx[ j ], cy[ j ], coefficients + j*stride_y, stride_x );
-        cz[ j ] = splines2d::eval<real,order>( xx, yy, coefficients + j*stride_y, stride_x );
-    }
-    x = splines1d::eval<real,order,0>( zz, cx );
-    y = splines1d::eval<real,order,0>( zz, cy );
-    z = splines1d::eval<real,order,1>( zz, cz );
 }
 
 }

@@ -31,7 +31,7 @@ namespace dergeraet
 namespace dim1
 {
 
-template <typename real, size_t order>
+template <typename real, size_t order, size_t dx = 0>
 real eval( real x, const real *coeffs, const config_t<real> &config ) noexcept
 {
     using std::floor;
@@ -47,22 +47,17 @@ real eval( real x, const real *coeffs, const config_t<real> &config ) noexcept
     // Convert x to reference coordinates.
     x = x*config.dx_inv - x_knot;
 
-    if ( ii + order < config.Nx )
-    {
-        return splines3d::eval<real,order>( x, coeffs + ii );
-    }
-    else
-    {
-        real c[ order ];
-        for ( size_t i = 0; i < order; ++i )
-            c[ i ] = coeffs[ (ii+i) % config.Nx  ];
-        return splines1d::eval<real,order>( x, c );
-    }
+    return splines1d::eval<real,order,dx>( x, coeffs + ii );
 }
 
 template <typename real, size_t order>
 void interpolate( real *coeffs, const real *values, const config_t<real> &config )
 {
+    std::unique_ptr<real[]> tmp { new real[ config.Nx ] };
+
+    for ( size_t i = 0; i < config.Nx; ++i )
+        tmp[ i ] = coeffs[ i ];
+
     struct mat_t
     {
         const config_t<real> &config;
@@ -83,7 +78,7 @@ void interpolate( real *coeffs, const real *values, const config_t<real> &config
             for ( size_t i = 0; i < config.Nx; ++i )
             {
                 real result = 0;
-                if ( i + order < config.Nx )
+                if ( i + order <= config.Nx )
                 {
                     for ( size_t ii = 0; ii < order; ++ii )
                         result += N[ii] * in[ i + ii ];
@@ -99,8 +94,11 @@ void interpolate( real *coeffs, const real *values, const config_t<real> &config
     };
 
     mat_t M { config };
-    gmres_config<real> opt;
-    gmres<real,mat_t>( config.Nx, coeffs, 1, values, 1, M, opt ); 
+    gmres_config<real> opt; opt.print_frequency = 0; opt.max_iter = 64;
+    gmres<real,mat_t>( config.Nx, tmp.get(), 1, values, 1, M, opt ); 
+
+    for ( size_t i = 0; i < config.Nx + order - 1; ++i )
+        coeffs[ i ] = tmp[ i % config.Nx ];
 }
 
 }
@@ -108,7 +106,7 @@ void interpolate( real *coeffs, const real *values, const config_t<real> &config
 namespace dim2
 {
 
-template <typename real, size_t order>
+template <typename real, size_t order, size_t dx = 0, size_t dy = 0>
 real eval( real x, real y, const real *coeffs, const config_t<real> &config )
 {
     using std::floor;
@@ -128,25 +126,27 @@ real eval( real x, real y, const real *coeffs, const config_t<real> &config )
     x = x*config.dx_inv - x_knot;
     y = y*config.dy_inv - y_knot;
 
-    if ( ii + order < config.Nx && jj + order < config.Ny )
-    {
-        coeffs += jj*config.Nx + ii;
-        return splines2d::eval<real,order>( x, y, coeffs, config.Nx, 1 );
-    }
-    else
-    {
-        real c[ order*order ];
-        for ( size_t j = 0; j < order; ++j )
-        for ( size_t i = 0; i < order; ++i )
-            c[ j*order + i ] = coeffs[ ( (jj+j) % config.Ny )*config.Nx +
-                                       ( (ii+i) % config.Nx ) ];
-        return splines2d::eval<real,order>( x, y, c, order, 1 );
-    }
+    const size_t stride_x = 1;
+    const size_t stride_y = config.Nx + order - 1;
+    coeffs += jj*stride_y + ii;
+     
+    return splines2d::eval<real,order,dx,dy>( x, y, coeffs, stride_y, stride_x );
 }
 
 template <typename real, size_t order>
 void interpolate( real *coeffs, const real *values, const config_t<real> &config )
 {
+    std::unique_ptr<real[]> tmp { new real[ config.Nx * config.Ny ] };
+
+    size_t stride_x = 1;
+    size_t stride_y =  config.Nx + order - 1;
+
+    for ( size_t j = 0; j < config.Ny; ++j )
+    for ( size_t i = 0; i < config.Nx; ++i )
+    {
+        tmp [ j*config.Nx + i ] = coeffs[ j*stride_y + i*stride_x ];
+    }
+
     struct mat_t
     {
         const config_t<real> &config;
@@ -169,7 +169,7 @@ void interpolate( real *coeffs, const real *values, const config_t<real> &config
                 size_t j =  l / config.Nx;
                 size_t i =  l % config.Nx;
 
-                if ( i + order < config.Nx && j + order < config.Ny )
+                if ( i + order <= config.Nx && j + order <= config.Ny )
                 {
                     const real *c = in + j*config.Nx + i;
                     real result = 0;
@@ -199,7 +199,14 @@ void interpolate( real *coeffs, const real *values, const config_t<real> &config
     mat_t M { config };
 
     gmres_config<real> opt; opt.max_iter = 500; opt.target_residual = 1e-12;
-    gmres<real,mat_t>( config.Nx*config.Ny, coeffs, 1, values, 1, M, opt ); 
+    gmres<real,mat_t>( config.Nx*config.Ny, tmp.get(), 1, values, 1, M, opt ); 
+
+    for ( size_t j = 0; j < config.Ny + order - 1; ++j )
+    for ( size_t i = 0; i < config.Nx + order - 1; ++i )
+    {
+        coeffs[ j*stride_y + i*stride_x ] = tmp[ (j%config.Ny)*config.Nx +
+                                                 (i%config.Nx) ];
+    }
 }
 
 }
@@ -208,7 +215,7 @@ void interpolate( real *coeffs, const real *values, const config_t<real> &config
 namespace dim3
 {
 
-template <typename real, size_t order>
+template <typename real, size_t order, size_t dx = 0, size_t dy = 0, size_t dz = 0>
 real eval( real x, real y, real z, const real *coeffs, const config_t<real> &config )
 {
     using std::floor;
@@ -232,27 +239,31 @@ real eval( real x, real y, real z, const real *coeffs, const config_t<real> &con
     y = y*config.dy_inv - y_knot;
     z = z*config.dz_inv - z_knot;
 
-    if ( ii + order < config.Nx && jj + order < config.Ny && kk + order < config.Nz )
-    {
-        coeffs += kk*config.Ny*config.Nx + jj*config.Nx + ii;
-        return splines3d::eval<real,order>( x, y, z, coeffs, config.Nx*config.Ny, config.Nx, 1 );
-    }
-    else
-    {
-        real c[ order*order*order ];
-        for ( size_t k = 0; k < order; ++k )
-        for ( size_t j = 0; j < order; ++j )
-        for ( size_t i = 0; i < order; ++i )
-            c[ k*order*order + j*order + i ] = coeffs[ ( (kk+k) % config.Nz )*config.Nx*config.Ny + 
-                                                       ( (jj+j) % config.Ny )*config.Nx +
-                                                       ( (ii+i) % config.Nx ) ];
-        return splines3d::eval<real,order>( x, y, z, c, order*order, order, 1 );
-    }
+    const size_t stride_x = 1;
+    const size_t stride_y =  config.Nx + order - 1;
+    const size_t stride_z = (config.Ny + order - 1)*stride_y;
+
+    coeffs += kk*stride_z + jj*stride_y + ii*stride_x;
+    return splines3d::eval<real,order,dx,dy,dz>( x, y, z, coeffs, stride_z, stride_y, stride_x );
 }
 
 template <typename real, size_t order>
 void interpolate( real *coeffs, const real *values, const config_t<real> &config )
 {
+    std::unique_ptr<real[]> tmp { new real[ config.Nx * config.Ny * config.Nz ] };
+
+    size_t stride_x = 1;
+    size_t stride_y =  config.Nx + order - 1;
+    size_t stride_z = (config.Ny + order - 1)*stride_y;
+
+    for ( size_t k = 0; k < config.Nz; ++k )
+    for ( size_t j = 0; j < config.Ny; ++j )
+    for ( size_t i = 0; i < config.Nx; ++i )
+    {
+        tmp [ k*config.Ny*config.Nx +
+              j*config.Nx + i ] = coeffs[ k*stride_z + j*stride_y + i*stride_x ];
+    }
+
     struct mat_t
     {
         const config_t<real> &config;
@@ -277,7 +288,7 @@ void interpolate( real *coeffs, const real *values, const config_t<real> &config
                 size_t j =  tmp / config.Nx;
                 size_t i =  tmp % config.Nx;
 
-                if ( i + order < config.Nx && j + order < config.Ny && k + order < config.Nz )
+                if ( i + order <= config.Nx && j + order <= config.Ny && k + order <= config.Nz )
                 {
                     const real *c = in + k*config.Ny*config.Nx + j*config.Nx + i;
                     real result = 0;
@@ -310,7 +321,17 @@ void interpolate( real *coeffs, const real *values, const config_t<real> &config
 
     gmres_config<real> opt;
     opt.target_residual = std::numeric_limits<real>::epsilon() * 128;
-    gmres<real,mat_t>( config.Nx*config.Ny*config.Nz, coeffs, 1, values, 1, M, opt ); 
+    gmres<real,mat_t>( config.Nx*config.Ny*config.Nz, tmp.get(), 1, values, 1, M, opt ); 
+
+    for ( size_t k = 0; k < config.Nz + order - 1; ++k )
+    for ( size_t j = 0; j < config.Ny + order - 1; ++j )
+    for ( size_t i = 0; i < config.Nx + order - 1; ++i )
+    {
+        coeffs[ k*stride_z + j*stride_y + i*stride_x ] = tmp[ (k%config.Nz)*config.Ny*config.Nx + 
+                                                              (j%config.Ny)*config.Nx +
+                                                              (i%config.Nx) ];
+       
+    }
 }
 
 }

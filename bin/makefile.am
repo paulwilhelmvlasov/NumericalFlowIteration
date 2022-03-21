@@ -1,4 +1,4 @@
-noinst_PROGRAMS = test_poisson test_gmres test_fields
+noinst_PROGRAMS = test_poisson test_gmres test_fields test_dergeraet
 
 test_poisson_SOURCES = test_poisson.cpp
 test_poisson_LDADD   = $(top_builddir)/dergeraet/libdergeraet.la
@@ -9,4 +9,8 @@ test_gmres_LDADD   = $(top_builddir)/dergeraet/libdergeraet.la
 test_fields_SOURCES = test_fields.cpp
 test_fields_LDADD   = $(top_builddir)/dergeraet/libdergeraet.la
 test_fields_CXXFLAGS = -fopenmp -O3 -mavx
+
+test_dergeraet_SOURCES = test_dergeraet.cpp
+test_dergeraet_LDADD   = $(top_builddir)/dergeraet/libdergeraet.la
+test_dergeraet_CXXFLAGS = -fopenmp -O3 -mavx
 
