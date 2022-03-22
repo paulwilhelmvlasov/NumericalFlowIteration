@@ -36,11 +36,16 @@ constexpr real faculty( size_t n ) noexcept
 #pragma GCC push_options
 #pragma GCC optimize("O2","unroll-loops")
 
-template <typename real, size_t order>
+template <typename real, size_t order, size_t derivative = 0>
 void N( real x, real *result, size_t stride = 1 ) noexcept
 {
     static_assert( order > 0, "Splines must have order greater than zero." );
-    constexpr int n { order };
+    constexpr int n { order      };
+    constexpr int d { derivative };
+
+    if ( derivative >= order )
+        for ( size_t i = 0; i < order; ++i )
+            result[ i*stride ] = 0;
 
     if ( n == 1 )
     {
@@ -48,8 +53,8 @@ void N( real x, real *result, size_t stride = 1 ) noexcept
         return;
     }
 
-    real v[order]; v[n-1] = 1;
-    for ( int k = 1; k < n; ++k )
+    real v[n]; v[n-1] = 1;
+    for ( int k = 1; k < n - d; ++k )
     {
         v[n-k-1] = (1-x)*v[n-k];
 
@@ -59,7 +64,12 @@ void N( real x, real *result, size_t stride = 1 ) noexcept
         v[n-1] *= x;
     }
 
-    constexpr real factor = real(1) / faculty<real>(order-1);
+    // Differentiate if necessary.
+    for ( size_t j = derivative; j-- > 0;  ) 
+        for ( size_t i = j; i < order - 1; ++i )
+            v[i] = v[i] - v[i+1];
+
+    constexpr real factor = real(1) / faculty<real>(order-derivative-1);
     for ( size_t i = 0; i < order; ++i )
         result[i*stride] = v[i]*factor;
 }
@@ -111,9 +121,13 @@ real eval( real x, real y, const real *coefficients, size_t stride_y, size_t str
     if ( dy >= n ) return 0;
     if ( n  == 1 ) return *coefficients;
 
-    real c[ order ];
+    real c [ order ] {};
+    real Nx[ order ];
+
+    splines1d::N<real,order,dx>(x,Nx);
     for ( size_t j = 0; j < order; ++j )
-        c[ j ] = splines1d::eval<real,order,dx>(x, coefficients + j*stride_y, stride_x );
+    for ( size_t i = 0; i < order; ++i )
+        c[ j ] += coefficients[ j*stride_y + i*stride_x ] * Nx[ i ];
 
     return splines1d::eval<real,order,dy>(y,c);
 }
@@ -134,11 +148,24 @@ real eval( real x, real y, real z, const real *coefficients, size_t stride_z, si
     if ( dz >= n ) return 0;
     if ( n  == 1 ) return *coefficients;
 
-    real c[ order ];
-    for ( size_t k = 0; k < order; ++k )
-        c[ k ] = splines2d::eval<real,order,dx,dy>( x, y, coefficients + k*stride_z, stride_y, stride_x );
+    real c[ order*order ] {};
+    real N[ order ];
 
-    return splines1d::eval<real,order,dz>(z,c);
+    splines1d::N<real,order,dx>(x,N);
+    for ( size_t k = 0; k < order; ++k )
+    for ( size_t j = 0; j < order; ++j )
+    for ( size_t i = 0; i < order; ++i )
+        c[ k*order + j ] += coefficients[ k*stride_z + j*stride_y + i*stride_x ]*N[i];
+
+    splines1d::N<real,order,dy>(y,N);
+    for ( size_t k = 0; k < order; ++k )
+    {
+        c[ k*order ] *= N[0];
+        for ( size_t j = 1; j < order; ++j )
+            c[ k*order ]  += c[ k*order + j ]*N[j];
+    }
+
+    return splines1d::eval<real,order,dz>(z,c,order);
 }
 
 }
