@@ -45,17 +45,26 @@ void test_3d()
 
     std::cout << "Testing dim = 3.\n";
 
-    config_t<real> conf;
+    dim3::config_t<real> conf;
     conf.Nx     = 128;
+    conf.x_min  = 0; conf.x_max = 4*M_PI;
+    conf.Lx     = conf.x_max - conf.x_min;
+    conf.Lx_inv = 1 / conf.Lx;
     conf.dx     = real(conf.Lx) / conf.Nx;
     conf.dx_inv = real(1) / conf.dx;
 
     conf.Ny     = 128;
+    conf.y_min  = 0; conf.y_max = 2*M_PI;
+    conf.Ly     = conf.y_max - conf.y_min;
+    conf.Ly_inv = 1 / conf.Ly;
     conf.dy     = real(conf.Ly) / conf.Ny;
     conf.dy_inv = real(1) / conf.dy;
 
     conf.Nz     = 512;
-    conf.dz     = real(conf.Lz) / conf.Nz;
+    conf.z_min  = -M_PI; conf.z_max = M_PI;
+    conf.Lz     = conf.z_max - conf.z_min;
+    conf.Lz_inv = 1 / conf.Lz;
+    conf.dz     = conf.Lz / conf.Nz;
     conf.dz_inv = real(1) / conf.dz;
     
     std::unique_ptr<real[]> values { new real[ conf.Nx*conf.Ny*conf.Nz ] };
@@ -64,7 +73,6 @@ void test_3d()
                                                (conf.Nz + order - 1) ] };
    
 
-    random_real<real> rand( 0, 2*3.1415926535 );
     for ( size_t l = 0; l < conf.Nx*conf.Ny*conf.Nz; ++l )
     {
         size_t k   = l / ( conf.Nx*conf.Ny );
@@ -72,7 +80,10 @@ void test_3d()
         size_t j = tmp / conf.Nx;
         size_t i = tmp % conf.Nx;
 
-        values[ l ] = f( i*conf.dx, j*conf.dy, k*conf.dz );
+        real x = conf.x_min + i*conf.dx;
+        real y = conf.y_min + j*conf.dy;
+        real z = conf.z_min + k*conf.dz;
+        values[ l ] = f( x, y, z );
     }
 
     stopwatch<real> clock;
@@ -87,22 +98,32 @@ void test_3d()
         size_t tmp = l % ( conf.Nx*conf.Ny );
         size_t j = tmp / conf.Nx;
         size_t i = tmp % conf.Nx;
-        real val = dim3::eval<real,order>( i*conf.dx, j*conf.dy, k*conf.dz, coeffs.get(), conf );
+
+        real x = conf.x_min + i*conf.dx;
+        real y = conf.y_min + j*conf.dy;
+        real z = conf.z_min + k*conf.dz;
+
+        real val = dim3::eval<real,order>( x, y, z, coeffs.get(), conf );
         err = hypot(err,values[ l ] - val);
         sum = hypot(sum,values[ l ]);
     }
     std::cout << "Absolute l²-Error: " << err << ". "
               << "Relative l²-Error: " << err/sum << ".\n";
 
-    real max_err = 0;
-    for ( size_t i = 0; i < 4096; ++i )
+    real max_err = 0, err_sum = 0;
+    random_real<real> randx( conf.x_min, conf.x_max );
+    random_real<real> randy( conf.y_min, conf.y_max );
+    random_real<real> randz( conf.z_min, conf.z_max );
+    for ( size_t i = 0; i < 4096*4096; ++i )
     {
-        real x = rand(), y = rand(), z = rand();
+        real x = randx(), y = randy(), z = randz();
         real approx = dim3::eval<real,order>( x, y, z, coeffs.get(), conf );
         real exact  = f(x,y,z);
         max_err = max( max_err, abs(approx-exact) );
+        err_sum += abs(approx-exact);
     }
     std::cout << "Max error: " << max_err << std::endl;
+    std::cout << "Avg error: " << err_sum / (4096*4096) << std::endl;
 }
 
 template <typename real, size_t order>
@@ -114,27 +135,35 @@ void test_2d()
 
     std::cout << "Testing dim = 2.\n";
 
-    config_t<real> conf;
-    conf.Nx     = 48;
+    dim2::config_t<real> conf;
+    conf.Nx     = 128;
+    conf.x_min  = 0; conf.x_max = 4*M_PI;
+    conf.Lx     = conf.x_max - conf.x_min;
+    conf.Lx_inv = 1 / conf.Lx;
     conf.dx     = real(conf.Lx) / conf.Nx;
     conf.dx_inv = real(1) / conf.dx;
 
-    conf.Ny     = 64;
+    conf.Ny     = 128;
+    conf.y_min  = -M_PI; conf.y_max = M_PI;
+    conf.Ly     = conf.y_max - conf.y_min;
+    conf.Ly_inv = 1 / conf.Ly;
     conf.dy     = real(conf.Ly) / conf.Ny;
     conf.dy_inv = real(1) / conf.dy;
+
     
     std::unique_ptr<real[]> values { new real[ conf.Nx*conf.Ny ] };
     std::unique_ptr<real[]> coeffs { new real[ (conf.Nx + order - 1)*
                                                (conf.Ny + order - 1) ] };
    
 
-    random_real<real> rand( 0, 2*3.1415926535 );
     for ( size_t l = 0; l < conf.Nx*conf.Ny; ++l )
     {
         size_t j = l / conf.Nx;
         size_t i = l % conf.Nx;
+        real x = conf.x_min + i*conf.dx;
+        real y = conf.y_min + j*conf.dy;
 
-        values[ l ] = f( i*conf.dx, j*conf.dy );
+        values[ l ] = f(x,y);
     }
 
     stopwatch<real> clock;
@@ -147,22 +176,28 @@ void test_2d()
     {
         size_t j = l / conf.Nx;
         size_t i = l % conf.Nx;
-        real val = dim2::eval<real,order>( i*conf.dx, j*conf.dy, coeffs.get(), conf );
+        real x = conf.x_min + i*conf.dx;
+        real y = conf.y_min + j*conf.dy;
+        real val = dim2::eval<real,order>( x, y, coeffs.get(), conf );
         err = hypot(err,values[ l ] - val);
         sum = hypot(sum,values[ l ]);
     }
     std::cout << "Absolute l²-Error: " << err << ". "
               << "Relative l²-Error: " << err/sum << ".\n";
 
-    real max_err = 0;
-    for ( size_t i = 0; i < 4096; ++i )
+    real max_err = 0, err_sum = 0;
+    random_real<real> randx( conf.x_min, conf.x_max );
+    random_real<real> randy( conf.y_min, conf.y_max );
+    for ( size_t i = 0; i < 4096*4096; ++i )
     {
-        real x = rand(), y = rand();
+        real x = randx(), y = randy();
         real approx = dim2::eval<real,order>( x, y, coeffs.get(), conf );
         real exact  = f(x,y);
         max_err = max( max_err, abs(approx-exact) );
+        err_sum += abs(approx-exact);
     }
     std::cout << "Max error: " << max_err << std::endl;
+    std::cout << "Avg error: " << err_sum/(4096*4096) << std::endl;
 }
 
 }

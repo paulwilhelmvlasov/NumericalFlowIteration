@@ -24,24 +24,6 @@
 #include <sstream>
 
 
-template <typename real>
-real f0( real x, real u ) noexcept
-{
-    using std::sin;
-    using std::cos;
-    using std::exp;
-
-    //double np  = 0.9, nb = 0.2, vb = 4.5, vt = 0.5, alpha = 0.04, k = 0.3;    
-    //double fac = 1.0/std::sqrt(2*3.141592653589793238462643);
-    //return fac*( np*exp(-0.5*v*v) + nb*exp(-0.5*(v-vb)*(v-vb)/(vt*vt)) ) * (1+alpha*std::cos(k*x));
-
-	constexpr real alpha = 0.01;
-	constexpr real k     = 0.5;
-    return 0.39894228040143267793994 * ( 1. + alpha*cos(k*x) ) * exp( -u*u/2. ) * u*u;
-    //return 0.39894228040143267793994 * ( 1. + alpha*cos(k*x) ) * exp( -u*u/2 );
-}
-
-
 #include <dergeraet/config.hpp>
 #include <dergeraet/random.hpp>
 #include <dergeraet/fields.hpp>
@@ -52,24 +34,16 @@ real f0( real x, real u ) noexcept
 namespace dergeraet
 {
 
+namespace dim1
+{
+
 template <typename real, size_t order>
-void do_test()
+void test()
 {
     using std::abs;
     using std::max;
 
     config_t<real> conf;
-    conf.Nx = 128;
-    conf.Nu = 1024*4; conf.u_max = 10;
-    conf.Nt = 100*16;
-    
-    conf.L0x = 0;
-    conf.L1x = 4*M_PI;
-    conf.Lx  = 4*M_PI;            conf.Lx_inv = 1 / conf.Lx;
-    conf.dx  = conf.Lx / conf.Nx; conf.dx_inv = 1 / conf.dx;
-
-    conf.dt = 1./16.;
-
     const size_t stride_x = 1;
     const size_t stride_t = conf.Nx + order - 1;
 
@@ -92,15 +66,18 @@ void do_test()
 
         real Emax = 0;
         for ( size_t i = 0; i < conf.Nx; ++i )
-            Emax = max( Emax, abs( dim1::eval<real,order,1>( i*conf.dx, coeffs.get() + n*stride_t, conf ) ) ); 
-        Emax *= conf.dx_inv;
+        {
+            real x = conf.x_min + i*conf.dx;
+            Emax = max( Emax, abs( dim1::eval<real,order,1>(x,coeffs.get()+n*stride_t,conf))); 
+        }
 
         std::stringstream filename; filename << "E" << n << ".txt";
         std::ofstream file( filename.str() ); file << std::scientific << std::setprecision(8);
         for ( size_t i = 0; i < conf.Nx; ++i )
         {
-            real E = -dim1::eval<real,order,1>( i*conf.dx, coeffs.get() + n*stride_t, conf )*conf.dx_inv;
-            file << std::setw(20) << i*conf.dx << std::setw(20) << E << '\n';
+            real x = conf.x_min + i*conf.dx;
+            real E = -dim1::eval<real,order,1>( x, coeffs.get() + n*stride_t, conf );
+            file << std::setw(20) << x << std::setw(20) << E << '\n';
         }
         file.close();
    
@@ -110,9 +87,11 @@ void do_test()
 
 }
 
+}
+
 
 int main()
 {
-    dergeraet::do_test<double,4>();
+    dergeraet::dim1::test<double,4>();
 }
 

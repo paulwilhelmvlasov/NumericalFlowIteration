@@ -36,6 +36,9 @@ real eval( real x, const real *coeffs, const config_t<real> &config ) noexcept
 {
     using std::floor;
 
+    // Shift to a box that starts at 0.
+    x -= config.x_min;
+
     // Get "periodic position" in box at origin.
     x = x - config.Lx * floor( x*config.Lx_inv ); 
 
@@ -47,7 +50,11 @@ real eval( real x, const real *coeffs, const config_t<real> &config ) noexcept
     // Convert x to reference coordinates.
     x = x*config.dx_inv - x_knot;
 
-    return splines1d::eval<real,order,dx>( x, coeffs + ii );
+    // Scale according to derivative.
+    real factor = 1;
+    for ( size_t i = 0; i < dx; ++i ) factor *= config.dx_inv;
+
+    return factor*splines1d::eval<real,order,dx>( x, coeffs + ii );
 }
 
 template <typename real, size_t order>
@@ -111,6 +118,10 @@ real eval( real x, real y, const real *coeffs, const config_t<real> &config )
 {
     using std::floor;
 
+    // Shift to a box that starts at 0.
+    x -= config.x_min;
+    y -= config.y_min;
+
     // Get "periodic position" in box at origin.
     x = x - config.Lx * floor( x*config.Lx_inv ); 
     y = y - config.Ly * floor( y*config.Ly_inv ); 
@@ -128,9 +139,14 @@ real eval( real x, real y, const real *coeffs, const config_t<real> &config )
 
     const size_t stride_x = 1;
     const size_t stride_y = config.Nx + order - 1;
-    coeffs += jj*stride_y + ii;
      
-    return splines2d::eval<real,order,dx,dy>( x, y, coeffs, stride_y, stride_x );
+    // Scale according to derivative.
+    real factor = 1;
+    for ( size_t i = 0; i < dx; ++i ) factor *= config.dx_inv;
+    for ( size_t j = 0; j < dy; ++j ) factor *= config.dy_inv;
+
+    coeffs += jj*stride_y + ii;
+    return factor*splines2d::eval<real,order,dx,dy>( x, y, coeffs, stride_y, stride_x );
 }
 
 template <typename real, size_t order>
@@ -220,6 +236,11 @@ real eval( real x, real y, real z, const real *coeffs, const config_t<real> &con
 {
     using std::floor;
 
+    // Shift to a box that starts at 0.
+    x -= config.x_min;
+    y -= config.y_min;
+    z -= config.z_min;
+
     // Get "periodic position" in box at origin.
     x = x - config.Lx * floor( x*config.Lx_inv ); 
     y = y - config.Ly * floor( y*config.Ly_inv ); 
@@ -243,8 +264,14 @@ real eval( real x, real y, real z, const real *coeffs, const config_t<real> &con
     const size_t stride_y =  config.Nx + order - 1;
     const size_t stride_z = (config.Ny + order - 1)*stride_y;
 
+    // Scale according to derivative.
+    real factor = 1;
+    for ( size_t i = 0; i < dx; ++i ) factor *= config.dx_inv;
+    for ( size_t j = 0; j < dy; ++j ) factor *= config.dy_inv;
+    for ( size_t k = 0; k < dy; ++k ) factor *= config.dz_inv;
+
     coeffs += kk*stride_z + jj*stride_y + ii*stride_x;
-    return splines3d::eval<real,order,dx,dy,dz>( x, y, z, coeffs, stride_z, stride_y, stride_x );
+    return factor*splines3d::eval<real,order,dx,dy,dz>( x, y, z, coeffs, stride_z, stride_y, stride_x );
 }
 
 template <typename real, size_t order>

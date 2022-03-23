@@ -65,9 +65,12 @@ void N( real x, real *result, size_t stride = 1 ) noexcept
     }
 
     // Differentiate if necessary.
-    for ( size_t j = derivative; j-- > 0;  ) 
-        for ( size_t i = j; i < order - 1; ++i )
+    for ( size_t j = derivative; j-- > 0;  )
+    {
+        v[j] = -v[j+1];
+        for ( size_t i = j + 1; i < order - 1; ++i )
             v[i] = v[i] - v[i+1];
+    }
 
     constexpr real factor = real(1) / faculty<real>(order-derivative-1);
     for ( size_t i = 0; i < order; ++i )

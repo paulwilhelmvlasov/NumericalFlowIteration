@@ -31,7 +31,7 @@ template <typename real, size_t order>
 real eval_ftilda( size_t n, real x, real u,
                   const real *coeffs, const config_t<real> &conf )
 {
-    if ( n == 0 ) return f0(x,u);
+    if ( n == 0 ) return config_t<real>::f0(x,u);
 
     const size_t stride_x = 1;
     const size_t stride_t = stride_x*(conf.Nx + order - 1);
@@ -45,17 +45,17 @@ real eval_ftilda( size_t n, real x, real u,
     {
         x  = x - conf.dt*u;
         c  = coeffs + n*stride_t;
-        Ex = -eval<real,order,1>(x,c,conf) * conf.dx_inv;
+        Ex = -eval<real,order,1>(x,c,conf);
         u  = u + conf.dt*Ex;
     }
 
     // The final half-step.
     x -= conf.dt*u;
     c  = coeffs + n*stride_t;
-    Ex = -eval<real,order,1>(x,c,conf) * conf.dx_inv;
+    Ex = -eval<real,order,1>(x,c,conf);
     u += 0.5*conf.dt*Ex;
 
-    return f0(x,u);
+    return config_t<real>::f0(x,u);
 }
 
 template <typename real, size_t order>
@@ -71,32 +71,32 @@ real eval_f( size_t n, real x, real u,
 
     // Initial half-step.
     c  = coeffs + n*stride_t;
-    Ex = -eval<real,order,1>( x, c, conf ) * conf.dx_inv;
+    Ex = -eval<real,order,1>( x, c, conf );
     u += 0.5*conf.dt*Ex;
 
     while ( --n )
     {
         x -= conf.dt*u;
         c  = coeffs + n*stride_t;
-        Ex = -eval<real,order,1>( x, c, conf ) * conf.dx_inv;
+        Ex = -eval<real,order,1>( x, c, conf );
         u += conf.dt*Ex;
     }
 
     // Final half-step.
     x -= conf.dt*u;
     c  = coeffs + n*stride_t;
-    Ex = -eval<real,order,1>( x, c, conf ) * conf.dx_inv;
+    Ex = -eval<real,order,1>( x, c, conf );
     u += 0.5*conf.dt*Ex;
 
-    return f0(x,u);
+    return config_t<real>::f0(x,u);
 }
 
 template <typename real, size_t order>
 real eval_rho( size_t n, size_t i, const real *coeffs, const config_t<real> &conf )
 {
-    const real x = i*conf.dx; 
-    const real du = 2*conf.u_max / conf.Nu;
-    const real u_min = -conf.u_max + 0.5*du;
+    const real x = conf.x_min + i*conf.dx; 
+    const real du = (conf.u_max-conf.u_min) / conf.Nu;
+    const real u_min = conf.u_min + 0.5*du;
 
     real rho = 0;
     for ( size_t ii = 0; ii < conf.Nu; ++ii )
@@ -117,7 +117,7 @@ template <typename real, size_t order>
 real eval_ftilda( size_t n, real x, real y, real u, real v,
                   const real *coeffs, const config_t<real> &conf )
 {
-    if ( n == 0 ) return f0(x,y,u,v);
+    if ( n == 0 ) return config_t<real>::f0(x,y,u,v);
 
     const size_t stride_x = 1;
     const size_t stride_y = stride_x*(conf.Nx + order - 1);
@@ -134,8 +134,8 @@ real eval_ftilda( size_t n, real x, real y, real u, real v,
         y -= conf.dt*v;
 
         c  = coeffs + n*stride_t;
-        Ex = -eval<real,order,1,0>( x, y, c, conf ) * conf.dx_inv;
-        Ey = -eval<real,order,0,1>( x, y, c, conf ) * conf.dy_inv;
+        Ex = -eval<real,order,1,0>( x, y, c, conf );
+        Ey = -eval<real,order,0,1>( x, y, c, conf );
 
         u += conf.dt*Ex;
         v += conf.dt*Ey;
@@ -146,20 +146,20 @@ real eval_ftilda( size_t n, real x, real y, real u, real v,
     y -= conf.dt*v;
 
     c  = coeffs + n*stride_t;
-    Ex = -eval<real,order,1,0>( x, y, c, conf ) * conf.dx_inv;
-    Ey = -eval<real,order,0,1>( x, y, c, conf ) * conf.dy_inv;
+    Ex = -eval<real,order,1,0>( x, y, c, conf );
+    Ey = -eval<real,order,0,1>( x, y, c, conf );
 
     u += 0.5*conf.dt*Ex;
     v += 0.5*conf.dt*Ey;
 
-    return f0(x,y,u,v);
+    return config_t<real>::f0(x,y,u,v);
 }
 
 template <typename real, size_t order>
 real eval_f( size_t n, real x, real y, real u, real v,
              const real *coeffs, const config_t<real> &conf )
 {
-    if ( n == 0 ) return f0(x,y,u,v);
+    if ( n == 0 ) return config_t<real>::f0(x,y,u,v);
 
     const size_t stride_x = 1;
     const size_t stride_y = stride_x*(conf.Nx + order - 1);
@@ -170,8 +170,8 @@ real eval_f( size_t n, real x, real y, real u, real v,
 
     // Initial half-step.
     c  = coeffs + n*stride_t;
-    Ex = -eval<real,order,1,0>( x, y, c, conf ) * conf.dx_inv;
-    Ey = -eval<real,order,0,1>( x, y, c, conf ) * conf.dy_inv;
+    Ex = -eval<real,order,1,0>( x, y, c, conf );
+    Ey = -eval<real,order,0,1>( x, y, c, conf );
 
     u += 0.5*conf.dt*Ex;
     v += 0.5*conf.dt*Ey;
@@ -182,8 +182,8 @@ real eval_f( size_t n, real x, real y, real u, real v,
         y -= conf.dt*v;
 
         c  = coeffs + n*stride_t;
-        Ex = -eval<real,order,1,0>( x, y, c, conf ) * conf.dx_inv;
-        Ey = -eval<real,order,0,1>( x, y, c, conf ) * conf.dy_inv;
+        Ex = -eval<real,order,1,0>( x, y, c, conf );
+        Ey = -eval<real,order,0,1>( x, y, c, conf );
 
         u += conf.dt*Ex;
         v += conf.dt*Ey;
@@ -194,26 +194,26 @@ real eval_f( size_t n, real x, real y, real u, real v,
     y -= conf.dt*v;
 
     c  = coeffs + n*stride_t;
-    Ex = -eval<real,order,1,0>( x, y, c, conf ) * conf.dx_inv;
-    Ey = -eval<real,order,0,1>( x, y, c, conf ) * conf.dy_inv;
+    Ex = -eval<real,order,1,0>( x, y, c, conf );
+    Ey = -eval<real,order,0,1>( x, y, c, conf );
 
     u += 0.5*conf.dt*Ex;
     v += 0.5*conf.dt*Ey;
 
-    return f0(x,y,u,v);
+    return config_t<real>::f0(x,y,u,v);
 }
 
 template <typename real, size_t order>
 real eval_rho( size_t n, size_t i, size_t j, const real *coeffs, const config_t<real> &conf )
 {
-    const real x = i*conf.dx; 
-    const real y = j*conf.dy; 
+    const real x = conf.x_min + i*conf.dx; 
+    const real y = conf.y_min + j*conf.dy; 
 
-    const real du = 2*conf.u_max / conf.Nu;
-    const real dv = 2*conf.v_max / conf.Nv;
+    const real du = (conf.u_max - conf.u_min) / conf.Nu;
+    const real dv = (conf.v_max - conf.v_min) / conf.Nv;
 
-    const real u_min = -conf.u_max + 0.5*du;
-    const real v_min = -conf.v_max + 0.5*dv;
+    const real u_min = conf.u_min + 0.5*du;
+    const real v_min = conf.v_min + 0.5*dv;
 
     real rho = 0;
     for ( size_t jj = 0; jj < conf.Nv; ++jj )
@@ -240,14 +240,15 @@ real eval_ftilda( size_t n, real x, real y, real z,
                             real u, real v, real w,
                   const real *coeffs, const config_t<real> &conf )
 {
-    if ( n == 0 ) return f0(x,y,z,u,v,w);
+    if ( n == 0 ) return config_t<real>::f0(x,y,z,u,v,w);
 
     const size_t stride_x = 1;
     const size_t stride_y = stride_x*(conf.Nx + order - 1);
     const size_t stride_z = stride_y*(conf.Ny + order - 1);
     const size_t stride_t = stride_z*(conf.Nz + order - 1);
 
-    real Ex, Ey, Ez, *c;
+    real Ex, Ey, Ez;
+    const real *c;
 
     // We omit the initial half-step.
 
@@ -258,9 +259,9 @@ real eval_ftilda( size_t n, real x, real y, real z,
         z -= conf.dt*w;
 
         c  = coeffs + n*stride_t;
-        Ex = -eval<real,order,1,0,0>( x, y, z, c, conf ) * conf.dx_inv;
-        Ey = -eval<real,order,0,1,0>( x, y, z, c, conf ) * conf.dy_inv;
-        Ez = -eval<real,order,0,0,1>( x, y, z, c, conf ) * conf.dz_inv;
+        Ex = -eval<real,order,1,0,0>( x, y, z, c, conf );
+        Ey = -eval<real,order,0,1,0>( x, y, z, c, conf );
+        Ez = -eval<real,order,0,0,1>( x, y, z, c, conf );
 
         u += conf.dt*Ex;
         v += conf.dt*Ey;
@@ -273,15 +274,15 @@ real eval_ftilda( size_t n, real x, real y, real z,
     z -= conf.dt*w;
 
     c  = coeffs + n*stride_t;
-    Ex = -eval<real,order,1,0,0>( x, y, z, c, conf ) * conf.dx_inv;
-    Ey = -eval<real,order,0,1,0>( x, y, z, c, conf ) * conf.dy_inv;
-    Ez = -eval<real,order,0,0,1>( x, y, z, c, conf ) * conf.dz_inv;
+    Ex = -eval<real,order,1,0,0>( x, y, z, c, conf );
+    Ey = -eval<real,order,0,1,0>( x, y, z, c, conf );
+    Ez = -eval<real,order,0,0,1>( x, y, z, c, conf );
 
     u += 0.5*conf.dt*Ex;
     v += 0.5*conf.dt*Ey;
     w += 0.5*conf.dt*Ez;
 
-    return f0( x, y, z, u, v, w );
+    return config_t<real>::f0( x, y, z, u, v, w );
 }
 
 template <typename real, size_t order>
@@ -289,20 +290,21 @@ real eval_f( size_t n, real x, real y, real z,
                        real u, real v, real w,
              const real *coeffs, const config_t<real> &conf )
 {
-    if ( n == 0 ) return f0(x,y,z,u,v,w);
+    if ( n == 0 ) return config_t<real>::f0(x,y,z,u,v,w);
 
     const size_t stride_x = 1;
     const size_t stride_y = stride_x*(conf.Nx + order - 1);
     const size_t stride_z = stride_y*(conf.Ny + order - 1);
     const size_t stride_t = stride_z*(conf.Nz + order - 1);
 
-    real Ex, Ey, Ez, *c;
+    real Ex, Ey, Ez;
+    const real *c;
 
     // Initial half-step.
     c  = coeffs + n*stride_t;
-    Ex = -eval<real,order,1,0,0>( x, y, z, c, conf ) * conf.dx_inv;
-    Ey = -eval<real,order,0,1,0>( x, y, z, c, conf ) * conf.dy_inv;
-    Ez = -eval<real,order,0,0,1>( x, y, z, c, conf ) * conf.dz_inv;
+    Ex = -eval<real,order,1,0,0>( x, y, z, c, conf );
+    Ey = -eval<real,order,0,1,0>( x, y, z, c, conf );
+    Ez = -eval<real,order,0,0,1>( x, y, z, c, conf );
 
     u += 0.5*conf.dt*Ex;
     v += 0.5*conf.dt*Ey;
@@ -315,9 +317,9 @@ real eval_f( size_t n, real x, real y, real z,
         z -= conf.dt*w;
 
         c  = coeffs + n*stride_t;
-        Ex = -eval<real,order,1,0,0>( x, y, z, c, conf ) * conf.dx_inv;
-        Ey = -eval<real,order,0,1,0>( x, y, z, c, conf ) * conf.dy_inv;
-        Ez = -eval<real,order,0,0,1>( x, y, z, c, conf ) * conf.dz_inv;
+        Ex = -eval<real,order,1,0,0>( x, y, z, c, conf );
+        Ey = -eval<real,order,0,1,0>( x, y, z, c, conf );
+        Ez = -eval<real,order,0,0,1>( x, y, z, c, conf );
 
         u += conf.dt*Ex;
         v += conf.dt*Ey;
@@ -330,31 +332,31 @@ real eval_f( size_t n, real x, real y, real z,
     z -= conf.dt*w;
 
     c  = coeffs + n*stride_t;
-    Ex = -eval<real,order,1,0,0>( x, y, z, c, conf ) * conf.dx_inv;
-    Ey = -eval<real,order,0,1,0>( x, y, z, c, conf ) * conf.dy_inv;
-    Ez = -eval<real,order,0,0,1>( x, y, z, c, conf ) * conf.dz_inv;
+    Ex = -eval<real,order,1,0,0>( x, y, z, c, conf );
+    Ey = -eval<real,order,0,1,0>( x, y, z, c, conf );
+    Ez = -eval<real,order,0,0,1>( x, y, z, c, conf );
 
     u += 0.5*conf.dt*Ex;
     v += 0.5*conf.dt*Ey;
     w += 0.5*conf.dt*Ez;
 
-    return f0(x,y,z,u,v,w);
+    return config_t<real>::f0(x,y,z,u,v,w);
 }
 
 template <typename real, size_t order>
 real eval_rho( size_t n, size_t i, size_t j, size_t k, const real *coeffs, const config_t<real> &conf )
 {
-    const real x = i*conf.dx; 
-    const real y = j*conf.dy; 
-    const real z = k*conf.dz; 
+    const real x = conf.x_min + i*conf.dx; 
+    const real y = conf.y_min + j*conf.dy; 
+    const real z = conf.z_min + k*conf.dz; 
 
-    const real du = 2*conf.u_max / conf.Nu;
-    const real dv = 2*conf.v_max / conf.Nv;
-    const real dw = 2*conf.w_max / conf.Nw;
+    const real du = (conf.u_max-conf.u_min) / conf.Nu;
+    const real dv = (conf.v_max-conf.v_min) / conf.Nv;
+    const real dw = (conf.w_max-conf.w_min) / conf.Nw;
 
-    const real u_min = -conf.u_max + 0.5*du;
-    const real v_min = -conf.v_max + 0.5*dv;
-    const real w_min = -conf.w_max + 0.5*dw;
+    const real u_min = conf.u_min + 0.5*du;
+    const real v_min = conf.v_min + 0.5*dv;
+    const real w_min = conf.w_min + 0.5*dw;
 
     real rho = 0;
     for ( size_t kk = 0; kk < conf.Nw; ++kk )

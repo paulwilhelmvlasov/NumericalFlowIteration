@@ -26,137 +26,107 @@
 #include <dergeraet/stopwatch.hpp>
 
 
-namespace test
+namespace dergeraet
 {
-namespace dim1
-{
-    double example1(double x)
-    {
-        return std::sin(x);
-    }
-}
-namespace dim2
-{
-    double example1(double x, double y)
-    {
-        return std::exp( -10.0 * ( x*x + y*y ) ) 
-        - 0.3141543995431308468307567265064296442806759455912026276984236670508030703124557251542724156613499484
-        / 4.0;
-    }
 
-    double example2(double x, double y)
-    {
-        return std::exp( -10.0 * ( 2*x*x + 4*x*y + 5*y*y ) ) - 0.128255 / 4.0;
-    }
-}
 namespace dim3
 {
-    double example1(double x, double y, double z)
-    {   
-        return std::cos(2*z) + std::sin(8*y) + std::cos(42*x);
-    }
-}
-    double rho(double x)
-    {
-        return dim1::example1(x);
-    }
-    double rho2d(double x, double y)
-    {   
-        return dim2::example2(x,y);     
-    }
-    double rho3d(double x, double y, double z)
-    {   
-        return dim3::example1(x,y,z);       
-    }
+
+template <typename real>
+real rho( real x, real y, real z )
+{
+    using std::sin;
+    using std::cos;
+    return cos(2*z) + sin(8*y) + cos(42*x);
 }
 
+template <typename real>
+real phi( real x, real y, real z )
+{
+    using std::sin;
+    using std::cos;
+    return cos(2*z)/4 + sin(8*y)/64 + cos(42*x)/(42*42);
+}
 
-int main()
-{   
-    dergeraet::config_t<double> conf;
+template <typename real>
+void test()
+{
+    using std::abs;
 
-    conf.Nx     = 84;
+    std::cout << "Testing dim = 3.\n";
+    config_t<real> conf;
+
+    conf.Nx     = 128;
+    conf.x_min  = 0; conf.x_max = 2*M_PI; 
+    conf.Lx     = conf.x_max - conf.x_min;
+    conf.Lx_inv = 1/conf.Lx;
     conf.dx     = conf.Lx / conf.Nx;
     conf.dx_inv = 1 / conf.dx;
 
-    conf.Ny     = 128;
+    conf.Ny     = 64;
+    conf.y_min  = 0; conf.y_max = 2*M_PI; 
+    conf.Ly     = conf.y_max - conf.y_min;
+    conf.Ly_inv = 1/conf.Ly;
     conf.dy     = conf.Ly / conf.Ny;
     conf.dy_inv = 1 / conf.dy;
 
-    conf.Nz     = 128;
+    conf.Nz     = 32;
+    conf.z_min  = 0; conf.z_max = 2*M_PI; 
+    conf.Lz     = conf.z_max - conf.z_min;
+    conf.Lz_inv = 1/conf.Lz;
     conf.dz     = conf.Lz / conf.Nz;
     conf.dz_inv = 1 / conf.dz;
 
-    dergeraet::stopwatch<double> clock;
-    dergeraet::dim3::poisson<double> pois(conf);
+    stopwatch<real> clock;
+    poisson<real> pois(conf);
     std::cout << "Initialisation time = " << clock.elapsed() << "[s]" << std::endl;
 
-
-    double *data = (double*) std::aligned_alloc( pois.alignment, sizeof(double)*conf.Nx*conf.Ny*conf.Nz );
-
+    real *data = (real*) std::aligned_alloc( pois.alignment, sizeof(real)*conf.Nx*conf.Ny*conf.Nz );
 
     for ( size_t k = 0; k < conf.Nz; ++k )
     for ( size_t j = 0; j < conf.Ny; ++j )
     for ( size_t i = 0; i < conf.Nx; ++i )
     {
-        double x = conf.L0x + i * conf.dx;
-        double y = conf.L0y + j * conf.dy;
-        double z = conf.L0z + k * conf.dz;
-        data[ i + j*conf.Nx + k*conf.Nx*conf.Ny ] = test::rho3d(x,y,z);
+        real x = conf.x_min + i*conf.dx;
+        real y = conf.y_min + j*conf.dy;
+        real z = conf.z_min + k*conf.dz;
+        data[ i + j*conf.Nx + k*conf.Nx*conf.Ny ] = rho(x,y,z);
     }
-
-/*
-    std::ofstream str_rho("rho.txt");
-
-    for(size_t i = 0; i < conf.Nx; i++ )
-    {
-        for(size_t j = 0; j < conf.Ny; j++)
-        {
-            double x = conf.L0x + i * conf.dx;
-            double y = conf.L0y + j * conf.dy;
-            str_rho << x << " " << y << " " << rho[j + i * conf.Ny] << std::endl;
-        }
-        str_rho << std::endl;
-    }
-*/
 
     
     clock.reset();
     pois.solve(data);
     std::cout << "Computation time = " << clock.elapsed() << " [s]" << std::endl;
 
-/*
-    std::ofstream str_phi("phi.txt");
-
-    for(size_t i = 0; i < conf.Nx; i++ )
-    {
-        for(size_t j = 0; j < conf.Ny; j++)
-        {
-            double x = conf.L0x + i * conf.dx;
-            double y = conf.L0y + j * conf.dy;
-            str_phi << x << " " << y << " " << phi[j + i * conf.Ny] << std::endl;
-        }
-        str_phi << std::endl;
-    }
-*/
-    double l1_err = 0, l1_norm;
+    real l1_err = 0, l1_norm = 0;
     for ( size_t k = 0; k < conf.Nz; ++k )
     for ( size_t j = 0; j < conf.Ny; ++j )
     for ( size_t i = 0; i < conf.Nx; ++i )
     {
-        double x = conf.L0x + i * conf.dx;
-        double y = conf.L0y + j * conf.dy;
-        double z = conf.L0z + k * conf.dz;
-        double approx = data[ i + j*conf.Nx + k*conf.Nx*conf.Ny ];
-        double exact  = 0.25*cos(2*z) + sin(8*y)/64 + cos(42*x)/(42*42);
-        double err = approx - exact;
-        l1_err  += std::abs(err);
-        l1_norm += std::abs(exact);
+        real x = conf.x_min + i*conf.dx;
+        real y = conf.y_min + j*conf.dy;
+        real z = conf.z_min + k*conf.dz;
+        real approx = data[ i + j*conf.Nx + k*conf.Nx*conf.Ny ];
+        real exact  = phi(x,y,z);
+        real err = approx - exact;
+        l1_err  += abs(err);
+        l1_norm += abs(exact);
     }
     std::cout << u8"Relative l¹-error = " << l1_err/l1_norm << std::endl;
 
     std::free(data);
+}
 
-    return 0;
+}
+
+}
+
+int main()
+{
+    std::cout << "Testing float.\n";
+    dergeraet::dim3::test<float>();
+
+    std::cout << "Testing double.\n";
+    dergeraet::dim3::test<double>();
 }
 

@@ -24,38 +24,164 @@
 namespace dergeraet
 {
 
+namespace dim1
+{
+
 template <typename real>
 struct config_t
 {
-	size_t Nx = 128;
-	size_t Ny = Nx;
-	size_t Nz = Nx;
-    size_t Nu = 1024;
-    size_t Nv = 1024;
-    size_t Nw = 1024;
-    size_t Nt = 2048;
-    real   dt = 1./16.;
+	size_t Nx;  // Number of grid points in physical space.
+    size_t Nu;  // Number of quadrature points in velocity space.
+    size_t Nt;  // Number of time-steps.
+    real   dt;  // Time-step size.
 
-	real L0x = 0; 
-	real L0y = 0; 
-	real L0z = 0; 
+    // Dimensions of physical domain.
+	real x_min, x_max;
 
-	real L1x = 2 * M_PI; 
-	real L1y = 2 * M_PI; 
-	real L1z = 2 * M_PI; 
+    // Integration limits for velocity space.
+    real u_min, u_max;
 
-	real Lx = L1x - L0x; real Lx_inv = real(1) / Lx;
-	real Ly = L1y - L0y; real Ly_inv = real(1) / Ly;
-	real Lz = L1z - L0z; real Lz_inv = real(1) / Lz;
+    // Grid-sizes and their reciprocals.
+	real dx, dx_inv, Lx, Lx_inv;
 
-	real dx = Lx / Nx; real dx_inv = real(1) / dx;
-	real dy = Ly / Ny; real dy_inv = real(1) / dy;
-    real dz = Lz / Nz; real dz_inv = real(1) / dz;
-
-    real u_max = 10;
-    real v_max = 10;
-    real w_max = 10;
+    config_t() noexcept;
+    static real f0( real x, real u ) noexcept;
 };
+
+template <typename real>
+config_t<real>::config_t() noexcept
+{
+    Nx = 128;
+    Nu = 4096;
+    u_min = -10;
+    u_max =  10;
+    x_min = 0;
+    x_max = 4*M_PI;;
+    
+    dt = 1./16.; Nt = 100/dt;
+
+    Lx = x_max - x_min; Lx_inv = 1/Lx;
+    dx = Lx/Nx; dx_inv = 1/dx;
+}
+
+template <typename real>
+real config_t<real>::f0( real x, real u ) noexcept
+{
+    using std::sin;
+    using std::cos;
+    using std::exp;
+
+	constexpr real alpha = 0.01;
+	constexpr real k     = 0.5;
+    //return 0.39894228040143267793994 * ( 1. + alpha*cos(k*x) ) * exp( -u*u/2. ) * u*u;
+    return 0.39894228040143267793994 * ( 1. + alpha*cos(k*x) ) * exp( -u*u/2 );
+}
+
+}
+
+namespace dim2
+{
+
+template <typename real>
+struct config_t
+{
+	size_t Nx, Ny;  // Number of grid points in physical space.
+    size_t Nu, Nv;  // Number of quadrature points in velocity space.
+    size_t Nt;      // Number of time-steps.
+    real   dt;      // Time-step size.
+
+    // Dimensions of physical domain.
+	real x_min, x_max;
+	real y_min, y_max;
+
+    // Integration limits for velocity space.
+    real u_min, u_max;
+    real v_min, v_max;
+
+    // Grid-sizes and their reciprocals.
+	real dx, dx_inv, Lx, Lx_inv;
+	real dy, dy_inv, Ly, Ly_inv;
+
+    config_t() noexcept;
+    static real f0( real x, real y, real u, real v ) noexcept;
+};
+
+
+template <typename real>
+config_t<real>::config_t() noexcept
+{
+    Nx = Ny = 32;
+    Nu = Nv = 256;
+    u_min = v_min = -3*M_PI;
+    u_max = v_max =  3*M_PI;
+    x_min = y_min = -10*M_PI/3;
+    x_max = y_max =  10*M_PI/3;
+    
+    dt = 0.4; Nt = 100/dt;
+
+    Lx = x_max - x_min; Lx_inv = 1/Lx;
+    Ly = y_max - y_min; Ly_inv = 1/Ly;
+    dx = Lx/Nx; dx_inv = 1/dx;
+    dy = Ly/Ny; dy_inv = 1/dy;
+}
+
+template <typename real>
+real config_t<real>::f0( real x, real y, real u, real v ) noexcept
+{
+    using std::sin;
+    using std::cos;
+    using std::exp;
+
+	constexpr real alpha = 0.05;
+    constexpr real beta  = 0.3;
+    constexpr real pi    = real(M_PI);
+    return (7/(4*pi)) * sin(u/3) * sin(u/3) * (1+alpha*cos(beta*x)) * exp( -(u*u + 4*v*v)/8 );
+}
+
+}
+
+namespace dim3
+{
+
+template <typename real>
+struct config_t
+{
+	size_t Nx, Ny, Nz;  // Number of grid points in physical space.
+    size_t Nu, Nv, Nw;  // Number of quadrature points in velocity space.
+    size_t Nt;          // Number of time-steps.
+    real   dt;          // Time-step size.
+
+    // Dimensions of physical domain.
+	real x_min, x_max;
+	real y_min, y_max;
+	real z_min, z_max;
+
+    // Integration limits for velocity space.
+    real u_min, u_max;
+    real v_min, v_max;
+    real w_min, w_max;
+
+    // Grid-sizes and their reciprocals.
+	real dx, dx_inv, Lx, Lx_inv;
+	real dy, dy_inv, Ly, Ly_inv;
+	real dz, dz_inv, Lz, Lz_inv;
+
+    config_t() noexcept;
+    static real f0( real x, real y, real z, real u, real v, real w ) noexcept;
+};
+
+
+template <typename real>
+config_t<real>::config_t() noexcept
+{
+}
+
+template <typename real>
+real config_t<real>::f0( real x, real y, real z, real u, real v, real w ) noexcept
+{
+}
+
+}
 
 }
 

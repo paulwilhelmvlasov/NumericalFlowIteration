@@ -23,20 +23,6 @@
 #include <fstream>
 #include <sstream>
 
-
-template <typename real>
-real f0( real x, real y, real u, real v ) noexcept
-{
-    using std::sin;
-    using std::cos;
-    using std::exp;
-
-	constexpr real alpha = 0.01;
-	constexpr real k     = 0.5;
-    return (7/(4*M_PI)) * sin(u/3) * sin(u/3) * (1+0.05*cos(0.3*x)) * exp( -(u*u + 4*v*v)/8. );
-}
-
-
 #include <dergeraet/config.hpp>
 #include <dergeraet/random.hpp>
 #include <dergeraet/fields.hpp>
@@ -47,39 +33,27 @@ real f0( real x, real y, real u, real v ) noexcept
 namespace dergeraet
 {
 
+namespace dim2
+{
+
 template <typename real, size_t order>
-void do_test()
+void test()
 {
     using std::hypot;
     using std::max;
 
-    config_t<real> conf;
-    conf.Nx = 32;
-    conf.Ny = 32;
-    conf.Nu = 256; conf.u_max = 10;
-    conf.Nv = 256; conf.v_max = 10;
-    conf.dt = 0.4;
-    conf.Nt = 100 / conf.dt;
-    
-    conf.L0x = 0;
-    conf.L1x = 20*M_PI/3;
-    conf.Lx  = 20*M_PI/3;         conf.Lx_inv = 1 / conf.Lx;
-    conf.dx  = conf.Lx / conf.Nx; conf.dx_inv = 1 / conf.dx;
-
-    conf.L0y = 0;
-    conf.L1y = 20*M_PI/3;
-    conf.Ly  = 20*M_PI/3;         conf.Ly_inv = 1 / conf.Ly;
-    conf.dy  = conf.Ly / conf.Ny; conf.dy_inv = 1 / conf.dy;
+    config_t<real> conf; conf.Nt = 30;
+    poisson<real> poiss( conf );
 
     const size_t stride_x = 1;
     const size_t stride_y = stride_x*(conf.Nx + order - 1);
     const size_t stride_t = stride_y*(conf.Ny + order - 1);
 
     std::unique_ptr<real[]> coeffs { new real[ (conf.Nt+1)*stride_t ] {} };
-    std::unique_ptr<real,decltype(std::free)*> rho { reinterpret_cast<real*>(std::aligned_alloc(64,sizeof(real)*conf.Nx*conf.Ny)), std::free };
-    if ( rho == nullptr ) throw std::bad_alloc {};
+    void *tmp = std::aligned_alloc( poiss.alignment, sizeof(real)*conf.Nx*conf.Ny );
+    if ( tmp == nullptr ) throw std::bad_alloc {};
+    std::unique_ptr<real,decltype(std::free)*> rho { reinterpret_cast<real*>(tmp), std::free };
 
-    dim2::poisson<real> poiss( conf );
 
     for ( size_t n = 0; n <= conf.Nt; ++n )
     {
@@ -105,9 +79,11 @@ void do_test()
         {
             size_t i = l % conf.Nx;
             size_t j = l / conf.Nx;
+            real x = conf.x_min + i*conf.dx;
+            real y = conf.y_min + j*conf.dy;
 
-            real Ex = -dim2::eval<real,order,1,0>( i*conf.dx, j*conf.dy, coeffs.get() + n*stride_t, conf ) * conf.dx_inv;
-            real Ey = -dim2::eval<real,order,0,1>( i*conf.dx, j*conf.dy, coeffs.get() + n*stride_t, conf ) * conf.dy_inv;
+            real Ex = -dim2::eval<real,order,1,0>( x, y, coeffs.get() + n*stride_t, conf );
+            real Ey = -dim2::eval<real,order,0,1>( x, y, coeffs.get() + n*stride_t, conf );
 
             Emax = max( Emax, hypot(Ex,Ey) );
         }
@@ -116,12 +92,19 @@ void do_test()
     }
 
     std::ofstream file( "f12.txt" );
-    for ( double u = -10; u <= 10; u += 20./256. )
+    const size_t plotNu = 512, plotNx = 512;
+    for ( size_t i = 0; i <= plotNu; ++i )
     {
-        for ( double x = -conf.Lx/2; x <= conf.Lx/2; x += conf.Lx / 256 )
-            file << x + conf.Lx/2  << " " << u << " " << dim2::eval_f<real,order>( 30, x, 0, u, 0, coeffs.get(), conf ) << std::endl;
+        real u = conf.u_min + i*(conf.u_max-conf.u_min)/plotNu;
+        for ( size_t j = 0; j <= plotNx; ++j )
+        {
+            real x = conf.x_min + j*(conf.x_max-conf.x_min)/plotNx;
+            file << x << " " << u << " " << dim2::eval_f<real,order>( 30, x, 0, u, 0, coeffs.get(), conf ) << std::endl;
+        }
         file << std::endl;
     }
+}
+
 }
 
 }
@@ -129,6 +112,6 @@ void do_test()
 
 int main()
 {
-    dergeraet::do_test<double,4>();
+    dergeraet::dim2::test<double,4>();
 }
 
