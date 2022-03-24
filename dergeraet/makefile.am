@@ -3,3 +3,12 @@ lib_LTLIBRARIES = libdergeraet.la
 libdergeraet_la_SOURCES = poisson.cpp lapack.cpp blas.cpp
 libdergeraet_la_LDFLAGS = -version-info 0:0:0 -lopenblas -lfftw3 -lfftw3f
 
+if HAVE_CUDA
+lib_LIBRARIES = libdergeraet_cuda.a
+libdergeraet_cuda_a_SOURCES = cuda_kernel.cu
+libdergeraet_cuda_a_AR = $(NVCC) -lib -o
+
+.cu.o: 
+	$(NVCC) $(CUDA_CFLAGS) -use_fast_math -I$(top_srcdir) -c -o $@ $<
+endif
+

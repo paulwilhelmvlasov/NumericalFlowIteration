@@ -10,8 +10,14 @@ test_fields_SOURCES = test_fields.cpp
 test_fields_LDADD   = $(top_builddir)/dergeraet/libdergeraet.la
 
 test_dergeraet_SOURCES = test_dergeraet.cpp
-test_dergeraet_LDADD   = $(top_builddir)/dergeraet/libdergeraet.la
+test_dergeraet_LDADD   = $(top_builddir)/dergeraet/libdergeraet.la 
+if HAVE_CUDA
+test_dergeraet_LDADD  += $(top_builddir)/dergeraet/libdergeraet_cuda.a -lcudart
+endif
 
 test_dergeraet_2d_SOURCES = test_dergeraet_2d.cpp
-test_dergeraet_2d_LDADD   = $(top_builddir)/dergeraet/libdergeraet.la
+test_dergeraet_2d_LDADD   = $(top_builddir)/dergeraet/libdergeraet.la 
+if HAVE_CUDA
+test_dergeraet_2d_LDADD  += $(top_builddir)/dergeraet/libdergeraet_cuda.a -lcudart
+endif
 

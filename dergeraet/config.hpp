@@ -20,6 +20,7 @@
 #define DERGERAET_CONFIG_HPP
 
 #include <cmath>
+#include <dergeraet/cuda_runtime.hpp>
 
 namespace dergeraet
 {
@@ -45,14 +46,14 @@ struct config_t
 	real dx, dx_inv, Lx, Lx_inv;
 
     config_t() noexcept;
-    static real f0( real x, real u ) noexcept;
+    __host__ __device__ static real f0( real x, real u ) noexcept;
 };
 
 template <typename real>
 config_t<real>::config_t() noexcept
 {
-    Nx = 128;
-    Nu = 4096;
+    Nx = 512;
+    Nu = 4096*2;
     u_min = -10;
     u_max =  10;
     x_min = 0;
@@ -65,6 +66,7 @@ config_t<real>::config_t() noexcept
 }
 
 template <typename real>
+__host__ __device__
 real config_t<real>::f0( real x, real u ) noexcept
 {
     using std::sin;
@@ -73,8 +75,8 @@ real config_t<real>::f0( real x, real u ) noexcept
 
 	constexpr real alpha = 0.01;
 	constexpr real k     = 0.5;
-    //return 0.39894228040143267793994 * ( 1. + alpha*cos(k*x) ) * exp( -u*u/2. ) * u*u;
-    return 0.39894228040143267793994 * ( 1. + alpha*cos(k*x) ) * exp( -u*u/2 );
+    return 0.39894228040143267793994 * ( 1. + alpha*cos(k*x) ) * exp( -u*u/2. ) * u*u;
+    //return 0.39894228040143267793994 * ( 1. + alpha*cos(k*x) ) * exp( -u*u/2 );
 }
 
 }
@@ -103,15 +105,15 @@ struct config_t
 	real dy, dy_inv, Ly, Ly_inv;
 
     config_t() noexcept;
-    static real f0( real x, real y, real u, real v ) noexcept;
+    __host__ __device__ static real f0( real x, real y, real u, real v ) noexcept;
 };
 
 
 template <typename real>
 config_t<real>::config_t() noexcept
 {
-    Nx = Ny = 32;
-    Nu = Nv = 256;
+    Nx = Ny = 64;
+    Nu = Nv = 1024;
     u_min = v_min = -3*M_PI;
     u_max = v_max =  3*M_PI;
     x_min = y_min = -10*M_PI/3;
@@ -126,6 +128,7 @@ config_t<real>::config_t() noexcept
 }
 
 template <typename real>
+__host__ __device__
 real config_t<real>::f0( real x, real y, real u, real v ) noexcept
 {
     using std::sin;
@@ -167,7 +170,7 @@ struct config_t
 	real dz, dz_inv, Lz, Lz_inv;
 
     config_t() noexcept;
-    static real f0( real x, real y, real z, real u, real v, real w ) noexcept;
+    __host__ __device__ static real f0( real x, real y, real z, real u, real v, real w ) noexcept;
 };
 
 
@@ -177,6 +180,7 @@ config_t<real>::config_t() noexcept
 }
 
 template <typename real>
+__host__ __device__
 real config_t<real>::f0( real x, real y, real z, real u, real v, real w ) noexcept
 {
 }

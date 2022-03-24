@@ -29,6 +29,7 @@
 #include <dergeraet/poisson.hpp>
 #include <dergeraet/rho.hpp>
 #include <dergeraet/stopwatch.hpp>
+#include <dergeraet/cuda_kernel.hpp>
 
 namespace dergeraet
 {
@@ -42,8 +43,12 @@ void test()
     using std::hypot;
     using std::max;
 
-    config_t<real> conf; conf.Nt = 30;
+    config_t<real> conf; conf.Nt = 250;
     poisson<real> poiss( conf );
+
+    #ifdef HAVE_CUDA
+    cuda_kernel<real,order> kernel { conf };
+    #endif
 
     const size_t stride_x = 1;
     const size_t stride_y = stride_x*(conf.Nx + order - 1);
@@ -57,13 +62,15 @@ void test()
 
     for ( size_t n = 0; n <= conf.Nt; ++n )
     {
+        #ifdef HAVE_CUDA
+        kernel.compute_rho( n, coeffs.get(), rho.get() );
+        #else
+
         #pragma omp parallel for
         for ( size_t l = 0; l < conf.Nx * conf.Ny; ++l )
-        {
-            size_t i = l % conf.Nx;
-            size_t j = l / conf.Nx;
-            rho.get()[ l ] = dim2::eval_rho<real,order>( n, i, j, coeffs.get(), conf );
-        }
+            rho.get()[ l ] = dim2::eval_rho<real,order>( n, l, coeffs.get(), conf );
+
+        #endif
 
         poiss.solve( rho.get() );
 
@@ -72,7 +79,7 @@ void test()
             for ( size_t l = 0; l < stride_t; ++l )
                 coeffs[ n*stride_t + l ] = coeffs[ (n-1)*stride_t + l ];
         }
-        dim2::interpolate<real,order>( coeffs.get() + n*stride_t, rho.get(), conf );
+        interpolate<real,order>( coeffs.get() + n*stride_t, rho.get(), conf );
 
         real Emax = 0;
         for ( size_t l = 0; l < conf.Nx * conf.Ny; ++l )
@@ -82,27 +89,29 @@ void test()
             real x = conf.x_min + i*conf.dx;
             real y = conf.y_min + j*conf.dy;
 
-            real Ex = -dim2::eval<real,order,1,0>( x, y, coeffs.get() + n*stride_t, conf );
-            real Ey = -dim2::eval<real,order,0,1>( x, y, coeffs.get() + n*stride_t, conf );
+            real Ex = -eval<real,order,1,0>( x, y, coeffs.get() + n*stride_t, conf );
+            real Ey = -eval<real,order,0,1>( x, y, coeffs.get() + n*stride_t, conf );
 
             Emax = max( Emax, hypot(Ex,Ey) );
         }
 
         std::cout << std::setw(15) << n*conf.dt << std::setw(15) << std::setprecision(5) << std::scientific << Emax << std::endl; 
+ 
+        std::stringstream filename; filename << 'f' << n << ".txt"; 
+        std::ofstream file( filename.str() );
+        const size_t plotNu = 512, plotNx = 512;
+        for ( size_t i = 0; i <= plotNu; ++i )
+        {
+            real u = conf.u_min + i*(conf.u_max-conf.u_min)/plotNu;
+            for ( size_t j = 0; j <= plotNx; ++j )
+            {
+                real x = conf.x_min + j*(conf.x_max-conf.x_min)/plotNx;
+                file << x << " " << u << " " << dim2::eval_f<real,order>( n, x, 0, u, 0, coeffs.get(), conf ) << std::endl;
+            }
+            file << std::endl;
+        }
     }
 
-    std::ofstream file( "f12.txt" );
-    const size_t plotNu = 512, plotNx = 512;
-    for ( size_t i = 0; i <= plotNu; ++i )
-    {
-        real u = conf.u_min + i*(conf.u_max-conf.u_min)/plotNu;
-        for ( size_t j = 0; j <= plotNx; ++j )
-        {
-            real x = conf.x_min + j*(conf.x_max-conf.x_min)/plotNx;
-            file << x << " " << u << " " << dim2::eval_f<real,order>( 30, x, 0, u, 0, coeffs.get(), conf ) << std::endl;
-        }
-        file << std::endl;
-    }
 }
 
 }
@@ -112,6 +121,6 @@ void test()
 
 int main()
 {
-    dergeraet::dim2::test<double,4>();
+    dergeraet::dim2::test<float,4>();
 }
 

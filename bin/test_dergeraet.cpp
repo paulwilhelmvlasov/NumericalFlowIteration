@@ -30,6 +30,7 @@
 #include <dergeraet/poisson.hpp>
 #include <dergeraet/rho.hpp>
 #include <dergeraet/stopwatch.hpp>
+#include <dergeraet/cuda_kernel.hpp>
 
 namespace dergeraet
 {
@@ -51,15 +52,23 @@ void test()
     std::unique_ptr<real,decltype(std::free)*> rho { reinterpret_cast<real*>(std::aligned_alloc(64,sizeof(real)*conf.Nx)), std::free };
     if ( rho == nullptr ) throw std::bad_alloc {};
 
-    dim1::poisson<real> poiss( conf );
+    poisson<real> poiss( conf );
+
+    #ifdef HAVE_CUDA
+    cuda_kernel<real,order> kernel { conf };
+    #endif
 
     for ( size_t n = 0; n < conf.Nt; ++n )
     {
+        #ifdef HAVE_CUDA
+        kernel.compute_rho( n, coeffs.get(), rho.get() );
+        #else  
         #pragma omp parallel for
         for ( size_t i = 0; i < conf.Nx; ++i )
         {
             rho.get()[ i ] = dim1::eval_rho<real,order>( n, i, coeffs.get(), conf );
         }
+        #endif
 
         poiss.solve( rho.get() );
         dim1::interpolate<real,order>( coeffs.get() + n*stride_t, rho.get(), conf );

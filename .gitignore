@@ -4,6 +4,7 @@
 *.o
 *.lo
 *.la
+*.a
 bin/*
 !bin/*.cpp
 !bin/makefile.am

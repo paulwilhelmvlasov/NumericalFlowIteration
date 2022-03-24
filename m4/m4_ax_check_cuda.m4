@@ -33,8 +33,21 @@
 ##### 
 
 AC_DEFUN([AX_CHECK_CUDA], [
-# Provide your CUDA path with this		
-AC_ARG_WITH(cuda, [  --with-cuda=PREFIX      Prefix of your CUDA installation], [cuda_prefix=$withval], [cuda_prefix="/usr"])
+
+AC_ARG_ENABLE([cuda], AS_HELP_STRING([--enable-cuda],[Enable CUDA support.]))
+
+AM_CONDITIONAL([HAVE_CUDA], [test x$enable_cuda = xyes])
+
+AS_IF([test "x$enable_cuda" = "xyes"],[
+
+AC_DEFINE([HAVE_CUDA], [1], [Is CUDA support enabled?])
+
+# Provide your CUDA path with this
+AC_ARG_WITH([cuda],
+             AS_HELP_STRING([--with-cuda=PATH],[Path to CUDA headers and binaries.]),
+            [cuda_prefix=$withval], [cuda_prefix="/usr"])
+
+
 # Setting the prefix to the default if only --with-cuda was given
 if test "$cuda_prefix" == "yes"; then
 	if test "$withval" == "yes"; then
@@ -47,7 +60,6 @@ AC_MSG_CHECKING([nvcc in $cuda_prefix/bin])
 if test -x "$cuda_prefix/bin/nvcc"; then
 	AC_MSG_RESULT([found])
 	AC_DEFINE_UNQUOTED([NVCC_PATH], ["$cuda_prefix/bin/nvcc"], [Path to nvcc binary])
-    AC_DEFINE([HAVE_CUDA], [1], [Is CUDA support enabled?])
 	# We need to add the CUDA search directories for header and lib searches
 	CUDA_CFLAGS=""
 	# Saving the current flags
@@ -105,7 +117,6 @@ if test -x "$cuda_prefix/bin/nvcc"; then
 else
 	AC_MSG_RESULT([not found!])
 	AC_MSG_WARN([nvcc was not found in $cuda_prefix/bin. Compiling without CUDA support.])
-    AC_DEFINE_UNQUOTED([HAVE_CUDA], [1], [Is CUDA support enabled?])
 	VALID_CUDA=no
 fi
 if test "x$enable_cuda" = xyes && test x$VALID_CUDA = xyes ; then 
@@ -113,4 +124,8 @@ if test "x$enable_cuda" = xyes && test x$VALID_CUDA = xyes ; then
 elif test "x$enable_cuda" = xyes && test x$VALID_CUDA = xno ; then 
 	AC_MSG_ERROR([Cannot build CUDA bindings. Check errors])
 fi
+
 ])
+
+])
+

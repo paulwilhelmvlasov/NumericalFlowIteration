@@ -28,6 +28,7 @@ namespace dim1
 {
 
 template <typename real, size_t order>
+__host__ __device__
 real eval_ftilda( size_t n, real x, real u,
                   const real *coeffs, const config_t<real> &conf )
 {
@@ -59,6 +60,7 @@ real eval_ftilda( size_t n, real x, real u,
 }
 
 template <typename real, size_t order>
+__host__ __device__
 real eval_f( size_t n, real x, real u, 
              const real *coeffs, const config_t<real> &conf )
 {
@@ -114,6 +116,7 @@ namespace dim2
 
 
 template <typename real, size_t order>
+__host__ __device__
 real eval_ftilda( size_t n, real x, real y, real u, real v,
                   const real *coeffs, const config_t<real> &conf )
 {
@@ -156,6 +159,7 @@ real eval_ftilda( size_t n, real x, real y, real u, real v,
 }
 
 template <typename real, size_t order>
+__host__ __device__
 real eval_f( size_t n, real x, real y, real u, real v,
              const real *coeffs, const config_t<real> &conf )
 {
@@ -204,10 +208,13 @@ real eval_f( size_t n, real x, real y, real u, real v,
 }
 
 template <typename real, size_t order>
-real eval_rho( size_t n, size_t i, size_t j, const real *coeffs, const config_t<real> &conf )
+real eval_rho( size_t n, size_t l, const real *coeffs, const config_t<real> &conf )
 {
-    const real x = conf.x_min + i*conf.dx; 
-    const real y = conf.y_min + j*conf.dy; 
+    const size_t i = l % conf.Nx;
+    const size_t j = l / conf.Nx;
+
+    const real   x = conf.x_min + i*conf.dx; 
+    const real   y = conf.y_min + j*conf.dy; 
 
     const real du = (conf.u_max - conf.u_min) / conf.Nu;
     const real dv = (conf.v_max - conf.v_min) / conf.Nv;
@@ -236,6 +243,7 @@ namespace dim3
 
 
 template <typename real, size_t order>
+__host__ __device__
 real eval_ftilda( size_t n, real x, real y, real z,
                             real u, real v, real w,
                   const real *coeffs, const config_t<real> &conf )
@@ -286,6 +294,7 @@ real eval_ftilda( size_t n, real x, real y, real z,
 }
 
 template <typename real, size_t order>
+__host__ __device__
 real eval_f( size_t n, real x, real y, real z,
                        real u, real v, real w,
              const real *coeffs, const config_t<real> &conf )
@@ -344,8 +353,12 @@ real eval_f( size_t n, real x, real y, real z,
 }
 
 template <typename real, size_t order>
-real eval_rho( size_t n, size_t i, size_t j, size_t k, const real *coeffs, const config_t<real> &conf )
+real eval_rho( size_t n, size_t l, const real *coeffs, const config_t<real> &conf )
 {
+    const size_t k = l / (conf.Nx * conf.Ny); l -= k*conf.Nx*conf.Ny;
+    const size_t i = l % conf.Nx;
+    const size_t j = l / conf.Nx;
+
     const real x = conf.x_min + i*conf.dx; 
     const real y = conf.y_min + j*conf.dy; 
     const real z = conf.z_min + k*conf.dz; 
