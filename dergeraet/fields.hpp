@@ -21,6 +21,7 @@
 
 #include <limits>
 
+#include <dergeraet/lsmr.hpp>
 #include <dergeraet/gmres.hpp>
 #include <dergeraet/config.hpp>
 #include <dergeraet/splines.hpp>
@@ -76,12 +77,8 @@ void interpolate( real *coeffs, const real *values, const config_t<real> &config
             splines1d::N<real,order>(0,N);
         }
 
-        void operator()( const real *in,  size_t stride_in,
-                               real *out, size_t stride_out ) const
+        void operator()( const real *in, real *out ) const
         {
-            if ( stride_in != 1 || stride_out != 1 )
-                throw std::runtime_error { "dergeraet::fields::interpolate: Expected stride 1." };
-
             #pragma omp parallel for 
             for ( size_t i = 0; i < config.Nx; ++i )
             {
@@ -101,9 +98,44 @@ void interpolate( real *coeffs, const real *values, const config_t<real> &config
         }
     };
 
-    mat_t M { config };
-    gmres_config<real> opt; opt.print_frequency = 0; opt.max_iter = 64;
-    gmres<real,mat_t>( config.Nx, tmp.get(), 1, values, 1, M, opt ); 
+    struct transposed_mat_t
+    {
+        const config_t<real> &config;
+        real  N[ order ];
+
+        transposed_mat_t( const config_t<real> &conf ): config { conf }
+        {
+            splines1d::N<real,order>(0,N);
+        }
+
+        void operator()( const real *in, real *out ) const
+        {
+            for ( size_t i = 0; i < config.Nx; ++i )
+                out[ i ] = 0;
+
+            for ( size_t i = 0; i < config.Nx; ++i )
+            {
+                if ( i + order <= config.Nx )
+                {
+                    for ( size_t ii = 0; ii < order; ++ii )
+                        out[ i + ii ]  += N[ii] * in[ i ];
+                }
+                else
+                {
+                    for ( size_t ii = 0; ii < order; ++ii )
+                        out[ (i+ii) % config.Nx ] += N[ii]*in[ i ];
+                }
+            }
+        }
+    };
+
+    mat_t M { config }; transposed_mat_t Mt { config };
+    lsmr_options<real> opt;
+    lsmr( config.Nx, config.Nx, M, Mt, values, tmp.get(), opt );
+
+
+    if ( opt.iter == opt.max_iter )
+        std::cerr << "Warning. LSMR did not converge.\n";
 
     for ( size_t i = 0; i < config.Nx + order - 1; ++i )
         coeffs[ i ] = tmp[ i % config.Nx ];
@@ -175,12 +207,8 @@ void interpolate( real *coeffs, const real *values, const config_t<real> &config
             splines1d::N<real,order>(0,N);
         }
 
-        void operator()( const real *in,  size_t stride_in,
-                               real *out, size_t stride_out ) const
+        void operator()( const real *in, real *out ) const
         {
-            if ( stride_in != 1 || stride_out != 1 )
-                throw std::runtime_error { "dergeraet::fields::interpolate: Expected stride 1." };
-
             #pragma omp parallel for 
             for ( size_t l = 0; l < config.Nx*config.Ny; ++l )
             {
@@ -189,12 +217,11 @@ void interpolate( real *coeffs, const real *values, const config_t<real> &config
 
                 if ( i + order <= config.Nx && j + order <= config.Ny )
                 {
-                    const real *c = in + j*config.Nx + i;
                     real result = 0;
                     for ( size_t jj = 0; jj < order; ++jj )
                     for ( size_t ii = 0; ii < order; ++ii )
                     {
-                        result += N[jj]*N[ii]*c[ jj*config.Nx + ii ];
+                        result += N[jj]*N[ii]*in[ (j+jj)*config.Nx + ii + i ];
                     }
                     out[ l ] = result;
                 }
@@ -204,7 +231,7 @@ void interpolate( real *coeffs, const real *values, const config_t<real> &config
                     for ( size_t jj = 0; jj < order; ++jj )
                     for ( size_t ii = 0; ii < order; ++ii )
                     {
-                        result += N[jj]*N[ii]*in[ ( (j+jj) % config.Ny )*config.Nx+
+                        result += N[jj]*N[ii]*in[ ( (j+jj) % config.Ny )*config.Nx +
                                                   ( (i+ii) % config.Nx ) ];
                     }
                     out[ l ] = result;
@@ -213,11 +240,55 @@ void interpolate( real *coeffs, const real *values, const config_t<real> &config
         }
     };
 
+    struct transposed_mat_t
+    {
+        const config_t<real> &config;
+        real  N[ order ];
 
-    mat_t M { config };
+        transposed_mat_t( const config_t<real> &conf ): config { conf }
+        {
+            splines1d::N<real,order>(0,N);
+        }
 
-    gmres_config<real> opt; opt.print_frequency = 0;
-    gmres<real,mat_t>( config.Nx*config.Ny, tmp.get(), 1, values, 1, M, opt ); 
+        void operator()( const real *in, real *out ) const
+        {
+            for ( size_t l = 0; l < config.Nx*config.Ny; ++l )
+                out[ l ] = 0;
+
+            for ( size_t l = 0; l < config.Nx*config.Ny; ++l )
+            {
+                size_t j =  l / config.Nx;
+                size_t i =  l % config.Nx;
+
+                if ( i + order <= config.Nx && j + order <= config.Ny )
+                {
+                    for ( size_t jj = 0; jj < order; ++jj )
+                    for ( size_t ii = 0; ii < order; ++ii )
+                    {
+                        out[ (jj+j)*config.Nx + (i+ii) ] += N[jj]*N[ii]*in[ l ];
+                    }
+                }
+                else
+                {
+                    for ( size_t jj = 0; jj < order; ++jj )
+                    for ( size_t ii = 0; ii < order; ++ii )
+                    {
+                        out[ ( (j+jj) % config.Ny )*config.Nx +
+                               (i+ii) % config.Nx               ] += N[jj]*N[ii]*in[ l ];
+                    }
+                }
+            }
+        }
+    };
+
+               mat_t M  { config };
+    transposed_mat_t Mt { config };
+
+    lsmr_options<real> opt;
+    lsmr( config.Nx*config.Ny, config.Nx*config.Ny, M, Mt, values, tmp.get(), opt );
+
+    if ( opt.iter == opt.max_iter )
+        std::cerr << "Warning. LSMR did not converge. Residual = " << opt.residual << std::endl;
 
     for ( size_t j = 0; j < config.Ny + order - 1; ++j )
     for ( size_t i = 0; i < config.Nx + order - 1; ++i )

@@ -26,6 +26,50 @@ namespace dergeraet
 namespace blas
 {
 
+double dot( const size_t n, const double *x, size_t incx,
+                            const double *y, size_t incy )
+{
+    return cblas_ddot(n,x,incx,y,incy);
+}
+
+float dot( const size_t n, const float *x, size_t incx,
+                           const float *y, size_t incy )
+{
+    return cblas_sdot(n,x,incx,y,incy);
+}
+
+void axpy( size_t n, double alpha, const double *x, size_t incx,
+                                         double *y, size_t incy )
+{
+    cblas_daxpy(n,alpha,x,incx,y,incy);
+}
+
+void axpy( size_t n, float  alpha, const float  *x, size_t incx,
+                                         float  *y, size_t incy )
+{
+    cblas_saxpy(n,alpha,x,incx,y,incy);
+}
+
+void scal( size_t n, double alpha, double *x, size_t incx )
+{
+    cblas_dscal(n,alpha,x,incx);
+}
+
+void scal( size_t n, float  alpha, float  *x, size_t incx )
+{
+    cblas_sscal(n,alpha,x,incx);
+}
+
+void copy( size_t n, const double *x, size_t incx, double *y, size_t incy )
+{
+    cblas_dcopy(n,x,incx,y,incy);
+}
+
+void copy( size_t n, const float  *x, size_t incx, float  *y, size_t incy )
+{
+    cblas_scopy(n,x,incx,y,incy);
+}
+
 void ger( const size_t M, const size_t N, const double alpha,
           const double *X, const size_t incX, const double *Y, const size_t incY,
           double *A, const size_t lda)

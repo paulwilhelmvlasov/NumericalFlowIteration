@@ -31,6 +31,25 @@ namespace dergeraet
 namespace blas
 {
 
+double dot( const size_t n, const double *x, size_t incx,
+                            const double *y, size_t incy );
+
+float  dot( const size_t n, const float  *x, size_t incx,
+                            const float  *y, size_t incy );
+
+void axpy( size_t n, double alpha, const double *x, size_t incx,
+                                         double *y, size_t incy );
+
+void axpy( size_t n, float  alpha, const float  *x, size_t incx,
+                                         float  *y, size_t incy );
+
+
+void scal( size_t n, double alpha, double *x, size_t incx );
+void scal( size_t n, float  alpha, float  *x, size_t incx );
+
+void copy( size_t n, const double *x, size_t incx, double *y, size_t incy );
+void copy( size_t n, const float  *x, size_t incx, float  *y, size_t incy );
+
 void ger( const size_t M, const size_t N, const double alpha,
           const double *X, const size_t incX, const double *Y, const size_t incY,
           double *A, const size_t lda);

@@ -91,6 +91,20 @@ void test()
         file.close();
    
         std::cout << std::setw(15) << n*conf.dt << std::setw(15) << std::setprecision(5) << std::scientific << Emax << std::endl; 
+
+        filename = std::stringstream {}; filename << 'f' << n << ".txt"; 
+        file.open( filename.str() );
+        const size_t plotNu = 512, plotNx = 512;
+        for ( size_t i = 0; i <= plotNu; ++i )
+        {
+            real u = conf.u_min + i*(conf.u_max-conf.u_min)/plotNu;
+            for ( size_t j = 0; j <= plotNx; ++j )
+            {
+                real x = conf.x_min + j*(conf.x_max-conf.x_min)/plotNx;
+                file << x << " " << u << " " << eval_f<real,order>( n, x, u, coeffs.get(), conf ) << std::endl;
+            }
+            file << std::endl;
+        }
     }
 }
 
@@ -101,6 +115,6 @@ void test()
 
 int main()
 {
-    dergeraet::dim1::test<double,4>();
+    dergeraet::dim1::test<float,4>();
 }
 

@@ -156,6 +156,7 @@ void test_2d()
                                                (conf.Ny + order - 1) ] };
    
 
+    random_real<real> rand(0,1);
     for ( size_t l = 0; l < conf.Nx*conf.Ny; ++l )
     {
         size_t j = l / conf.Nx;
@@ -163,7 +164,8 @@ void test_2d()
         real x = conf.x_min + i*conf.dx;
         real y = conf.y_min + j*conf.dy;
 
-        values[ l ] = f(x,y);
+//        values[ l ] = f(x,y);
+        values[ l ] = rand();
     }
 
     stopwatch<real> clock;
@@ -185,6 +187,7 @@ void test_2d()
     std::cout << "Absolute l²-Error: " << err << ". "
               << "Relative l²-Error: " << err/sum << ".\n";
 
+    /*
     real max_err = 0, err_sum = 0;
     random_real<real> randx( conf.x_min, conf.x_max );
     random_real<real> randy( conf.y_min, conf.y_max );
@@ -198,13 +201,14 @@ void test_2d()
     }
     std::cout << "Max error: " << max_err << std::endl;
     std::cout << "Avg error: " << err_sum/(4096*4096) << std::endl;
+    */
 }
 
 }
 
 int main()
 {
-    dergeraet::test_2d<double,4>();
+    dergeraet::test_2d<float,4>();
     dergeraet::test_3d<double,4>();
 }
 

@@ -64,12 +64,13 @@ __host__ __device__
 real eval_f( size_t n, real x, real u, 
              const real *coeffs, const config_t<real> &conf )
 {
-    if ( n == 0 ) return f0(x,u);
+    if ( n == 0 ) return config_t<real>::f0(x,u);
 
     const size_t stride_x = 1;
     const size_t stride_t = stride_x*(conf.Nx + order - 1);
 
-    real Ex, *c;
+    real Ex;
+    const real *c;
 
     // Initial half-step.
     c  = coeffs + n*stride_t;
