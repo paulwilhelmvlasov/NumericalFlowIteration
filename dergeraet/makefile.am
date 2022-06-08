@@ -1,7 +1,7 @@
 lib_LTLIBRARIES = libdergeraet.la
 
 libdergeraet_la_SOURCES = poisson.cpp lapack.cpp blas.cpp
-libdergeraet_la_LDFLAGS = -version-info 0:0:0 -lopenblas -lfftw3 -lfftw3f
+libdergeraet_la_LDFLAGS = -version-info 0:0:0 -lfftw3 -lfftw3f $(BLAS_LIBS) $(LIBS) $(FLIBS)
 
 if HAVE_CUDA
 lib_LIBRARIES = libdergeraet_cuda.a
