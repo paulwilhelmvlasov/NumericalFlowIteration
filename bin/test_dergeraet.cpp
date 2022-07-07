@@ -30,7 +30,7 @@
 #include <dergeraet/poisson.hpp>
 #include <dergeraet/rho.hpp>
 #include <dergeraet/stopwatch.hpp>
-#include <dergeraet/cuda_kernel.hpp>
+#include <dergeraet/cuda_scheduler.hpp>
 
 namespace dergeraet
 {
@@ -55,13 +55,14 @@ void test()
     poisson<real> poiss( conf );
 
     #ifdef HAVE_CUDA
-    cuda_kernel<real,order> kernel { conf };
+    cuda_scheduler<real,order> sched { conf };
     #endif
 
+    std::ofstream Emax_file( "Emax.txt" );
     for ( size_t n = 0; n < conf.Nt; ++n )
     {
         #ifdef HAVE_CUDA
-        kernel.compute_rho( n, coeffs.get(), rho.get() );
+        sched.compute_rho( n, coeffs.get(), rho.get() );
         #else  
         #pragma omp parallel for
         for ( size_t i = 0; i < conf.Nx; ++i )
@@ -80,6 +81,7 @@ void test()
             Emax = max( Emax, abs( dim1::eval<real,order,1>(x,coeffs.get()+n*stride_t,conf))); 
         }
 
+        /*
         std::stringstream filename; filename << "E" << n << ".txt";
         std::ofstream file( filename.str() ); file << std::scientific << std::setprecision(8);
         for ( size_t i = 0; i < conf.Nx; ++i )
@@ -89,11 +91,14 @@ void test()
             file << std::setw(20) << x << std::setw(20) << E << '\n';
         }
         file.close();
+        */
    
+        Emax_file << std::setw(15) << n*conf.dt << std::setw(15) << std::setprecision(5) << std::scientific << Emax << std::endl; 
         std::cout << std::setw(15) << n*conf.dt << std::setw(15) << std::setprecision(5) << std::scientific << Emax << std::endl; 
 
-        filename = std::stringstream {}; filename << 'f' << n << ".txt"; 
-        file.open( filename.str() );
+        /*
+        std::stringstream filename = std::stringstream {}; filename << 'f' << n << ".txt"; 
+        std::ofstream file( filename.str() );
         const size_t plotNu = 512, plotNx = 512;
         for ( size_t i = 0; i <= plotNu; ++i )
         {
@@ -105,6 +110,7 @@ void test()
             }
             file << std::endl;
         }
+        */
     }
 }
 

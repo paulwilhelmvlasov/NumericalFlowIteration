@@ -29,7 +29,7 @@
 #include <dergeraet/poisson.hpp>
 #include <dergeraet/rho.hpp>
 #include <dergeraet/stopwatch.hpp>
-#include <dergeraet/cuda_kernel.hpp>
+#include <dergeraet/cuda_scheduler.hpp>
 
 namespace dergeraet
 {
@@ -47,7 +47,7 @@ void test()
     poisson<real> poiss( conf );
 
     #ifdef HAVE_CUDA
-    cuda_kernel<real,order> kernel { conf };
+    cuda_scheduler<real,order> sched { conf };
     #endif
 
     const size_t stride_x = 1;
@@ -63,7 +63,7 @@ void test()
     for ( size_t n = 0; n <= conf.Nt; ++n )
     {
         #ifdef HAVE_CUDA
-        kernel.compute_rho( n, coeffs.get(), rho.get() );
+        sched.compute_rho( n, coeffs.get(), rho.get() );
         #else
 
         #pragma omp parallel for

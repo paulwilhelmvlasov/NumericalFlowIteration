@@ -20,8 +20,10 @@
 #define DERGERAET_CUDA_KERNEL_HPP
 
 #include <dergeraet/config.hpp>
+#include <dergeraet/cuda_runtime.hpp>
 
 #ifdef HAVE_CUDA
+
 
 namespace dergeraet
 {
@@ -33,19 +35,19 @@ template <typename real, size_t order>
 class cuda_kernel
 {
 public:
-     cuda_kernel( const config_t<real> &conf );
-    ~cuda_kernel();
+    cuda_kernel( const config_t<real> &conf, int dev = cuda::get_device() );
 
     cuda_kernel( const cuda_kernel  &rhs ) = delete;
-    cuda_kernel(       cuda_kernel &&rhs ) = delete;
+    cuda_kernel(       cuda_kernel &&rhs ) = default;
     cuda_kernel& operator=( const cuda_kernel  &rhs ) = delete;
-    cuda_kernel& operator=(       cuda_kernel &&rhs ) = delete;
+    cuda_kernel& operator=(       cuda_kernel &&rhs ) = default;
 
-    void compute_rho( size_t n, const real *coeffs, real *rho );    
+    void compute_rho( size_t n, const real *coeffs, size_t l_min, size_t l_max );    
+    void    load_rho( real *rho, size_t l_min, size_t l_max );    
 
 private:
-    config_t<real> conf;
-    real *cuda_coeffs, *cuda_rho;
+    config_t<real> conf; int device_number;
+    cuda::autoptr cuda_coeffs, cuda_rho;
 };
 
 extern template class cuda_kernel<double,3>;
@@ -71,19 +73,19 @@ template <typename real, size_t order>
 class cuda_kernel
 {
 public:
-     cuda_kernel( const config_t<real> &conf );
-    ~cuda_kernel();
+    cuda_kernel( const config_t<real> &conf, int dev = cuda::get_device() );
 
     cuda_kernel( const cuda_kernel  &rhs ) = delete;
-    cuda_kernel(       cuda_kernel &&rhs ) = delete;
+    cuda_kernel(       cuda_kernel &&rhs ) = default;
     cuda_kernel& operator=( const cuda_kernel  &rhs ) = delete;
-    cuda_kernel& operator=(       cuda_kernel &&rhs ) = delete;
+    cuda_kernel& operator=(       cuda_kernel &&rhs ) = default;
 
-    void compute_rho( size_t n, const real *coeffs, real *rho );    
+    void compute_rho( size_t n, const real *coeffs, size_t l_min, size_t l_max );    
+    void    load_rho( real *rho, size_t l_min, size_t l_max );    
 
 private:
-    config_t<real> conf;
-    real *cuda_coeffs, *cuda_rho;
+    config_t<real> conf; int device_number;
+    cuda::autoptr cuda_coeffs, cuda_rho;
 };
 
 extern template class cuda_kernel<double,3>;

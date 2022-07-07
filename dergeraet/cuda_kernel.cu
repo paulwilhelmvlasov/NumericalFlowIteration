@@ -30,9 +30,11 @@ namespace dim1
 
 template <typename real, size_t order>
 __global__
-void cuda_eval_rho( size_t n, const real *coeffs, const config_t<real> conf, real *rho  )
+void cuda_eval_rho( size_t n, const real *coeffs, const config_t<real> conf, real *rho,
+                    size_t l_min, size_t l_end )
 {
-    const size_t i     = blockDim.x*blockIdx.x + threadIdx.x;
+    const size_t N     = l_end - l_min;
+    const size_t i     = l_min + (blockDim.x*blockIdx.x + threadIdx.x) % N;
     const real   x     = conf.x_min + i*conf.dx; 
     const real   du    = (conf.u_max - conf.u_min) / conf.Nu;
     const real   u_min = conf.u_min + 0.5*du;
@@ -49,59 +51,55 @@ void cuda_eval_rho( size_t n, const real *coeffs, const config_t<real> conf, rea
 }
 
 template <typename real, size_t order>
-cuda_kernel<real,order>::cuda_kernel( const config_t<real> &p_conf ): conf { p_conf }
+cuda_kernel<real,order>::cuda_kernel( const config_t<real> &p_conf, int dev ):
+conf { p_conf }, device_number { dev }
 {
-    cudaError_t err = cudaMalloc( &cuda_coeffs, sizeof(real) * (conf.Nt + 1) *
-                                                               (conf.Nx + order - 1) );
-                                                 
-    if ( err == cudaErrorMemoryAllocation ) throw std::bad_alloc {};
+    size_t coeff_size = sizeof(real)*(conf.Nt+1)*(conf.Nx+order-1);
+    size_t   rho_size = sizeof(real)*(conf.Nx);
 
-    err = cudaMalloc ( &cuda_rho, sizeof(real) * conf.Nx );
-    if ( err == cudaErrorMemoryAllocation )
-    {
-        cudaFree( &cuda_coeffs );
-        throw std::bad_alloc {};
-    }
+    cuda::set_device( device_number );
+    cuda_coeffs.reset( cuda::malloc(coeff_size) );
+    cuda_rho   .reset( cuda::malloc(  rho_size) );
 }
 
 template <typename real, size_t order>
-cuda_kernel<real,order>::~cuda_kernel()
+void cuda_kernel<real,order>::compute_rho( size_t n, const real *coeffs, size_t l_min, size_t l_end )
 {
-    cudaFree( cuda_rho );
-    cudaFree( cuda_coeffs );
-}
+    if ( l_min == l_end ) return;
 
-template <typename real, size_t order>
-void cuda_kernel<real,order>::compute_rho( size_t n, const real *coeffs, real *rho )
-{
     if ( n > conf.Nt )
         throw std::range_error { "Time-step out of range." };
+
+    cuda::set_device( device_number );
+    real *cu_coeffs = reinterpret_cast<real*>( cuda_coeffs.get() );
+    real *cu_rho    = reinterpret_cast<real*>( cuda_rho   .get() );
 
     if ( n )
     {
         size_t stride_n = (conf.Nx + order - 1);
-        cudaMemcpy( cuda_coeffs + (n-1)*stride_n,
-                         coeffs + (n-1)*stride_n, sizeof(real)*stride_n,
-                    cudaMemcpyHostToDevice );
+        cuda::memcpy_to_device( cu_coeffs + (n-1)*stride_n,
+                                   coeffs + (n-1)*stride_n,
+                                sizeof(real)*stride_n );
     }
-
 
     size_t N = conf.Nx;
     size_t block_size = 32;
-
-    size_t Nblocks = N / block_size;
-    size_t Ncpu    = N % block_size;
-    size_t Ncuda   = N - Ncpu;
+    size_t Nblocks = 1 +  ( (N-1) / (block_size) );
     
-    cuda_eval_rho<real,order><<<Nblocks,block_size>>>( n, cuda_coeffs, conf, cuda_rho );
+    cuda_eval_rho<real,order><<<Nblocks,block_size>>>( n, cu_coeffs, conf, cu_rho, l_min, l_end );
 
-    #pragma omp parallel for
-    for ( size_t l = Ncuda; l < N; ++l )
-        rho[ l ] = eval_rho<real,order>( n, l, coeffs, conf );
-
-    cudaMemcpy( rho, cuda_rho, Ncuda*sizeof(real), cudaMemcpyDeviceToHost );
 }
 
+template <typename real, size_t order>
+void cuda_kernel<real,order>::load_rho( real *rho, size_t l_min, size_t l_end )
+{
+    if ( l_min == l_end ) return;
+
+    size_t N = l_end - l_min;
+    cuda::set_device( device_number );
+    real *cu_rho    = reinterpret_cast<real*>( cuda_rho.get() );
+    cuda::memcpy_to_host(rho + l_min, cu_rho + l_min, N*sizeof(real) );
+}
 
 template class cuda_kernel<double,3>;
 template class cuda_kernel<double,4>;
@@ -124,9 +122,11 @@ namespace dim2
 
 template <typename real, size_t order>
 __global__
-void cuda_eval_rho( size_t n, const real *coeffs, const config_t<real> conf, real *rho  )
+void cuda_eval_rho( size_t n, const real *coeffs, const config_t<real> conf, real *rho,
+                    size_t l_min, size_t l_end )
 {
-    const size_t l = blockDim.x*blockIdx.x + threadIdx.x;
+    const size_t N = l_end - l_min;
+    const size_t l = l_min + (blockDim.x*blockIdx.x + threadIdx.x) % N;
 
     const size_t i = l % conf.Nx;
     const size_t j = l / conf.Nx;
@@ -155,57 +155,55 @@ void cuda_eval_rho( size_t n, const real *coeffs, const config_t<real> conf, rea
 }
 
 template <typename real, size_t order>
-cuda_kernel<real,order>::cuda_kernel( const config_t<real> &p_conf ): conf { p_conf }
+cuda_kernel<real,order>::cuda_kernel( const config_t<real> &p_conf, int dev ):
+conf { p_conf }, device_number { dev }
 {
-    cudaError_t err = cudaMalloc( &cuda_coeffs, sizeof(real) * (conf.Nt + 1) *
-                                                               (conf.Nx + order - 1) *
-                                                               (conf.Ny + order - 1) );
-    if ( err == cudaErrorMemoryAllocation ) throw std::bad_alloc {};
+    size_t coeff_size = sizeof(real)*(conf.Nt+1)*(conf.Nx+order-1)*
+                                                 (conf.Ny+order-1);
+    size_t   rho_size = sizeof(real)*conf.Nx*conf.Ny;
 
-    err = cudaMalloc ( &cuda_rho, sizeof(real) * ( conf.Nx * conf.Ny ) );
-    if ( err == cudaErrorMemoryAllocation )
-    {
-        cudaFree( &cuda_coeffs );
-        throw std::bad_alloc {};
-    }
+    cuda::set_device(dev);
+    cuda_coeffs.reset( cuda::malloc(coeff_size), dev );
+    cuda_rho   .reset( cuda::malloc(  rho_size), dev );
 }
 
 template <typename real, size_t order>
-cuda_kernel<real,order>::~cuda_kernel()
-{
-    cudaFree( cuda_rho );
-    cudaFree( cuda_coeffs );
-}
-
-template <typename real, size_t order>
-void cuda_kernel<real,order>::compute_rho( size_t n, const real *coeffs, real *rho )
+void cuda_kernel<real,order>::compute_rho( size_t n, const real *coeffs,
+                                           size_t l_min, size_t l_end )
 {
     if ( n > conf.Nt )
         throw std::range_error { "Time-step out of range." };
 
+    if ( l_min == l_end ) return;
+
+    cuda::set_device(device_number);
+    real *cu_coeffs = reinterpret_cast<real*>( cuda_coeffs.get() );
+    real *cu_rho    = reinterpret_cast<real*>( cuda_rho   .get() );
+
     if ( n )
     {
         size_t stride_n = (conf.Nx + order - 1)*(conf.Ny + order - 1);
-        cudaMemcpy( cuda_coeffs + (n-1)*stride_n,
-                         coeffs + (n-1)*stride_n, sizeof(real)*stride_n,
-                    cudaMemcpyHostToDevice );
+        cuda::memcpy_to_device( cu_coeffs + (n-1)*stride_n,
+                                   coeffs + (n-1)*stride_n, sizeof(real)*stride_n );
     }
 
-
-    size_t N = conf.Nx*conf.Ny;
-    size_t block_size = 128;
-
-    size_t Nblocks = N / block_size;
-    size_t Ncpu    = N % block_size;
-    size_t Ncuda   = N - Ncpu;
+    size_t N = l_end - l_min;
+    size_t block_size = 32;
+    size_t Nblocks = 1 + (N-1) / block_size;
     
-    cuda_eval_rho<real,order><<<Nblocks,block_size>>>( n, cuda_coeffs, conf, cuda_rho );
+    cuda_eval_rho<real,order><<<Nblocks,block_size>>>( n, cu_coeffs, conf, cu_rho, l_min, l_end );
+}
 
-    #pragma omp parallel for
-    for ( size_t l = Ncuda; l < N; ++l )
-        rho[ l ] = eval_rho<real,order>( n, l, coeffs, conf );
+template <typename real, size_t order>
+void cuda_kernel<real,order>::load_rho(real *rho, size_t l_min, size_t l_end )
+{
+    if ( l_min == l_end ) return;
 
-    cudaMemcpy( rho, cuda_rho, Ncuda*sizeof(real), cudaMemcpyDeviceToHost );
+    cuda::set_device(device_number);
+    real *cu_rho = reinterpret_cast<real*>( cuda_rho.get() );
+
+    size_t N = l_end - l_min;
+    cuda::memcpy_to_host( rho + l_min, cu_rho + l_min, N*sizeof(real) );
 }
 
 
