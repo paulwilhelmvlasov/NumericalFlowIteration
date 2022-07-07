@@ -40,8 +40,8 @@ public:
     cuda_scheduler& operator=( const cuda_scheduler&  ) = delete;
     cuda_scheduler& operator=(       cuda_scheduler&& ) = default;
 
-    cuda_scheduler( const config_t<real> &p_conf ):
-    conf { p_conf }
+    cuda_scheduler( const config_t<real> &p_conf, size_t p_begin, size_t p_end ):
+    conf { p_conf }, begin { p_begin }, end { p_end }
     {
         size_t n_dev = cuda::device_count();
         kernels.reserve(n_dev);
@@ -62,26 +62,31 @@ public:
         std::cout << "Running on " << kernels.size() << " CUDA devices.\n";
 
         if ( kernels.size() == 0 )
-            throw cuda::exception( cudaErrorUnknown, "cuda_scheduler: could not create kernels on any devices." );
+            throw cuda::exception( cudaErrorUnknown, "cuda_scheduler: Failed to create kernels." );
     }
 
     void compute_rho( size_t n, const real *coeffs, real *rho )
     {
-        using std::min;
+        if ( begin == end ) return;
 
         size_t n_cards = kernels.size();
-        size_t N = conf.Nx;
+        size_t N = end - begin;
         size_t chunk_size = N / n_cards;
 
         for ( size_t i = 0; i < n_cards; ++i )
-            kernels[i].compute_rho( n, coeffs, i*chunk_size, min(N,(i+1)*chunk_size) ); 
+            kernels[i].compute_rho( n, coeffs, begin + i*chunk_size, begin + (i+1)*chunk_size );
 
         for ( size_t i = 0; i < n_cards; ++i )
-            kernels[i].load_rho( rho, i*chunk_size, min(N,(i+1)*chunk_size) ); 
+            kernels[i].load_rho( rho, begin + i*chunk_size, begin + (i+1)*chunk_size ); 
+
+        // Leftovers.
+        kernels[0].compute_rho( n, coeffs, begin + n_cards*chunk_size, end );
+        kernels[0].   load_rho( n, coeffs, begin + n_cards*chunk_size, end );
     }
 
 private:
     config_t<real> conf;
+    size_t begin, size_t end;
     std::vector< cuda_kernel<real,order> > kernels;
 };
 
@@ -122,21 +127,28 @@ public:
         }
 
         std::cout << "Running on " << kernels.size() << " CUDA devices.\n";
+
+        if ( kernels.size() == 0 )
+            throw cuda::exception( cudaErrorUnknown, "cuda_scheduler: Failed to create kernels." );
     }
 
     void compute_rho( size_t n, const real *coeffs, real *rho )
     {
-        using std::min;
+        if ( begin == end ) return;
 
         size_t n_cards = kernels.size();
-        size_t N = conf.Nx*conf.Ny;
+        size_t N = end - begin;
         size_t chunk_size = N / n_cards;
 
         for ( size_t i = 0; i < n_cards; ++i )
-            kernels[i].compute_rho( n, coeffs, i*chunk_size, min(N,(i+1)*chunk_size) ); 
+            kernels[i].compute_rho( n, coeffs, begin + i*chunk_size, begin + (i+1)*chunk_size );
 
         for ( size_t i = 0; i < n_cards; ++i )
-            kernels[i].load_rho( rho, i*chunk_size, min(N,(i+1)*chunk_size) ); 
+            kernels[i].load_rho( rho, begin + i*chunk_size, begin + (i+1)*chunk_size ); 
+
+        // Leftovers.
+        kernels[0].compute_rho( n, coeffs, begin + n_cards*chunk_size, l_end );
+        kernels[0].   load_rho( n, coeffs, begin + n_cards*chunk_size, l_end );
     }
 
 private:
@@ -150,5 +162,4 @@ private:
 
 #endif
 #endif
-
 
