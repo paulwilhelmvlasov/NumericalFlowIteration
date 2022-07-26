@@ -56,10 +56,10 @@ if test "$cuda_prefix" == "yes"; then
 fi
 
 # Checking for nvcc
-AC_MSG_CHECKING([nvcc in $cuda_prefix/bin])
-if test -x "$cuda_prefix/bin/nvcc"; then
+AC_MSG_CHECKING([nvcc in $cuda_prefix/local_rwth/sw/cuda/11.5.2/bin])
+if test -x "$cuda_prefix/local_rwth/sw/cuda/11.5.2/bin/nvcc"; then
 	AC_MSG_RESULT([found])
-	AC_DEFINE_UNQUOTED([NVCC_PATH], ["$cuda_prefix/bin/nvcc"], [Path to nvcc binary])
+	AC_DEFINE_UNQUOTED([NVCC_PATH], ["$cuda_prefix/local_rwth/sw/cuda/11.5.2/bin/nvcc"], [Path to nvcc binary])
 	# We need to add the CUDA search directories for header and lib searches
 	CUDA_CFLAGS=""
 	# Saving the current flags
@@ -68,12 +68,12 @@ if test -x "$cuda_prefix/bin/nvcc"; then
 	# Announcing the new variables
 	AC_SUBST([CUDA_CFLAGS])
 	AC_SUBST([CUDA_LDFLAGS])
-	AC_SUBST([NVCC],[$cuda_prefix/bin/nvcc])
-	AC_CHECK_FILE([$cuda_prefix/lib64],[lib64_found=yes],[lib64_found=no])
+	AC_SUBST([NVCC],[$cuda_prefix/local_rwth/sw/cuda/11.5.2/bin/nvcc])
+	AC_CHECK_FILE([$cuda_prefix/local_rwth/sw/cuda/11.5.2/lib64],[lib64_found=yes],[lib64_found=no])
 	if test "x$lib64_found" = xno ; then
-		AC_CHECK_FILE([$cuda_prefix/lib],[lib32_found=yes],[lib32_found=no])
+		AC_CHECK_FILE([$cuda_prefix/local_rwth/sw/cuda/11.5.2/lib],[lib32_found=yes],[lib32_found=no])
 		if test "x$lib32_found" = xyes ; then
-			AC_SUBST([CUDA_LIBDIR],[$cuda_prefix/lib])
+			AC_SUBST([CUDA_LIBDIR],[$cuda_prefix/local_rwth/sw/cuda/11.5.2/lib])
 		else
 			AC_MSG_WARN([Couldn't find cuda lib directory])
 			VALID_CUDA=no
@@ -81,12 +81,12 @@ if test -x "$cuda_prefix/bin/nvcc"; then
 	else
 		AC_CHECK_SIZEOF([long])
 		if test "x$ac_cv_sizeof_long" = "x8" ; then
-			AC_SUBST([CUDA_LIBDIR],[$cuda_prefix/lib64])
+			AC_SUBST([CUDA_LIBDIR],[$cuda_prefix/local_rwth/sw/cuda/11.5.2/lib64])
 			CUDA_CFLAGS+=" -m64"
 		elif test "x$ac_cv_sizeof_long" = "x4" ; then
-			AC_CHECK_FILE([$cuda_prefix/lib32],[lib32_found=yes],[lib32_found=no])
+			AC_CHECK_FILE([$cuda_prefix/local_rwth/sw/cuda/11.5.2/lib32],[lib32_found=yes],[lib32_found=no])
 			if test "x$lib32_found" = xyes ; then
-				AC_SUBST([CUDA_LIBDIR],[$cuda_prefix/lib])
+				AC_SUBST([CUDA_LIBDIR],[$cuda_prefix/local_rwth/sw/cuda/11.5.2/lib])
 				CUDA_CFLAGS+=" -m32"
 			else
 				AC_MSG_WARN([Couldn't find cuda lib directory])
@@ -116,7 +116,7 @@ if test -x "$cuda_prefix/bin/nvcc"; then
 	LDFLAGS=${ax_save_LDFLAGS}
 else
 	AC_MSG_RESULT([not found!])
-	AC_MSG_WARN([nvcc was not found in $cuda_prefix/bin. Compiling without CUDA support.])
+	AC_MSG_WARN([nvcc was not found in $cuda_prefix/local_rwth/sw/cuda/11.5.2/bin/nvcc. Compiling without CUDA support.])
 	VALID_CUDA=no
 fi
 if test "x$enable_cuda" = xyes && test x$VALID_CUDA = xyes ; then 

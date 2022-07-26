@@ -20,6 +20,7 @@
 #define DERGERAET_CUDA_SCHEDULER_HPP
 
 #include <cmath>
+#include <dergeraet/stopwatch.hpp>
 #include <dergeraet/cuda_kernel.hpp>
 
 #ifdef HAVE_CUDA
@@ -46,7 +47,7 @@ public:
         size_t n_dev = cuda::device_count();
         kernels.reserve(n_dev);
 
-        for ( size_t i = 0; i < n_dev; ++i )
+         for ( size_t i =0; i< n_dev; i++ )
         {
             try 
             {
@@ -72,20 +73,18 @@ public:
         size_t N = end - begin;
         size_t chunk_size = N / n_cards;
 
-        for ( size_t i = 0; i < n_cards; ++i )
+        for ( size_t i = 0; i < n_cards - 1; ++i )
             kernels[i].compute_rho( n, coeffs, begin + i*chunk_size, begin + (i+1)*chunk_size );
+        kernels.back().compute_rho( n, coeffs, begin + (n_cards-1)*chunk_size, end);
 
-        for ( size_t i = 0; i < n_cards; ++i )
+        for ( size_t i = 0; i < n_cards-1; ++i )
             kernels[i].load_rho( rho, begin + i*chunk_size, begin + (i+1)*chunk_size ); 
-
-        // Leftovers.
-        kernels[0].compute_rho( n, coeffs, begin + n_cards*chunk_size, end );
-        kernels[0].   load_rho( n, coeffs, begin + n_cards*chunk_size, end );
-    }
+        kernels.back().load_rho( rho, begin + (n_cards-1)*chunk_size, end);
+        }
 
 private:
     config_t<real> conf;
-    size_t begin, size_t end;
+    size_t begin; size_t end;
     std::vector< cuda_kernel<real,order> > kernels;
 };
 
@@ -112,18 +111,21 @@ public:
         size_t n_dev = cuda::device_count();
         kernels.reserve(n_dev);
 
-        for ( size_t i = 0; i < n_dev; ++i )
+        for ( size_t i =0; i< n_dev; i++)
         {
             try 
             {
                 kernels.emplace_back( cuda_kernel<real,order>(conf,i) );
+		        std::cout << "Added dövice " << i << ".\n"; std::cout.flush();
             }
             catch ( cuda::exception &ex )
             {
                 // Do not use this device.
             }
         }
-
+          //int num_of_devices = 1;
+        //cudaGetDeviceCount(&num_of_devices);
+        //std::cout<<"There are "<<num_of_devices<<" available devices"<<std::endl;
         std::cout << "Running on " << kernels.size() << " CUDA devices.\n";
 
         if ( kernels.size() == 0 )
@@ -139,14 +141,19 @@ public:
         size_t chunk_size = N / n_cards;
 
         for ( size_t i = 0; i < n_cards; ++i )
+        {
+            stopwatch<real> clock;
             kernels[i].compute_rho( n, coeffs, begin + i*chunk_size, begin + (i+1)*chunk_size );
+            real elapsed = clock.elapsed();
+            std::cout << "Time for launching kernel " << i << ": " << elapsed << "." << std::endl;
+        }
 
         for ( size_t i = 0; i < n_cards; ++i )
             kernels[i].load_rho( rho, begin + i*chunk_size, begin + (i+1)*chunk_size ); 
 
         // Leftovers.
-        kernels[0].compute_rho( n, coeffs, begin + n_cards*chunk_size, l_end );
-        kernels[0].   load_rho( n, coeffs, begin + n_cards*chunk_size, l_end );
+        //kernels[0].compute_rho( n, coeffs, begin + n_cards*chunk_size, end );
+        //kernels[0].   load_rho( rho, begin + n_cards*chunk_size, end );
     }
 
 private:

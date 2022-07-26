@@ -199,17 +199,21 @@ autoptr::operator bool() const noexcept
 inline
 int device_count()
 {
+    //std::cout << "Getting device count." << std::endl;
     int count;
     cudaError_t code = cudaGetDeviceCount(&count);
     if ( code != cudaSuccess ) throw exception { code, "dergeraet::cuda::device_count(): " };
+    //std::cout << "Got  device count." << std::endl;
     return count;
 }
 
 inline
 void set_device( int dev_number )
 {
+    //std::cout << "Setting device " << dev_number << std::endl;
     cudaError_t code = cudaSetDevice( dev_number );
     if ( code != cudaSuccess ) throw exception { code, "dergeraet::cuda::set_device(): " };
+    //std::cout << "Successfully set device." << std::endl;
 }
 
 inline
