@@ -17,7 +17,7 @@
  * Der Gerät; see the file COPYING.  If not see http://www.gnu.org/licenses.
  */
 #include <dergeraet/cuda_kernel.hpp>
-
+#include <dergeraet/stopwatch.hpp>
 #include <dergeraet/rho.hpp>
 
 #include <stdexcept>
@@ -33,6 +33,7 @@ __global__
 void cuda_eval_rho( size_t n, const real *coeffs, const config_t<real> conf, real *rho,
                     size_t l_min, size_t l_end )
 {
+  
     const size_t N     = l_end - l_min;
     const size_t i     = l_min + (blockDim.x*blockIdx.x + threadIdx.x) % N;
     const real   x     = conf.x_min + i*conf.dx; 
@@ -57,6 +58,7 @@ conf { p_conf }, device_number { dev }
     size_t coeff_size = sizeof(real)*(conf.Nt+1)*(conf.Nx+order-1);
     size_t   rho_size = sizeof(real)*(conf.Nx);
 
+    
     cuda::set_device( device_number );
     cuda_coeffs.reset( cuda::malloc(coeff_size) );
     cuda_rho   .reset( cuda::malloc(  rho_size) );
@@ -65,6 +67,7 @@ conf { p_conf }, device_number { dev }
 template <typename real, size_t order>
 void cuda_kernel<real,order>::compute_rho( size_t n, const real *coeffs, size_t l_min, size_t l_end )
 {
+
     if ( l_min == l_end ) return;
 
     if ( n > conf.Nt )
@@ -83,11 +86,13 @@ void cuda_kernel<real,order>::compute_rho( size_t n, const real *coeffs, size_t 
     }
 
     size_t N = conf.Nx;
-    size_t block_size = 32;
+    size_t block_size = 64;
     size_t Nblocks = 1 +  ( (N-1) / (block_size) );
-    
-    cuda_eval_rho<real,order><<<Nblocks,block_size>>>( n, cu_coeffs, conf, cu_rho, l_min, l_end );
+    stopwatch<real> clock;
 
+    cuda_eval_rho<real,order><<<Nblocks,block_size>>>( n, cu_coeffs, conf, cu_rho, l_min, l_end );
+    real elapsed = clock.elapsed();
+    std::cout << "Time for computing rho on kernel: " << device_number << ": " << elapsed << "." << std::endl;
 }
 
 template <typename real, size_t order>
@@ -171,6 +176,8 @@ template <typename real, size_t order>
 void cuda_kernel<real,order>::compute_rho( size_t n, const real *coeffs,
                                            size_t l_min, size_t l_end )
 {
+
+    stopwatch<real> clock;
     if ( n > conf.Nt )
         throw std::range_error { "Time-step out of range." };
 
@@ -179,19 +186,27 @@ void cuda_kernel<real,order>::compute_rho( size_t n, const real *coeffs,
     cuda::set_device(device_number);
     real *cu_coeffs = reinterpret_cast<real*>( cuda_coeffs.get() );
     real *cu_rho    = reinterpret_cast<real*>( cuda_rho   .get() );
-
     if ( n )
     {
         size_t stride_n = (conf.Nx + order - 1)*(conf.Ny + order - 1);
         cuda::memcpy_to_device( cu_coeffs + (n-1)*stride_n,
-                                   coeffs + (n-1)*stride_n, sizeof(real)*stride_n );
+                                  coeffs + (n-1)*stride_n, sizeof(real)*stride_n );
     }
-
     size_t N = l_end - l_min;
-    size_t block_size = 32;
+    size_t block_size = 64;
     size_t Nblocks = 1 + (N-1) / block_size;
-    
+    // cudaEvent_t start, stop;
+    // cudaEventCreate(&start);
+    // cudaEventCreate(&stop);
+    // cudaEventRecord(start);
     cuda_eval_rho<real,order><<<Nblocks,block_size>>>( n, cu_coeffs, conf, cu_rho, l_min, l_end );
+    //cudaDeviceSynchronize();
+    // cudaEventRecord(stop);
+    // cudaEventSynchronize(stop);
+    // float milliseconds = 0;
+    // cudaEventElapsedTime(&milliseconds, start, stop);
+    //cudaDeviceSynchronize();
+    //real elapsed = clock.elapsed();
 }
 
 template <typename real, size_t order>

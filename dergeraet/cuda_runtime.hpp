@@ -27,6 +27,7 @@
 #else
 #include <stdexcept>
 #include <cuda_runtime.h>
+#include <stdio.h>
 
 namespace dergeraet
 {
@@ -212,7 +213,11 @@ void set_device( int dev_number )
 {
     //std::cout << "Setting device " << dev_number << std::endl;
     cudaError_t code = cudaSetDevice( dev_number );
-    if ( code != cudaSuccess ) throw exception { code, "dergeraet::cuda::set_device(): " };
+    if ( code != cudaSuccess ){
+        printf("%S \n",std::string(cudaGetErrorString(code)));
+        
+         throw exception { code, "dergeraet::cuda::set_device(): " };
+    }
     //std::cout << "Successfully set device." << std::endl;
 }
 
@@ -221,7 +226,10 @@ int get_device()
 {
     int dev_number;
     cudaError_t code = cudaGetDevice( &dev_number );
-    if ( code != cudaSuccess ) throw exception { code, "dergeraet::cuda::get_device(): " };
+    if ( code != cudaSuccess ){
+         throw exception { code, "dergeraet::cuda::get_device(): " };
+         printf("%S \n",std::string(cudaGetErrorString(code)));
+         }
     return dev_number;
 }
 
@@ -230,7 +238,10 @@ void* malloc( std::size_t size )
 {
     void* result;
     cudaError_t code = cudaMalloc( &result, size );
-    if ( code != cudaSuccess ) throw exception { code, "dergeraet::cuda::malloc(): " };
+    if ( code != cudaSuccess ){
+        printf("%S \n",std::string(cudaGetErrorString(code)));
+     throw exception { code, "dergeraet::cuda::malloc(): " };
+    }
     return result;
 }
 

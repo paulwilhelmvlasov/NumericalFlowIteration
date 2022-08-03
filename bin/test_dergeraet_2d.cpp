@@ -70,7 +70,7 @@ void test()
         for ( size_t l = 0; l < conf.Nx * conf.Ny; ++l )
             rho.get()[ l ] = dim2::eval_rho<real,order>( n, l, coeffs.get(), conf );
 
-        #endif
+         #endif
 
         poiss.solve( rho.get() );
 
