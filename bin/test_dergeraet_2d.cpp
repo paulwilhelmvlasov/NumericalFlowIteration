@@ -97,6 +97,7 @@ void test()
 
         std::cout << std::setw(15) << n*conf.dt << std::setw(15) << std::setprecision(5) << std::scientific << Emax << std::endl; 
  
+        /*
         std::stringstream filename; filename << 'f' << n << ".txt"; 
         std::ofstream file( filename.str() );
         const size_t plotNu = 512, plotNx = 512;
@@ -110,6 +111,7 @@ void test()
             }
             file << std::endl;
         }
+        */
     }
 
 }

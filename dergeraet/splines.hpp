@@ -157,24 +157,22 @@ real eval( real x, real y, real z, const real *coefficients, size_t stride_z, si
     if ( dz >= n ) return 0;
     if ( n  == 1 ) return *coefficients;
 
-    real c[ order*order ] {};
-    real N[ order ];
+    real czy[ order*order ] {};
+    real cz [ order ] {};
+    real N  [ order ];
 
     splines1d::N<real,order,dx>(x,N);
     for ( size_t k = 0; k < order; ++k )
     for ( size_t j = 0; j < order; ++j )
     for ( size_t i = 0; i < order; ++i )
-        c[ k*order + j ] += coefficients[ k*stride_z + j*stride_y + i*stride_x ]*N[i];
+        czy[ k*order + j ] += coefficients[ k*stride_z + j*stride_y + i*stride_x ]*N[i];
 
     splines1d::N<real,order,dy>(y,N);
     for ( size_t k = 0; k < order; ++k )
-    {
-        c[ k*order ] *= N[0];
-        for ( size_t j = 1; j < order; ++j )
-            c[ k*order ]  += c[ k*order + j ]*N[j];
-    }
+    for ( size_t j = 0; j < order; ++j )
+        cz[ k ]  += czy[ k*order + j ]*N[j];
 
-    return splines1d::eval<real,order,dz>(z,c,order);
+    return splines1d::eval<real,order,dz>(z,cz,order);
 }
 
 }

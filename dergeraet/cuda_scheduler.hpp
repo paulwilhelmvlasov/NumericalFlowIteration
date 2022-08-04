@@ -45,7 +45,6 @@ public:
     {
         size_t n_dev = cuda::device_count();
         kernels.reserve(n_dev);
-        cuda_kernel<real,order> *k;
 
         for ( size_t i = 0; i < n_dev; ++i )
         {
@@ -107,12 +106,11 @@ public:
     cuda_scheduler& operator=( const cuda_scheduler&  ) = delete;
     cuda_scheduler& operator=(       cuda_scheduler&& ) = default;
 
-    cuda_scheduler( const config_t<real> &p_conf ):
-    conf { p_conf }
+    cuda_scheduler( const config_t<real> &p_conf, size_t p_begin, size_t p_end ):
+    conf { p_conf }, begin { p_begin }, end { p_end }
     {
         size_t n_dev = cuda::device_count();
         kernels.reserve(n_dev);
-        cuda_kernel<real,order> *k;
 
         for ( size_t i = 0; i < n_dev; ++i )
         {
@@ -153,6 +151,7 @@ public:
 
 private:
     config_t<real> conf;
+    size_t begin, end;
     std::vector< cuda_kernel<real,order> > kernels;
 };
 
