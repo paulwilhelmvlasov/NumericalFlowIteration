@@ -25,6 +25,75 @@
 namespace dergeraet
 {
 
+namespace dim2
+{
+namespace benchmarks
+{
+	namespace weak_landau_damping
+	{
+		// Parameters taken from "Collela et. al - PIC 4th-order".
+		const double kx = 0.5;
+		const double ky = 0.5;
+
+		const double alpha = 0.05;
+
+		const double Lx_min = 0;
+		const double Ly_min = 0;
+		const double Lx_max = 2 * M_PI / kx;
+		const double Ly_max = 2 * M_PI / ky;
+
+		const double c = 1.0 / (2.0 * M_PI);
+
+		double f0(double x, double y, double u, double v)
+		{
+			return c * std::exp(-0.5 * (u*u + v*v)) * (1 + alpha * std::cos(kx*x)*std::cos(ky*y));
+		}
+	}
+
+	namespace two_stream_instability
+	{
+		// Parameters taken from "Collela et. al - PIC 4th-order".
+		const double kx = 0.5;
+		const double ky = 0.5;
+
+		const double alpha = 0.05;
+
+		const double Lx_min = 0;
+		const double Ly_min = 0;
+		const double Lx_max = 2 * M_PI / kx;
+		const double Ly_max = 2 * M_PI / ky;
+
+		const double c = 1.0 / (12.0 * M_PI);
+
+		double f0(double x, double y, double u, double v)
+		{
+			return c * std::exp(-0.5 * (u*u + v*v)) * (1 + 5*u*u) * (1 + alpha * std::cos(kx*x));
+		}
+	}
+
+	namespace fjalkow_two_beam_instability
+	{
+		// Parameters taken from "Cottet - Semi-Lagrangian pm for high-dim".
+		const double kx = 0.3;
+		const double ky = 0.3;
+
+		const double alpha = 0.05;
+
+		const double Lx_min = - M_PI / kx;
+		const double Ly_min = - M_PI / kx;
+		const double Lx_max = M_PI / kx;
+		const double Ly_max = M_PI / ky;
+
+		const double c = 7.0 / (4.0 * M_PI);
+
+		double f0(double x, double y, double u, double v)
+		{
+			return c * std::exp(-0.125*u*u - 0.5*v*v) * (std::sin(u / 3.0)*std::sin(u / 3.0)) * (1 + alpha * std::cos(kx*x));
+		}
+	}
+}
+}
+
 namespace dim1
 {
 
@@ -114,10 +183,13 @@ config_t<real>::config_t() noexcept
 {
     Nx = Ny = 64;
     Nu = Nv = 1024;
-    u_min = v_min = -3*M_PI;
-    u_max = v_max =  3*M_PI;
-    x_min = y_min = -10*M_PI/3;
-    x_max = y_max =  10*M_PI/3;
+    u_min = v_min = -6;
+    u_max = v_max =  6;
+
+    x_min = benchmarks::weak_landau_damping::Lx_min;
+    x_max = benchmarks::weak_landau_damping::Lx_max;
+    y_min = benchmarks::weak_landau_damping::Ly_min;
+    y_max = benchmarks::weak_landau_damping::Lx_max;
     
     dt = 0.4; Nt = 100/dt;
 
@@ -131,14 +203,7 @@ template <typename real>
 __host__ __device__
 real config_t<real>::f0( real x, real y, real u, real v ) noexcept
 {
-    using std::sin;
-    using std::cos;
-    using std::exp;
-
-	constexpr real alpha = 0.05;
-    constexpr real beta  = 0.3;
-    constexpr real pi    = real(M_PI);
-    return (7/(4*pi)) * sin(u/3) * sin(u/3) * (1+alpha*cos(beta*x)) * exp( -(u*u + 4*v*v)/8 );
+    return benchmarks::weak_landau_damping::f0(x, y, u, v);
 }
 
 }

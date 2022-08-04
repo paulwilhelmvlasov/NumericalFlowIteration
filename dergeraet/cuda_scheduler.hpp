@@ -85,7 +85,8 @@ public:
 
 private:
     config_t<real> conf;
-    size_t begin, size_t end;
+    size_t begin;
+    size_t end;
     std::vector< cuda_kernel<real,order> > kernels;
 };
 
@@ -145,8 +146,8 @@ public:
             kernels[i].load_rho( rho, begin + i*chunk_size, begin + (i+1)*chunk_size ); 
 
         // Leftovers.
-        kernels[0].compute_rho( n, coeffs, begin + n_cards*chunk_size, l_end );
-        kernels[0].   load_rho( n, coeffs, begin + n_cards*chunk_size, l_end );
+        kernels[0].compute_rho( n, coeffs, begin + n_cards*chunk_size, end );
+        kernels[0].   load_rho( n, coeffs, begin + n_cards*chunk_size, end );
     }
 
 private:
