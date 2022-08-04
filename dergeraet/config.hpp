@@ -128,7 +128,7 @@ config_t<real>::config_t() noexcept
     x_min = 0;
     x_max = 4*M_PI;;
     
-    dt = 1./16.; Nt = 100/dt;
+    dt = 1./16.; Nt = 10/dt;
 
     Lx = x_max - x_min; Lx_inv = 1/Lx;
     dx = Lx/Nx; dx_inv = 1/dx;
@@ -144,8 +144,8 @@ real config_t<real>::f0( real x, real u ) noexcept
 
 	constexpr real alpha = 0.01;
 	constexpr real k     = 0.5;
-    return 0.39894228040143267793994 * ( 1. + alpha*cos(k*x) ) * exp( -u*u/2. ) * u*u;
-    //return 0.39894228040143267793994 * ( 1. + alpha*cos(k*x) ) * exp( -u*u/2 );
+    //return 0.39894228040143267793994 * ( 1. + alpha*cos(k*x) ) * exp( -u*u/2. ) * u*u;
+    return 0.39894228040143267793994 * ( 1. + alpha*cos(k*x) ) * exp( -u*u/2 );
 }
 
 }
@@ -181,7 +181,8 @@ struct config_t
 template <typename real>
 config_t<real>::config_t() noexcept
 {
-    Nx = Ny = 64;
+    Nx = 64;
+    Ny = 320;
     Nu = Nv = 1024;
     u_min = v_min = -6;
     u_max = v_max =  6;
@@ -191,7 +192,7 @@ config_t<real>::config_t() noexcept
     y_min = benchmarks::weak_landau_damping::Ly_min;
     y_max = benchmarks::weak_landau_damping::Lx_max;
     
-    dt = 0.4; Nt = 100/dt;
+    dt = 0.4; Nt = 5/dt;
 
     Lx = x_max - x_min; Lx_inv = 1/Lx;
     Ly = y_max - y_min; Ly_inv = 1/Ly;

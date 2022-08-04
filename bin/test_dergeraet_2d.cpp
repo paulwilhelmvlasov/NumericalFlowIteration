@@ -43,11 +43,11 @@ void test()
     using std::hypot;
     using std::max;
 
-    config_t<real> conf; conf.Nt = 250;
+    config_t<real> conf; //conf.Nt = 25;
     poisson<real> poiss( conf );
 
     #ifdef HAVE_CUDA
-    cuda_scheduler<real,order> sched { conf };
+    cuda_scheduler<real,order> sched { conf,0, conf.Nx*conf.Ny };
     #endif
 
     const size_t stride_x = 1;
@@ -59,7 +59,7 @@ void test()
     if ( tmp == nullptr ) throw std::bad_alloc {};
     std::unique_ptr<real,decltype(std::free)*> rho { reinterpret_cast<real*>(tmp), std::free };
 
-
+    std::ofstream Emax_file( "Emax2d.txt" );
     for ( size_t n = 0; n <= conf.Nt; ++n )
     {
         #ifdef HAVE_CUDA
@@ -70,7 +70,7 @@ void test()
         for ( size_t l = 0; l < conf.Nx * conf.Ny; ++l )
             rho.get()[ l ] = dim2::eval_rho<real,order>( n, l, coeffs.get(), conf );
 
-        #endif
+         #endif
 
         poiss.solve( rho.get() );
 
@@ -94,7 +94,7 @@ void test()
 
             Emax = max( Emax, hypot(Ex,Ey) );
         }
-
+        Emax_file << std::setw(15) << n*conf.dt << std::setw(15) << std::setprecision(5) << std::scientific << Emax << std::endl; 
         std::cout << std::setw(15) << n*conf.dt << std::setw(15) << std::setprecision(5) << std::scientific << Emax << std::endl; 
  
         /*
