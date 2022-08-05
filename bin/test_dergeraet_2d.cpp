@@ -43,7 +43,7 @@ void test()
     using std::hypot;
     using std::max;
 
-    config_t<real> conf; //conf.Nt = 25;
+    config_t<real> conf;
     poisson<real> poiss( conf );
 
     #ifdef HAVE_CUDA
@@ -70,7 +70,7 @@ void test()
         for ( size_t l = 0; l < conf.Nx * conf.Ny; ++l )
             rho.get()[ l ] = dim2::eval_rho<real,order>( n, l, coeffs.get(), conf );
 
-         #endif
+        #endif
 
         poiss.solve( rho.get() );
 
@@ -97,7 +97,7 @@ void test()
         Emax_file << std::setw(15) << n*conf.dt << std::setw(15) << std::setprecision(5) << std::scientific << Emax << std::endl; 
         std::cout << std::setw(15) << n*conf.dt << std::setw(15) << std::setprecision(5) << std::scientific << Emax << std::endl; 
  
-        /*
+
         std::stringstream filename; filename << 'f' << n << ".txt"; 
         std::ofstream file( filename.str() );
         const size_t plotNu = 512, plotNx = 512;
@@ -111,7 +111,7 @@ void test()
             }
             file << std::endl;
         }
-        */
+
     }
 
 }

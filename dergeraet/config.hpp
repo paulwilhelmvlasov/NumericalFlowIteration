@@ -44,7 +44,7 @@ namespace benchmarks
 
 		const double c = 1.0 / (2.0 * M_PI);
 
-		double f0(double x, double y, double u, double v)
+		inline double f0(double x, double y, double u, double v)
 		{
 			return c * std::exp(-0.5 * (u*u + v*v)) * (1 + alpha * std::cos(kx*x)*std::cos(ky*y));
 		}
@@ -65,7 +65,7 @@ namespace benchmarks
 
 		const double c = 1.0 / (12.0 * M_PI);
 
-		double f0(double x, double y, double u, double v)
+		inline double f0(double x, double y, double u, double v)
 		{
 			return c * std::exp(-0.5 * (u*u + v*v)) * (1 + 5*u*u) * (1 + alpha * std::cos(kx*x));
 		}
@@ -86,7 +86,7 @@ namespace benchmarks
 
 		const double c = 7.0 / (4.0 * M_PI);
 
-		double f0(double x, double y, double u, double v)
+		inline double f0(double x, double y, double u, double v)
 		{
 			return c * std::exp(-0.125*u*u - 0.5*v*v) * (std::sin(u / 3.0)*std::sin(u / 3.0)) * (1 + alpha * std::cos(kx*x));
 		}

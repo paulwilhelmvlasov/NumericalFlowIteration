@@ -122,7 +122,7 @@ public:
             {
 
                 kernels.emplace_back( cuda_kernel<real,order>(conf,i) );
-		        std::cout << "Added dövice " << i << ".\n"; std::cout.flush();
+		        std::cout << "Added device " << i << ".\n"; std::cout.flush();
             }
             catch ( cuda::exception &ex )
             {
@@ -143,33 +143,17 @@ public:
 
         size_t n_cards = kernels.size();
         size_t N = end - begin;
-       // size_t testval = 2;
         size_t chunk_size = N /n_cards;
 
-        //std::cout<<"begin: "<<begin<<"begin + chunksize: "<<begin+chunk_size<<"end: "<<end<<std::endl;
+        std::cout<<"begin: "<<begin<<"begin + chunksize: "<<begin+chunk_size<<"end: "<<end<<std::endl;
         for ( size_t i = 0; i < n_cards; ++i )
         {
-            stopwatch<real> clock;
-           // std::cout<<" next stop: compute rho, we are on "<<n_cards<<" cards, our index is "<<i<<std::endl;
             kernels[i].compute_rho( n, coeffs, begin + i*chunk_size, begin + (i+1)*chunk_size );
-            
-
-            //kernels[i].compute_rho( n, coeffs,begin, end);
-            real elapsed = clock.elapsed();
-            std::cout << "Time for launching kernel " << i << ": " << elapsed << "." << std::endl;
         }
 
         for ( size_t i = 0; i < n_cards; ++i )
         {
-            stopwatch<real> clock;
-            kernels[i].load_rho( rho, begin + i*chunk_size, begin + (i+1)*chunk_size ); 
-            real elapsed = clock.elapsed();
-            std::cout << "Waiting time for card " << i << ": " << elapsed << std::endl;
-           // kernels[i].load_rho( rho, begin + i*chunk_size, begin + (i+1)*chunk_size ); 
-           //kernels[i].load_rho( rho, begin ,end ); 
-            //real elapsed = clock.elapsed();
-            //std::cout << "Time for loading from kernel " << i << ": " << elapsed << "." << std::endl;
-
+            kernels[i].load_rho( rho, begin + i*chunk_size, begin + (i+1)*chunk_size );
         }
         // Leftovers.
         kernels[0].compute_rho( n, coeffs, begin + n_cards*chunk_size, end );

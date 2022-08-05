@@ -36,7 +36,7 @@ struct lsmr_options
     ///////////
 
     // Whether to print messages to std::cout.
-    bool silent            = false;
+    bool silent            = true;
 
     // Residual of normal equations AᵀAx = Aᵀb
     bool relative_residual  = true;
