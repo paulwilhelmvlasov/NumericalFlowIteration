@@ -37,10 +37,10 @@ namespace benchmarks
 
 		const double alpha = 0.05;
 
-		const double Lx_min = 0;
-		const double Ly_min = 0;
-		const double Lx_max = 2 * M_PI / kx;
-		const double Ly_max = 2 * M_PI / ky;
+		const double x_min = 0;
+		const double y_min = 0;
+		const double x_max = 2 * M_PI / kx;
+		const double y_max = 2 * M_PI / ky;
 
 		const double c = 1.0 / (2.0 * M_PI);
 
@@ -58,10 +58,10 @@ namespace benchmarks
 
 		const double alpha = 0.05;
 
-		const double Lx_min = 0;
-		const double Ly_min = 0;
-		const double Lx_max = 2 * M_PI / kx;
-		const double Ly_max = 2 * M_PI / ky;
+		const double x_min = 0;
+		const double y_min = 0;
+		const double x_max = 2 * M_PI / kx;
+		const double y_max = 2 * M_PI / ky;
 
 		const double c = 1.0 / (12.0 * M_PI);
 
@@ -79,10 +79,10 @@ namespace benchmarks
 
 		const double alpha = 0.05;
 
-		const double Lx_min = - M_PI / kx;
-		const double Ly_min = - M_PI / kx;
-		const double Lx_max = M_PI / kx;
-		const double Ly_max = M_PI / ky;
+		const double x_min = - M_PI / kx;
+		const double y_min = - M_PI / kx;
+		const double x_max = M_PI / kx;
+		const double y_max = M_PI / ky;
 
 		const double c = 7.0 / (4.0 * M_PI);
 
@@ -182,16 +182,13 @@ template <typename real>
 config_t<real>::config_t() noexcept
 {
     Nx = 64;
-    Ny = 320;
+    Ny = 128;
     Nu = Nv = 1024;
-    u_min = v_min = -6;
-    u_max = v_max =  6;
+    u_min = v_min = -3*M_PI;
+    u_max = v_max =  3*M_PI;
+    x_min = y_min = benchmarks::fjalkow_two_beam_instability::x_min;
+    x_max = y_max = benchmarks::fjalkow_two_beam_instability::x_max;
 
-    x_min = benchmarks::weak_landau_damping::Lx_min;
-    x_max = benchmarks::weak_landau_damping::Lx_max;
-    y_min = benchmarks::weak_landau_damping::Ly_min;
-    y_max = benchmarks::weak_landau_damping::Lx_max;
-    
     dt = 0.4; Nt = 5/dt;
 
     Lx = x_max - x_min; Lx_inv = 1/Lx;
@@ -204,10 +201,24 @@ template <typename real>
 __host__ __device__
 real config_t<real>::f0( real x, real y, real u, real v ) noexcept
 {
-    return benchmarks::weak_landau_damping::f0(x, y, u, v);
+
+	using std::sin;
+    using std::cos;
+    using std::exp;
+
+	constexpr real alpha = 0.05;
+    constexpr real k  = 0.3;
+    constexpr real pi    = real(M_PI);
+
+    constexpr real c = 7.0 / (4.0 * pi);
+
+	return c * exp(-0.125*u*u - 0.5*v*v)
+			 * (sin(u / 3.0)*sin(u / 3.0))
+			 * (1 + alpha * cos(k*x));
 }
 
 }
+
 
 namespace dim3
 {

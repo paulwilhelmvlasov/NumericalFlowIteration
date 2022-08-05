@@ -62,6 +62,7 @@ void test()
     std::ofstream Emax_file( "Emax2d.txt" );
     for ( size_t n = 0; n <= conf.Nt; ++n )
     {
+    	stopwatch<real> clock;
         #ifdef HAVE_CUDA
         sched.compute_rho( n, coeffs.get(), rho.get() );
         #else
@@ -94,10 +95,13 @@ void test()
 
             Emax = max( Emax, hypot(Ex,Ey) );
         }
+        real elapsed = clock.elapsed();
         Emax_file << std::setw(15) << n*conf.dt << std::setw(15) << std::setprecision(5) << std::scientific << Emax << std::endl; 
         std::cout << std::setw(15) << n*conf.dt << std::setw(15) << std::setprecision(5) << std::scientific << Emax << std::endl; 
- 
 
+        std::cout << "This time step took: " << elapsed << "s." <<std::endl;
+
+        /*
         std::stringstream filename; filename << 'f' << n << ".txt"; 
         std::ofstream file( filename.str() );
         const size_t plotNu = 512, plotNx = 512;
@@ -111,7 +115,7 @@ void test()
             }
             file << std::endl;
         }
-
+		*/
     }
 
 }
