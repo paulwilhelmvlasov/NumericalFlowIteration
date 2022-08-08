@@ -55,7 +55,7 @@ void test()
     poisson<real> poiss( conf );
 
     #ifdef HAVE_CUDA
-    cuda_scheduler<real,order> sched { conf };
+    cuda_scheduler<real,order> sched { conf , 0, conf.Nx };
     #endif
 
     std::ofstream Emax_file( "Emax.txt" );
