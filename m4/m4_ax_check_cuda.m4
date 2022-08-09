@@ -6,146 +6,116 @@
 #
 # DESCRIPTION
 #
-# Figures out if CUDA Driver API/nvcc is available, i.e. existence of:
-# 	cuda.h
-#   libcuda.so
-#   nvcc
-#
-# If something isn't found, fails straight away.
-#
-# Locations of these are included in 
-#   CUDA_CFLAGS and 
-#   CUDA_LDFLAGS.
-# Path to nvcc is included as
-#   NVCC_PATH
-# in config.h
-# 
-# The author is personally using CUDA such that the .cu code is generated
-# at runtime, so don't expect any automake magic to exist for compile time
-# compilation of .cu files.
-#
-# LICENCE
-# Public domain
-#
-# AUTHOR
-# wili
+# Figures out if CUDA is available. It checks if nvcc is available
+# and can be used to compile a simple CUDA program.
 #
 ##### 
-
 AC_DEFUN([AX_CHECK_CUDA], [
-
-AC_ARG_ENABLE([cuda], AS_HELP_STRING([--enable-cuda],[Enable CUDA support.]))
-
-AM_CONDITIONAL([HAVE_CUDA], [test x$enable_cuda = xyes])
-
-AS_IF([test "x$enable_cuda" = "xyes"],[
-
-AC_DEFINE([HAVE_CUDA], [1], [Is CUDA support enabled?])
 
 # Provide your CUDA path with this
 AC_ARG_WITH([cuda],
-             AS_HELP_STRING([--with-cuda=PATH],[Path to CUDA headers and binaries.]),
-            [cuda_prefix=$withval], [cuda_prefix="/usr"])
+            AS_HELP_STRING([--with-cuda=PATH],[Path to CUDA headers and binaries.]),
+            [cuda_prefix=$withval; cuda_path_provided="yes";], [cuda_path_provided="no"])
 
+AC_ARG_VAR([NVCC_FLAGS],[Provide additional flags to the NVCC compiler if desired.])
 
-# Setting the prefix to the default if only --with-cuda was given
-if test "$cuda_prefix" == "yes"; then
-	if test "$withval" == "yes"; then
-		cuda_prefix="/usr"
-	fi
-fi
-
-# Provide your NVCC path with this
-AC_ARG_WITH([nvcc],
-            AS_HELP_STRING([--with-nvcc=PATH],[Path to nvcc.]),
-            [nvcc_prefix=$withval], [nvcc_prefix=`dirname $(which nvcc)`])
-
-# Provide your lib64 path with this
-AC_ARG_WITH([lib64],
-            AS_HELP_STRING([--with-lib64=PATH],[Path to lib64.]),
-            [lib64_prefix=$withval], [lib64_prefix=`dirname $(dirname $(which nvcc))`])
-# Provide your lib64 path with this
-AC_ARG_WITH([lib32],
-            AS_HELP_STRING([--with-lib32=PATH],[Path to lib32.]),
-            [lib32_prefix=$withval], [lib32_prefix=`dirname $(dirname $(which nvcc))`])
-# Provide your lib64 path with this
-AC_ARG_WITH([lib],
-            AS_HELP_STRING([--with-lib=PATH],[Path to lib.]),
-            [lib_prefix=$withval], [lib_prefix=`dirname $(dirname $(which nvcc))`])
-
-
-
-# Checking for nvcc
-AC_MSG_CHECKING([nvcc in $nvcc_prefix])
-if test -x "$nvcc_prefix/nvcc"; then
-	AC_MSG_RESULT([found])
-	AC_DEFINE_UNQUOTED([NVCC_PATH], ["$nvcc_prefix/nvcc"], [Path to nvcc binary])
-	# We need to add the CUDA search directories for header and lib searches
-	CUDA_CFLAGS=""
-	# Saving the current flags
-	ax_save_CFLAGS="${CFLAGS}"
-	ax_save_LDFLAGS="${LDFLAGS}"
-	# Announcing the new variables
-	AC_SUBST([CUDA_CFLAGS])
-	AC_SUBST([CUDA_LDFLAGS])
-	AC_SUBST([NVCC],[$nvcc_prefix/nvcc])
-	AC_CHECK_FILE([$lib64_prefix/lib64],[lib64_found=yes],[lib64_found=no])
-	if test "x$lib64_found" = xno ; then
-		AC_CHECK_FILE([$lib_prefix/lib],[lib32_found=yes],[lib32_found=no])
-		if test "x$lib32_found" = xyes ; then
-			AC_SUBST([CUDA_LIBDIR],[$lib_prefix/lib])
-		else
-			AC_MSG_WARN([Couldn't find cuda lib directory])
-			VALID_CUDA=no
-		fi
-	else
-		AC_CHECK_SIZEOF([long])
-		if test "x$ac_cv_sizeof_long" = "x8" ; then
-			AC_SUBST([CUDA_LIBDIR],[$lib64_prefix/lib64])
-			CUDA_CFLAGS+=" -m64"
-		elif test "x$ac_cv_sizeof_long" = "x4" ; then
-			AC_CHECK_FILE([$lib32_prefix/lib32],[lib32_found=yes],[lib32_found=no])
-			if test "x$lib32_found" = xyes ; then
-				AC_SUBST([CUDA_LIBDIR],[$lib_prefix/lib])
-				CUDA_CFLAGS+=" -m32"
-			else
-				AC_MSG_WARN([Couldn't find cuda lib directory])
-				VALID_CUDA=no
-			fi
-		else
-			AC_MSG_ERROR([Could not determine size of long variable type])
-		fi
-	fi
-	if test "x$VALID_CUDA" != xno ; then
-		CUDA_CFLAGS+=" -I$cuda_prefix/include"
-		CFLAGS="$CUDA_CFLAGS $CFLAGS"
-		CUDA_LDFLAGS="-L$CUDA_LIBDIR"
-		LDFLAGS="$CUDA_LDFLAGS $LDFLAGS"
-		# And the header and the lib
-		AC_CHECK_HEADER([cuda.h], [],
-			AC_MSG_WARN([Couldn't find cuda.h])
-			VALID_CUDA=no
-			,[#include <cuda.h>])
-		if test "x$VALID_CUDA" != "xno" ; then
-			AC_CHECK_LIB([cuda], [cuInit], [VALID_CUDA=yes], AC_MSG_WARN([Couldn't find libcuda]
-			VALID_CUDA=no))
-		fi
-	fi
-	# Returning to the original flags
-	CFLAGS=${ax_save_CFLAGS}
-	LDFLAGS=${ax_save_LDFLAGS}
+if test "$cuda_path_provided" = "yes"; then
+   AC_SUBST([NVCC],[$cuda_prefix/bin/nvcc])
+   AC_SUBST([CUDA_LDFLAGS],[-L$cuda_prefix/lib -lcudart])
+   AC_SUBST([CUDA_INCLUDE],[-I$cuda_prefix/include])
+   AC_SUBST([AM_CPPFLAGS],["$AM_CPPFLAGS $CUDA_INCLUDE"]) 
 else
-	AC_MSG_RESULT([not found!])
-	AC_MSG_WARN([nvcc was not found in $cuda_prefix/local_rwth/sw/cuda/11.5.2/bin/nvcc. Compiling without CUDA support.])
-	VALID_CUDA=no
-fi
-if test "x$enable_cuda" = xyes && test x$VALID_CUDA = xyes ; then 
-	AC_MSG_NOTICE([Building with CUDA bindings])
-elif test "x$enable_cuda" = xyes && test x$VALID_CUDA = xno ; then 
-	AC_MSG_ERROR([Cannot build CUDA bindings. Check errors])
+   AC_SUBST([NVCC],[nvcc])
+   AC_SUBST([CUDA_LDFLAGS],[-lcudart])
+   AC_SUBST([CUDA_INCLUDE],[])
 fi
 
-])
+
+AC_MSG_CHECKING([nvcc])
+if $NVCC --version &>/dev/null; then
+AC_MSG_RESULT([$NVCC])
+else
+AC_MSG_RESULT([not found.])
+AC_MSG_FAILURE([Could not find nvcc. Consider specifying the prefix of your CUDA installation using --with-cuda])
+fi
+
+AC_MSG_CHECKING([if we can compile a simple CUDA binary])
+cat > test_cuda_kernel.cu << eof
+#include <cuda_runtime.h>
+
+__global__
+void kernel( float *x, float *y, float *result )
+{
+    size_t index = blockDim.x*blockIdx.x + threadIdx.x;
+    result += index;
+    x += index;
+    y += index;
+    *result = *x + *y;
+}
+
+
+void run_kernel()
+{
+    float *x { nullptr }, *y { nullptr }, *result { nullptr };
+    cudaMalloc( &x, 1024*sizeof(float) );
+    cudaMalloc( &y, 1024*sizeof(float) );
+    cudaMalloc( &result, 1024*sizeof(float) );
+
+    kernel<<<4,32>>> (x,y,result);
+
+    cudaFree( result );
+    cudaFree( y );
+    cudaFree( y );
+
+    
+}
+
+eof
+
+if test $? -ne 0; then
+    AC_MSG_RESULT([no])
+    AC_MSG_FAILURE([Could not create cuda test-file. Lacking permissions for creating files?])
+fi
+
+cat > test_cuda_runner.cpp << eof
+void run_kernel();
+
+int main()
+{
+    run_kernel();
+    return 0;
+}
+
+eof
+
+if test $? -ne 0; then
+    AC_MSG_RESULT([no])
+    AC_MSG_FAILURE([Could not create cuda test-file. Lacking permissions for creating files?])
+fi
+
+$NVCC $NVCC_FLAGS -c test_cuda_kernel.cu
+if test $? -ne 0; then
+    AC_MSG_RESULT([no])
+    AC_MSG_FAILURE([Could not compile usng nvcc.])
+fi
+
+$CXX -c test_cuda_runner.cpp
+if test $? -ne 0; then
+    AC_MSG_RESULT([no])
+    AC_MSG_FAILURE([Could not compile usng $CXX.])
+fi
+
+$CXX $CUDA_LDFLAGS test_cuda_runner.o test_cuda_kernel.o -o test_cuda
+if test $? -ne 0; then
+    AC_MSG_RESULT([no])
+    AC_MSG_FAILURE([Could link CUDA binary.])
+fi
+
+rm -f test_cuda_kernel.cu  test_cuda_kernel.o
+rm -f test_cuda_runner.cpp test_cuda_runner.o
+rm -f test_cuda
+
+AC_MSG_RESULT([yes])
 
 ])
 

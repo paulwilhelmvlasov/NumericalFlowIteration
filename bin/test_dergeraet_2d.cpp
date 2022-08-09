@@ -46,9 +46,7 @@ void test()
     config_t<real> conf; //conf.Nt = 25;
     poisson<real> poiss( conf );
 
-    #ifdef HAVE_CUDA
     cuda_scheduler<real,order> sched { conf,0, conf.Nx*conf.Ny };
-    #endif
 
     const size_t stride_x = 1;
     const size_t stride_y = stride_x*(conf.Nx + order - 1);
@@ -62,15 +60,7 @@ void test()
     std::ofstream Emax_file( "Emax2d.txt" );
     for ( size_t n = 0; n <= conf.Nt; ++n )
     {
-        #ifdef HAVE_CUDA
         sched.compute_rho( n, coeffs.get(), rho.get() );
-        #else
-
-        #pragma omp parallel for
-        for ( size_t l = 0; l < conf.Nx * conf.Ny; ++l )
-            rho.get()[ l ] = dim2::eval_rho<real,order>( n, l, coeffs.get(), conf );
-
-         #endif
 
         poiss.solve( rho.get() );
 

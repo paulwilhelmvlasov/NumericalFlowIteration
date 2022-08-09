@@ -54,22 +54,12 @@ void test()
 
     poisson<real> poiss( conf );
 
-    #ifdef HAVE_CUDA
     cuda_scheduler<real,order> sched { conf , 0, conf.Nx };
-    #endif
 
     std::ofstream Emax_file( "Emax.txt" );
     for ( size_t n = 0; n < conf.Nt; ++n )
     {
-        #ifdef HAVE_CUDA
         sched.compute_rho( n, coeffs.get(), rho.get() );
-        #else  
-        #pragma omp parallel for
-        for ( size_t i = 0; i < conf.Nx; ++i )
-        {
-            rho.get()[ i ] = dim1::eval_rho<real,order>( n, i, coeffs.get(), conf );
-        }
-        #endif
 
         poiss.solve( rho.get() );
         dim1::interpolate<real,order>( coeffs.get() + n*stride_t, rho.get(), conf );
