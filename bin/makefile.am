@@ -1,32 +1,22 @@
 noinst_PROGRAMS = test_poisson test_gmres test_fields test_dergeraet test_dergeraet_2d
 
 test_poisson_SOURCES = test_poisson.cpp
-test_poisson_LDADD   = $(top_builddir)/dergeraet/libdergeraet.la
-if HAVE_CUDA
-test_poisson_LDADD  += $(top_builddir)/dergeraet/libdergeraet_cuda.a -lcudart
-endif
+test_poisson_LDADD   = $(top_builddir)/dergeraet/libdergeraet.a
+test_poisson_LDADD  += $(CUDA_LDFLAGS) $(BLAS_LIBS) -lfftw3 -lfftw3f
 
 test_gmres_SOURCES = test_gmres.cpp
-test_gmres_LDADD   = $(top_builddir)/dergeraet/libdergeraet.la
-if HAVE_CUDA
-test_gmres_LDADD  += $(top_builddir)/dergeraet/libdergeraet_cuda.a -lcudart
-endif
+test_gmres_LDADD   = $(top_builddir)/dergeraet/libdergeraet.a
+test_gmres_LDADD  += $(CUDA_LDFLAGS) $(BLAS_LIBS) -lfftw3 -lfftw3f
 
 test_fields_SOURCES = test_fields.cpp
-test_fields_LDADD   = $(top_builddir)/dergeraet/libdergeraet.la
-if HAVE_CUDA
-test_fields_LDADD  += $(top_builddir)/dergeraet/libdergeraet_cuda.a -lcudart
-endif
+test_fields_LDADD   = $(top_builddir)/dergeraet/libdergeraet.a
+test_fields_LDADD  += $(CUDA_LDFLAGS) $(BLAS_LIBS) -lfftw3 -lfftw3f
 
 test_dergeraet_SOURCES = test_dergeraet.cpp
-test_dergeraet_LDADD   = $(top_builddir)/dergeraet/libdergeraet.la 
-if HAVE_CUDA
-test_dergeraet_LDADD  += $(top_builddir)/dergeraet/libdergeraet_cuda.a -lcudart
-endif
+test_dergeraet_LDADD   = $(top_builddir)/dergeraet/libdergeraet.a 
+test_dergeraet_LDADD  += $(CUDA_LDFLAGS) $(BLAS_LIBS) -lfftw3 -lfftw3f
 
 test_dergeraet_2d_SOURCES = test_dergeraet_2d.cpp
-test_dergeraet_2d_LDADD   = $(top_builddir)/dergeraet/libdergeraet.la 
-if HAVE_CUDA
-test_dergeraet_2d_LDADD  += $(top_builddir)/dergeraet/libdergeraet_cuda.a -lcudart
-endif
+test_dergeraet_2d_LDADD   = $(top_builddir)/dergeraet/libdergeraet.a 
+test_dergeraet_2d_LDADD  += $(CUDA_LDFLAGS) $(BLAS_LIBS) -lfftw3 -lfftw3f
 

@@ -35,9 +35,6 @@ constexpr real faculty( size_t n ) noexcept
    return  (n > 1) ? real(n)*faculty<real>(n-1) : real(1);
 }
 
-#pragma GCC push_options
-#pragma GCC optimize("O2","unroll-loops")
-
 template <typename real, size_t order, size_t derivative = 0>
 __host__ __device__
 void N( real x, real *result, size_t stride = 1 ) noexcept
@@ -110,8 +107,6 @@ real eval( real x, const real *coefficients, size_t stride = 1 ) noexcept
     constexpr real factor = real(1) / faculty<real>(order-derivative-1);
     return factor*c[n-1];
 }
-
-#pragma GCC pop_options
 
 }
 

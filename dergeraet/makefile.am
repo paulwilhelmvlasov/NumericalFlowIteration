@@ -1,14 +1,20 @@
-lib_LTLIBRARIES = libdergeraet.la
+noinst_LIBRARIES = libdergeraet.a
 
-libdergeraet_la_SOURCES = poisson.cpp lapack.cpp blas.cpp
-libdergeraet_la_LDFLAGS = -version-info 0:0:0 -lfftw3 -lfftw3f $(BLAS_LIBS) $(LIBS) $(FLIBS)
+libdergeraet_a_SOURCES = poisson.cpp lapack.cpp blas.cpp cuda_kernel.cu
 
-if HAVE_CUDA
-lib_LIBRARIES = libdergeraet_cuda.a
-libdergeraet_cuda_a_SOURCES = cuda_kernel.cu
-libdergeraet_cuda_a_AR = $(NVCC) -lib -o
+# This includes the dependecies of cuda_kernel.cu and causes automatic
+# recompilaton if necessary. No more need to recompile everything.
+# Dependencies are automatically determined when compiling for the first time.
+include ./$(DEPDIR)/cuda_kernel.Po
 
-.cu.o: 
-	$(NVCC) $(CUDA_CFLAGS) -use_fast_math -I$(top_srcdir) -c -o $@ $<
-endif
+# The following four variables are only used for "pretty printing" the output
+# when running make.
+AM_V_NVCC = $(am__v_NVCC_$(V))
+am__v_NVCC_ = $(am__v_NVCC_$(AM_DEFAULT_VERBOSITY))
+am__v_NVCC_0 = @echo "  NVCC    " $@;
+am__v_NVCC_1 = 
+
+.cu.o:
+	$(AM_V_NVCC) $(NVCC) $(NVCC_FLAGS) -Xcudafe "--diag_suppress=unsigned_compare_with_zero" -I$(top_srcdir) -MD -MF $(DEPDIR)/$*.TPo -c -o $@ $<
+	$(AM_V_at) $(am__mv) $(DEPDIR)/$*.TPo $(DEPDIR)/$*.Po
 

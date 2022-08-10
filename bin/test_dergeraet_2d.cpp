@@ -46,9 +46,7 @@ void test()
     config_t<real> conf;
     poisson<real> poiss( conf );
 
-    #ifdef HAVE_CUDA
     cuda_scheduler<real,order> sched { conf,0, conf.Nx*conf.Ny };
-    #endif
 
     const size_t stride_x = 1;
     const size_t stride_y = stride_x*(conf.Nx + order - 1);
