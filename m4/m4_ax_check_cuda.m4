@@ -101,12 +101,15 @@ fi
 
 $CXX -c test_cuda_runner.cpp
 if test $? -ne 0; then
+    rm -f test_cuda_kernel.cu  test_cuda_kernel.o
     AC_MSG_RESULT([no])
     AC_MSG_FAILURE([Could not compile usng $CXX.])
 fi
 
-$CXX $CUDA_LDFLAGS test_cuda_runner.o test_cuda_kernel.o -o test_cuda
+$CXX test_cuda_runner.o test_cuda_kernel.o $CUDA_LDFLAGS -o test_cuda
 if test $? -ne 0; then
+    rm -f test_cuda_kernel.cu  test_cuda_kernel.o
+    rm -f test_cuda_runner.cpp test_cuda_runner.o
     AC_MSG_RESULT([no])
     AC_MSG_FAILURE([Could link CUDA binary.])
 fi
