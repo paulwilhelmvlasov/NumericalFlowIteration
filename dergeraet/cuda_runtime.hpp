@@ -21,13 +21,8 @@
 
 #include <dergeraet/autoconfig.hpp>
 
-#ifndef HAVE_CUDA
-#define __host__
-#define __device__
-#else
 #include <stdexcept>
 #include <cuda_runtime.h>
-#include <stdio.h>
 
 namespace dergeraet
 {
@@ -200,25 +195,17 @@ autoptr::operator bool() const noexcept
 inline
 int device_count()
 {
-    //std::cout << "Getting device count." << std::endl;
     int count;
     cudaError_t code = cudaGetDeviceCount(&count);
     if ( code != cudaSuccess ) throw exception { code, "dergeraet::cuda::device_count(): " };
-    //std::cout << "Got  device count." << std::endl;
     return count;
 }
 
 inline
 void set_device( int dev_number )
 {
-    //std::cout << "Setting device " << dev_number << std::endl;
     cudaError_t code = cudaSetDevice( dev_number );
-    if ( code != cudaSuccess ){
-        printf("%S \n",std::string(cudaGetErrorString(code)));
-        
-         throw exception { code, "dergeraet::cuda::set_device(): " };
-    }
-    //std::cout << "Successfully set device." << std::endl;
+    if ( code != cudaSuccess ) throw exception { code, "dergeraet::cuda::set_device(): " };
 }
 
 inline
@@ -226,10 +213,7 @@ int get_device()
 {
     int dev_number;
     cudaError_t code = cudaGetDevice( &dev_number );
-    if ( code != cudaSuccess ){
-         throw exception { code, "dergeraet::cuda::get_device(): " };
-         printf("%S \n",std::string(cudaGetErrorString(code)));
-         }
+    if ( code != cudaSuccess ) throw exception { code, "dergeraet::cuda::get_device(): " };
     return dev_number;
 }
 
@@ -238,10 +222,7 @@ void* malloc( std::size_t size )
 {
     void* result;
     cudaError_t code = cudaMalloc( &result, size );
-    if ( code != cudaSuccess ){
-        printf("%S \n",std::string(cudaGetErrorString(code)));
-     throw exception { code, "dergeraet::cuda::malloc(): " };
-    }
+    if ( code != cudaSuccess ) throw exception { code, "dergeraet::cuda::malloc(): " };
     return result;
 }
 
@@ -270,6 +251,5 @@ void memcpy_to_device( void *dest, const void *src, size_t num )
 
 }
 
-#endif
 #endif
 

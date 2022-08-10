@@ -2,9 +2,10 @@ AC_INIT([dergeraet],[0.1])
 AC_CANONICAL_SYSTEM
 AC_CONFIG_MACRO_DIR([m4])
 
-AM_INIT_AUTOMAKE([-Wall -Werror nostdinc dist-xz])
+AM_INIT_AUTOMAKE([nostdinc dist-xz])
 AM_SILENT_RULES([yes])
 AM_PROG_AR
+AC_PROG_RANLIB
 
 AC_LANG([C++])
 AC_PROG_CC
@@ -22,6 +23,5 @@ AC_CONFIG_FILES([Makefile
                  dergeraet/makefile
                  bin/makefile])
 
-LT_INIT
 AC_OUTPUT
 

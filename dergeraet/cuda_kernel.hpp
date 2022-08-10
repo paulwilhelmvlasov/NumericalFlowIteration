@@ -22,9 +22,6 @@
 #include <dergeraet/config.hpp>
 #include <dergeraet/cuda_runtime.hpp>
 
-#ifdef HAVE_CUDA
-
-
 namespace dergeraet
 {
 
@@ -106,6 +103,5 @@ extern template class cuda_kernel<float,8>;
 
 }
 
-#endif
 #endif
 
