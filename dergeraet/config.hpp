@@ -189,7 +189,7 @@ config_t<real>::config_t() noexcept
     x_min = y_min = benchmarks::fjalkow_two_beam_instability::x_min;
     x_max = y_max = benchmarks::fjalkow_two_beam_instability::x_max;
 
-    dt = 0.4; Nt = 5/dt;
+    dt = 0.4; Nt = 30/dt;
 
     Lx = x_max - x_min; Lx_inv = 1/Lx;
     Ly = y_max - y_min; Ly_inv = 1/Ly;
