@@ -181,15 +181,15 @@ struct config_t
 template <typename real>
 config_t<real>::config_t() noexcept
 {
-    Nx = 256;
-    Ny = 256;
-    Nu = Nv = 1024;
+    Nx = 32;
+    Ny = 32;
+    Nu = Nv = 512;
     u_min = v_min = -3*M_PI;
     u_max = v_max =  3*M_PI;
     x_min = y_min = benchmarks::fjalkow_two_beam_instability::x_min;
     x_max = y_max = benchmarks::fjalkow_two_beam_instability::x_max;
 
-    dt = 0.4; Nt = 5/dt;
+    dt = 0.4; Nt = 30/dt;
 
     Lx = x_max - x_min; Lx_inv = 1/Lx;
     Ly = y_max - y_min; Ly_inv = 1/Ly;
