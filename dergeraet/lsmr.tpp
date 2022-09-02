@@ -102,14 +102,14 @@ void lsmr( size_t m, size_t n, const mat& A, const transposed_mat& At,
 
     A(x,u); axpy(m,real(-1),b,1,u,1); 
     real beta = norm(m,u); 
-    scal(m, real(-1)/beta, u, 1 );      // u = b - Ax / norm(b-Ax)
+    scal(m, real(-1)/beta, u, 1 );     // u = b - Ax / norm(b-Ax)
     copy(n,u,1,ubuf,1);                // u_buf.col(0) = u_buf
 
     At(u,v);
     real alpha = norm(n,v);
-    scal(n, real(1)/alpha, v, 1 );         // v = At*u/norm(At*u)
+    scal(n, real(1)/alpha, v, 1 );     // v = At*u/norm(At*u)
     copy(n,v,1,vbuf,1);                // v_buf.col(0) = v
-    copy(n,v,1,h,1);                    // h = v
+    copy(n,v,1,h,1);                   // h = v
 
 
     
