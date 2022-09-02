@@ -114,6 +114,25 @@ void test()
             file << std::endl;
         }
 		*/
+
+        std::stringstream filename; filename << 'p' << n*conf.dt << ".txt";
+        std::ofstream file( filename.str() );
+        const size_t plotNx = conf.Nx, plotNy = conf.Ny;
+        for ( size_t i = 0; i <= plotNx; ++i )
+        {
+            real x = conf.x_min + i*(conf.x_max-conf.x_min)/plotNx;
+            for ( size_t j = 0; j <= plotNy; ++j )
+            {
+                real y = conf.y_min + j*(conf.y_max-conf.y_min)/plotNy;
+                size_t l = j + i * plotNy;
+                file << x << " " << y << " " <<
+                		dim2::eval_rho<real,order>( n, l, coeffs.get(), conf )
+					 << std::endl;
+
+            }
+            file << std::endl;
+        }
+
     }
 
 }

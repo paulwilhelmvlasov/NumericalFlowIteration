@@ -212,9 +212,13 @@ real config_t<real>::f0( real x, real y, real u, real v ) noexcept
 
     constexpr real c = 7.0 / (4.0 * pi);
 
+    /*
 	return c * exp(-0.125*u*u - 0.5*v*v)
 			 * (sin(u / 3.0)*sin(u / 3.0))
 			 * (1 + alpha * cos(k*x));
+	*/
+    return 1.0 / (12.0 * M_PI) * std::exp(-0.5 * (u*u + v*v))
+    		* (1 + 0.05 * std::cos(0.5*x)*std::cos(0.5*y));
 }
 
 }
