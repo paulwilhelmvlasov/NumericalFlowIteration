@@ -36,6 +36,7 @@ real f( real x, real y = 0, real z = 0 )
     return sin(3*x) + sin(1*y) + sin(37*z);
 }
 
+/*
 template <typename real, size_t order>
 void test_3d()
 {
@@ -125,6 +126,7 @@ void test_3d()
     std::cout << "Max error: " << max_err << std::endl;
     std::cout << "Avg error: " << err_sum / (4096*4096) << std::endl;
 }
+*/
 
 template <typename real, size_t order>
 void test_2d()
@@ -209,6 +211,6 @@ void test_2d()
 int main()
 {
     dergeraet::test_2d<float,4>();
-    dergeraet::test_3d<double,4>();
+//    dergeraet::test_3d<double,4>();
 }
 

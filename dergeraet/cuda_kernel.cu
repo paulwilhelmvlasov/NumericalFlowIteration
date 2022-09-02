@@ -190,23 +190,13 @@ void cuda_kernel<real,order>::compute_rho( size_t n, const real *coeffs,
     {
         size_t stride_n = (conf.Nx + order - 1)*(conf.Ny + order - 1);
         cuda::memcpy_to_device( cu_coeffs + (n-1)*stride_n,
-                                  coeffs + (n-1)*stride_n, sizeof(real)*stride_n );
+                                   coeffs + (n-1)*stride_n, sizeof(real)*stride_n );
     }
     size_t N = l_end - l_min;
     size_t block_size = 64;
     size_t Nblocks = 1 + (N-1) / block_size;
-    // cudaEvent_t start, stop;
-    // cudaEventCreate(&start);
-    // cudaEventCreate(&stop);
-    // cudaEventRecord(start);
+
     cuda_eval_rho<real,order><<<Nblocks,block_size>>>( n, cu_coeffs, conf, cu_rho, l_min, l_end );
-    //cudaDeviceSynchronize();
-    // cudaEventRecord(stop);
-    // cudaEventSynchronize(stop);
-    // float milliseconds = 0;
-    // cudaEventElapsedTime(&milliseconds, start, stop);
-    //cudaDeviceSynchronize();
-    //real elapsed = clock.elapsed();
 }
 
 template <typename real, size_t order>
