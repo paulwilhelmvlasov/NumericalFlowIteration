@@ -10,11 +10,11 @@
  *
  * Der Gerät is distributed in the hope that it will be useful, but WITHOUT ANY
  * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
- * FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+ * FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
  * details.
  *
  * You should have received a copy of the GNU General Public License along with
- * Der Gerät; see the file COPYING.  If not see http://www.gnu.org/licenses.
+ * Der Gerät; see the file COPYING. If not see http://www.gnu.org/licenses.
  */
 #ifndef DERGERAET_FIELDS_HPP
 #define DERGERAET_FIELDS_HPP
@@ -22,7 +22,6 @@
 #include <limits>
 
 #include <dergeraet/lsmr.hpp>
-#include <dergeraet/gmres.hpp>
 #include <dergeraet/config.hpp>
 #include <dergeraet/splines.hpp>
 
@@ -130,9 +129,8 @@ void interpolate( real *coeffs, const real *values, const config_t<real> &config
     };
 
     mat_t M { config }; transposed_mat_t Mt { config };
-    lsmr_options<real> opt;
+    lsmr_options<real> opt; opt.silent = true;
     lsmr( config.Nx, config.Nx, M, Mt, values, tmp.get(), opt );
-
 
     if ( opt.iter == opt.max_iter )
         std::cerr << "Warning. LSMR did not converge.\n";
@@ -284,7 +282,7 @@ void interpolate( real *coeffs, const real *values, const config_t<real> &config
                mat_t M  { config };
     transposed_mat_t Mt { config };
 
-    lsmr_options<real> opt;
+    lsmr_options<real> opt; opt.silent = true;
     lsmr( config.Nx*config.Ny, config.Nx*config.Ny, M, Mt, values, tmp.get(), opt );
 
     if ( opt.iter == opt.max_iter )
@@ -348,92 +346,12 @@ real eval( real x, real y, real z, const real *coeffs, const config_t<real> &con
     return factor*splines3d::eval<real,order,dx,dy,dz>( x, y, z, coeffs, stride_z, stride_y, stride_x );
 }
 
+/* TODO
 template <typename real, size_t order>
 void interpolate( real *coeffs, const real *values, const config_t<real> &config )
 {
-    std::unique_ptr<real[]> tmp { new real[ config.Nx * config.Ny * config.Nz ] };
-
-    size_t stride_x = 1;
-    size_t stride_y =  config.Nx + order - 1;
-    size_t stride_z = (config.Ny + order - 1)*stride_y;
-
-    for ( size_t k = 0; k < config.Nz; ++k )
-    for ( size_t j = 0; j < config.Ny; ++j )
-    for ( size_t i = 0; i < config.Nx; ++i )
-    {
-        tmp [ k*config.Ny*config.Nx +
-              j*config.Nx + i ] = coeffs[ k*stride_z + j*stride_y + i*stride_x ];
-    }
-
-    struct mat_t
-    {
-        const config_t<real> &config;
-        real  N[ order ];
-
-        mat_t( const config_t<real> &conf ): config { conf }
-        {
-            splines1d::N<real,order>(0,N);
-        }
-
-        void operator()( const real *in,  size_t stride_in,
-                               real *out, size_t stride_out ) const
-        {
-            if ( stride_in != 1 || stride_out != 1 )
-                throw std::runtime_error { "dergeraet::fields::interpolate: Expected stride 1." };
-
-            #pragma omp parallel for 
-            for ( size_t l = 0; l < config.Nx*config.Ny*config.Nz; ++l )
-            {
-                size_t k   = l / (config.Nx*config.Ny);
-                size_t tmp = l % (config.Nx*config.Ny);
-                size_t j =  tmp / config.Nx;
-                size_t i =  tmp % config.Nx;
-
-                if ( i + order <= config.Nx && j + order <= config.Ny && k + order <= config.Nz )
-                {
-                    const real *c = in + k*config.Ny*config.Nx + j*config.Nx + i;
-                    real result = 0;
-                    for ( size_t kk = 0; kk < order; ++kk )
-                    for ( size_t jj = 0; jj < order; ++jj )
-                    for ( size_t ii = 0; ii < order; ++ii )
-                    {
-                        result += N[kk]*N[jj]*N[ii]*c[ kk*config.Ny*config.Nx + jj*config.Nx + ii ];
-                    }
-                    out[ l ] = result;
-                }
-                else
-                {
-                    real result = 0;
-                    for ( size_t kk = 0; kk < order; ++kk )
-                    for ( size_t jj = 0; jj < order; ++jj )
-                    for ( size_t ii = 0; ii < order; ++ii )
-                    {
-                        result += N[kk]*N[jj]*N[ii]*in[ ( (k+kk) % config.Nz )*config.Ny*config.Nx + 
-                                                        ( (j+jj) % config.Ny )*config.Nx+
-                                                        ( (i+ii) % config.Nx ) ];
-                    }
-                    out[ l ] = result;
-                }
-            }
-        }
-    };
-
-    mat_t M { config };
-
-    gmres_config<real> opt;
-    opt.target_residual = std::numeric_limits<real>::epsilon() * 128;
-    gmres<real,mat_t>( config.Nx*config.Ny*config.Nz, tmp.get(), 1, values, 1, M, opt ); 
-
-    for ( size_t k = 0; k < config.Nz + order - 1; ++k )
-    for ( size_t j = 0; j < config.Ny + order - 1; ++j )
-    for ( size_t i = 0; i < config.Nx + order - 1; ++i )
-    {
-        coeffs[ k*stride_z + j*stride_y + i*stride_x ] = tmp[ (k%config.Nz)*config.Ny*config.Nx + 
-                                                              (j%config.Ny)*config.Nx +
-                                                              (i%config.Nx) ];
-       
-    }
 }
+*/
 
 }
 

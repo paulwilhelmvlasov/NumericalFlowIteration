@@ -115,7 +115,7 @@ public:
         size_t n_dev = cuda::device_count();
         kernels.reserve(n_dev);
        
-        for ( size_t i =0; i< n_dev; i++)
+        for ( size_t i = 0; i < n_dev; i++)
         {
             try 
             {
@@ -138,21 +138,40 @@ public:
 
         size_t n_cards = kernels.size();
         size_t N = end - begin;
-        size_t chunk_size = N /n_cards;
+        size_t chunk_size = N / n_cards;
+        size_t remainder  = N % n_cards;
 
-        std::cout<<"begin: "<<begin<<"begin + chunksize: "<<begin+chunk_size<<"end: "<<end<<std::endl;
+        // Launch tasks.
+        size_t curr = begin;
         for ( size_t i = 0; i < n_cards; ++i )
-        {
-            kernels[i].compute_rho( n, coeffs, begin + i*chunk_size, begin + (i+1)*chunk_size );
+        { 
+            if ( i < remainder )
+            {  
+                kernels[i].compute_rho( n, coeffs, curr, curr + chunk_size + 1 );
+                curr += chunk_size + 1;
+            }
+            else
+            {
+                kernels[i].compute_rho( n, coeffs, curr, curr + chunk_size );
+                curr += chunk_size;
+            }
         }
 
+        // Load results
+        curr = begin;
         for ( size_t i = 0; i < n_cards; ++i )
         {
-            kernels[i].load_rho( rho, begin + i*chunk_size, begin + (i+1)*chunk_size );
+            if ( i < remainder )
+            {
+                kernels[i].load_rho( rho, curr, curr + chunk_size + 1 ); 
+                curr += chunk_size + 1;
+            }
+            else
+            {
+                kernels[i].load_rho( rho, curr, curr + chunk_size ); 
+                curr += chunk_size;
+            }
         }
-        // Leftovers.
-        kernels[0].compute_rho( n, coeffs, begin + n_cards*chunk_size, end );
-        kernels[0].load_rho( rho, begin + n_cards*chunk_size, end );
     }
 
 private:
