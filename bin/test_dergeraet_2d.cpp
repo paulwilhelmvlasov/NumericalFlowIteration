@@ -135,7 +135,7 @@ void test()
 
         if ( n )
         {
-            // Set initial guess as previous' time step solution.
+            // Set initial guess as previous time step solution.
             for ( size_t l = 0; l < stride_t; ++l )
                 coeffs[ n*stride_t + l ] = coeffs[ (n-1)*stride_t + l ];
         }
