@@ -121,7 +121,7 @@ struct config_t
 template <typename real>
 config_t<real>::config_t() noexcept
 {
-    Nx = 512;
+    Nx = 256;
     Nu = 2048;
     u_min = -10;
     u_max =  10;
@@ -181,15 +181,15 @@ struct config_t
 template <typename real>
 config_t<real>::config_t() noexcept
 {
-    Nx = 32;
-    Ny = 32;
-    Nu = Nv = 256;
-    u_min = v_min = -3*M_PI;
-    u_max = v_max =  3*M_PI;
-    x_min = y_min = benchmarks::fjalkow_two_beam_instability::x_min;
-    x_max = y_max = benchmarks::fjalkow_two_beam_instability::x_max;
+    Nx = 256;
+    Ny = 256;
+    Nu = Nv = 1024;
+    u_min = v_min = -10;
+    u_max = v_max =  10;
+    x_min = y_min = 0;
+    x_max = y_max = 4*M_PI;
 
-    dt = 0.4; Nt = 30/dt;
+    dt = 0.1; Nt = 51/dt;
 
     Lx = x_max - x_min; Lx_inv = 1/Lx;
     Ly = y_max - y_min; Ly_inv = 1/Ly;
@@ -217,8 +217,8 @@ real config_t<real>::f0( real x, real y, real u, real v ) noexcept
 			 * (sin(u / 3.0)*sin(u / 3.0))
 			 * (1 + alpha * cos(k*x));
 	*/
-    return 1.0 / (12.0 * M_PI) * std::exp(-0.5 * (u*u + v*v))
-    		* (1 + 0.05 * std::cos(0.5*x)*std::cos(0.5*y));
+    return 1.0 / (2.0 * M_PI) * std::exp(-0.5 * (u*u + v*v))
+    		* (1 + 0.5 * std::cos(0.5*x)*std::cos(0.5*y));
 }
 
 }

@@ -120,9 +120,11 @@ void test()
     if ( rank == 0 )
         Emax_file.open( "Emax2d.txt" );
 
+    double t_total = 0;
     for ( size_t n = 0; n <= conf.Nt; ++n )
     {
-    	stopwatch<real> clock;
+//    	stopwatch<real> clock;
+        double t1 = MPI_Wtime();
         sched.compute_rho( n, coeffs.get(), rho.get() );
 
         mpi::allgatherv( MPI_IN_PLACE, 0, 
@@ -155,11 +157,14 @@ void test()
                 Emax = max( Emax, hypot(Ex,Ey) );
             }
             Emax_file << std::setw(15) << n*conf.dt
-                      << std::setw(15) << std::setprecision(5) << std::scientific << Emax << std::endl; 
+                      << std::setw(15) << std::setprecision(5) << std::scientific << Emax << std::endl;
 
             std::cout << "t    = " << std::setw(15) << n*conf.dt  << ", "
-                      << "Emax = " << std::setw(15) << std::setprecision(5) << std::scientific << Emax << std::endl; 
-    
+                      << "Emax = " << std::setw(15) << std::setprecision(5) << std::scientific << Emax << ". "; 
+            double t2 = MPI_Wtime();
+            double t_time_step = t2-t1;
+            std::cout << "Elapsed time: " << t_time_step << std::endl;
+            t_total += t_time_step;
         }
         /*
         std::stringstream filename; filename << 'f' << n << ".txt"; 
@@ -175,10 +180,12 @@ void test()
             }
             file << std::endl;
         }
-		*/
-
-        std::stringstream filename; filename << 'p' << n*conf.dt << ".txt";
-        std::ofstream file( filename.str() );
+	*/
+	if(n % 10 == 0){
+        std::stringstream E_filename; E_filename << 'E' << n*conf.dt << ".txt";
+        std::ofstream E_file( E_filename.str() );
+	std::stringstream rho_filename; rho_filename << 'p' << n*conf.dt << ".txt";
+        std::ofstream rho_file(rho_filename.str() );
         const size_t plotNx = conf.Nx, plotNy = conf.Ny;
         for ( size_t i = 0; i <= plotNx; ++i )
         {
@@ -187,16 +194,20 @@ void test()
             {
                 real y = conf.y_min + j*(conf.y_max-conf.y_min)/plotNy;
                 size_t l = j + i * plotNy;
-                file << x << " " << y << " " <<
-                		dim2::eval_rho<real,order>( n, l, coeffs.get(), conf )
-					 << std::endl;
-
+		real Ex = -eval<real,order,1,0>( x, y, coeffs.get() + n*stride_t, conf );
+                real Ey = -eval<real,order,0,1>( x, y, coeffs.get() + n*stride_t, conf );
+		real a  = eval<real,order,2,0>(x,y, coeffs.get() + n*stride_t, conf);
+		real b  = eval<real,order,0,2>(x,y, coeffs.get() + n*stride_t, conf); 
+		real rho = -a*a - b*b;
+                E_file << x << " " << y << " " << Ex << " " << Ey << std::endl;
+		rho_file << x << " " << y << " " << rho << std::endl;
             }
-            file << std::endl;
+            E_file << std::endl;
+            rho_file << std::endl;
         }
-
+	}
     }
-
+    std::cout << "Total time = " << t_total << std::endl;
 }
 
 }
