@@ -116,14 +116,22 @@ void test()
     std::unique_ptr<real,decltype(std::free)*> rho { reinterpret_cast<real*>(tmp), std::free };
 
 
-    std::ofstream Emax_file;
+    std::ofstream E_max_file;
     if ( rank == 0 )
-        Emax_file.open( "Emax2d.txt" );
+        E_max_file.open( "E_max.txt" );
+    std::ofstream E_l2_file;
+    if ( rank == 0 )
+        E_l2_file.open( "E_l2.txt" );
+    std::ofstream E_max_err_file;
+    if ( rank == 0 )
+        E_max_err_file.open( "E_max_err.txt" );
+    std::ofstream E_l2_err_file;
+    if ( rank == 0 )
+        E_l2_err_file.open( "E_l2_err.txt" );
 
     double t_total = 0;
     for ( size_t n = 0; n <= conf.Nt; ++n )
     {
-//    	stopwatch<real> clock;
         double t1 = MPI_Wtime();
         sched.compute_rho( n, coeffs.get(), rho.get() );
 
@@ -156,8 +164,8 @@ void test()
 
                 Emax = max( Emax, hypot(Ex,Ey) );
             }
-            Emax_file << std::setw(15) << n*conf.dt
-                      << std::setw(15) << std::setprecision(5) << std::scientific << Emax << std::endl;
+//            Emax_file << std::setw(15) << n*conf.dt
+//                      << std::setw(15) << std::setprecision(5) << std::scientific << Emax << std::endl;
 
             std::cout << "t    = " << std::setw(15) << n*conf.dt  << ", "
                       << "Emax = " << std::setw(15) << std::setprecision(5) << std::scientific << Emax << ". "; 
@@ -166,45 +174,65 @@ void test()
             std::cout << "Elapsed time: " << t_time_step << std::endl;
             t_total += t_time_step;
         }
-        /*
-        std::stringstream filename; filename << 'f' << n << ".txt"; 
-        std::ofstream file( filename.str() );
-        const size_t plotNu = 512, plotNx = 512;
-        for ( size_t i = 0; i <= plotNu; ++i )
-        {
-            real u = conf.u_min + i*(conf.u_max-conf.u_min)/plotNu;
-            for ( size_t j = 0; j <= plotNx; ++j )
-            {
-                real x = conf.x_min + j*(conf.x_max-conf.x_min)/plotNx;
-                file << x << " " << u << " " << dim2::eval_f<real,order>( n, x, 0, u, 0, coeffs.get(), conf ) << std::endl;
-            }
-            file << std::endl;
-        }
-	*/
-	if(n % 10 == 0){
-        std::stringstream E_filename; E_filename << 'E' << n*conf.dt << ".txt";
-        std::ofstream E_file( E_filename.str() );
-	std::stringstream rho_filename; rho_filename << 'p' << n*conf.dt << ".txt";
-        std::ofstream rho_file(rho_filename.str() );
-        const size_t plotNx = conf.Nx, plotNy = conf.Ny;
-        for ( size_t i = 0; i <= plotNx; ++i )
-        {
-            real x = conf.x_min + i*(conf.x_max-conf.x_min)/plotNx;
-            for ( size_t j = 0; j <= plotNy; ++j )
-            {
-                real y = conf.y_min + j*(conf.y_max-conf.y_min)/plotNy;
-                size_t l = j + i * plotNy;
-		real Ex = -eval<real,order,1,0>( x, y, coeffs.get() + n*stride_t, conf );
-                real Ey = -eval<real,order,0,1>( x, y, coeffs.get() + n*stride_t, conf );
-		real a  = eval<real,order,2,0>(x,y, coeffs.get() + n*stride_t, conf);
-		real b  = eval<real,order,0,2>(x,y, coeffs.get() + n*stride_t, conf); 
-		real rho = -a*a - b*b;
-                E_file << x << " " << y << " " << Ex << " " << Ey << std::endl;
-		rho_file << x << " " << y << " " << rho << std::endl;
-            }
-            E_file << std::endl;
-            rho_file << std::endl;
-        }
+        
+
+	if(n % 10 == 0)
+	{
+		size_t t = n*conf.dt;
+	        std::stringstream E_filename; E_filename << 'E' << t << ".txt";
+        	std::ofstream E_file( E_filename.str() );
+		std::stringstream rho_filename; rho_filename << 'p' << t << ".txt";
+	        std::ofstream rho_file(rho_filename.str() );
+		std::ifstream E_exact_file("../comparison/E" + std::to_string(t) + ".txt");
+
+        	const size_t plotNx = 256, plotNy = 256;
+		const real plot_dx = (conf.x_max - conf.x_min)/plotNx;
+                const real plot_dy = (conf.y_max - conf.y_min)/plotNy;
+		real E_l2 = 0;
+		real E_max = 0;
+		real E_l2_error = 0;
+		real E_max_error = 0;
+	        for ( size_t i = 0; i <= plotNx; ++i )
+        	{
+	            real x = conf.x_min + i*plot_dx;
+	            for ( size_t j = 0; j <= plotNy; ++j )
+        	    {
+                	real y = conf.y_min + j*plot_dy;
+	                size_t l = j + i * plotNy;
+			real Ex = -eval<real,order,1,0>( x, y, coeffs.get() + n*stride_t, conf );
+	                real Ey = -eval<real,order,0,1>( x, y, coeffs.get() + n*stride_t, conf );
+			real a  = eval<real,order,2,0>(x,y, coeffs.get() + n*stride_t, conf);
+			real b  = eval<real,order,0,2>(x,y, coeffs.get() + n*stride_t, conf); 
+			real rho = -a*a - b*b;
+	                E_file << x << " " << y << " " << Ex << " " << Ey << std::endl;
+			rho_file << x << " " << y << " " << rho << std::endl;
+
+			real E_abs = std::sqrt(Ex*Ex + Ey*Ey);
+			E_l2 += E_abs;
+			E_max = std::max(E_max, E_abs); 
+
+			real Ex_exact = 0;
+			real Ey_exact = 0;
+			E_exact_file >> x >> y >> Ex_exact >> Ey_exact;
+
+			real dist_x = Ex_exact - Ex;
+			real dist_y = Ey_exact - Ey;
+			real dist = std::sqrt( dist_x*dist_x + dist_y*dist_y);
+			E_l2_error += dist;
+			E_max_error = std::max(dist, E_max_error);
+        	    }
+	            E_file << std::endl;
+	            rho_file << std::endl;
+		    E_exact_file.ignore();
+        	}
+		
+		E_l2_error *= plot_dx*plot_dy;
+		E_l2 *= plot_dx*plot_dy;
+
+		E_l2_file << t << " " << E_l2 << std::endl;
+		E_max_file << t << " " << E_max << std::endl;
+		E_max_err_file << t << " " << E_max_error << std::endl;
+		E_l2_err_file << t << " " << E_l2_error << std::endl;
 	}
     }
     std::cout << "Total time = " << t_total << std::endl;
