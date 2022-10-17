@@ -181,13 +181,14 @@ struct config_t
 template <typename real>
 config_t<real>::config_t() noexcept
 {
-    Nx = 16;
-    Ny = 16;
-    Nu = Nv = 64;
-    u_min = v_min = -10;
-    u_max = v_max =  10;
+    Nx = Ny = 128;
+    Nu = Nv = 512;
+    u_min = v_min = -6;
+    u_max = v_max =  6;
     x_min = y_min = 0;
-    x_max = y_max = 4*M_PI;
+//    x_max = y_max = 10*M_PI;
+    x_max = y_max = 4.0 * M_PI;
+
 
     dt = 0.1; Nt = 51/dt;
 
@@ -202,23 +203,22 @@ __host__ __device__
 real config_t<real>::f0( real x, real y, real u, real v ) noexcept
 {
 
-	using std::sin;
+    using std::sin;
     using std::cos;
     using std::exp;
 
-	constexpr real alpha = 0.05;
-    constexpr real k  = 0.3;
+    constexpr real alpha = 1e-3;
+    constexpr real k  = 0.2;
+    constexpr real v0 = 2.4;
     constexpr real pi    = real(M_PI);
 
-    constexpr real c = 7.0 / (4.0 * pi);
+    constexpr real c = 1.0 / (8.0 * M_PI);
 
-    /*
-	return c * exp(-0.125*u*u - 0.5*v*v)
-			 * (sin(u / 3.0)*sin(u / 3.0))
-			 * (1 + alpha * cos(k*x));
-	*/
-    return 1.0 / (2.0 * M_PI) * std::exp(-0.5 * (u*u + v*v))
-    		* (1 + 0.5 * std::cos(0.5*x)*std::cos(0.5*y));
+    return 1.0 / (2.0 * M_PI) * std::exp(-0.5 * (u*u + v*v)) * (1 + 0.5 * (std::cos(0.5*x) + std::cos(0.5*y)) );
+
+//    real pertube = 1.0 + alpha*(cos(k*x)+cos(k*y));
+//    real feq = ( exp(-0.5*(v-v0)*(v-v0)) + exp(-0.5*(v+v0)*(v+v0)) ) * ( exp(-0.5*(u-v0)*(u-v0)) + exp(-0.5*(u+v0)*(u+v0)) );
+//    return c * pertube  * feq;
 }
 
 }

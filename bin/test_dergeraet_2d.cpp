@@ -164,8 +164,8 @@ void test()
 
                 Emax = max( Emax, hypot(Ex,Ey) );
             }
-//            Emax_file << std::setw(15) << n*conf.dt
-//                      << std::setw(15) << std::setprecision(5) << std::scientific << Emax << std::endl;
+            E_max_file << std::setw(15) << n*conf.dt
+                      << std::setw(15) << std::setprecision(5) << std::scientific << Emax << std::endl;
 
             std::cout << "t    = " << std::setw(15) << n*conf.dt  << ", "
                       << "Emax = " << std::setw(15) << std::setprecision(5) << std::scientific << Emax << ". "; 
@@ -175,7 +175,6 @@ void test()
             t_total += t_time_step;
         }
         
-
 	if(n % 10 == 0)
 	{
 		size_t t = n*conf.dt;
@@ -209,7 +208,6 @@ void test()
 
 			real E_abs = std::sqrt(Ex*Ex + Ey*Ey);
 			E_l2 += E_abs;
-			E_max = std::max(E_max, E_abs); 
 
 			real Ex_exact = 0;
 			real Ey_exact = 0;
@@ -230,7 +228,6 @@ void test()
 		E_l2 *= plot_dx*plot_dy;
 
 		E_l2_file << t << " " << E_l2 << std::endl;
-		E_max_file << t << " " << E_max << std::endl;
 		E_max_err_file << t << " " << E_max_error << std::endl;
 		E_l2_err_file << t << " " << E_l2_error << std::endl;
 	}
