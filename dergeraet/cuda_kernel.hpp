@@ -78,11 +78,12 @@ public:
     cuda_kernel& operator=(       cuda_kernel &&rhs ) = default;
 
     void compute_rho( size_t n, const real *coeffs, size_t l_min, size_t l_max );    
-    void    load_rho( real *rho, size_t l_min, size_t l_max );    
+    void    load_rho( real *rho, size_t l_min, size_t l_max, real *f_values );
 
 private:
     config_t<real> conf; int device_number;
     cuda::autoptr cuda_coeffs, cuda_rho;
+    cuda::autoptr cuda_f_values;
 };
 
 extern template class cuda_kernel<double,3>;

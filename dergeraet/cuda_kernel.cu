@@ -125,6 +125,7 @@ template class cuda_kernel<float,8>;
 namespace dim2
 {
 
+// Normal version of cuda_eval_rho.
 template <typename real, size_t order>
 __global__
 void cuda_eval_rho( size_t n, const real *coeffs, const config_t<real> conf, real *rho,
@@ -159,6 +160,45 @@ void cuda_eval_rho( size_t n, const real *coeffs, const config_t<real> conf, rea
     rho[ l ] = result;
 }
 
+// Version of cuda_eval_rho which saves the values of f for further uses.
+template <typename real, size_t order>
+__global__
+void cuda_eval_rho( size_t n, const real *coeffs, const config_t<real> conf, real *rho,
+                    size_t l_min, size_t l_end, real *f_values )
+{
+    const size_t N = l_end - l_min;
+    const size_t l = l_min + (blockDim.x*blockIdx.x + threadIdx.x) % N;
+
+    const size_t i = l % conf.Nx;
+    const size_t j = l / conf.Nx;
+
+    const real   x = conf.x_min + i*conf.dx;
+    const real   y = conf.y_min + j*conf.dy;
+
+    const real du = (conf.u_max - conf.u_min) / conf.Nu;
+    const real dv = (conf.v_max - conf.v_min) / conf.Nv;
+
+    const real u_min = conf.u_min + 0.5*du;
+    const real v_min = conf.v_min + 0.5*dv;
+
+    real result = 0;
+    for ( size_t jj = 0; jj < conf.Nv; ++jj )
+    for ( size_t ii = 0; ii < conf.Nu; ++ii )
+    {
+        real u = u_min + ii*du;
+        real v = v_min + jj*dv;
+
+        real f = eval_ftilda<real,order>( n, x, y, u, v, coeffs, conf );
+
+        result += f;
+
+        f_values[i + conf.Nx*( j + conf.Ny*( ii + conf.Nv*jj )) ] = f;
+    }
+    result = 1 - du*dv*result;
+
+    rho[ l ] = result;
+}
+
 template <typename real, size_t order>
 cuda_kernel<real,order>::cuda_kernel( const config_t<real> &p_conf, int dev ):
 conf { p_conf }, device_number { dev }
@@ -167,9 +207,12 @@ conf { p_conf }, device_number { dev }
                                                  (conf.Ny+order-1);
     size_t   rho_size = sizeof(real)*conf.Nx*conf.Ny;
 
+    size_t   f_size   = sizeof(real)*conf.Nx*conf.Ny*conf.Nv*conf.Nu;
+
     cuda::set_device(dev);
     cuda_coeffs.reset( cuda::malloc(coeff_size), dev );
     cuda_rho   .reset( cuda::malloc(  rho_size), dev );
+    cuda_f_values   .reset( cuda::malloc( f_size ), dev );
 }
 
 template <typename real, size_t order>
@@ -196,19 +239,30 @@ void cuda_kernel<real,order>::compute_rho( size_t n, const real *coeffs,
     size_t block_size = 64;
     size_t Nblocks = 1 + (N-1) / block_size;
 
-    cuda_eval_rho<real,order><<<Nblocks,block_size>>>( n, cu_coeffs, conf, cu_rho, l_min, l_end );
+    //cuda_eval_rho<real,order><<<Nblocks,block_size>>>( n, cu_coeffs, conf, cu_rho, l_min, l_end );
+    cuda_eval_rho<real,order><<<Nblocks,block_size>>>( n, cu_coeffs, conf, cu_rho, l_min, l_end, f_values );
 }
 
 template <typename real, size_t order>
-void cuda_kernel<real,order>::load_rho(real *rho, size_t l_min, size_t l_end )
+void cuda_kernel<real,order>::load_rho(real *rho, size_t l_min, size_t l_end, real *f_values)
 {
     if ( l_min == l_end ) return;
 
     cuda::set_device(device_number);
     real *cu_rho = reinterpret_cast<real*>( cuda_rho.get() );
+    real *cu_f_values = reinterpret_cast<real*>( cuda_f_values.get() );
 
+    // Copying rho to normal RAM:
     size_t N = l_end - l_min;
     cuda::memcpy_to_host( rho + l_min, cu_rho + l_min, N*sizeof(real) );
+
+    // Copying f to normal RAM:
+    size_t i = l_min % conf.Nx;
+    size_t j = l_min / conf.Nx;
+    size_t f_min_index = i + conf.Nx*j;
+    size_t f_max_index = i + conf.Nx*(j + conf.Nv*(conf.Nv*conf.Nu - 1));
+    size_t N_f = f_max_index - f_min_index;
+    cuda::memcpy_to_host( f_values + f_min_index, cu_f_values + f_min_index, N_f*sizeof(real) );
 }
 
 

@@ -115,6 +115,11 @@ void test()
     if ( tmp == nullptr ) throw std::bad_alloc {};
     std::unique_ptr<real,decltype(std::free)*> rho { reinterpret_cast<real*>(tmp), std::free };
 
+    void *tmp_f = std::aligned_alloc( poiss.alignment, sizeof(real)*conf.Nx*conf.Ny*conf.Nv*conf.Nu );
+    if ( tmp_f == nullptr ) throw std::bad_alloc {};
+    std::unique_ptr<real,decltype(std::free)*> f_values { reinterpret_cast<real*>(tmp_f), std::free };
+
+
 
     std::ofstream E_max_file;
     if ( rank == 0 )
@@ -133,7 +138,7 @@ void test()
     for ( size_t n = 0; n <= conf.Nt; ++n )
     {
         double t1 = MPI_Wtime();
-        sched.compute_rho( n, coeffs.get(), rho.get() );
+        sched.compute_rho( n, coeffs.get(), rho.get(), f_values.get() );
 
         mpi::allgatherv( MPI_IN_PLACE, 0, 
                          rho.get(), rank_count.data(), rank_offset.data(),
