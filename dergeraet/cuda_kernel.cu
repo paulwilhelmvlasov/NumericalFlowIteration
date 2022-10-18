@@ -229,6 +229,7 @@ void cuda_kernel<real,order>::compute_rho( size_t n, const real *coeffs,
     cuda::set_device(device_number);
     real *cu_coeffs = reinterpret_cast<real*>( cuda_coeffs.get() );
     real *cu_rho    = reinterpret_cast<real*>( cuda_rho   .get() );
+    real *cu_f_values    = reinterpret_cast<real*>( cuda_f_values   .get() );
     if ( n )
     {
         size_t stride_n = (conf.Nx + order - 1)*(conf.Ny + order - 1);
@@ -240,7 +241,7 @@ void cuda_kernel<real,order>::compute_rho( size_t n, const real *coeffs,
     size_t Nblocks = 1 + (N-1) / block_size;
 
     //cuda_eval_rho<real,order><<<Nblocks,block_size>>>( n, cu_coeffs, conf, cu_rho, l_min, l_end );
-    cuda_eval_rho<real,order><<<Nblocks,block_size>>>( n, cu_coeffs, conf, cu_rho, l_min, l_end, f_values );
+    cuda_eval_rho<real,order><<<Nblocks,block_size>>>( n, cu_coeffs, conf, cu_rho, l_min, l_end, cu_f_values );
 }
 
 template <typename real, size_t order>
