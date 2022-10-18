@@ -261,7 +261,7 @@ void cuda_kernel<real,order>::load_rho(real *rho, size_t l_min, size_t l_end, re
     size_t i = l_min % conf.Nx;
     size_t j = l_min / conf.Nx;
     size_t f_min_index = i + conf.Nx*j;
-    size_t f_max_index = i + conf.Nx*(j + conf.Nv*(conf.Nv*conf.Nu - 1));
+    size_t f_max_index = i + conf.Nx*(j + conf.Ny*(conf.Nv*conf.Nu - 1));
     size_t N_f = f_max_index - f_min_index;
     cuda::memcpy_to_host( f_values + f_min_index, cu_f_values + f_min_index, N_f*sizeof(real) );
 }

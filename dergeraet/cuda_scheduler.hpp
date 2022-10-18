@@ -157,7 +157,7 @@ public:
             }
         }
 
-        // Load results
+        // Load results.
         curr = begin;
         for ( size_t i = 0; i < n_cards; ++i )
         {
