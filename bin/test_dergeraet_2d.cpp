@@ -121,6 +121,8 @@ void test()
 
 
 
+    bool plot_f = true;
+
     std::ofstream E_max_file;
     if ( rank == 0 )
         E_max_file.open( "E_max.txt" );
@@ -133,6 +135,12 @@ void test()
     std::ofstream E_l2_err_file;
     if ( rank == 0 )
         E_l2_err_file.open( "E_l2_err.txt" );
+    std::ofstream entropy_file;
+    if ( rank == 0 )
+        entropy_file.open( "entropy.txt" );
+    std::ofstream total_energy_file;
+    if ( rank == 0 )
+    	total_energy_file.open( "total_energy.txt" );
 
     double t_total = 0;
     for ( size_t n = 0; n <= conf.Nt; ++n )
@@ -179,8 +187,14 @@ void test()
             std::cout << "Elapsed time: " << t_time_step << std::endl;
             t_total += t_time_step;
         }
-        
-	if(n % 10 == 0)
+
+        bool do_plots = (n%10 == 0);
+    // Plotting E, rho and related metrics.
+        real E_l2 = 0;
+        real E_max = 0;
+        real E_l2_error = 0;
+        real E_max_error = 0;
+    if(do_plots)
 	{
 		size_t t = n*conf.dt;
 	        std::stringstream E_filename; E_filename << 'E' << t << ".txt";
@@ -192,11 +206,7 @@ void test()
         	const size_t plotNx = 256, plotNy = 256;
 		const real plot_dx = (conf.x_max - conf.x_min)/plotNx;
                 const real plot_dy = (conf.y_max - conf.y_min)/plotNy;
-		real E_l2 = 0;
-		real E_max = 0;
-		real E_l2_error = 0;
-		real E_max_error = 0;
-	        for ( size_t i = 0; i <= plotNx; ++i )
+		for ( size_t i = 0; i <= plotNx; ++i )
         	{
 	            real x = conf.x_min + i*plot_dx;
 	            for ( size_t j = 0; j <= plotNy; ++j )
@@ -236,6 +246,36 @@ void test()
 		E_max_err_file << t << " " << E_max_error << std::endl;
 		E_l2_err_file << t << " " << E_l2_error << std::endl;
 	}
+    // Plotting of f and f-related metrics:
+    if(plot_f && do_plots)
+    {
+    	const real plot_dx = (conf.x_max - conf.x_min)/conf.Nx;
+    	const real plot_dy = (conf.y_max - conf.y_min)/conf.Ny;
+    	const real plot_dv = (conf.v_max - conf.v_min)/conf.Nv;
+    	const real plot_du = (conf.u_max - conf.u_min)/conf.Nu;
+
+    	real entropy = 0;
+    	real kinetic_energy = 0;
+
+    	for(size_t i = 0; i < conf.Nx; i++)
+    		for(size_t j = 0; j < conf.Ny; j++)
+    			for(size_t k = 0; k < conf.Nv; k++)
+    				for(size_t l = 0; l < conf.Nu; l++)
+    				{
+    					real v = conf.v_min + k * plot_dv;
+    					real u = conf.u_min + l * plot_du;
+    					real f = f_values[i + conf.Nx*(j + conf.Ny*(k + conf.Nv*l))];
+
+    					if(f > 1e-8)
+    					{
+    						entropy += f * std::log(f);
+    					}
+
+    					kinetic_energy += (v*v + u*u) * f;
+    				}
+    	entropy_file << t << " " << entropy << std::endl;
+    	total_energy_file << t << " " << kinetic_energy + E_l2 << std::endl;
+    }
     }
     std::cout << "Total time = " << t_total << std::endl;
 }
