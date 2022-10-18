@@ -273,6 +273,8 @@ void test()
 
     					kinetic_energy += (v*v + u*u) * f;
     				}
+	entropy *= plot_dx*plot_dy*plot_dv*plot_du;
+	kinetic_energy *= plot_dx*plot_dy*plot_dv*plot_du;
     	entropy_file << t << " " << entropy << std::endl;
     	total_energy_file << t << " " << kinetic_energy + E_l2 << std::endl;
     }
