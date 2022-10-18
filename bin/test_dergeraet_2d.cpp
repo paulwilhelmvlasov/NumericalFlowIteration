@@ -190,13 +190,13 @@ void test()
 
         bool do_plots = (n%10 == 0);
     // Plotting E, rho and related metrics.
+		size_t t = n*conf.dt;
         real E_l2 = 0;
         real E_max = 0;
         real E_l2_error = 0;
         real E_max_error = 0;
     if(do_plots)
 	{
-		size_t t = n*conf.dt;
 	        std::stringstream E_filename; E_filename << 'E' << t << ".txt";
         	std::ofstream E_file( E_filename.str() );
 		std::stringstream rho_filename; rho_filename << 'p' << t << ".txt";
@@ -264,7 +264,7 @@ void test()
     				{
     					real v = conf.v_min + k * plot_dv;
     					real u = conf.u_min + l * plot_du;
-    					real f = f_values[i + conf.Nx*(j + conf.Ny*(k + conf.Nv*l))];
+    					real f = f_values.get()[i + conf.Nx*(j + conf.Ny*(k + conf.Nv*l))];
 
     					if(f > 1e-8)
     					{
