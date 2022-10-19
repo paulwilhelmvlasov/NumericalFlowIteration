@@ -270,6 +270,8 @@ void test()
     			for(size_t k = 0; k < plot_nv; k++)
     				for(size_t l = 0; l < plot_nu; l++)
     				{
+    					real x = conf.x_min + i * plot_dx;
+    					real y = conf.y_min + j * plot_dy;
     					real v = conf.v_min + k * plot_dv;
     					real u = conf.u_min + l * plot_du;
     					//real f = f_values.get()[i + conf.Nx*(j + conf.Ny*(k + conf.Nv*l))];
