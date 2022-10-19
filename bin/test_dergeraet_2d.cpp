@@ -115,11 +115,11 @@ void test()
     if ( tmp == nullptr ) throw std::bad_alloc {};
     std::unique_ptr<real,decltype(std::free)*> rho { reinterpret_cast<real*>(tmp), std::free };
 
+    /*
     void *tmp_f = std::aligned_alloc( poiss.alignment, sizeof(real)*conf.Nx*conf.Ny*conf.Nv*conf.Nu );
     if ( tmp_f == nullptr ) throw std::bad_alloc {};
     std::unique_ptr<real,decltype(std::free)*> f_values { reinterpret_cast<real*>(tmp_f), std::free };
-
-
+	*/
 
     bool plot_f = true;
 
@@ -146,7 +146,10 @@ void test()
     for ( size_t n = 0; n <= conf.Nt; ++n )
     {
         double t1 = MPI_Wtime();
-        sched.compute_rho( n, coeffs.get(), rho.get(), f_values.get() );
+        // Without f metrics:
+        sched.compute_rho( n, coeffs.get(), rho.get() );
+        // With f metrics:
+//        sched.compute_rho( n, coeffs.get(), rho.get(), f_values.get() );
 
         mpi::allgatherv( MPI_IN_PLACE, 0, 
                          rho.get(), rank_count.data(), rank_offset.data(),
@@ -249,10 +252,10 @@ void test()
     // Plotting of f and f-related metrics:
     if(plot_f && do_plots)
     {
-	const size_t plot_nx = conf.Nx;
-	const size_t plot_ny = conf.Ny;
-	const size_t plot_nv = conf.Nv;
-	const size_t plot_nu = conf.Nu;
+		const size_t plot_nx = conf.Nx;
+		const size_t plot_ny = conf.Ny;
+		const size_t plot_nv = conf.Nv;
+		const size_t plot_nu = conf.Nu;
 
     	const real plot_dx = (conf.x_max - conf.x_min)/plot_nx;
     	const real plot_dy = (conf.y_max - conf.y_min)/plot_ny;
@@ -270,7 +273,7 @@ void test()
     					real v = conf.v_min + k * plot_dv;
     					real u = conf.u_min + l * plot_du;
     					//real f = f_values.get()[i + conf.Nx*(j + conf.Ny*(k + conf.Nv*l))];
-					real f = eval_ftilda<real,order>( n, x, y, u, v, coeffs, conf );
+    					real f = eval_ftilda<real,order>( n, x, y, u, v, coeffs.get(), conf );
 
     					if(f > 1e-8)
     					{
@@ -279,8 +282,8 @@ void test()
 
     					kinetic_energy += (v*v + u*u) * f;
     				}
-	entropy *= plot_dx*plot_dy*plot_dv*plot_du;
-	kinetic_energy *= plot_dx*plot_dy*plot_dv*plot_du;
+    	entropy *= plot_dx*plot_dy*plot_dv*plot_du;
+    	kinetic_energy *= plot_dx*plot_dy*plot_dv*plot_du;
     	entropy_file << t << " " << entropy << std::endl;
     	total_energy_file << t << " " << kinetic_energy + E_l2 << std::endl;
     }

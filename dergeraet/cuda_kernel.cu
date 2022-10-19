@@ -240,10 +240,28 @@ void cuda_kernel<real,order>::compute_rho( size_t n, const real *coeffs,
     size_t block_size = 64;
     size_t Nblocks = 1 + (N-1) / block_size;
 
-    //cuda_eval_rho<real,order><<<Nblocks,block_size>>>( n, cu_coeffs, conf, cu_rho, l_min, l_end );
-    cuda_eval_rho<real,order><<<Nblocks,block_size>>>( n, cu_coeffs, conf, cu_rho, l_min, l_end, cu_f_values );
+    // Without f metrics:
+    cuda_eval_rho<real,order><<<Nblocks,block_size>>>( n, cu_coeffs, conf, cu_rho, l_min, l_end );
+    // With f metrics:
+    //cuda_eval_rho<real,order><<<Nblocks,block_size>>>( n, cu_coeffs, conf, cu_rho, l_min, l_end, cu_f_values );
 }
 
+// load_rho without f metrics.
+template <typename real, size_t order>
+void cuda_kernel<real,order>::load_rho(real *rho, size_t l_min, size_t l_end)
+{
+    if ( l_min == l_end ) return;
+
+    cuda::set_device(device_number);
+    real *cu_rho = reinterpret_cast<real*>( cuda_rho.get() );
+
+    // Copying rho to normal RAM:
+    size_t N = l_end - l_min;
+    cuda::memcpy_to_host( rho + l_min, cu_rho + l_min, N*sizeof(real) );
+}
+
+
+// load_rho with f metrics.
 template <typename real, size_t order>
 void cuda_kernel<real,order>::load_rho(real *rho, size_t l_min, size_t l_end, real *f_values)
 {
