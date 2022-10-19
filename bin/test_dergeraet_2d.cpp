@@ -249,22 +249,28 @@ void test()
     // Plotting of f and f-related metrics:
     if(plot_f && do_plots)
     {
-    	const real plot_dx = (conf.x_max - conf.x_min)/conf.Nx;
-    	const real plot_dy = (conf.y_max - conf.y_min)/conf.Ny;
-    	const real plot_dv = (conf.v_max - conf.v_min)/conf.Nv;
-    	const real plot_du = (conf.u_max - conf.u_min)/conf.Nu;
+	const size_t plot_nx = conf.Nx;
+	const size_t plot_ny = conf.Ny;
+	const size_t plot_nv = conf.Nv;
+	const size_t plot_nu = conf.Nu;
+
+    	const real plot_dx = (conf.x_max - conf.x_min)/plot_nx;
+    	const real plot_dy = (conf.y_max - conf.y_min)/plot_ny;
+    	const real plot_dv = (conf.v_max - conf.v_min)/plot_nv;
+    	const real plot_du = (conf.u_max - conf.u_min)/plot_nu;
 
     	real entropy = 0;
     	real kinetic_energy = 0;
 
-    	for(size_t i = 0; i < conf.Nx; i++)
-    		for(size_t j = 0; j < conf.Ny; j++)
-    			for(size_t k = 0; k < conf.Nv; k++)
-    				for(size_t l = 0; l < conf.Nu; l++)
+    	for(size_t i = 0; i < plot_nx; i++)
+    		for(size_t j = 0; j < plot_ny; j++)
+    			for(size_t k = 0; k < plot_nv; k++)
+    				for(size_t l = 0; l < plot_nu; l++)
     				{
     					real v = conf.v_min + k * plot_dv;
     					real u = conf.u_min + l * plot_du;
-    					real f = f_values.get()[i + conf.Nx*(j + conf.Ny*(k + conf.Nv*l))];
+    					//real f = f_values.get()[i + conf.Nx*(j + conf.Ny*(k + conf.Nv*l))];
+					real f = eval_ftilda<real,order>( n, x, y, u, v, coeffs, conf );
 
     					if(f > 1e-8)
     					{
