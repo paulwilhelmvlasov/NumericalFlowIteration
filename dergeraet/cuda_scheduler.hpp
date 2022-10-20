@@ -219,6 +219,12 @@ public:
         }
     }
 
+    void compute_f_metrics(size_t plot_nx, size_t plot_ny, size_t plot_nv, size_t plot_nu,
+    						real &entropy, real &kinetic_energy )
+    {
+
+    }
+
 private:
     config_t<real> conf;
     size_t begin, end;
