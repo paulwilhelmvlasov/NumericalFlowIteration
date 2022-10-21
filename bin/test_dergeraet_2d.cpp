@@ -252,10 +252,10 @@ void test()
     // Plotting of f and f-related metrics:
     if(plot_f && do_plots)
     {
-		const size_t plot_nx = 256;
-		const size_t plot_ny = 256;
-		const size_t plot_nv = 256;
-		const size_t plot_nu = 256;
+		const size_t plot_nx = 128;
+		const size_t plot_ny = 128;
+		const size_t plot_nv = 128;
+		const size_t plot_nu = 128;
 
     	const real plot_dx = (conf.x_max - conf.x_min)/plot_nx;
     	const real plot_dy = (conf.y_max - conf.y_min)/plot_ny;
