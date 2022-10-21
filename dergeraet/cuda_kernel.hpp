@@ -81,6 +81,13 @@ public:
     void    load_rho( real *rho, size_t l_min, size_t l_max );
     void    load_rho( real *rho, size_t l_min, size_t l_max, real *f_values );
 
+    /*
+    void compute_f(real &entropy, real &kinetic_energy,
+            size_t i_min, size_t i_max, size_t j_min, size_t j_max,
+			size_t k_min, size_t k_max, size_t l_min, size_t l_max,
+			real dx, real dy, real dv, real du);
+	*/
+
 private:
     config_t<real> conf; int device_number;
     cuda::autoptr cuda_coeffs, cuda_rho;

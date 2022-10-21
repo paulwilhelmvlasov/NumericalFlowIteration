@@ -115,11 +115,9 @@ void test()
     if ( tmp == nullptr ) throw std::bad_alloc {};
     std::unique_ptr<real,decltype(std::free)*> rho { reinterpret_cast<real*>(tmp), std::free };
 
-    /*
     void *tmp_f = std::aligned_alloc( poiss.alignment, sizeof(real)*conf.Nx*conf.Ny*conf.Nv*conf.Nu );
     if ( tmp_f == nullptr ) throw std::bad_alloc {};
     std::unique_ptr<real,decltype(std::free)*> f_values { reinterpret_cast<real*>(tmp_f), std::free };
-	*/
 
     bool plot_f = true;
 
@@ -147,9 +145,9 @@ void test()
     {
         double t1 = MPI_Wtime();
         // Without f metrics:
-        sched.compute_rho( n, coeffs.get(), rho.get() );
+        //sched.compute_rho( n, coeffs.get(), rho.get() );
         // With f metrics:
-//        sched.compute_rho( n, coeffs.get(), rho.get(), f_values.get() );
+        sched.compute_rho( n, coeffs.get(), rho.get(), f_values.get() );
 
         mpi::allgatherv( MPI_IN_PLACE, 0, 
                          rho.get(), rank_count.data(), rank_offset.data(),
@@ -252,10 +250,10 @@ void test()
     // Plotting of f and f-related metrics:
     if(plot_f && do_plots)
     {
-		const size_t plot_nx = 128;
-		const size_t plot_ny = 128;
-		const size_t plot_nv = 128;
-		const size_t plot_nu = 128;
+		const size_t plot_nx = conf.Nx;
+		const size_t plot_ny = conf.Ny;
+		const size_t plot_nv = conf.Nv;
+		const size_t plot_nu = conf.Nu;
 
     	const real plot_dx = (conf.x_max - conf.x_min)/plot_nx;
     	const real plot_dy = (conf.y_max - conf.y_min)/plot_ny;
@@ -274,10 +272,10 @@ void test()
     					real y = conf.y_min + j * plot_dy;
     					real v = conf.v_min + k * plot_dv;
     					real u = conf.u_min + l * plot_du;
-    					//real f = f_values.get()[i + conf.Nx*(j + conf.Ny*(k + conf.Nv*l))];
-    					real f = eval_ftilda<real,order>( n, x, y, u, v, coeffs.get(), conf );
+    					real f = f_values.get()[i + conf.Nx*(j + conf.Ny*(k + conf.Nv*l))];
+    					//real f = eval_ftilda<real,order>( n, x, y, u, v, coeffs.get(), conf );
 
-    					if(f > 1e-8)
+    					if(f > 1e-10)
     					{
     						entropy += f * std::log(f);
     					}
