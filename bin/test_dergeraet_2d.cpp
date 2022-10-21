@@ -136,6 +136,9 @@ void test()
     std::ofstream entropy_file;
     if ( rank == 0 )
         entropy_file.open( "entropy.txt" );
+    std::ofstream kinetic_energy_file;
+    if ( rank == 0 )
+    	kinetic_energy_file.open( "kinetic_energy.txt" );
     std::ofstream total_energy_file;
     if ( rank == 0 )
     	total_energy_file.open( "total_energy.txt" );
@@ -221,7 +224,7 @@ void test()
                 	real y = conf.y_min + j*plot_dy;
 	                size_t l = j + i * plotNy;
 			real Ex = -eval<real,order,1,0>( x, y, coeffs.get() + n*stride_t, conf );
-	                real Ey = -eval<real,order,0,1>( x, y, coeffs.get() + n*stride_t, conf );
+	        real Ey = -eval<real,order,0,1>( x, y, coeffs.get() + n*stride_t, conf );
 			real a  = eval<real,order,2,0>(x,y, coeffs.get() + n*stride_t, conf);
 			real b  = eval<real,order,0,2>(x,y, coeffs.get() + n*stride_t, conf); 
 			real rho = -a*a - b*b;
@@ -297,6 +300,7 @@ void test()
     	l1_norm_f *= plot_dx*plot_dy*plot_dv*plot_du;
     	l2_norm_f *= plot_dx*plot_dy*plot_dv*plot_du;
     	entropy_file << t << " " << entropy << std::endl;
+    	kinetic_energy_file << t << " " << kinetic_energy << std::endl;
     	total_energy_file << t << " " << kinetic_energy + E_l2 << std::endl;
     	l1_norm_f_file << t << " " << entropy << std::endl;
     	l2_norm_f_file << t << " " << entropy << std::endl;
