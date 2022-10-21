@@ -228,7 +228,7 @@ void test()
 	                E_file << x << " " << y << " " << Ex << " " << Ey << std::endl;
 			rho_file << x << " " << y << " " << rho << std::endl;
 
-			real E_abs = std::sqrt(Ex*Ex + Ey*Ey);
+			real E_abs = Ex*Ex + Ey*Ey;
 			E_l2 += E_abs;
 
 			real Ex_exact = 0;
