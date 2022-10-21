@@ -285,6 +285,11 @@ void test()
     					real f = f_values.get()[i + conf.Nx*(j + conf.Ny*(k + conf.Nv*l))];
     					//real f = eval_ftilda<real,order>( n, x, y, u, v, coeffs.get(), conf );
 
+    					if(f < 0)
+    					{
+    						std::cout << "WTF?!" << f << std::endl;
+    					}
+
     					if(f > 1e-10)
     					{
     						entropy += f * std::log(f);
