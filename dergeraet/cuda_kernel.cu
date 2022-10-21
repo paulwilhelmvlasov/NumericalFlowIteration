@@ -188,7 +188,8 @@ void cuda_eval_rho( size_t n, const real *coeffs, const config_t<real> conf, rea
         real u = u_min + ii*du;
         real v = v_min + jj*dv;
 
-        real f = eval_ftilda<real,order>( n, x, y, u, v, coeffs, conf );
+        //real f = eval_ftilda<real,order>( n, x, y, u, v, coeffs, conf );
+        real f = eval_f<real,order>( n, x, y, u, v, coeffs, conf );
 
         result += f;
 
