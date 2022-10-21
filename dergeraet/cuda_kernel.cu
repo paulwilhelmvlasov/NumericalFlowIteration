@@ -199,6 +199,7 @@ void cuda_eval_rho( size_t n, const real *coeffs, const config_t<real> conf, rea
     rho[ l ] = result;
 }
 
+/*
 template <typename real, size_t order>
 __global__
 void cuda_eval_f( size_t n, const real *coeffs, const config_t<real> conf, real &entropy, real &kinetic_energy,
@@ -227,6 +228,7 @@ void cuda_eval_f( size_t n, const real *coeffs, const config_t<real> conf, real 
 					kinetic_energy += (v*v + u*u) * f;
 				}
 }
+*/
 
 template <typename real, size_t order>
 cuda_kernel<real,order>::cuda_kernel( const config_t<real> &p_conf, int dev ):

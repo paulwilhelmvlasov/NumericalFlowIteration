@@ -139,6 +139,12 @@ void test()
     std::ofstream total_energy_file;
     if ( rank == 0 )
     	total_energy_file.open( "total_energy.txt" );
+    std::ofstream l1_norm_f_file;
+    if ( rank == 0 )
+    	l1_norm_f_file.open( "l1_norm_f.txt" );
+    std::ofstream l2_norm_f_file;
+    if ( rank == 0 )
+    	l2_norm_f_file.open( "l2_norm_f.txt" );
 
     double t_total = 0;
     for ( size_t n = 0; n <= conf.Nt; ++n )
@@ -262,6 +268,8 @@ void test()
 
     	real entropy = 0;
     	real kinetic_energy = 0;
+    	real l1_norm_f = 0;
+    	real l2_norm_f = 0;
 
     	for(size_t i = 0; i < plot_nx; i++)
     		for(size_t j = 0; j < plot_ny; j++)
@@ -281,11 +289,18 @@ void test()
     					}
 
     					kinetic_energy += (v*v + u*u) * f;
+
+    					l1_norm_f += f;
+    					l2_norm_f += f*f;
     				}
     	entropy *= plot_dx*plot_dy*plot_dv*plot_du;
     	kinetic_energy *= plot_dx*plot_dy*plot_dv*plot_du;
+    	l1_norm_f *= plot_dx*plot_dy*plot_dv*plot_du;
+    	l2_norm_f *= plot_dx*plot_dy*plot_dv*plot_du;
     	entropy_file << t << " " << entropy << std::endl;
     	total_energy_file << t << " " << kinetic_energy + E_l2 << std::endl;
+    	l1_norm_f_file << t << " " << entropy << std::endl;
+    	l2_norm_f_file << t << " " << entropy << std::endl;
     }
     }
     std::cout << "Total time = " << t_total << std::endl;
