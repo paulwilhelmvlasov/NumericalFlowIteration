@@ -219,11 +219,41 @@ public:
         }
     }
 
+    /*
     void compute_f_metrics(size_t plot_nx, size_t plot_ny, size_t plot_nv, size_t plot_nu,
     						real &entropy, real &kinetic_energy )
     {
+        size_t n_cards = kernels.size();
+        size_t N = plot_nx*plot_ny*plot_nv*plot_nu;
+
+        size_t chunk_size = N / n_cards;
+        size_t remainder  = N % n_cards;
+
+        std::vector<real> kin_energy_vec(n_cards + 1);
+        std::vector<real> entropy_vec(n_cards + 1);
+
+        // Launch tasks.
+        size_t curr = begin;
+        for ( size_t i = 0; i < n_cards; ++i )
+        {
+            if ( i < remainder )
+            {
+//                kernels[i].compute_rho( n, coeffs, curr, curr + chunk_size + 1 );
+            	kernels[i].compute_f(entropy, kinetic_energy, i_min, i_max, j_min, j_max,
+            						k_min, k_max, l_min, l_max, dx, dy, dv, du);
+            					// Nochmal drüber nachdenken,
+            					//wie man das besser schreiben kann.
+                curr += chunk_size + 1;
+            }
+            else
+            {
+                kernels[i].compute_rho( n, coeffs, curr, curr + chunk_size );
+                curr += chunk_size;
+            }
+        }
 
     }
+   */
 
 private:
     config_t<real> conf;

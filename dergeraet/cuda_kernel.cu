@@ -217,7 +217,7 @@ void cuda_eval_f( size_t n, const real *coeffs, const config_t<real> conf, real 
 					real y = conf.y_min + j * dy;
 					real v = conf.v_min + k * dv;
 					real u = conf.u_min + l * du;
-					real f = eval_ftilda<real,order>( n, x, y, u, v, coeffs.get(), conf );
+					real f = eval_f<real,order>( n, x, y, u, v, coeffs.get(), conf );
 
 					if(f > 1e-10)
 					{
@@ -270,9 +270,9 @@ void cuda_kernel<real,order>::compute_rho( size_t n, const real *coeffs,
     size_t Nblocks = 1 + (N-1) / block_size;
 
     // Without f metrics:
-    cuda_eval_rho<real,order><<<Nblocks,block_size>>>( n, cu_coeffs, conf, cu_rho, l_min, l_end );
+    //cuda_eval_rho<real,order><<<Nblocks,block_size>>>( n, cu_coeffs, conf, cu_rho, l_min, l_end );
     // With f metrics:
-    //cuda_eval_rho<real,order><<<Nblocks,block_size>>>( n, cu_coeffs, conf, cu_rho, l_min, l_end, cu_f_values );
+    cuda_eval_rho<real,order><<<Nblocks,block_size>>>( n, cu_coeffs, conf, cu_rho, l_min, l_end, cu_f_values );
 }
 
 // load_rho without f metrics.
@@ -314,6 +314,7 @@ void cuda_kernel<real,order>::load_rho(real *rho, size_t l_min, size_t l_end, re
 }
 
 // Only f metric computation.
+/*
 template <typename real, size_t order>
 cuda_kernel<real,order>::compute_f(real &entropy, real &kinetic_energy,
         size_t i_min, size_t i_max, size_t j_min, size_t j_max,
@@ -335,6 +336,7 @@ cuda_kernel<real,order>::compute_f(real &entropy, real &kinetic_energy,
 			k_min, k_max, l_min, l_max,
 			dx, dy, dv, du);
 }
+*/
 
 
 template class cuda_kernel<double,3>;
