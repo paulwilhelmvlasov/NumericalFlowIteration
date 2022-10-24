@@ -209,7 +209,10 @@ public:
         {
         	l1_norm_f += l1_norm_array[i];
         }
-        l1_norm_f *= conf.dx*conf.dy*conf.dv*conf.du;
+
+        real dv = (conf.v_max - conf.v_min) / conf.Nv;
+        real du = (conf.u_max - conf.u_min) / conf.Nu;
+        l1_norm_f *= conf.dx*conf.dy*dv*du;
         std::cout << n << " " << l1_norm_f << std::endl;
 
         // Load results
