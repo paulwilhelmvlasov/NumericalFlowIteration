@@ -247,7 +247,7 @@ void cuda_kernel<real,order>::compute_rho( size_t n, const real *coeffs,
     // Without f metrics:
     //cuda_eval_rho<real,order><<<Nblocks,block_size>>>( n, cu_coeffs, conf, cu_rho, l_min, l_end );
     // With f metrics:
-    cuda_eval_rho<real,order><<<Nblocks,block_size>>>( n, cu_coeffs, conf, cu_rho, l_min, l_end, l1_norm_f );
+    l1_norm_f = cuda_eval_rho<real,order><<<Nblocks,block_size>>>( n, cu_coeffs, conf, cu_rho, l_min, l_end );
 }
 
 // load_rho without f metrics.
