@@ -115,9 +115,22 @@ void test()
     if ( tmp == nullptr ) throw std::bad_alloc {};
     std::unique_ptr<real,decltype(std::free)*> rho { reinterpret_cast<real*>(tmp), std::free };
 
-    void *tmp_f = std::aligned_alloc( poiss.alignment, sizeof(real)*conf.Nx*conf.Ny*conf.Nv*conf.Nu );
-    if ( tmp_f == nullptr ) throw std::bad_alloc {};
-    std::unique_ptr<real,decltype(std::free)*> f_values { reinterpret_cast<real*>(tmp_f), std::free };
+    *tmp = std::aligned_alloc( poiss.alignment, sizeof(real)*conf.Nx*conf.Ny );
+    if ( tmp == nullptr ) throw std::bad_alloc {};
+    std::unique_ptr<real,decltype(std::free)*> f_metric_l1_norm { reinterpret_cast<real*>(tmp), std::free };
+
+    *tmp = std::aligned_alloc( poiss.alignment, sizeof(real)*conf.Nx*conf.Ny );
+    if ( tmp == nullptr ) throw std::bad_alloc {};
+    std::unique_ptr<real,decltype(std::free)*> f_metric_l2_norm { reinterpret_cast<real*>(tmp), std::free };
+
+    *tmp = std::aligned_alloc( poiss.alignment, sizeof(real)*conf.Nx*conf.Ny );
+    if ( tmp == nullptr ) throw std::bad_alloc {};
+    std::unique_ptr<real,decltype(std::free)*> f_metric_entropy { reinterpret_cast<real*>(tmp), std::free };
+
+    *tmp = std::aligned_alloc( poiss.alignment, sizeof(real)*conf.Nx*conf.Ny );
+    if ( tmp == nullptr ) throw std::bad_alloc {};
+    std::unique_ptr<real,decltype(std::free)*> f_metric_kinetic_energy { reinterpret_cast<real*>(tmp), std::free };
+
 
     bool plot_f = true;
 
@@ -156,10 +169,25 @@ void test()
         // Without f metrics:
         //sched.compute_rho( n, coeffs.get(), rho.get() );
         // With f metrics:
-        sched.compute_rho( n, coeffs.get(), rho.get(), f_values.get() );
+        sched.compute_rho( n, coeffs.get(), rho.get(), f_metric_l1_norm.get(), f_metric_l2_norm.get(),
+        		f_metric_entropy.get(), f_metric_kinetic_energy.get());
 
+        // Communicate rho to all nodes.
         mpi::allgatherv( MPI_IN_PLACE, 0, 
                          rho.get(), rank_count.data(), rank_offset.data(),
+                         MPI_COMM_WORLD );
+        //Communicate the f metrics as well.
+        mpi::allgatherv( MPI_IN_PLACE, 0,
+        		f_metric_l1_norm.get(), rank_count.data(), rank_offset.data(),
+                         MPI_COMM_WORLD );
+        mpi::allgatherv( MPI_IN_PLACE, 0,
+        		f_metric_l2_norm.get(), rank_count.data(), rank_offset.data(),
+                         MPI_COMM_WORLD );
+        mpi::allgatherv( MPI_IN_PLACE, 0,
+        		f_metric_entropy.get(), rank_count.data(), rank_offset.data(),
+                         MPI_COMM_WORLD );
+        mpi::allgatherv( MPI_IN_PLACE, 0,
+        		f_metric_kinetic_energy.get(), rank_count.data(), rank_offset.data(),
                          MPI_COMM_WORLD );
 
         poiss.solve( rho.get() );
@@ -273,29 +301,14 @@ void test()
     	real l1_norm_f = 0;
     	real l2_norm_f = 0;
 
-    	for(size_t i = 0; i < plot_nx; i++)
-    		for(size_t j = 0; j < plot_ny; j++)
-    			for(size_t k = 0; k < plot_nv; k++)
-    				for(size_t l = 0; l < plot_nu; l++)
-    				{
-    					real x = conf.x_min + i * plot_dx;
-    					real y = conf.y_min + j * plot_dy;
-    					real v = conf.v_min + k * plot_dv;
-    					real u = conf.u_min + l * plot_du;
-    					//real f = f_values.get()[i + conf.Nx*(j + conf.Ny*(k + conf.Nv*l))];
+    	for(size_t i = 0; i < plot_nx*plot_ny; i++)
+    	{
+    		l1_norm_f += f_metric_l1_norm[i];
+    		l2_norm_f += f_metric_l2_norm[i];
+    		entropy += f_metric_entropy[i];
+    		kinetic_energy += f_metric_kinetic_energy[i];
+    	}
 
-    					real f = eval_f<real,order>( n, x, y, u, v, coeffs.get(), conf );
-
-    					if(f > 1e-10)
-    					{
-    						entropy += f * std::log(f);
-    					}
-
-    					kinetic_energy += (v*v + u*u) * f;
-
-    					l1_norm_f += f;
-    					l2_norm_f += f*f;
-    				}
     	entropy *= plot_dx*plot_dy*plot_dv*plot_du;
     	kinetic_energy *= plot_dx*plot_dy*plot_dv*plot_du;
     	l1_norm_f *= plot_dx*plot_dy*plot_dv*plot_du;

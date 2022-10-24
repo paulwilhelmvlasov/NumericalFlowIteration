@@ -120,7 +120,7 @@ public:
             try 
             {
                 kernels.emplace_back( cuda_kernel<real,order>(conf,i) );
-	        std::cout << "Added device " << i << ".\n"; std::cout.flush();
+                std::cout << "Added device " << i << ".\n"; std::cout.flush();
             }
             catch ( cuda::exception &ex )
             {
@@ -132,6 +132,7 @@ public:
             throw cuda::exception( cudaErrorUnknown, "cuda_scheduler: Failed to create kernels." );
     }
 
+    // Compute_rho without f-metrics.
     void compute_rho( size_t n, const real *coeffs, real *rho )
     {
         if ( begin == end ) return;
@@ -177,7 +178,9 @@ public:
     // compute_rho version which also saves the values of f for further use (like
     // computing entropy).
 
-    void compute_rho( size_t n, const real *coeffs, real *rho, real *f_values )
+    void compute_rho( size_t n, const real *coeffs, real *rho,
+    		real *f_metric_l1_norm, real *f_metric_l2_norm,
+    		real *f_metric_entropy, real *f_metric_kinetic_energy )
     {
         if ( begin == end ) return;
 
@@ -205,28 +208,20 @@ public:
             }
         }
 
-        for( size_t i = 0; i < n_cards; ++i )
-        {
-        	l1_norm_f += l1_norm_array[i];
-        }
-
-        real dv = (conf.v_max - conf.v_min) / conf.Nv;
-        real du = (conf.u_max - conf.u_min) / conf.Nu;
-        l1_norm_f *= conf.dx*conf.dy*dv*du;
-        std::cout << n << " " << l1_norm_f << std::endl;
-
         // Load results
         curr = begin;
         for ( size_t i = 0; i < n_cards; ++i )
         {
             if ( i < remainder )
             {
-                kernels[i].load_rho( rho, curr, curr + chunk_size + 1 );
+                kernels[i].load_rho( rho, curr, curr + chunk_size + 1, f_metric_l1_norm,
+                		f_metric_l2_norm, f_metric_entropy, f_metric_kinetic_energy  );
                 curr += chunk_size + 1;
             }
             else
             {
-                kernels[i].load_rho( rho, curr, curr + chunk_size );
+                kernels[i].load_rho( rho, curr, curr + chunk_size, f_metric_l1_norm,
+                		f_metric_l2_norm, f_metric_entropy, f_metric_kinetic_energy  );
                 curr += chunk_size;
             }
         }
