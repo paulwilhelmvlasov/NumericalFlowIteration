@@ -126,6 +126,7 @@ namespace dim2
 {
 
 // Normal version of cuda_eval_rho.
+/*
 template <typename real, size_t order>
 __global__
 void cuda_eval_rho( size_t n, const real *coeffs, const config_t<real> conf, real *rho,
@@ -159,7 +160,7 @@ void cuda_eval_rho( size_t n, const real *coeffs, const config_t<real> conf, rea
 
     rho[ l ] = result;
 }
-
+*/
 // Version of cuda_eval_rho which saves the values of f for further uses.
 template <typename real, size_t order>
 __global__
