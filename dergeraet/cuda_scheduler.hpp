@@ -218,12 +218,12 @@ public:
         {
             if ( i < remainder )
             {
-                kernels[i].load_rho( rho, curr, curr + chunk_size + 1, f_values );
+                kernels[i].load_rho( rho, curr, curr + chunk_size + 1 );
                 curr += chunk_size + 1;
             }
             else
             {
-                kernels[i].load_rho( rho, curr, curr + chunk_size, f_values );
+                kernels[i].load_rho( rho, curr, curr + chunk_size );
                 curr += chunk_size;
             }
         }

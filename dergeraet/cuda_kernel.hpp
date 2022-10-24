@@ -79,7 +79,6 @@ public:
 
     void compute_rho( size_t n, const real *coeffs, size_t l_min, size_t l_max, real &l1_norm_f  );
     void    load_rho( real *rho, size_t l_min, size_t l_max );
-    void    load_rho( real *rho, size_t l_min, size_t l_max, real &l1_norm_f );
 
 private:
     config_t<real> conf; int device_number;

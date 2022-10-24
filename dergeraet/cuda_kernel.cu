@@ -263,30 +263,6 @@ void cuda_kernel<real,order>::load_rho(real *rho, size_t l_min, size_t l_end)
 }
 
 
-// load_rho with f metrics.
-template <typename real, size_t order>
-void cuda_kernel<real,order>::load_rho(real *rho, size_t l_min, size_t l_end, real *f_values)
-{
-    if ( l_min == l_end ) return;
-
-    cuda::set_device(device_number);
-    real *cu_rho = reinterpret_cast<real*>( cuda_rho.get() );
-    real *cu_f_values = reinterpret_cast<real*>( cuda_f_values.get() );
-
-    // Copying rho to normal RAM:
-    size_t N = l_end - l_min;
-    cuda::memcpy_to_host( rho + l_min, cu_rho + l_min, N*sizeof(real) );
-
-    // Copying f to normal RAM:
-    size_t i = l_min % conf.Nx;
-    size_t j = l_min / conf.Nx;
-    size_t f_min_index = i + conf.Nx*j;
-    size_t f_max_index = i + conf.Nx*(j + conf.Ny*(conf.Nv*conf.Nu - 1));
-    size_t N_f = f_max_index - f_min_index;
-    cuda::memcpy_to_host( f_values + f_min_index, cu_f_values + f_min_index, N_f*sizeof(real) );
-}
-
-
 template class cuda_kernel<double,3>;
 template class cuda_kernel<double,4>;
 template class cuda_kernel<double,5>;
