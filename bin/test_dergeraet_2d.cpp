@@ -303,10 +303,10 @@ void test()
 
     	for(size_t i = 0; i < plot_nx*plot_ny; i++)
     	{
-    		l1_norm_f += f_metric_l1_norm[i];
-    		l2_norm_f += f_metric_l2_norm[i];
-    		entropy += f_metric_entropy[i];
-    		kinetic_energy += f_metric_kinetic_energy[i];
+    		l1_norm_f += f_metric_l1_norm.get()[i];
+    		l2_norm_f += f_metric_l2_norm.get()[i];
+    		entropy += f_metric_entropy.get()[i];
+    		kinetic_energy += f_metric_kinetic_energy.get()[i];
     	}
 
     	entropy *= plot_dx*plot_dy*plot_dv*plot_du;
