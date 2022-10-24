@@ -219,7 +219,7 @@ conf { p_conf }, device_number { dev }
 
 template <typename real, size_t order>
 void cuda_kernel<real,order>::compute_rho( size_t n, const real *coeffs,
-                                           size_t l_min, size_t l_end )
+                                           size_t l_min, size_t l_end, real &l1_norm_f )
 {
 
     stopwatch<real> clock;
@@ -245,7 +245,7 @@ void cuda_kernel<real,order>::compute_rho( size_t n, const real *coeffs,
     // Without f metrics:
     //cuda_eval_rho<real,order><<<Nblocks,block_size>>>( n, cu_coeffs, conf, cu_rho, l_min, l_end );
     // With f metrics:
-    cuda_eval_rho<real,order><<<Nblocks,block_size>>>( n, cu_coeffs, conf, cu_rho, l_min, l_end, cu_f_values );
+    cuda_eval_rho<real,order><<<Nblocks,block_size>>>( n, cu_coeffs, conf, cu_rho, l_min, l_end, l1_norm_f );
 }
 
 // load_rho without f metrics.

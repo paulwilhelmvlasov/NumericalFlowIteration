@@ -77,7 +77,7 @@ public:
     cuda_kernel& operator=( const cuda_kernel  &rhs ) = delete;
     cuda_kernel& operator=(       cuda_kernel &&rhs ) = default;
 
-    void compute_rho( size_t n, const real *coeffs, size_t l_min, size_t l_max );
+    void compute_rho( size_t n, const real *coeffs, size_t l_min, size_t l_max, real &l1_norm_f  );
     void    load_rho( real *rho, size_t l_min, size_t l_max );
     void    load_rho( real *rho, size_t l_min, size_t l_max, real &l1_norm_f );
 
