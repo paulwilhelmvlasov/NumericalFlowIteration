@@ -282,13 +282,8 @@ void test()
     					real y = conf.y_min + j * plot_dy;
     					real v = conf.v_min + k * plot_dv;
     					real u = conf.u_min + l * plot_du;
-    					real f = f_values.get()[i + conf.Nx*(j + conf.Ny*(k + conf.Nv*l))];
-    					//real f = eval_ftilda<real,order>( n, x, y, u, v, coeffs.get(), conf );
-
-    					if(f < 0)
-    					{
-    						std::cout << "WTF?!" << f << std::endl;
-    					}
+    					//real f = f_values.get()[i + conf.Nx*(j + conf.Ny*(k + conf.Nv*l))];
+    					real f = eval_f<real,order>( n, x, y, u, v, coeffs.get(), conf );
 
     					if(f > 1e-10)
     					{
