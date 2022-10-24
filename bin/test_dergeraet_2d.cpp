@@ -115,21 +115,21 @@ void test()
     if ( tmp == nullptr ) throw std::bad_alloc {};
     std::unique_ptr<real,decltype(std::free)*> rho { reinterpret_cast<real*>(tmp), std::free };
 
-    *tmp = std::aligned_alloc( poiss.alignment, sizeof(real)*conf.Nx*conf.Ny );
-    if ( tmp == nullptr ) throw std::bad_alloc {};
-    std::unique_ptr<real,decltype(std::free)*> f_metric_l1_norm { reinterpret_cast<real*>(tmp), std::free };
+    void *tmp1 = std::aligned_alloc( poiss.alignment, sizeof(real)*conf.Nx*conf.Ny );
+    if ( tmp1 == nullptr ) throw std::bad_alloc {};
+    std::unique_ptr<real,decltype(std::free)*> f_metric_l1_norm { reinterpret_cast<real*>(tmp1), std::free };
 
-    *tmp = std::aligned_alloc( poiss.alignment, sizeof(real)*conf.Nx*conf.Ny );
-    if ( tmp == nullptr ) throw std::bad_alloc {};
-    std::unique_ptr<real,decltype(std::free)*> f_metric_l2_norm { reinterpret_cast<real*>(tmp), std::free };
+    void *tmp2 = std::aligned_alloc( poiss.alignment, sizeof(real)*conf.Nx*conf.Ny );
+    if ( tmp2 == nullptr ) throw std::bad_alloc {};
+    std::unique_ptr<real,decltype(std::free)*> f_metric_l2_norm { reinterpret_cast<real*>(tmp2), std::free };
 
-    *tmp = std::aligned_alloc( poiss.alignment, sizeof(real)*conf.Nx*conf.Ny );
-    if ( tmp == nullptr ) throw std::bad_alloc {};
-    std::unique_ptr<real,decltype(std::free)*> f_metric_entropy { reinterpret_cast<real*>(tmp), std::free };
+    void *tmp3 = std::aligned_alloc( poiss.alignment, sizeof(real)*conf.Nx*conf.Ny );
+    if ( tmp3 == nullptr ) throw std::bad_alloc {};
+    std::unique_ptr<real,decltype(std::free)*> f_metric_entropy { reinterpret_cast<real*>(tmp3), std::free };
 
-    *tmp = std::aligned_alloc( poiss.alignment, sizeof(real)*conf.Nx*conf.Ny );
-    if ( tmp == nullptr ) throw std::bad_alloc {};
-    std::unique_ptr<real,decltype(std::free)*> f_metric_kinetic_energy { reinterpret_cast<real*>(tmp), std::free };
+    void *tmp4 = std::aligned_alloc( poiss.alignment, sizeof(real)*conf.Nx*conf.Ny );
+    if ( tmp4 == nullptr ) throw std::bad_alloc {};
+    std::unique_ptr<real,decltype(std::free)*> f_metric_kinetic_energy { reinterpret_cast<real*>(tmp4), std::free };
 
 
     bool plot_f = true;
