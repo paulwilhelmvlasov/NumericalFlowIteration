@@ -198,12 +198,12 @@ public:
         {
             if ( i < remainder )
             {
-            	l1_norm_array[i] = kernels[i].compute_rho( n, coeffs, curr, curr + chunk_size + 1);
+            	kernels[i].compute_rho( n, coeffs, curr, curr + chunk_size + 1);
                 curr += chunk_size + 1;
             }
             else
             {
-            	l1_norm_array[i] = kernels[i].compute_rho( n, coeffs, curr, curr + chunk_size );
+            	kernels[i].compute_rho( n, coeffs, curr, curr + chunk_size );
                 curr += chunk_size;
             }
         }
