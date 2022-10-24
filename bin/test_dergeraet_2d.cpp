@@ -283,7 +283,8 @@ void test()
     					real v = conf.v_min + k * plot_dv;
     					real u = conf.u_min + l * plot_du;
     					//real f = f_values.get()[i + conf.Nx*(j + conf.Ny*(k + conf.Nv*l))];
-					real f = eval_f<real,order>( n, x, y, u, v, coeffs.get(), conf );				
+
+    					real f = eval_f<real,order>( n, x, y, u, v, coeffs.get(), conf );
 
     					if(f > 1e-10)
     					{
