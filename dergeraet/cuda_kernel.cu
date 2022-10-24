@@ -163,8 +163,8 @@ void cuda_eval_rho( size_t n, const real *coeffs, const config_t<real> conf, rea
 // Version of cuda_eval_rho which saves the values of f for further uses.
 template <typename real, size_t order>
 __global__
-void cuda_eval_rho( size_t n, const real *coeffs, const config_t<real> conf, real *rho,
-		                    size_t l_min, size_t l_end, real &l1_norm_f )
+real cuda_eval_rho( size_t n, const real *coeffs, const config_t<real> conf, real *rho,
+		                    size_t l_min, size_t l_end)
 {
     const size_t N = l_end - l_min;
     const size_t l = l_min + (blockDim.x*blockIdx.x + threadIdx.x) % N;
@@ -181,7 +181,7 @@ void cuda_eval_rho( size_t n, const real *coeffs, const config_t<real> conf, rea
     const real u_min = conf.u_min + 0.5*du;
     const real v_min = conf.v_min + 0.5*dv;
 
-    l1_norm_f = 0;
+    real l1_norm_f = 0;
 
     real result = 0;
     for ( size_t jj = 0; jj < conf.Nv; ++jj )
@@ -199,6 +199,8 @@ void cuda_eval_rho( size_t n, const real *coeffs, const config_t<real> conf, rea
     result = 1 - du*dv*result;
 
     rho[ l ] = result;
+
+    return l1_norm_f;
 }
 
 template <typename real, size_t order>

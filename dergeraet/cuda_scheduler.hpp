@@ -195,12 +195,12 @@ public:
         {
             if ( i < remainder )
             {
-                kernels[i].compute_rho( n, coeffs, curr, curr + chunk_size + 1, l1_norm_array[i] );
+            	l1_norm_array[i] = kernels[i].compute_rho( n, coeffs, curr, curr + chunk_size + 1);
                 curr += chunk_size + 1;
             }
             else
             {
-                kernels[i].compute_rho( n, coeffs, curr, curr + chunk_size, l1_norm_array[i] );
+            	l1_norm_array[i] = kernels[i].compute_rho( n, coeffs, curr, curr + chunk_size );
                 curr += chunk_size;
             }
         }
