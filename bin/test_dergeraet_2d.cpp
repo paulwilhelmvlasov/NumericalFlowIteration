@@ -282,8 +282,8 @@ void test()
     					real y = conf.y_min + j * plot_dy;
     					real v = conf.v_min + k * plot_dv;
     					real u = conf.u_min + l * plot_du;
-    					real f = f_values.get()[i + conf.Nx*(j + conf.Ny*(k + conf.Nv*l))];
-    					//real f = eval_ftilda<real,order>( n, x, y, u, v, coeffs.get(), conf );
+    					//real f = f_values.get()[i + conf.Nx*(j + conf.Ny*(k + conf.Nv*l))];
+					real f = eval_f<real,order>( n, x, y, u, v, coeffs.get(), conf );				
 
     					if(f > 1e-10)
     					{
@@ -302,8 +302,8 @@ void test()
     	entropy_file << t << " " << entropy << std::endl;
     	kinetic_energy_file << t << " " << kinetic_energy << std::endl;
     	total_energy_file << t << " " << kinetic_energy + E_l2 << std::endl;
-    	l1_norm_f_file << t << " " << entropy << std::endl;
-    	l2_norm_f_file << t << " " << entropy << std::endl;
+    	l1_norm_f_file << t << " " << l1_norm_f << std::endl;
+    	l2_norm_f_file << t << " " << l2_norm_f << std::endl;
     }
     }
     std::cout << "Total time = " << t_total << std::endl;
