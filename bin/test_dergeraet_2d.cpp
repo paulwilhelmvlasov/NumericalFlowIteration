@@ -162,6 +162,12 @@ void test()
     if ( rank == 0 )
     	l2_norm_f_file.open( "l2_norm_f.txt" );
 
+   std::cout << "Nx = " << conf.Nx << std::endl;
+   std::cout <<	"Ny = "	<< conf.Ny << std::endl;
+   std::cout <<	"Nv = "	<< conf.Nv << std::endl;
+   std::cout <<	"Nu = "	<< conf.Nu << std::endl;
+   std::cout <<	"dt = "	<< conf.dt << std::endl;
+
     double t_total = 0;
     for ( size_t n = 0; n <= conf.Nt; ++n )
     {
@@ -226,20 +232,20 @@ void test()
             t_total += t_time_step;
         }
 
-        bool do_plots = (n%10 == 0);
-    // Plotting E, rho and related metrics.
-		size_t t = n*conf.dt;
+        bool do_plots = (n%8 == 0);
+	// Plotting E, rho and related metrics.
+	size_t t = n*conf.dt;
         real E_l2 = 0;
         real E_max = 0;
         real E_l2_error = 0;
         real E_max_error = 0;
-    if(do_plots)
+	if(do_plots)
 	{
 	        std::stringstream E_filename; E_filename << 'E' << t << ".txt";
         	std::ofstream E_file( E_filename.str() );
 		std::stringstream rho_filename; rho_filename << 'p' << t << ".txt";
 	        std::ofstream rho_file(rho_filename.str() );
-		std::ifstream E_exact_file("../comparison/E" + std::to_string(t) + ".txt");
+		std::ifstream E_exact_file("../new_comp/E" + std::to_string(t) + ".txt");
 
         	const size_t plotNx = 256, plotNy = 256;
 		const real plot_dx = (conf.x_max - conf.x_min)/plotNx;
@@ -250,9 +256,8 @@ void test()
 	            for ( size_t j = 0; j <= plotNy; ++j )
         	    {
                 	real y = conf.y_min + j*plot_dy;
-	                size_t l = j + i * plotNy;
 			real Ex = -eval<real,order,1,0>( x, y, coeffs.get() + n*stride_t, conf );
-	        real Ey = -eval<real,order,0,1>( x, y, coeffs.get() + n*stride_t, conf );
+		        real Ey = -eval<real,order,0,1>( x, y, coeffs.get() + n*stride_t, conf );
 			real a  = eval<real,order,2,0>(x,y, coeffs.get() + n*stride_t, conf);
 			real b  = eval<real,order,0,2>(x,y, coeffs.get() + n*stride_t, conf); 
 			real rho = -a*a - b*b;
@@ -332,6 +337,8 @@ int main( int argc, char *argv[] )
 {
     dergeraet::mpi::programme prog(&argc,&argv);
     dergeraet::dim2::test<float,4>();
+//    dergeraet::dim2::test<double,4>();
+
 
 }
 
