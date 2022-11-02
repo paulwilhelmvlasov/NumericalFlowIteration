@@ -41,7 +41,7 @@ struct lsmr_options
     // Residual of normal equations AᵀAx = Aᵀb
     bool relative_residual  = true;
     real target_residual    = std::numeric_limits<real>::epsilon();
-    size_t      max_iter    =  1000;
+    size_t      max_iter    = 1000;
 
     // How many Lánczos vectors to keep for local reorthogonalisation.
     // Choose zero for no reorthogonalisation, pure LSMR.

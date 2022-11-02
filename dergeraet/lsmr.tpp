@@ -88,9 +88,9 @@ void lsmr( size_t m, size_t n, const mat& A, const transposed_mat& At,
                                              m*( 2 + u_buffer_size ) ] {} };
 
     real *u     = data.get();
-    real *utmp  = u    + m;
-    real *ubuf  = utmp + m;
-    real *v     = ubuf + m*u_buffer_size;
+    real *utmp  = u     + m;
+    real *ubuf  = utmp  + m;
+    real *v     = ubuf  + m*u_buffer_size;
     real *vtmp  = v     + n;
     real *h     = vtmp  + n;
     real *h_bar = h     + n;
@@ -101,16 +101,26 @@ void lsmr( size_t m, size_t n, const mat& A, const transposed_mat& At,
 
 
     A(x,u); axpy(m,real(-1),b,1,u,1); 
-    real beta = norm(m,u); 
-    scal(m, real(-1)/beta, u, 1 );     // u = b - Ax / norm(b-Ax)
-    copy(n,u,1,ubuf,1);                // u_buf.col(0) = u_buf
+    scal(m, real(-1), u, 1 );         // u = b - Ax;
+   
+    real alpha = 0; 
+    real beta  = norm(m,u); 
 
-    At(u,v);
-    real alpha = norm(n,v);
-    scal(n, real(1)/alpha, v, 1 );     // v = At*u/norm(At*u)
+    if ( beta > real(0) )
+    {
+        scal(m, real(1)/beta, u, 1 ); // u = b - Ax / norm(b-Ax)
+        At(u,v);                      // v = At*u
+        alpha = norm(n,v);
+    }
+
+    if ( alpha > real(0) )
+        scal(n, real(1)/alpha, v, 1 ); // v = At*u/norm(At*u)
+
+    copy(n,u,1,ubuf,1);                // u_buf.col(0) = u_buf
     copy(n,v,1,vbuf,1);                // v_buf.col(0) = v
     copy(n,v,1,h,1);                   // h = v
 
+    if ( alpha * beta == real(0) ) return;
 
     
     real alpha_bar = alpha, zeta_bar = alpha*beta;
@@ -126,18 +136,27 @@ void lsmr( size_t m, size_t n, const mat& A, const transposed_mat& At,
     {
         // Continue the bidiagonalisation.
         A(v,utmp); axpy(m,-alpha,u,1,utmp,1); swap(u,utmp); // u = A*v - alpha*u
-        beta = norm(m,u); scal(m, real(1)/beta, u, 1 );
-        
+        beta = norm(m,u);
 
-        if ( S.reorthogonalise_u ) reorthogonalise( ubuf, m, u_buffer_size, u, S.iter );
+        if ( beta > 0 )
+        {
+            scal(m, real(1)/beta, u, 1 );
+            if ( S.reorthogonalise_u )
+                reorthogonalise( ubuf, m, u_buffer_size, u, S.iter );
 
-        S.norm_A_estimate = hypot( alpha, S.norm_A_estimate );
-        S.norm_A_estimate = hypot( beta , S.norm_A_estimate );
+            S.norm_A_estimate = hypot( alpha, S.norm_A_estimate );
+            S.norm_A_estimate = hypot( beta , S.norm_A_estimate );
 
-        At(u,vtmp); axpy(n,-beta,v,1,vtmp,1); swap(v,vtmp); // v = At*u - beta*v
-        alpha = norm(n,v); scal(n,real(1)/alpha, v, 1 );
+            At(u,vtmp); axpy(n,-beta,v,1,vtmp,1); swap(v,vtmp); // v = At*u - beta*v
+            alpha = norm(n,v);
 
-        if ( S.reorthogonalise_v ) reorthogonalise( vbuf, n, v_buffer_size, v, S.iter );
+            if ( alpha > 0 )
+            {
+                scal(n,real(1)/alpha, v, 1 );
+                if ( S.reorthogonalise_v )
+                    reorthogonalise( vbuf, n, v_buffer_size, v, S.iter );
+            }
+        }
 
         // Construct and apply rotation P_k
         rho_prev     = rho;
@@ -174,7 +193,7 @@ void lsmr( size_t m, size_t n, const mat& A, const transposed_mat& At,
         axpy( n, zeta/(rho*rho_bar), h_bar, 1, x, 1 ); // x += factor * h_bar
 
         scal(n, -theta/rho, h, 1 );
-        axpy(n, real(1), v, 1, h, 1 ); // h = v - factor*h;
+        axpy(n, real(1), v, 1, h, 1 );                 // h = v - factor*h;
 
         // Estimate quantities.
         if ( S.relative_residual ) S.residual = abs(zeta_bar)/norm_ATb;

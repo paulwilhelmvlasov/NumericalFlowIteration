@@ -167,7 +167,7 @@ real eval( real x, real y, real z, const real *coefficients, size_t stride_z, si
     for ( size_t j = 0; j < order; ++j )
         cz[ k ]  += czy[ k*order + j ]*N[j];
 
-    return splines1d::eval<real,order,dz>(z,cz,order);
+    return splines1d::eval<real,order,dz>(z,cz);
 }
 
 }
