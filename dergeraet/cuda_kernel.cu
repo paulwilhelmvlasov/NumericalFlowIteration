@@ -339,7 +339,7 @@ void cuda_eval_rho( size_t n, const real *coeffs, const config_t<real> conf, rea
 
     const real   x = conf.x_min + i*conf.dx;
     const real   y = conf.y_min + j*conf.dy;
-    const real   z = conf.z_min + j*conf.dz;
+    const real   z = conf.z_min + k*conf.dz;
 
     const real du = (conf.u_max - conf.u_min) / conf.Nu;
     const real dv = (conf.v_max - conf.v_min) / conf.Nv;
