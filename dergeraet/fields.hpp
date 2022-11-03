@@ -22,6 +22,7 @@
 #include <limits>
 
 #include <dergeraet/lsmr.hpp>
+#include <dergeraet/gmres.hpp>
 #include <dergeraet/config.hpp>
 #include <dergeraet/splines.hpp>
 
@@ -192,7 +193,8 @@ void interpolate( real *coeffs, const real *values, const config_t<real> &config
     for ( size_t j = 0; j < config.Ny; ++j )
     for ( size_t i = 0; i < config.Nx; ++i )
     {
-        tmp [ j*config.Nx + i ] = coeffs[ j*stride_y + i*stride_x ];
+        //tmp [ j*config.Nx + i ] = coeffs[ j*stride_y + i*stride_x ];
+        tmp [ j*config.Nx + i ] = 0;
     }
 
     struct mat_t
@@ -333,25 +335,158 @@ real eval( real x, real y, real z, const real *coeffs, const config_t<real> &con
     z = z*config.dz_inv - z_knot;
 
     const size_t stride_x = 1;
-    const size_t stride_y =  config.Nx + order - 1;
+    const size_t stride_y = (config.Nx + order - 1)*stride_x;
     const size_t stride_z = (config.Ny + order - 1)*stride_y;
 
     // Scale according to derivative.
     real factor = 1;
     for ( size_t i = 0; i < dx; ++i ) factor *= config.dx_inv;
     for ( size_t j = 0; j < dy; ++j ) factor *= config.dy_inv;
-    for ( size_t k = 0; k < dy; ++k ) factor *= config.dz_inv;
+    for ( size_t k = 0; k < dz; ++k ) factor *= config.dz_inv;
 
     coeffs += kk*stride_z + jj*stride_y + ii*stride_x;
     return factor*splines3d::eval<real,order,dx,dy,dz>( x, y, z, coeffs, stride_z, stride_y, stride_x );
 }
 
-/* TODO
 template <typename real, size_t order>
 void interpolate( real *coeffs, const real *values, const config_t<real> &config )
 {
+    std::unique_ptr<real[]> tmp { new real[ config.Nx * config.Ny * config.Nz ] };
+
+    const size_t stride_x = 1;
+    const size_t stride_y = (config.Nx + order - 1)*stride_x;
+    const size_t stride_z = (config.Ny + order - 1)*stride_y;
+
+    for ( size_t k = 0; k < config.Nz; ++k )
+    for ( size_t j = 0; j < config.Ny; ++j )
+    for ( size_t i = 0; i < config.Nx; ++i )
+    {
+        tmp[ k*config.Nx*config.Ny + j*config.Nx + i ] = coeffs[ k*stride_z + j*stride_y + i*stride_x ];
+    }
+
+    struct mat_t
+    {
+        const config_t<real> &config;
+        real  N[ order ];
+
+        mat_t( const config_t<real> &conf ): config { conf }
+        {
+            splines1d::N<real,order>(0,N);
+        }
+
+        void operator()( const real *in, real *out ) const
+        {
+            #pragma omp parallel for
+            for ( size_t l = 0; l < config.Nx*config.Ny*config.Nz; ++l )
+            {
+                size_t k   = l   / (config.Nx*config.Ny);
+                size_t tmp = l   % (config.Nx*config.Ny);
+                size_t j   = tmp / config.Nx;
+                size_t i   = tmp % config.Nx;
+
+                real czy[ order*order ];
+                real cz [ order ];
+
+                for ( size_t kk = 0; kk < order; ++kk )
+                for ( size_t jj = 0; jj < order; ++jj )
+                {
+                    const real *local_in = in + ( (k+kk) % config.Nz )*config.Nx*config.Ny
+                                              + ( (j+jj) % config.Ny )*config.Nx;
+
+                    real val = 0;
+                    if ( i + order <= config.Nx )
+                    {
+                        for ( size_t ii = 0; ii < order; ++ii )
+                            val += local_in[ ii + i ]*N[ii];
+                    }
+                    else
+                    {
+                        for ( size_t ii = 0; ii < order; ++ii )
+                            val += local_in[ (ii + i) % config.Nx ]*N[ii];
+                    } 
+                    czy[ kk*order + jj ] = val;
+                }
+                
+                for ( size_t kk = 0; kk < order; ++kk )
+                {
+                    real val = 0;
+                    for ( size_t jj = 0; jj < order; ++jj )
+                        val += czy[ kk*order + jj ]*N[jj];
+                    cz[ kk ] = val;
+                }
+
+                real result = 0;
+                for ( size_t kk = 0; kk < order; ++kk )
+                    result += cz[ kk ]*N[kk];
+
+                out[ l ] = result;
+            }
+        }
+    };
+
+    struct transposed_mat_t
+    {
+        const config_t<real> &config;
+        real  N[ order ];
+
+        transposed_mat_t( const config_t<real> &conf ): config { conf }
+        {
+            splines1d::N<real,order>(0,N);
+        }
+
+        void operator()( const real *in, real *out ) const
+        {
+            for ( size_t l = 0; l < config.Nx*config.Ny*config.Nz; ++l )
+                out[ l ] = 0;
+
+            for ( size_t l = 0; l < config.Nx*config.Ny*config.Nz; ++l )
+            {
+                size_t k   = l   / (config.Nx*config.Ny);
+                size_t tmp = l   % (config.Nx*config.Ny);
+                size_t j   = tmp / config.Nx;
+                size_t i   = tmp % config.Nx;
+
+                for ( size_t kk = 0; kk < order; ++kk )
+                for ( size_t jj = 0; jj < order; ++jj )
+                {
+                    real *local_out = out + ( (k+kk)%config.Nz )*config.Nx*config.Ny
+                                          + ( (j+jj)%config.Ny )*config.Nx;
+
+                    real factor = N[kk]*N[jj]*in[l];
+                    if ( i + order <= config.Nx )
+                    {
+                        for ( size_t ii = 0; ii < order; ++ii )
+                            local_out[ i + ii ] += factor*N[ii];
+                    }
+                    else
+                    {
+                        for ( size_t ii = 0; ii < order; ++ii )
+                            local_out[ (i + ii) % config.Nx ] += factor*N[ii];
+                    }
+                }
+            }
+        }
+    };
+
+               mat_t M  { config };
+    transposed_mat_t Mt { config };
+
+    lsmr_options<real> opt; opt.silent = true;
+    lsmr( config.Nx*config.Ny*config.Nz,
+          config.Nx*config.Ny*config.Nz, M, Mt, values, tmp.get(), opt );
+
+    if ( opt.iter == opt.max_iter )
+        std::cerr << "Warning. LSMR did not converge. Residual = " << opt.residual << std::endl;
+
+    for ( size_t k = 0; k < config.Nz + order - 1; ++k )
+    for ( size_t j = 0; j < config.Ny + order - 1; ++j )
+    for ( size_t i = 0; i < config.Nx + order - 1; ++i )
+    {
+        coeffs[ k*stride_z + j*stride_y + i*stride_x ] = tmp[ (k%config.Nz)*config.Nx*config.Ny +
+                                                              (j%config.Ny)*config.Nx +
+                                                              (i%config.Nx) ];
+    }
 }
-*/
 
 }
 
