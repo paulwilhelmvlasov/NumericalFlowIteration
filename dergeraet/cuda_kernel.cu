@@ -321,5 +321,222 @@ template class cuda_kernel<float,8>;
 
 }
 
+namespace dim2
+{
+
+// Normal version of cuda_eval_rho.
+template <typename real, size_t order>
+__global__
+void cuda_eval_rho( size_t n, const real *coeffs, const config_t<real> conf, real *rho,
+                    size_t l_min, size_t l_end )
+{
+    const size_t N = l_end - l_min;
+    const size_t l = l_min + (blockDim.x*blockIdx.x + threadIdx.x) % N;
+
+    size_t i = l % conf.Nx;
+    size_t j = size_t(l / conf.Nx) % conf.Ny;
+    size_t k = l / conf.Nx / conf.Ny;
+
+    const real   x = conf.x_min + i*conf.dx;
+    const real   y = conf.y_min + j*conf.dy;
+    const real   z = conf.z_min + j*conf.dz;
+
+    const real du = (conf.u_max - conf.u_min) / conf.Nu;
+    const real dv = (conf.v_max - conf.v_min) / conf.Nv;
+    const real dw = (conf.w_max - conf.w_min) / conf.Nw;
+
+    const real u_min = conf.u_min + 0.5*du;
+    const real v_min = conf.v_min + 0.5*dv;
+    const real w_min = conf.w_min + 0.5*dw;
+
+    real result = 0;
+    for ( size_t jj = 0; jj < conf.Nv; ++jj )
+    for ( size_t ii = 0; ii < conf.Nu; ++ii )
+    for ( size_t kk = 0; kk < conf.Nw; ++kk )
+    {
+        real u = u_min + ii*du;
+        real v = v_min + jj*dv;
+        real w = w_min + kk*dw;
+
+        result += eval_ftilda<real,order>( n, x, y, z, u, v, w, coeffs, conf );
+    }
+    result = 1 - du*dv*dw*result;
+
+    rho[ l ] = result;
+}
+
+// Version of cuda_eval_rho which saves the values of f for further uses.
+/*
+template <typename real, size_t order>
+__global__
+void cuda_eval_rho( size_t n, const real *coeffs, const config_t<real> conf, real *rho,
+		                    size_t l_min, size_t l_end,
+							real *cuda_f_metric_l1_norm, real *cuda_f_metric_l2_norm,
+							real *cuda_f_metric_entropy, real *cuda_f_metric_kinetic_energy)
+{
+    const size_t N = l_end - l_min;
+    const size_t l = l_min + (blockDim.x*blockIdx.x + threadIdx.x) % N;
+
+    const size_t i = l % conf.Nx;
+    const size_t j = l / conf.Nx;
+
+    const real   x = conf.x_min + i*conf.dx;
+    const real   y = conf.y_min + j*conf.dy;
+
+    const real du = (conf.u_max - conf.u_min) / conf.Nu;
+    const real dv = (conf.v_max - conf.v_min) / conf.Nv;
+
+    const real u_min = conf.u_min + 0.5*du;
+    const real v_min = conf.v_min + 0.5*dv;
+
+    real l1_norm_f = 0;
+    real l2_norm_f = 0;
+    real entropy = 0;
+    real kinetic_energy = 0;
+
+    real result = 0;
+    for ( size_t jj = 0; jj < conf.Nv; ++jj )
+    for ( size_t ii = 0; ii < conf.Nu; ++ii )
+    {
+        real u = u_min + ii*du;
+        real v = v_min + jj*dv;
+
+        real f = eval_f<real,order>( n, x, y, u, v, coeffs, conf );
+
+        result += f;
+
+        l1_norm_f += f;
+        l2_norm_f += f*f;
+        kinetic_energy += (v*v + u*u)*f;
+        if(f > 1e-10) entropy += f * std::log(f);
+    }
+    result = 1 - du*dv*result;
+
+    rho[ l ] = result;
+
+    cuda_f_metric_l1_norm[ l ] = l1_norm_f;
+    cuda_f_metric_l2_norm[ l ] = l2_norm_f;
+    cuda_f_metric_entropy[ l ] = entropy;
+    cuda_f_metric_kinetic_energy[ l ] = kinetic_energy;
+}
+*/
+
+template <typename real, size_t order>
+cuda_kernel<real,order>::cuda_kernel( const config_t<real> &p_conf, int dev ):
+conf { p_conf }, device_number { dev }
+{
+    size_t coeff_size = sizeof(real)*(conf.Nt+1)*(conf.Nx+order-1)*
+                                                 (conf.Ny+order-1)*
+												 (conf.Nz+order-1);
+    size_t   rho_size = sizeof(real)*conf.Nx*conf.Ny*conf.Nz;
+
+    cuda::set_device(dev);
+    cuda_coeffs.reset( cuda::malloc(coeff_size), dev );
+    cuda_rho   .reset( cuda::malloc(  rho_size), dev );
+    /*
+    cuda_f_metric_l1_norm.reset( cuda::malloc( rho_size ), dev );
+    cuda_f_metric_l2_norm.reset( cuda::malloc( rho_size ), dev );
+    cuda_f_metric_entropy.reset( cuda::malloc( rho_size ), dev );
+    cuda_f_metric_kinetic_energy.reset( cuda::malloc( rho_size ), dev );
+    */
+}
+
+template <typename real, size_t order>
+void cuda_kernel<real,order>::compute_rho( size_t n, const real *coeffs,
+                                           size_t l_min, size_t l_end )
+{
+
+    stopwatch<real> clock;
+    if ( n > conf.Nt )
+        throw std::range_error { "Time-step out of range." };
+
+    if ( l_min == l_end ) return;
+
+    cuda::set_device(device_number);
+    real *cu_coeffs = reinterpret_cast<real*>( cuda_coeffs.get() );
+    real *cu_rho    = reinterpret_cast<real*>( cuda_rho   .get() );
+    /*
+    real *cu_f_metric_l1_norm    = reinterpret_cast<real*>( cuda_f_metric_l1_norm.get() );
+    real *cu_f_metric_l2_norm    = reinterpret_cast<real*>( cuda_f_metric_l2_norm.get() );
+    real *cu_f_metric_entropy    = reinterpret_cast<real*>( cuda_f_metric_entropy.get() );
+    real *cu_f_metric_kinetic_energy    = reinterpret_cast<real*>( cuda_f_metric_kinetic_energy.get() );
+    */
+    if ( n )
+    {
+        size_t stride_n = (conf.Nx + order - 1)*(conf.Ny + order - 1)*(conf.Nz + order - 1);
+        cuda::memcpy_to_device( cu_coeffs + (n-1)*stride_n,
+                                   coeffs + (n-1)*stride_n, sizeof(real)*stride_n );
+    }
+    size_t N = l_end - l_min;
+    size_t block_size = 64;
+    size_t Nblocks = 1 + (N-1) / block_size;
+
+    // Without f metrics:
+    cuda_eval_rho<real,order><<<Nblocks,block_size>>>( n, cu_coeffs, conf, cu_rho, l_min, l_end );
+    // With f metrics:
+    /*
+    cuda_eval_rho<real,order><<<Nblocks,block_size>>>( n, cu_coeffs, conf, cu_rho, l_min, l_end,
+    		cu_f_metric_l1_norm, cu_f_metric_l2_norm, cu_f_metric_entropy, cu_f_metric_kinetic_energy);
+	*/
+}
+
+// load_rho without f metrics.
+template <typename real, size_t order>
+void cuda_kernel<real,order>::load_rho(real *rho, size_t l_min, size_t l_end)
+{
+    if ( l_min == l_end ) return;
+
+    cuda::set_device(device_number);
+    real *cu_rho = reinterpret_cast<real*>( cuda_rho.get() );
+
+    // Copying rho to normal RAM:
+    size_t N = l_end - l_min;
+    cuda::memcpy_to_host( rho + l_min, cu_rho + l_min, N*sizeof(real) );
+}
+
+// load_rho with f metrics.
+/*
+template <typename real, size_t order>
+void cuda_kernel<real,order>::load_rho(real *rho, size_t l_min, size_t l_end,
+		real *f_metric_l1_norm, real *f_metric_l2_norm,
+		real *f_metric_entropy, real *f_metric_kinetic_energy)
+{
+    if ( l_min == l_end ) return;
+
+    cuda::set_device(device_number);
+    real *cu_rho = reinterpret_cast<real*>( cuda_rho.get() );
+    real *cu_f_metric_l1_norm    = reinterpret_cast<real*>( cuda_f_metric_l1_norm.get() );
+    real *cu_f_metric_l2_norm    = reinterpret_cast<real*>( cuda_f_metric_l2_norm.get() );
+    real *cu_f_metric_entropy    = reinterpret_cast<real*>( cuda_f_metric_entropy.get() );
+    real *cu_f_metric_kinetic_energy    = reinterpret_cast<real*>( cuda_f_metric_kinetic_energy.get() );
+
+    // Copying rho to normal RAM:
+    size_t N = l_end - l_min;
+    cuda::memcpy_to_host( rho + l_min, cu_rho + l_min, N*sizeof(real) );
+    cuda::memcpy_to_host( f_metric_l1_norm + l_min, cu_f_metric_l1_norm + l_min, N*sizeof(real) );
+    cuda::memcpy_to_host( f_metric_l2_norm + l_min, cu_f_metric_l2_norm + l_min, N*sizeof(real) );
+    cuda::memcpy_to_host( f_metric_entropy + l_min, cu_f_metric_entropy + l_min, N*sizeof(real) );
+    cuda::memcpy_to_host( f_metric_kinetic_energy + l_min, cu_f_metric_kinetic_energy + l_min, N*sizeof(real) );
+}
+*/
+
+
+template class cuda_kernel<double,3>;
+template class cuda_kernel<double,4>;
+template class cuda_kernel<double,5>;
+template class cuda_kernel<double,6>;
+template class cuda_kernel<double,7>;
+template class cuda_kernel<double,8>;
+
+template class cuda_kernel<float,3>;
+template class cuda_kernel<float,4>;
+template class cuda_kernel<float,5>;
+template class cuda_kernel<float,6>;
+template class cuda_kernel<float,7>;
+template class cuda_kernel<float,8>;
+
+}
+
+
 }
 
