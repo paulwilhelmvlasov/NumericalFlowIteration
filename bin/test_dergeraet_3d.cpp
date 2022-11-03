@@ -179,12 +179,12 @@ void test()
     std::cout << "Total time = " << t_total << std::endl;
 }
 }
+}
 
 
 int main( int argc, char *argv[] )
 {
     dergeraet::mpi::programme prog(&argc,&argv);
     dergeraet::dim3::test<float,4>();
-
 }
 
