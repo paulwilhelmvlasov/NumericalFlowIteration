@@ -258,12 +258,40 @@ struct config_t
 template <typename real>
 config_t<real>::config_t() noexcept
 {
+    Nx = 16;
+    Ny = 16;
+    Nz = 16;
+    Nu = Nv = Nw = 64;
+    u_min = v_min = w_min = -10;
+    u_max = v_max = w_max = 10;
+    x_min = y_min = z_min = 4*M_PI;
+    x_max = y_max = z_max = 4*M_PI;
+
+    dt = 1./8.; Nt = 31/dt;
+
+    Lx = x_max - x_min; Lx_inv = 1/Lx;
+    Ly = y_max - y_min; Ly_inv = 1/Ly;
+    Lz = z_max - z_min; Lz_inv = 1/Lz;
+    dx = Lx/Nx; dx_inv = 1/dx;
+    dy = Ly/Ny; dy_inv = 1/dy;
+    dz = Lz/Nz; dz_inv = 1/dz;
+
 }
 
 template <typename real>
 __host__ __device__
 real config_t<real>::f0( real x, real y, real z, real u, real v, real w ) noexcept
 {
+    using std::sin;
+    using std::cos;
+    using std::exp;
+
+	constexpr real alpha = 0.05;
+	constexpr real k     = 0.5;
+    constexpr real pi    = real(M_PI);
+    constexpr real c     = 0.06349363593424096978576330493464;
+
+    return c * ( 1. + alpha*cos(k*x) + alpha*cos(k*y) + alpha*cos(k*z)) * exp( -(u*u+v*v+w*w)/2 );
 }
 
 }
