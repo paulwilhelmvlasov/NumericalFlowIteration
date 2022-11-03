@@ -1,4 +1,4 @@
-noinst_PROGRAMS = test_poisson test_gmres test_fields test_dergeraet test_dergeraet_2d
+noinst_PROGRAMS = test_poisson test_gmres test_fields test_dergeraet test_dergeraet_2d test_dergeraet_3d
 
 test_poisson_SOURCES = test_poisson.cpp
 test_poisson_LDADD   = $(top_builddir)/dergeraet/libdergeraet.a
@@ -19,4 +19,8 @@ test_dergeraet_LDADD  += $(CUDA_LDFLAGS) $(BLAS_LIBS) -lfftw3 -lfftw3f
 test_dergeraet_2d_SOURCES = test_dergeraet_2d.cpp
 test_dergeraet_2d_LDADD   = $(top_builddir)/dergeraet/libdergeraet.a 
 test_dergeraet_2d_LDADD  += $(CUDA_LDFLAGS) $(BLAS_LIBS) -lfftw3 -lfftw3f -lmpi
+
+test_dergeraet_3d_SOURCES = test_dergeraet_3d.cpp
+test_dergeraet_3d_LDADD   = $(top_builddir)/dergeraet/libdergeraet.a 
+test_dergeraet_3d_LDADD  += $(CUDA_LDFLAGS) $(BLAS_LIBS) -lfftw3 -lfftw3f -lmpi
 
