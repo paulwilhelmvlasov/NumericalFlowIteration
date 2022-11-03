@@ -33,10 +33,9 @@ template <typename real>
 real f( real x, real y = 0, real z = 0 )
 {
     using std::sin;
-    return sin(3*x) + sin(1*y) + sin(37*z);
+    return sin(3*x) + sin(4*y) + sin(5*z);
 }
 
-/*
 template <typename real, size_t order>
 void test_3d()
 {
@@ -50,29 +49,28 @@ void test_3d()
     conf.Nx     = 128;
     conf.x_min  = 0; conf.x_max = 4*M_PI;
     conf.Lx     = conf.x_max - conf.x_min;
-    conf.Lx_inv = 1 / conf.Lx;
-    conf.dx     = real(conf.Lx) / conf.Nx;
+    conf.Lx_inv = real(1) / conf.Lx;
+    conf.dx     = conf.Lx / real(conf.Nx);
     conf.dx_inv = real(1) / conf.dx;
 
     conf.Ny     = 128;
-    conf.y_min  = 0; conf.y_max = 2*M_PI;
+    conf.y_min  = 0; conf.y_max = 4*M_PI;
     conf.Ly     = conf.y_max - conf.y_min;
-    conf.Ly_inv = 1 / conf.Ly;
-    conf.dy     = real(conf.Ly) / conf.Ny;
+    conf.Ly_inv = real(1) / conf.Ly;
+    conf.dy     = conf.Ly / real(conf.Ny);
     conf.dy_inv = real(1) / conf.dy;
 
-    conf.Nz     = 512;
-    conf.z_min  = -M_PI; conf.z_max = M_PI;
+    conf.Nz     = 128;
+    conf.z_min  = 0; conf.z_max = 4*M_PI;
     conf.Lz     = conf.z_max - conf.z_min;
-    conf.Lz_inv = 1 / conf.Lz;
-    conf.dz     = conf.Lz / conf.Nz;
+    conf.Lz_inv = real(1) / conf.Lz;
+    conf.dz     = conf.Lz / real(conf.Nz);
     conf.dz_inv = real(1) / conf.dz;
     
     std::unique_ptr<real[]> values { new real[ conf.Nx*conf.Ny*conf.Nz ] };
     std::unique_ptr<real[]> coeffs { new real[ (conf.Nx + order - 1)*
                                                (conf.Ny + order - 1)*
-                                               (conf.Nz + order - 1) ] };
-   
+                                               (conf.Nz + order - 1) ] {} };
 
     for ( size_t l = 0; l < conf.Nx*conf.Ny*conf.Nz; ++l )
     {
@@ -126,7 +124,6 @@ void test_3d()
     std::cout << "Max error: " << max_err << std::endl;
     std::cout << "Avg error: " << err_sum / (4096*4096) << std::endl;
 }
-*/
 
 template <typename real, size_t order>
 void test_2d()
@@ -166,8 +163,7 @@ void test_2d()
         real x = conf.x_min + i*conf.dx;
         real y = conf.y_min + j*conf.dy;
 
-//        values[ l ] = f(x,y);
-        values[ l ] = rand();
+        values[ l ] = f(x,y);
     }
 
     stopwatch<real> clock;
@@ -175,7 +171,7 @@ void test_2d()
     real elapsed = clock.elapsed();
     std::cout << "Time for solving system: " << elapsed << ".\n"; 
 
-    real sum = 0, err = 0;
+    real sum = 0, err_sum = 0, err = 0, max_err = 0;
     for ( size_t l = 0; l < conf.Nx*conf.Ny; ++l )
     {
         size_t j = l / conf.Nx;
@@ -183,14 +179,15 @@ void test_2d()
         real x = conf.x_min + i*conf.dx;
         real y = conf.y_min + j*conf.dy;
         real val = dim2::eval<real,order>( x, y, coeffs.get(), conf );
+        max_err = max(abs(val-values[l]),max_err);
         err = hypot(err,values[ l ] - val);
         sum = hypot(sum,values[ l ]);
     }
-    std::cout << "Absolute l²-Error: " << err << ". "
+    std::cout << "Max error: " << max_err << ". "
+              << "Absolute l²-Error: " << err << ". "
               << "Relative l²-Error: " << err/sum << ".\n";
 
-    /*
-    real max_err = 0, err_sum = 0;
+    max_err = err_sum = 0;
     random_real<real> randx( conf.x_min, conf.x_max );
     random_real<real> randy( conf.y_min, conf.y_max );
     for ( size_t i = 0; i < 4096*4096; ++i )
@@ -203,14 +200,14 @@ void test_2d()
     }
     std::cout << "Max error: " << max_err << std::endl;
     std::cout << "Avg error: " << err_sum/(4096*4096) << std::endl;
-    */
 }
 
 }
 
 int main()
 {
-    dergeraet::test_2d<float,4>();
-//    dergeraet::test_3d<double,4>();
+    std::cout << std::scientific;
+    dergeraet::test_2d<float ,4>();
+    dergeraet::test_3d<float ,4>();
 }
 

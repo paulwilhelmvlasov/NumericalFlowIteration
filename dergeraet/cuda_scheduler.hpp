@@ -236,6 +236,146 @@ private:
 
 }
 
+namespace dim3
+{
+
+template <typename real, size_t order>
+class cuda_scheduler
+{
+public:
+    cuda_scheduler() = delete;
+    cuda_scheduler( const cuda_scheduler&  ) = delete;
+    cuda_scheduler(       cuda_scheduler&& ) = default;
+    cuda_scheduler& operator=( const cuda_scheduler&  ) = delete;
+    cuda_scheduler& operator=(       cuda_scheduler&& ) = default;
+
+    cuda_scheduler( const config_t<real> &p_conf, size_t p_begin, size_t p_end ):
+    conf { p_conf }, begin { p_begin }, end { p_end }
+    {
+        size_t n_dev = cuda::device_count();
+        kernels.reserve(n_dev);
+
+        for ( size_t i = 0; i < n_dev; i++)
+        {
+            try
+            {
+                kernels.emplace_back( cuda_kernel<real,order>(conf,i) );
+                std::cout << "Added device " << i << ".\n"; std::cout.flush();
+            }
+            catch ( cuda::exception &ex )
+            {
+                // Do not use this device.
+            }
+        }
+
+        if ( kernels.size() == 0 )
+            throw cuda::exception( cudaErrorUnknown, "cuda_scheduler: Failed to create kernels." );
+    }
+
+    // Compute_rho without f-metrics.
+    void compute_rho( size_t n, const real *coeffs, real *rho )
+    {
+        if ( begin == end ) return;
+
+        size_t n_cards = kernels.size();
+        size_t N = end - begin;
+        size_t chunk_size = N / n_cards;
+        size_t remainder  = N % n_cards;
+
+        // Launch tasks.
+        size_t curr = begin;
+        for ( size_t i = 0; i < n_cards; ++i )
+        {
+            if ( i < remainder )
+            {
+                kernels[i].compute_rho( n, coeffs, curr, curr + chunk_size + 1 );
+                curr += chunk_size + 1;
+            }
+            else
+            {
+                kernels[i].compute_rho( n, coeffs, curr, curr + chunk_size );
+                curr += chunk_size;
+            }
+        }
+
+        // Load results.
+        curr = begin;
+        for ( size_t i = 0; i < n_cards; ++i )
+        {
+            if ( i < remainder )
+            {
+                kernels[i].load_rho( rho, curr, curr + chunk_size + 1 );
+                curr += chunk_size + 1;
+            }
+            else
+            {
+                kernels[i].load_rho( rho, curr, curr + chunk_size );
+                curr += chunk_size;
+            }
+        }
+    }
+
+    // compute_rho version which also saves the values of f for further use (like
+    // computing entropy).
+/*
+    void compute_rho( size_t n, const real *coeffs, real *rho,
+    		real *f_metric_l1_norm, real *f_metric_l2_norm,
+    		real *f_metric_entropy, real *f_metric_kinetic_energy )
+    {
+        if ( begin == end ) return;
+
+        size_t n_cards = kernels.size();
+        size_t N = end - begin;
+        size_t chunk_size = N / n_cards;
+        size_t remainder  = N % n_cards;
+
+        real l1_norm_f = 0;
+        real *l1_norm_array = new real[n_cards];
+
+        // Launch tasks.
+        size_t curr = begin;
+        for ( size_t i = 0; i < n_cards; ++i )
+        {
+            if ( i < remainder )
+            {
+            	kernels[i].compute_rho( n, coeffs, curr, curr + chunk_size + 1);
+                curr += chunk_size + 1;
+            }
+            else
+            {
+            	kernels[i].compute_rho( n, coeffs, curr, curr + chunk_size );
+                curr += chunk_size;
+            }
+        }
+
+        // Load results
+        curr = begin;
+        for ( size_t i = 0; i < n_cards; ++i )
+        {
+            if ( i < remainder )
+            {
+                kernels[i].load_rho( rho, curr, curr + chunk_size + 1, f_metric_l1_norm,
+                		f_metric_l2_norm, f_metric_entropy, f_metric_kinetic_energy  );
+                curr += chunk_size + 1;
+            }
+            else
+            {
+                kernels[i].load_rho( rho, curr, curr + chunk_size, f_metric_l1_norm,
+                		f_metric_l2_norm, f_metric_entropy, f_metric_kinetic_energy  );
+                curr += chunk_size;
+            }
+        }
+    }
+*/
+
+private:
+    config_t<real> conf;
+    size_t begin, end;
+    std::vector< cuda_kernel<real,order> > kernels;
+};
+
+}
+
 }
 
 #endif
