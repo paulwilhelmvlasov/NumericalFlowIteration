@@ -321,7 +321,7 @@ template class cuda_kernel<float,8>;
 
 }
 
-namespace dim2
+namespace dim3
 {
 
 // Normal version of cuda_eval_rho.
