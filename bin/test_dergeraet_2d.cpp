@@ -232,7 +232,7 @@ void test()
             t_total += t_time_step;
         }
 
-        bool do_plots = (n%8 == 0);
+        bool do_plots = (n%10 == 0);
 	// Plotting E, rho and related metrics.
 	size_t t = n*conf.dt;
         real E_l2 = 0;
