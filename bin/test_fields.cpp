@@ -33,7 +33,7 @@ template <typename real>
 real f( real x, real y = 0, real z = 0 )
 {
     using std::sin;
-    return sin(3*x) + sin(4*y) + sin(5*z);
+    return sin(3*x) + sin(3*y) + sin(3*z);
 }
 
 template <typename real, size_t order>
