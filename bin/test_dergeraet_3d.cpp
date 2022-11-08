@@ -342,6 +342,15 @@ void test()
 			l1_norm_f_file << t << " " << l1_norm_f << std::endl;
 			l2_norm_f_file << t << " " << l2_norm_f << std::endl;
 		}
+		// Writing coefficients of phi to disk for later reuse.
+		if(write_coeffs)
+		{
+			std::ofstream coeff_stream("phi_coeff_" + std::to_string(t) + ".txt");
+			for ( size_t l = 0; l < stride_t; ++l )
+			{
+				coeff_stream << coeffs[n*stride_t + l] << std::endl;
+			}
+		}
 
     }
 
