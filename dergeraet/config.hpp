@@ -266,7 +266,7 @@ config_t<real>::config_t() noexcept
     x_min = y_min = z_min = 0;
     x_max = y_max = z_max = 4*M_PI;
 
-    dt = 1./4.; Nt = 31/dt;
+    dt = 1./8.; Nt = 31/dt;
 
     Lx = x_max - x_min; Lx_inv = 1/Lx;
     Ly = y_max - y_min; Ly_inv = 1/Ly;
