@@ -143,12 +143,14 @@ void test()
     std::ofstream E_l2_file;
     if ( rank == 0 )
         E_l2_file.open( "E_l2.txt" );
+    /*
     std::ofstream E_max_err_file;
     if ( rank == 0 )
         E_max_err_file.open( "E_max_err.txt" );
     std::ofstream E_l2_err_file;
     if ( rank == 0 )
         E_l2_err_file.open( "E_l2_err.txt" );
+    */
     std::ofstream entropy_file;
     if ( rank == 0 )
         entropy_file.open( "entropy.txt" );
