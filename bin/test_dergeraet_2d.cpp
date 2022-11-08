@@ -233,97 +233,97 @@ void test()
         }
 
         bool do_plots = (n%8 == 0);
-	// Plotting E, rho and related metrics.
-	size_t t = n*conf.dt;
+        // Plotting E, rho and related metrics.
+        size_t t = n*conf.dt;
         real E_l2 = 0;
         real E_max = 0;
         real E_l2_error = 0;
         real E_max_error = 0;
-	if(do_plots)
-	{
+		if(do_plots)
+		{
 	        std::stringstream E_filename; E_filename << 'E' << t << ".txt";
         	std::ofstream E_file( E_filename.str() );
-		std::stringstream rho_filename; rho_filename << 'p' << t << ".txt";
+        	std::stringstream rho_filename; rho_filename << 'p' << t << ".txt";
 	        std::ofstream rho_file(rho_filename.str() );
-		std::ifstream E_exact_file("../new_comp/E" + std::to_string(t) + ".txt");
+	        std::ifstream E_exact_file("../new_comp/E" + std::to_string(t) + ".txt");
 
         	const size_t plotNx = 256, plotNy = 256;
-		const real plot_dx = (conf.x_max - conf.x_min)/plotNx;
-                const real plot_dy = (conf.y_max - conf.y_min)/plotNy;
-		for ( size_t i = 0; i <= plotNx; ++i )
+        	const real plot_dx = (conf.x_max - conf.x_min)/plotNx;
+            const real plot_dy = (conf.y_max - conf.y_min)/plotNy;
+            for ( size_t i = 0; i <= plotNx; ++i )
         	{
 	            real x = conf.x_min + i*plot_dx;
 	            for ( size_t j = 0; j <= plotNy; ++j )
         	    {
                 	real y = conf.y_min + j*plot_dy;
-			real Ex = -eval<real,order,1,0>( x, y, coeffs.get() + n*stride_t, conf );
-		        real Ey = -eval<real,order,0,1>( x, y, coeffs.get() + n*stride_t, conf );
-			real a  = eval<real,order,2,0>(x,y, coeffs.get() + n*stride_t, conf);
-			real b  = eval<real,order,0,2>(x,y, coeffs.get() + n*stride_t, conf); 
-			real rho = -a*a - b*b;
+                	real Ex = -eval<real,order,1,0>( x, y, coeffs.get() + n*stride_t, conf );
+                	real Ey = -eval<real,order,0,1>( x, y, coeffs.get() + n*stride_t, conf );
+                	real a  = eval<real,order,2,0>(x,y, coeffs.get() + n*stride_t, conf);
+                	real b  = eval<real,order,0,2>(x,y, coeffs.get() + n*stride_t, conf);
+                	real rho = -a*a - b*b;
 	                E_file << x << " " << y << " " << Ex << " " << Ey << std::endl;
-			rho_file << x << " " << y << " " << rho << std::endl;
+	                rho_file << x << " " << y << " " << rho << std::endl;
 
-			E_l2 += Ex*Ex + Ey*Ey;
+	                E_l2 += Ex*Ex + Ey*Ey;
 
-			real Ex_exact = 0;
-			real Ey_exact = 0;
-			E_exact_file >> x >> y >> Ex_exact >> Ey_exact;
+					real Ex_exact = 0;
+					real Ey_exact = 0;
+					E_exact_file >> x >> y >> Ex_exact >> Ey_exact;
 
-			real dist_x = Ex_exact - Ex;
-			real dist_y = Ey_exact - Ey;
-			real dist = std::sqrt( dist_x*dist_x + dist_y*dist_y);
-			E_l2_error += dist;
-			E_max_error = std::max(dist, E_max_error);
-        	    }
-	            E_file << std::endl;
-	            rho_file << std::endl;
-		    E_exact_file.ignore();
+					real dist_x = Ex_exact - Ex;
+					real dist_y = Ey_exact - Ey;
+					real dist = std::sqrt( dist_x*dist_x + dist_y*dist_y);
+					E_l2_error += dist;
+					E_max_error = std::max(dist, E_max_error);
+				}
+				E_file << std::endl;
+				rho_file << std::endl;
+				E_exact_file.ignore();
         	}
 		
-		E_l2_error *= plot_dx*plot_dy;
-		E_l2 *= plot_dx*plot_dy;
+			E_l2_error *= plot_dx*plot_dy;
+			E_l2 *= plot_dx*plot_dy;
 
-		E_l2_file << t << " " << E_l2 << std::endl;
-		E_max_err_file << t << " " << E_max_error << std::endl;
-		E_l2_err_file << t << " " << E_l2_error << std::endl;
-	}
-    // Plotting of f and f-related metrics:
-    if(plot_f && do_plots)
-    {
-		const size_t plot_nx = conf.Nx;
-		const size_t plot_ny = conf.Ny;
-		const size_t plot_nv = conf.Nv;
-		const size_t plot_nu = conf.Nu;
+			E_l2_file << t << " " << E_l2 << std::endl;
+			E_max_err_file << t << " " << E_max_error << std::endl;
+			E_l2_err_file << t << " " << E_l2_error << std::endl;
+		}
+		// Plotting of f and f-related metrics:
+		if(plot_f && do_plots)
+		{
+			const size_t plot_nx = conf.Nx;
+			const size_t plot_ny = conf.Ny;
+			const size_t plot_nv = conf.Nv;
+			const size_t plot_nu = conf.Nu;
 
-    	const real plot_dx = (conf.x_max - conf.x_min)/plot_nx;
-    	const real plot_dy = (conf.y_max - conf.y_min)/plot_ny;
-    	const real plot_dv = (conf.v_max - conf.v_min)/plot_nv;
-    	const real plot_du = (conf.u_max - conf.u_min)/plot_nu;
+			const real plot_dx = (conf.x_max - conf.x_min)/plot_nx;
+			const real plot_dy = (conf.y_max - conf.y_min)/plot_ny;
+			const real plot_dv = (conf.v_max - conf.v_min)/plot_nv;
+			const real plot_du = (conf.u_max - conf.u_min)/plot_nu;
 
-    	real entropy = 0;
-    	real kinetic_energy = 0;
-    	real l1_norm_f = 0;
-    	real l2_norm_f = 0;
+			real entropy = 0;
+			real kinetic_energy = 0;
+			real l1_norm_f = 0;
+			real l2_norm_f = 0;
 
-    	for(size_t i = 0; i < plot_nx*plot_ny; i++)
-    	{
-    		l1_norm_f += f_metric_l1_norm.get()[i];
-    		l2_norm_f += f_metric_l2_norm.get()[i];
-    		entropy += f_metric_entropy.get()[i];
-    		kinetic_energy += f_metric_kinetic_energy.get()[i];
-    	}
+			for(size_t i = 0; i < plot_nx*plot_ny; i++)
+			{
+				l1_norm_f += f_metric_l1_norm.get()[i];
+				l2_norm_f += f_metric_l2_norm.get()[i];
+				entropy += f_metric_entropy.get()[i];
+				kinetic_energy += f_metric_kinetic_energy.get()[i];
+			}
 
-    	entropy *= plot_dx*plot_dy*plot_dv*plot_du;
-    	kinetic_energy *= plot_dx*plot_dy*plot_dv*plot_du;
-    	l1_norm_f *= plot_dx*plot_dy*plot_dv*plot_du;
-    	l2_norm_f *= plot_dx*plot_dy*plot_dv*plot_du;
-    	entropy_file << t << " " << entropy << std::endl;
-    	kinetic_energy_file << t << " " << kinetic_energy << std::endl;
-    	total_energy_file << t << " " << kinetic_energy + E_l2 << std::endl;
-    	l1_norm_f_file << t << " " << l1_norm_f << std::endl;
-    	l2_norm_f_file << t << " " << l2_norm_f << std::endl;
-    }
+			entropy *= plot_dx*plot_dy*plot_dv*plot_du;
+			kinetic_energy *= plot_dx*plot_dy*plot_dv*plot_du;
+			l1_norm_f *= plot_dx*plot_dy*plot_dv*plot_du;
+			l2_norm_f *= plot_dx*plot_dy*plot_dv*plot_du;
+			entropy_file << t << " " << entropy << std::endl;
+			kinetic_energy_file << t << " " << kinetic_energy << std::endl;
+			total_energy_file << t << " " << kinetic_energy + E_l2 << std::endl;
+			l1_norm_f_file << t << " " << l1_norm_f << std::endl;
+			l2_norm_f_file << t << " " << l2_norm_f << std::endl;
+		}
     }
     std::cout << "Total time = " << t_total << std::endl;
 }
