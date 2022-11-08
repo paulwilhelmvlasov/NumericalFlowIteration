@@ -16,6 +16,7 @@
  * You should have received a copy of the GNU General Public License along with
  * Der Gerät; see the file COPYING.  If not see http://www.gnu.org/licenses.
  */
+
 #ifndef DERGERAET_CUDA_KERNEL_HPP
 #define DERGERAET_CUDA_KERNEL_HPP
 
@@ -124,21 +125,20 @@ public:
 
     void compute_rho( size_t n, const real *coeffs, size_t l_min, size_t l_max );
     void    load_rho( real *rho, size_t l_min, size_t l_max );
-/*
+
     void    load_rho( real *rho, size_t l_min, size_t l_max,
     		real *f_metric_l1_norm, real *f_metric_l2_norm,
     		real *f_metric_entropy, real *f_metric_kinetic_energy);
-*/
+
 
 private:
     config_t<real> conf; int device_number;
     cuda::autoptr cuda_coeffs, cuda_rho;
-    /*
+
     cuda::autoptr cuda_f_metric_l1_norm;
     cuda::autoptr cuda_f_metric_l2_norm;
     cuda::autoptr cuda_f_metric_entropy;
     cuda::autoptr cuda_f_metric_kinetic_energy;
-    */
 };
 
 extern template class cuda_kernel<double,3>;
