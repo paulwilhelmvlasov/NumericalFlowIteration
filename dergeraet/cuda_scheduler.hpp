@@ -317,7 +317,6 @@ public:
 
     // compute_rho version which also saves the values of f for further use (like
     // computing entropy).
-/*
     void compute_rho( size_t n, const real *coeffs, real *rho,
     		real *f_metric_l1_norm, real *f_metric_l2_norm,
     		real *f_metric_entropy, real *f_metric_kinetic_energy )
@@ -366,7 +365,6 @@ public:
             }
         }
     }
-*/
 
 private:
     config_t<real> conf;
