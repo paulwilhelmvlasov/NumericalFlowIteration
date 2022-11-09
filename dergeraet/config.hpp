@@ -288,17 +288,19 @@ real config_t<real>::f0( real x, real y, real z, real u, real v, real w ) noexce
 	constexpr real alpha = 0.05;
 	constexpr real k     = 0.5;
     constexpr real pi    = real(M_PI);
-    //constexpr real c     = 0.06349363593424096978576330493464; // Weak Landau damping
-    constexpr real c     = 0.0079367044917801212232204131168295025193817374102841155101497717; // Two Stream instability
+    constexpr real c     = 0.06349363593424096978576330493464; // Weak Landau damping
+    //constexpr real c     = 0.0079367044917801212232204131168295025193817374102841155101497717; // Two Stream instability
     constexpr real v0 	 = 3;
 
     // Weak Landau Damping:
-    //return c * ( 1. + alpha*cos(k*x) + alpha*cos(k*y) + alpha*cos(k*z)) * exp( -(u*u+v*v+w*w)/2 );
+    return c * ( 1. + alpha*cos(k*x) + alpha*cos(k*y) + alpha*cos(k*z)) * exp( -(u*u+v*v+w*w)/2 );
     // Two Stream instability:
+/*
     return c * (  (exp(-(v-v0)*(v-v0)/2.0) + exp(-(v+v0)*(v+v0)/2.0))
     			+ (exp(-(u-v0)*(u-v0)/2.0) + exp(-(u+v0)*(u+v0)/2.0))
 				+ (exp(-(w-v0)*(w-v0)/2.0) + exp(-(w+v0)*(w+v0)/2.0)) )
     		 * ( 1 + alpha * (cos(k*x) + cos(k*y) + cos(k*z)) );
+*/
 }
 
 }
