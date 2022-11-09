@@ -264,7 +264,7 @@ config_t<real>::config_t() noexcept
     u_min = v_min = w_min = -10;
     u_max = v_max = w_max = 10;
     x_min = y_min = z_min = 0;
-    x_max = y_max = z_max = 4*M_PI;
+    x_max = y_max = z_max = 10*M_PI;
 
     dt = 1./8.; Nt = 31/dt;
 
@@ -285,12 +285,12 @@ real config_t<real>::f0( real x, real y, real z, real u, real v, real w ) noexce
     using std::cos;
     using std::exp;
 
-	constexpr real alpha = 0.01;
-	constexpr real k     = 0.5;
+	constexpr real alpha = 0.001;
+	constexpr real k     = 0.2;
     constexpr real pi    = real(M_PI);
     //constexpr real c     = 0.06349363593424096978576330493464; // Weak Landau damping
    constexpr real c     = 0.03174681796712048489288165246732; // Two Stream instability
-    constexpr real v0 	 = 3;
+    constexpr real v0 	 = 2.4;
 
     // Weak Landau Damping:
 //    return c * ( 1. + alpha*cos(k*x) + alpha*cos(k*y) + alpha*cos(k*z)) * exp( -(u*u+v*v+w*w)/2 );
