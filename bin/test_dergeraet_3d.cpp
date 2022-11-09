@@ -297,8 +297,8 @@ void test()
 				E_exact_file.ignore();
         	}
 
-			//E_l2_error *= plot_dx*plot_dy;
-			E_l2 *= plot_dx*plot_dy;
+			//E_l2_error *= plot_dx*plot_dy*plot_dz;
+			E_l2 *= plot_dx*plot_dy*plot_dz;
 
 			E_l2_file << t << " " << E_l2 << std::endl;
 			//E_max_err_file << t << " " << E_max_error << std::endl;
