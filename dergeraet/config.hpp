@@ -289,7 +289,7 @@ real config_t<real>::f0( real x, real y, real z, real u, real v, real w ) noexce
 	constexpr real k     = 0.5;
     constexpr real pi    = real(M_PI);
     //constexpr real c     = 0.06349363593424096978576330493464; // Weak Landau damping
-    constexpr real c     = 0.00793670449178012122322041311683; // Two Stream instability
+    constexpr real c     = 0.0079367044917801212232204131168295025193817374102841155101497717; // Two Stream instability
     constexpr real v0 	 = 3;
 
     // Weak Landau Damping:
