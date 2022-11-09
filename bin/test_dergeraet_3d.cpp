@@ -245,7 +245,7 @@ void test()
             t_total += t_time_step;
         }
 
-        bool do_plots = (n%8 == 0);
+        bool do_plots = (n%20 == 0);
         // Plotting E, rho and related metrics.
         size_t t = n*conf.dt;
         real E_l2 = 0;
@@ -347,7 +347,7 @@ void test()
 		// Writing coefficients of phi to disk for later reuse.
 		if(write_coeffs)
 		{
-			std::ofstream coeff_stream("phi_coeff_" + std::to_string(t) + ".txt");
+			std::ofstream coeff_stream("phi_coeff_" + std::to_string(n) + ".txt");
 			for ( size_t l = 0; l < stride_t; ++l )
 			{
 				coeff_stream << coeffs[n*stride_t + l] << std::endl;
