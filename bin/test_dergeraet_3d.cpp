@@ -111,7 +111,10 @@ void test()
 
     cuda_scheduler<real,order> sched { conf, rank_boundaries[ rank ], rank_boundaries[ rank + 1 ] };
 
+    std::cout << "How much space does coeffs need: " << sizepf(real)*(conf.Nt+1)*stride_t << std::endl;
+
     std::unique_ptr<real[]> coeffs { new real[ (conf.Nt+1)*stride_t ] {} };
+
     void *tmp = std::aligned_alloc( poiss.alignment, sizeof(real)*conf.Nx*conf.Ny*conf.Nz );
     if ( tmp == nullptr ) throw std::bad_alloc {};
     std::unique_ptr<real,decltype(std::free)*> rho { reinterpret_cast<real*>(tmp), std::free };
