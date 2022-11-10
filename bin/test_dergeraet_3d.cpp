@@ -111,7 +111,7 @@ void test()
 
     cuda_scheduler<real,order> sched { conf, rank_boundaries[ rank ], rank_boundaries[ rank + 1 ] };
 
-    std::cout << "How much space does coeffs need: " << sizepf(real)*(conf.Nt+1)*stride_t << std::endl;
+    std::cout << "How much space does coeffs need: " << sizeof(real)*(conf.Nt+1)*stride_t << std::endl;
 
     std::unique_ptr<real[]> coeffs { new real[ (conf.Nt+1)*stride_t ] {} };
 
