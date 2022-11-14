@@ -23,8 +23,6 @@
 #include <fstream>
 #include <sstream>
 
-#include <mpi.h>
-
 #include <dergeraet/config.hpp>
 #include <dergeraet/random.hpp>
 #include <dergeraet/fields.hpp>
@@ -52,6 +50,10 @@ namespace dergeraet
 
 namespace dim2
 {
+
+template <typename real, size_t order>
+void do_matthias_shit( size_t n, size_t rank, size_t my_begin, size_t my_end,
+                       config_t<real> conf, cuda_scheduler<real,order> &sched, real electric_energy );
 
 template <typename real, size_t order>
 void test()
@@ -96,18 +98,21 @@ void test()
         rank_offset[ i ] = rank_boundaries[ i ];
     }
 
+    const size_t my_begin = rank_boundaries[ rank ];
+    const size_t my_end   = rank_boundaries[ rank + 1 ];
+
     if ( rank == 0 )
     {
         std::cout << u8"Running Der Gerät on " << world_size << " ranks. " << std::endl;
         std::cout << u8"Loads are as follows: " << std::endl;
         for ( size_t i = 0; i < world_size; ++i )
-            std::cout << "Rank " << std::setw(5) << i 
-                      << ": "    << std::setw(5) << rank_count[ i ] << ", "
-                      << "from: "    << std::setw(5) << rank_boundaries[ i ] << " "
-                      << "to:   "    << std::setw(5) << rank_boundaries[ i + 1 ] << std::endl;
+            std::cout << "Rank "   << std::setw(5) << i 
+                      << ": "      << std::setw(5) << rank_count[ i ] << ", "
+                      << "from: "  << std::setw(5) << rank_boundaries[ i ] << " "
+                      << "to:   "  << std::setw(5) << rank_boundaries[ i + 1 ] << std::endl;
     }
 
-    cuda_scheduler<real,order> sched { conf, rank_boundaries[ rank ], rank_boundaries[ rank + 1 ] };
+    cuda_scheduler<real,order> sched { conf };
 
 
     std::unique_ptr<real[]> coeffs { new real[ (conf.Nt+1)*stride_t ] {} };
@@ -115,97 +120,63 @@ void test()
     if ( tmp == nullptr ) throw std::bad_alloc {};
     std::unique_ptr<real,decltype(std::free)*> rho { reinterpret_cast<real*>(tmp), std::free };
 
-    void *tmp1 = std::aligned_alloc( poiss.alignment, sizeof(real)*conf.Nx*conf.Ny );
-    if ( tmp1 == nullptr ) throw std::bad_alloc {};
-    std::unique_ptr<real,decltype(std::free)*> f_metric_l1_norm { reinterpret_cast<real*>(tmp1), std::free };
+    std::cout << "Nx = " << conf.Nx << std::endl;
+    std::cout << "Ny = " << conf.Ny << std::endl;
+    std::cout << "Nv = " << conf.Nv << std::endl;
+    std::cout << "Nu = " << conf.Nu << std::endl;
+    std::cout << "dt = " << conf.dt << std::endl;
 
-    void *tmp2 = std::aligned_alloc( poiss.alignment, sizeof(real)*conf.Nx*conf.Ny );
-    if ( tmp2 == nullptr ) throw std::bad_alloc {};
-    std::unique_ptr<real,decltype(std::free)*> f_metric_l2_norm { reinterpret_cast<real*>(tmp2), std::free };
-
-    void *tmp3 = std::aligned_alloc( poiss.alignment, sizeof(real)*conf.Nx*conf.Ny );
-    if ( tmp3 == nullptr ) throw std::bad_alloc {};
-    std::unique_ptr<real,decltype(std::free)*> f_metric_entropy { reinterpret_cast<real*>(tmp3), std::free };
-
-    void *tmp4 = std::aligned_alloc( poiss.alignment, sizeof(real)*conf.Nx*conf.Ny );
-    if ( tmp4 == nullptr ) throw std::bad_alloc {};
-    std::unique_ptr<real,decltype(std::free)*> f_metric_kinetic_energy { reinterpret_cast<real*>(tmp4), std::free };
-
-
-    bool plot_f = true;
-
-    std::ofstream E_max_file;
-    if ( rank == 0 )
-        E_max_file.open( "E_max.txt" );
-    std::ofstream E_l2_file;
-    if ( rank == 0 )
-        E_l2_file.open( "E_l2.txt" );
-    std::ofstream E_max_err_file;
-    if ( rank == 0 )
-        E_max_err_file.open( "E_max_err.txt" );
-    std::ofstream E_l2_err_file;
-    if ( rank == 0 )
-        E_l2_err_file.open( "E_l2_err.txt" );
-    std::ofstream entropy_file;
-    if ( rank == 0 )
-        entropy_file.open( "entropy.txt" );
-    std::ofstream kinetic_energy_file;
-    if ( rank == 0 )
-    	kinetic_energy_file.open( "kinetic_energy.txt" );
-    std::ofstream total_energy_file;
-    if ( rank == 0 )
-    	total_energy_file.open( "total_energy.txt" );
-    std::ofstream l1_norm_f_file;
-    if ( rank == 0 )
-    	l1_norm_f_file.open( "l1_norm_f.txt" );
-    std::ofstream l2_norm_f_file;
-    if ( rank == 0 )
-    	l2_norm_f_file.open( "l2_norm_f.txt" );
-
-   std::cout << "Nx = " << conf.Nx << std::endl;
-   std::cout <<	"Ny = "	<< conf.Ny << std::endl;
-   std::cout <<	"Nv = "	<< conf.Nv << std::endl;
-   std::cout <<	"Nu = "	<< conf.Nu << std::endl;
-   std::cout <<	"dt = "	<< conf.dt << std::endl;
-
-    double t_total = 0;
     for ( size_t n = 0; n <= conf.Nt; ++n )
     {
-        double t1 = MPI_Wtime();
-        // Without f metrics:
-        //sched.compute_rho( n, coeffs.get(), rho.get() );
-        // With f metrics:
-        sched.compute_rho( n, coeffs.get(), rho.get(), f_metric_l1_norm.get(), f_metric_l2_norm.get(),
-        		f_metric_entropy.get(), f_metric_kinetic_energy.get());
+        // The actual NuFI loop.
+        sched. compute_rho( n, my_begin, my_end );
+        sched.download_rho( rho.get(), my_begin, my_end );
 
-        // Communicate rho to all nodes.
         mpi::allgatherv( MPI_IN_PLACE, 0, 
                          rho.get(), rank_count.data(), rank_offset.data(),
                          MPI_COMM_WORLD );
-        //Communicate the f metrics as well.
-        mpi::allgatherv( MPI_IN_PLACE, 0,
-        		f_metric_l1_norm.get(), rank_count.data(), rank_offset.data(),
-                         MPI_COMM_WORLD );
-        mpi::allgatherv( MPI_IN_PLACE, 0,
-        		f_metric_l2_norm.get(), rank_count.data(), rank_offset.data(),
-                         MPI_COMM_WORLD );
-        mpi::allgatherv( MPI_IN_PLACE, 0,
-        		f_metric_entropy.get(), rank_count.data(), rank_offset.data(),
-                         MPI_COMM_WORLD );
-        mpi::allgatherv( MPI_IN_PLACE, 0,
-        		f_metric_kinetic_energy.get(), rank_count.data(), rank_offset.data(),
-                         MPI_COMM_WORLD );
 
-        poiss.solve( rho.get() );
-
-        if ( n )
-        {
-            // Set initial guess as previous time step solution.
-            for ( size_t l = 0; l < stride_t; ++l )
-                coeffs[ n*stride_t + l ] = coeffs[ (n-1)*stride_t + l ];
-        }
+        const real electric_energy = poiss.solve( rho.get() );
         interpolate<real,order>( coeffs.get() + n*stride_t, rho.get(), conf );
+        sched.upload_phi( n, coeffs.get() );
 
+        // After this, we can do shit to output statistics, etc.
+        do_matthias_shit(n,rank,my_begin,my_end,conf,sched,electric_energy);
+        //do_pauls_shit();
+    }
+}
+
+template <typename real, size_t order>
+void do_matthias_shit( size_t n, size_t rank, size_t my_begin, size_t my_end,
+                       config_t<real> conf, cuda_scheduler<real,order> &sched, real electric_energy )
+{
+    real metrics[4];
+    sched.compute_metrics( n, my_begin, my_end );
+    sched.download_metrics( metrics );
+    mpi::allreduce_add( MPI_IN_PLACE, metrics, 4, MPI_COMM_WORLD );
+    metrics[1]  = std::sqrt(metrics[1]); // Take square-root for L²-norm
+    metrics[2] += electric_energy;       // Total energy = kinetic + electric energy
+
+    if ( rank == 0 )
+    {
+        for ( size_t i = 0; i < 80; ++i )
+            std::cout << '=';
+        std::cout << std::endl;
+
+        std::cout << std::setprecision(7) << std::scientific;
+        std::cout << u8"t = " << n*conf.dt << '.' << std::endl;
+        std::cout << u8"L¹-norm:      " << std::setw(20) << metrics[0] << std::endl;
+        std::cout << u8"L²-norm:      " << std::setw(20) << metrics[1] << std::endl;
+        std::cout << u8"Total Energy: " << std::setw(20) << metrics[2] << std::endl;
+        std::cout << u8"Entropy:      " << std::setw(20) << metrics[3] << std::endl;
+
+        std::cout << std::endl;
+    }
+}
+
+/*
+void do_pauls_shit()
+{
         if ( rank == 0 )
         {
             real Emax = 0;
@@ -233,101 +204,99 @@ void test()
         }
 
         bool do_plots = (n%8 == 0);
-	// Plotting E, rho and related metrics.
-	size_t t = n*conf.dt;
+        // Plotting E, rho and related metrics.
+        size_t t = n*conf.dt;
         real E_l2 = 0;
         real E_max = 0;
         real E_l2_error = 0;
         real E_max_error = 0;
-	if(do_plots)
-	{
-	        std::stringstream E_filename; E_filename << 'E' << t << ".txt";
-        	std::ofstream E_file( E_filename.str() );
-		std::stringstream rho_filename; rho_filename << 'p' << t << ".txt";
-	        std::ofstream rho_file(rho_filename.str() );
-		std::ifstream E_exact_file("../new_comp/E" + std::to_string(t) + ".txt");
+    if(do_plots)
+    {
+            std::stringstream E_filename; E_filename << 'E' << t << ".txt";
+            std::ofstream E_file( E_filename.str() );
+        std::stringstream rho_filename; rho_filename << 'p' << t << ".txt";
+            std::ofstream rho_file(rho_filename.str() );
+        std::ifstream E_exact_file("../new_comp/E" + std::to_string(t) + ".txt");
 
-        	const size_t plotNx = 256, plotNy = 256;
-		const real plot_dx = (conf.x_max - conf.x_min)/plotNx;
+            const size_t plotNx = 256, plotNy = 256;
+        const real plot_dx = (conf.x_max - conf.x_min)/plotNx;
                 const real plot_dy = (conf.y_max - conf.y_min)/plotNy;
-		for ( size_t i = 0; i <= plotNx; ++i )
-        	{
-	            real x = conf.x_min + i*plot_dx;
-	            for ( size_t j = 0; j <= plotNy; ++j )
-        	    {
-                	real y = conf.y_min + j*plot_dy;
-			real Ex = -eval<real,order,1,0>( x, y, coeffs.get() + n*stride_t, conf );
-		        real Ey = -eval<real,order,0,1>( x, y, coeffs.get() + n*stride_t, conf );
-			real a  = eval<real,order,2,0>(x,y, coeffs.get() + n*stride_t, conf);
-			real b  = eval<real,order,0,2>(x,y, coeffs.get() + n*stride_t, conf); 
-			real rho = -a*a - b*b;
-	                E_file << x << " " << y << " " << Ex << " " << Ey << std::endl;
-			rho_file << x << " " << y << " " << rho << std::endl;
+        for ( size_t i = 0; i <= plotNx; ++i )
+            {
+                real x = conf.x_min + i*plot_dx;
+                for ( size_t j = 0; j <= plotNy; ++j )
+                {
+                    real y = conf.y_min + j*plot_dy;
+            real Ex = -eval<real,order,1,0>( x, y, coeffs.get() + n*stride_t, conf );
+                real Ey = -eval<real,order,0,1>( x, y, coeffs.get() + n*stride_t, conf );
+            real a  = eval<real,order,2,0>(x,y, coeffs.get() + n*stride_t, conf);
+            real b  = eval<real,order,0,2>(x,y, coeffs.get() + n*stride_t, conf); 
+            real rho = -a*a - b*b;
+                    E_file << x << " " << y << " " << Ex << " " << Ey << std::endl;
+            rho_file << x << " " << y << " " << rho << std::endl;
 
-			E_l2 += Ex*Ex + Ey*Ey;
+            E_l2 += Ex*Ex + Ey*Ey;
 
-			real Ex_exact = 0;
-			real Ey_exact = 0;
-			E_exact_file >> x >> y >> Ex_exact >> Ey_exact;
+            real Ex_exact = 0;
+            real Ey_exact = 0;
+            E_exact_file >> x >> y >> Ex_exact >> Ey_exact;
 
-			real dist_x = Ex_exact - Ex;
-			real dist_y = Ey_exact - Ey;
-			real dist = std::sqrt( dist_x*dist_x + dist_y*dist_y);
-			E_l2_error += dist;
-			E_max_error = std::max(dist, E_max_error);
-        	    }
-	            E_file << std::endl;
-	            rho_file << std::endl;
-		    E_exact_file.ignore();
-        	}
-		
-		E_l2_error *= plot_dx*plot_dy;
-		E_l2 *= plot_dx*plot_dy;
+            real dist_x = Ex_exact - Ex;
+            real dist_y = Ey_exact - Ey;
+            real dist = std::sqrt( dist_x*dist_x + dist_y*dist_y);
+            E_l2_error += dist;
+            E_max_error = std::max(dist, E_max_error);
+                }
+                E_file << std::endl;
+                rho_file << std::endl;
+            E_exact_file.ignore();
+            }
+        
+        E_l2_error *= plot_dx*plot_dy;
+        E_l2 *= plot_dx*plot_dy;
 
-		E_l2_file << t << " " << E_l2 << std::endl;
-		E_max_err_file << t << " " << E_max_error << std::endl;
-		E_l2_err_file << t << " " << E_l2_error << std::endl;
-	}
+        E_l2_file << t << " " << E_l2 << std::endl;
+        E_max_err_file << t << " " << E_max_error << std::endl;
+        E_l2_err_file << t << " " << E_l2_error << std::endl;
+    }
     // Plotting of f and f-related metrics:
     if(plot_f && do_plots)
     {
-		const size_t plot_nx = conf.Nx;
-		const size_t plot_ny = conf.Ny;
-		const size_t plot_nv = conf.Nv;
-		const size_t plot_nu = conf.Nu;
+        const size_t plot_nx = conf.Nx;
+        const size_t plot_ny = conf.Ny;
+        const size_t plot_nv = conf.Nv;
+        const size_t plot_nu = conf.Nu;
 
-    	const real plot_dx = (conf.x_max - conf.x_min)/plot_nx;
-    	const real plot_dy = (conf.y_max - conf.y_min)/plot_ny;
-    	const real plot_dv = (conf.v_max - conf.v_min)/plot_nv;
-    	const real plot_du = (conf.u_max - conf.u_min)/plot_nu;
+        const real plot_dx = (conf.x_max - conf.x_min)/plot_nx;
+        const real plot_dy = (conf.y_max - conf.y_min)/plot_ny;
+        const real plot_dv = (conf.v_max - conf.v_min)/plot_nv;
+        const real plot_du = (conf.u_max - conf.u_min)/plot_nu;
 
-    	real entropy = 0;
-    	real kinetic_energy = 0;
-    	real l1_norm_f = 0;
-    	real l2_norm_f = 0;
+        real entropy = 0;
+        real kinetic_energy = 0;
+        real l1_norm_f = 0;
+        real l2_norm_f = 0;
 
-    	for(size_t i = 0; i < plot_nx*plot_ny; i++)
-    	{
-    		l1_norm_f += f_metric_l1_norm.get()[i];
-    		l2_norm_f += f_metric_l2_norm.get()[i];
-    		entropy += f_metric_entropy.get()[i];
-    		kinetic_energy += f_metric_kinetic_energy.get()[i];
-    	}
+        for(size_t i = 0; i < plot_nx*plot_ny; i++)
+        {
+            l1_norm_f += f_metric_l1_norm.get()[i];
+            l2_norm_f += f_metric_l2_norm.get()[i];
+            entropy += f_metric_entropy.get()[i];
+            kinetic_energy += f_metric_kinetic_energy.get()[i];
+        }
 
-    	entropy *= plot_dx*plot_dy*plot_dv*plot_du;
-    	kinetic_energy *= plot_dx*plot_dy*plot_dv*plot_du;
-    	l1_norm_f *= plot_dx*plot_dy*plot_dv*plot_du;
-    	l2_norm_f *= plot_dx*plot_dy*plot_dv*plot_du;
-    	entropy_file << t << " " << entropy << std::endl;
-    	kinetic_energy_file << t << " " << kinetic_energy << std::endl;
-    	total_energy_file << t << " " << kinetic_energy + E_l2 << std::endl;
-    	l1_norm_f_file << t << " " << l1_norm_f << std::endl;
-    	l2_norm_f_file << t << " " << l2_norm_f << std::endl;
+        entropy *= plot_dx*plot_dy*plot_dv*plot_du;
+        kinetic_energy *= plot_dx*plot_dy*plot_dv*plot_du;
+        l1_norm_f *= plot_dx*plot_dy*plot_dv*plot_du;
+        l2_norm_f *= plot_dx*plot_dy*plot_dv*plot_du;
+        entropy_file << t << " " << entropy << std::endl;
+        kinetic_energy_file << t << " " << kinetic_energy << std::endl;
+        total_energy_file << t << " " << kinetic_energy + E_l2 << std::endl;
+        l1_norm_f_file << t << " " << l1_norm_f << std::endl;
+        l2_norm_f_file << t << " " << l2_norm_f << std::endl;
     }
-    }
-    std::cout << "Total time = " << t_total << std::endl;
 }
-
+*/
 }
 
 }
@@ -338,7 +307,6 @@ int main( int argc, char *argv[] )
     dergeraet::mpi::programme prog(&argc,&argv);
     dergeraet::dim2::test<float,4>();
 //    dergeraet::dim2::test<double,4>();
-
 
 }
 

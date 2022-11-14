@@ -356,9 +356,10 @@ real eval_f( size_t n, real x, real y, real z,
 template <typename real, size_t order>
 real eval_rho( size_t n, size_t l, const real *coeffs, const config_t<real> &conf )
 {
-    const size_t k = l / (conf.Nx * conf.Ny); l -= k*conf.Nx*conf.Ny;
-    const size_t i = l % conf.Nx;
-    const size_t j = l / conf.Nx;
+    const size_t k   = l   / (conf.Nx * conf.Ny);
+    const size_t tmp = l   % (conf.Nx * conf.Ny);
+    const size_t j   = tmp / conf.Nx;
+    const size_t i   = tmp % conf.Nx;
 
     const real x = conf.x_min + i*conf.dx; 
     const real y = conf.y_min + j*conf.dy; 

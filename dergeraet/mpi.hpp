@@ -121,12 +121,50 @@ void allgatherv( const void   *sendbuf,       int sendcount,
 
     int errcode = MPI_Allgatherv( sendbuf, sendcount, MPI_DOUBLE,
                                   recvbuf, recvcounts, displs, MPI_DOUBLE,
-                                  MPI_COMM_WORLD );
+                                  comm );
     if ( errcode != MPI_SUCCESS )
     {
         MPI_Error_string( errcode, buf, &len );
         buf[ len ] = '\0';
         throw std::runtime_error {  std::string { "dergeraet::mpi::allgatherv(double): " } +
+                                    std::string { buf } };
+    }
+}
+
+inline
+void allreduce_add( const void *sendbuf, float *recvbuf, int count,
+                    MPI_Comm comm )
+{
+    char buf[ MPI_MAX_ERROR_STRING + 1 ];
+    int  len;
+
+    int errcode = MPI_Allreduce( sendbuf, recvbuf, count, MPI_FLOAT, MPI_SUM, comm );
+                                 
+                                 
+    if ( errcode != MPI_SUCCESS )
+    {
+        MPI_Error_string( errcode, buf, &len );
+        buf[ len ] = '\0';
+        throw std::runtime_error {  std::string { "dergeraet::mpi::allreduce_add(float): " } +
+                                    std::string { buf } };
+    }
+}
+
+inline
+void allreduce_add( const void *sendbuf, double *recvbuf, int count,
+                    MPI_Comm comm )
+{
+    char buf[ MPI_MAX_ERROR_STRING + 1 ];
+    int  len;
+
+    int errcode = MPI_Allreduce( sendbuf, recvbuf, count, MPI_DOUBLE, MPI_SUM, comm );
+                                 
+                                 
+    if ( errcode != MPI_SUCCESS )
+    {
+        MPI_Error_string( errcode, buf, &len );
+        buf[ len ] = '\0';
+        throw std::runtime_error {  std::string { "dergeraet::mpi::allreduce_add(float): " } +
                                     std::string { buf } };
     }
 }

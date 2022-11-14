@@ -39,8 +39,8 @@ public:
     cuda_scheduler& operator=( const cuda_scheduler&  ) = delete;
     cuda_scheduler& operator=(       cuda_scheduler&& ) = default;
 
-    cuda_scheduler( const config_t<real> &p_conf, size_t p_begin, size_t p_end ):
-    conf { p_conf }, begin { p_begin }, end { p_end }
+    cuda_scheduler( const config_t<real> &p_conf ):
+    conf { p_conf }
     {
         size_t n_dev = cuda::device_count();
         kernels.reserve(n_dev);
@@ -61,33 +61,111 @@ public:
             throw cuda::exception( cudaErrorUnknown, "cuda_scheduler: Failed to create kernels." );
     }
 
-    void compute_rho( size_t n, const real *coeffs, real *rho )
+    void compute_rho( size_t n, size_t begin, size_t end )
     {
         if ( begin == end ) return;
 
         size_t n_cards = kernels.size();
         size_t N = end - begin;
         size_t chunk_size = N / n_cards;
+        size_t remainder  = N % n_cards;
 
-        for ( size_t i = 0; i < n_cards - 1; ++i )
-            kernels[i].compute_rho( n, coeffs, begin + i*chunk_size, begin + (i+1)*chunk_size );
+        size_t current = begin;
+        for ( size_t i = 0; i < n_cards; ++i )
+        {
+            if ( i < remainder )
+            {
+                kernels[i].compute_rho( n, current, current + chunk_size + 1 );
+                current = current + chunk_size + 1;
+            }
+            else
+            {
+                kernels[i].compute_rho( n, current, current + chunk_size );
+                current = current + chunk_size;
+            }
+        }
+    }
 
-        // Remainder 
-        kernels.back().compute_rho( n, coeffs, begin + (n_cards-1)*chunk_size, end);
+    void download_rho( real *rho, size_t begin, size_t end )
+    {
+        if ( begin == end ) return;
 
-        for ( size_t i = 0; i < n_cards - 1; ++i )
-            kernels[i].load_rho( rho, begin + i*chunk_size, begin + (i+1)*chunk_size ); 
+        size_t n_cards = kernels.size();
+        size_t N = end - begin;
+        size_t chunk_size = N / n_cards;
+        size_t remainder  = N % n_cards;
 
-        // Remainder
-        kernels.back().load_rho( rho, begin + (n_cards-1)*chunk_size, end);
+        size_t current = begin;
+        for ( size_t i = 0; i < n_cards; ++i )
+        {
+            if ( i < remainder )
+            {
+                kernels[i].download_rho( rho, current, current + chunk_size + 1 );
+                current = current + chunk_size + 1;
+            }
+            else
+            {
+                kernels[i].download_rho( rho, current, current + chunk_size );
+                current = current + chunk_size;
+            }
+        }
+    }
 
+    void upload_phi( size_t n, const real *coeffs ) 
+    {
+        size_t n_cards = kernels.size();
+
+        for ( size_t i = 0; i < n_cards; ++i )
+            kernels[i].upload_phi(n,coeffs);
+    }
+
+
+    void compute_metrics( size_t n, size_t begin, size_t end )
+    {
+        if ( begin == end ) return;
+
+        size_t n_cards = kernels.size();
+        size_t N = end - begin;
+        size_t chunk_size = N / n_cards;
+        size_t remainder  = N % n_cards;
+
+        size_t current = begin;
+        for ( size_t i = 0; i < n_cards; ++i )
+        {
+            if ( i < remainder )
+            {
+                kernels[i].compute_metrics( n, current, current + chunk_size + 1 );
+                current = current + chunk_size + 1;
+            }
+            else
+            {
+                kernels[i].compute_metrics( n, current, current + chunk_size );
+                current = current + chunk_size;
+            }
+        }
+    }
+
+    void download_metrics( real *metrics )
+    {
+        real tmp[ 4 ];
+
+        metrics[ 0 ] = 0;
+        metrics[ 1 ] = 0;
+        metrics[ 2 ] = 0;
+        metrics[ 3 ] = 0;
+
+        for ( size_t i = 0; i < kernels.size(); ++i )
+        {
+            kernels[i].download_metrics(tmp);
+            metrics[ 0 ] += tmp[ 0 ];
+            metrics[ 1 ] += tmp[ 1 ];
+            metrics[ 2 ] += tmp[ 2 ];
+            metrics[ 3 ] += tmp[ 3 ];
+        }
     }
 
 private:
     config_t<real> conf;
-
-    size_t begin;
-    size_t end;
 
     std::vector< cuda_kernel<real,order> > kernels;
 };
@@ -109,18 +187,17 @@ public:
     cuda_scheduler& operator=( const cuda_scheduler&  ) = delete;
     cuda_scheduler& operator=(       cuda_scheduler&& ) = default;
 
-    cuda_scheduler( const config_t<real> &p_conf, size_t p_begin, size_t p_end ):
-    conf { p_conf }, begin { p_begin }, end { p_end }
+    cuda_scheduler( const config_t<real> &p_conf ):
+    conf { p_conf }
     {
         size_t n_dev = cuda::device_count();
         kernels.reserve(n_dev);
-       
-        for ( size_t i = 0; i < n_dev; i++)
+
+        for ( size_t i = 0; i < n_dev; i++ )
         {
             try 
             {
                 kernels.emplace_back( cuda_kernel<real,order>(conf,i) );
-                std::cout << "Added device " << i << ".\n"; std::cout.flush();
             }
             catch ( cuda::exception &ex )
             {
@@ -132,8 +209,7 @@ public:
             throw cuda::exception( cudaErrorUnknown, "cuda_scheduler: Failed to create kernels." );
     }
 
-    // Compute_rho without f-metrics.
-    void compute_rho( size_t n, const real *coeffs, real *rho )
+    void compute_rho( size_t n, size_t begin, size_t end )
     {
         if ( begin == end ) return;
 
@@ -142,45 +218,23 @@ public:
         size_t chunk_size = N / n_cards;
         size_t remainder  = N % n_cards;
 
-        // Launch tasks.
-        size_t curr = begin;
-        for ( size_t i = 0; i < n_cards; ++i )
-        { 
-            if ( i < remainder )
-            {  
-                kernels[i].compute_rho( n, coeffs, curr, curr + chunk_size + 1 );
-                curr += chunk_size + 1;
-            }
-            else
-            {
-                kernels[i].compute_rho( n, coeffs, curr, curr + chunk_size );
-                curr += chunk_size;
-            }
-        }
-
-        // Load results.
-        curr = begin;
+        size_t current = begin;
         for ( size_t i = 0; i < n_cards; ++i )
         {
             if ( i < remainder )
             {
-                kernels[i].load_rho( rho, curr, curr + chunk_size + 1 ); 
-                curr += chunk_size + 1;
+                kernels[i].compute_rho( n, current, current + chunk_size + 1 );
+                current = current + chunk_size + 1;
             }
             else
             {
-                kernels[i].load_rho( rho, curr, curr + chunk_size ); 
-                curr += chunk_size;
+                kernels[i].compute_rho( n, current, current + chunk_size );
+                current = current + chunk_size;
             }
         }
     }
 
-    // compute_rho version which also saves the values of f for further use (like
-    // computing entropy).
-
-    void compute_rho( size_t n, const real *coeffs, real *rho,
-    		real *f_metric_l1_norm, real *f_metric_l2_norm,
-    		real *f_metric_entropy, real *f_metric_kinetic_energy )
+    void download_rho( real *rho, size_t begin, size_t end )
     {
         if ( begin == end ) return;
 
@@ -189,48 +243,77 @@ public:
         size_t chunk_size = N / n_cards;
         size_t remainder  = N % n_cards;
 
-        real l1_norm_f = 0;
-        real *l1_norm_array = new real[n_cards];
-
-        // Launch tasks.
-        size_t curr = begin;
+        size_t current = begin;
         for ( size_t i = 0; i < n_cards; ++i )
         {
             if ( i < remainder )
             {
-            	kernels[i].compute_rho( n, coeffs, curr, curr + chunk_size + 1);
-                curr += chunk_size + 1;
+                kernels[i].download_rho( rho, current, current + chunk_size + 1 );
+                current = current + chunk_size + 1;
             }
             else
             {
-            	kernels[i].compute_rho( n, coeffs, curr, curr + chunk_size );
-                curr += chunk_size;
-            }
-        }
-
-        // Load results
-        curr = begin;
-        for ( size_t i = 0; i < n_cards; ++i )
-        {
-            if ( i < remainder )
-            {
-                kernels[i].load_rho( rho, curr, curr + chunk_size + 1, f_metric_l1_norm,
-                		f_metric_l2_norm, f_metric_entropy, f_metric_kinetic_energy  );
-                curr += chunk_size + 1;
-            }
-            else
-            {
-                kernels[i].load_rho( rho, curr, curr + chunk_size, f_metric_l1_norm,
-                		f_metric_l2_norm, f_metric_entropy, f_metric_kinetic_energy  );
-                curr += chunk_size;
+                kernels[i].download_rho( rho, current, current + chunk_size );
+                current = current + chunk_size;
             }
         }
     }
 
+    void upload_phi( size_t n, const real *coeffs ) 
+    {
+        size_t n_cards = kernels.size();
+        for ( size_t i = 0; i < n_cards; ++i )
+            kernels[i].upload_phi(n,coeffs);
+    }
+
+
+    void compute_metrics( size_t n, size_t begin, size_t end )
+    {
+        if ( begin == end ) return;
+
+        size_t n_cards = kernels.size();
+        size_t N = end - begin;
+        size_t chunk_size = N / n_cards;
+        size_t remainder  = N % n_cards;
+
+        size_t current = begin;
+        for ( size_t i = 0; i < n_cards; ++i )
+        {
+            if ( i < remainder )
+            {
+                kernels[i].compute_metrics( n, current, current + chunk_size + 1 );
+                current = current + chunk_size + 1;
+            }
+            else
+            {
+                kernels[i].compute_metrics( n, current, current + chunk_size );
+                current = current + chunk_size;
+            }
+        }
+    }
+
+    void download_metrics( real *metrics )
+    {
+        real tmp[ 4 ];
+
+        metrics[ 0 ] = 0;
+        metrics[ 1 ] = 0;
+        metrics[ 2 ] = 0;
+        metrics[ 3 ] = 0;
+
+        for ( size_t i = 0; i < kernels.size(); ++i )
+        {
+            kernels[i].download_metrics(tmp);
+            metrics[ 0 ] += tmp[ 0 ];
+            metrics[ 1 ] += tmp[ 1 ];
+            metrics[ 2 ] += tmp[ 2 ];
+            metrics[ 3 ] += tmp[ 3 ];
+        }
+    }
 
 private:
     config_t<real> conf;
-    size_t begin, end;
+
     std::vector< cuda_kernel<real,order> > kernels;
 };
 
@@ -249,18 +332,17 @@ public:
     cuda_scheduler& operator=( const cuda_scheduler&  ) = delete;
     cuda_scheduler& operator=(       cuda_scheduler&& ) = default;
 
-    cuda_scheduler( const config_t<real> &p_conf, size_t p_begin, size_t p_end ):
-    conf { p_conf }, begin { p_begin }, end { p_end }
+    cuda_scheduler( const config_t<real> &p_conf ):
+    conf { p_conf }
     {
         size_t n_dev = cuda::device_count();
         kernels.reserve(n_dev);
 
-        for ( size_t i = 0; i < n_dev; i++)
+        for ( size_t i = 0; i < n_dev; i++ )
         {
-            try
+            try 
             {
                 kernels.emplace_back( cuda_kernel<real,order>(conf,i) );
-                std::cout << "Added device " << i << ".\n"; std::cout.flush();
             }
             catch ( cuda::exception &ex )
             {
@@ -272,8 +354,7 @@ public:
             throw cuda::exception( cudaErrorUnknown, "cuda_scheduler: Failed to create kernels." );
     }
 
-    // Compute_rho without f-metrics.
-    void compute_rho( size_t n, const real *coeffs, real *rho )
+    void compute_rho( size_t n, size_t begin, size_t end )
     {
         if ( begin == end ) return;
 
@@ -282,45 +363,23 @@ public:
         size_t chunk_size = N / n_cards;
         size_t remainder  = N % n_cards;
 
-        // Launch tasks.
-        size_t curr = begin;
+        size_t current = begin;
         for ( size_t i = 0; i < n_cards; ++i )
         {
             if ( i < remainder )
             {
-                kernels[i].compute_rho( n, coeffs, curr, curr + chunk_size + 1 );
-                curr += chunk_size + 1;
+                kernels[i].compute_rho( n, current, current + chunk_size + 1 );
+                current = current + chunk_size + 1;
             }
             else
             {
-                kernels[i].compute_rho( n, coeffs, curr, curr + chunk_size );
-                curr += chunk_size;
-            }
-        }
-
-        // Load results.
-        curr = begin;
-        for ( size_t i = 0; i < n_cards; ++i )
-        {
-            if ( i < remainder )
-            {
-                kernels[i].load_rho( rho, curr, curr + chunk_size + 1 );
-                curr += chunk_size + 1;
-            }
-            else
-            {
-                kernels[i].load_rho( rho, curr, curr + chunk_size );
-                curr += chunk_size;
+                kernels[i].compute_rho( n, current, current + chunk_size );
+                current = current + chunk_size;
             }
         }
     }
 
-    // compute_rho version which also saves the values of f for further use (like
-    // computing entropy).
-/*
-    void compute_rho( size_t n, const real *coeffs, real *rho,
-    		real *f_metric_l1_norm, real *f_metric_l2_norm,
-    		real *f_metric_entropy, real *f_metric_kinetic_energy )
+    void download_rho( real *rho, size_t begin, size_t end )
     {
         if ( begin == end ) return;
 
@@ -329,48 +388,77 @@ public:
         size_t chunk_size = N / n_cards;
         size_t remainder  = N % n_cards;
 
-        real l1_norm_f = 0;
-        real *l1_norm_array = new real[n_cards];
-
-        // Launch tasks.
-        size_t curr = begin;
+        size_t current = begin;
         for ( size_t i = 0; i < n_cards; ++i )
         {
             if ( i < remainder )
             {
-            	kernels[i].compute_rho( n, coeffs, curr, curr + chunk_size + 1);
-                curr += chunk_size + 1;
+                kernels[i].download_rho( rho, current, current + chunk_size + 1 );
+                current = current + chunk_size + 1;
             }
             else
             {
-            	kernels[i].compute_rho( n, coeffs, curr, curr + chunk_size );
-                curr += chunk_size;
-            }
-        }
-
-        // Load results
-        curr = begin;
-        for ( size_t i = 0; i < n_cards; ++i )
-        {
-            if ( i < remainder )
-            {
-                kernels[i].load_rho( rho, curr, curr + chunk_size + 1, f_metric_l1_norm,
-                		f_metric_l2_norm, f_metric_entropy, f_metric_kinetic_energy  );
-                curr += chunk_size + 1;
-            }
-            else
-            {
-                kernels[i].load_rho( rho, curr, curr + chunk_size, f_metric_l1_norm,
-                		f_metric_l2_norm, f_metric_entropy, f_metric_kinetic_energy  );
-                curr += chunk_size;
+                kernels[i].download_rho( rho, current, current + chunk_size );
+                current = current + chunk_size;
             }
         }
     }
-*/
+
+    void upload_phi( size_t n, const real *coeffs ) 
+    {
+        size_t n_cards = kernels.size();
+
+        for ( size_t i = 0; i < n_cards; ++i )
+            kernels[i].upload_phi(n,coeffs);
+    }
+
+    void compute_metrics( size_t n, size_t begin, size_t end )
+    {
+        if ( begin == end ) return;
+
+        size_t n_cards = kernels.size();
+        size_t N = end - begin;
+        size_t chunk_size = N / n_cards;
+        size_t remainder  = N % n_cards;
+
+        size_t current = begin;
+        for ( size_t i = 0; i < n_cards; ++i )
+        {
+            if ( i < remainder )
+            {
+                kernels[i].compute_metrics( n, current, current + chunk_size + 1 );
+                current = current + chunk_size + 1;
+            }
+            else
+            {
+                kernels[i].compute_metrics( n, current, current + chunk_size );
+                current = current + chunk_size;
+            }
+        }
+    }
+
+    void download_metrics( real *metrics )
+    {
+        real tmp[ 4 ];
+
+        metrics[ 0 ] = 0;
+        metrics[ 1 ] = 0;
+        metrics[ 2 ] = 0;
+        metrics[ 3 ] = 0;
+
+        for ( size_t i = 0; i < kernels.size(); ++i )
+        {
+            kernels[i].download_metrics(tmp);
+            metrics[ 0 ] += tmp[ 0 ];
+            metrics[ 1 ] += tmp[ 1 ];
+            metrics[ 2 ] += tmp[ 2 ];
+            metrics[ 3 ] += tmp[ 3 ];
+        }
+    }
 
 private:
     config_t<real> conf;
-    size_t begin, end;
+
     std::vector< cuda_kernel<real,order> > kernels;
 };
 

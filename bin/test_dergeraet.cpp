@@ -43,6 +43,7 @@ void test()
 {
     using std::abs;
     using std::max;
+    using std::sqrt;
 
     config_t<real> conf;
     const size_t stride_x = 1;
@@ -54,15 +55,31 @@ void test()
 
     poisson<real> poiss( conf );
 
-    cuda_scheduler<real,order> sched { conf , 0, conf.Nx };
+    cuda_scheduler<real,order> sched { conf };
 
     std::ofstream Emax_file( "Emax.txt" );
     for ( size_t n = 0; n < conf.Nt; ++n )
     {
-        sched.compute_rho( n, coeffs.get(), rho.get() );
+        sched.compute_rho ( n, 0, conf.Nx );
+        sched.download_rho( rho.get(), 0, conf.Nx );
 
-        poiss.solve( rho.get() );
+        real electric_energy = poiss.solve( rho.get() );
         dim1::interpolate<real,order>( coeffs.get() + n*stride_t, rho.get(), conf );
+
+        sched.upload_phi( n, coeffs.get() );
+
+        real metrics[4];
+        sched.compute_metrics( n, 0, conf.Nx );
+        sched.download_metrics( metrics );
+
+        metrics[2] += electric_energy; 
+        metrics[1]  = sqrt(metrics[1]);
+
+        std::cout << "L¹-Norm:      " << std::setw(20) << metrics[0] << std::endl;
+        std::cout << "L²-Norm:      " << std::setw(20) << metrics[1] << std::endl;
+        std::cout << "Total energy: " << std::setw(20) << metrics[2] << std::endl;
+        std::cout << "Entropy:      " << std::setw(20) << metrics[3] << std::endl;
+        std::cout << "El. Energy:   " << std::setw(20) << electric_energy << std::endl;
 
         real Emax = 0;
         for ( size_t i = 0; i < conf.Nx; ++i )

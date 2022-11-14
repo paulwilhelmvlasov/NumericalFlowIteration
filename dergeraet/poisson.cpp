@@ -62,21 +62,29 @@ namespace dim1
         param = p;
     }
 
-    void poisson<double>::solve( double *data ) const noexcept
+    double poisson<double>::solve( double *data ) const noexcept
     {
         fftw_execute_r2r( plan, data, data );
 
         const double fac_N = double(1) / double( param.Nx );
-        const double fac_x = (2*M_PI*param.Lx_inv) * (2*M_PI*param.Lx_inv);
+        const double fac_x = (2*M_PI*param.Lx_inv);
+
+        double energy = 0;
         for ( size_t i = 1; i < param.Nx; i++ )
         {
-            double ii = (2*i < param.Nx) ? i : param.Nx - i; ii *= ii;
-            double fac = fac_N/(ii*fac_x);
+            double ii = (2*i < param.Nx) ? i : param.Nx - i; 
+            double fac = fac_N/(ii*ii*fac_x*fac_x);
             data[i] *= fac;
+
+            double Ex = ii*fac_x*data[i];
+            energy += Ex*Ex;
         }
+
         data[0] = 0;
-        
         fftw_execute_r2r( plan, data, data );
+
+        energy *= param.Lx/2;
+        return energy;
     }
 
 
@@ -114,21 +122,29 @@ namespace dim1
         param = p;
     }
 
-    void poisson<float>::solve( float *data ) const noexcept
+    float poisson<float>::solve( float *data ) const noexcept
     {
         fftwf_execute_r2r( plan, data, data );
 
         const float fac_N = float(1) / float( param.Nx );
-        const float fac_x = (2*M_PI*param.Lx_inv) * (2*M_PI*param.Lx_inv);
+        const float fac_x = (2*M_PI*param.Lx_inv);
+
+        float energy = 0;
         for ( size_t i = 1; i < param.Nx; i++ )
         {
-            float ii = (2*i < param.Nx) ? i : param.Nx - i; ii *= ii;
-            float fac = fac_N/(ii*fac_x);
+            float ii = (2*i < param.Nx) ? i : param.Nx - i;
+            float fac = fac_N/(i*fac_x*i*fac_x);
             data[i] *= fac;
+
+            float Ex = ii*data[i]*fac_x;
+            energy += Ex*Ex;
         }
-        data[0] = 0;
         
+        data[0] = 0;
         fftwf_execute_r2r( plan, data, data );
+
+        energy  *= param.Lx/2;
+        return energy;
     }
 }
 
@@ -170,24 +186,35 @@ namespace dim2
         param = p;
     }
 
-    void poisson<double>::solve( double *data ) const noexcept
+    double poisson<double>::solve( double *data ) const noexcept
     {
         fftw_execute_r2r( plan, data, data );
 
         const double fac_N = double(1) / double( param.Nx * param.Ny );
-        const double fac_x = (2*M_PI*param.Lx_inv) * (2*M_PI*param.Lx_inv);
-        const double fac_y = (2*M_PI*param.Ly_inv) * (2*M_PI*param.Ly_inv);
+        const double fac_x = (2*M_PI*param.Lx_inv);
+        const double fac_y = (2*M_PI*param.Ly_inv);
+
+        double energy = 0;
         for ( size_t j = 0; j < param.Ny; j++ )
         for ( size_t i = 0; i < param.Nx; i++ )
         {
-            double ii = (2*i < param.Nx) ? i : param.Nx - i; ii *= ii;
-            double jj = (2*j < param.Ny) ? j : param.Ny - j; jj *= jj;
-            double fac = fac_N/(ii*fac_x + jj*fac_y);
+            if ( j == 0 && i == 0 ) continue;
+
+            double ii = (2*i < param.Nx) ? i : param.Nx - i;
+            double jj = (2*j < param.Ny) ? j : param.Ny - j;
+            double fac = fac_N/(ii*ii*fac_x*fac_x + jj*jj*fac_y*fac_y);
             data[ j*param.Nx + i ] *= fac;
+
+            double Ex = ii*fac_x*data[ j*param.Nx + i ]; 
+            double Ey = jj*fac_y*data[ j*param.Nx + i ]; 
+            energy += Ex*Ex + Ey*Ey;
         }
+
         data[0] = 0;
-        
         fftw_execute_r2r( plan, data, data );
+
+        energy *= param.Lx*param.Ly / 2;
+        return energy;
     }
 
 
@@ -227,24 +254,35 @@ namespace dim2
         param = p;
     }
 
-    void poisson<float>::solve( float *data ) const noexcept
+    float poisson<float>::solve( float *data ) const noexcept
     {
         fftwf_execute_r2r( plan, data, data );
 
         const float fac_N = float(1) / float( param.Nx * param.Ny );
         const float fac_x = (2*M_PI*param.Lx_inv) * (2*M_PI*param.Lx_inv);
         const float fac_y = (2*M_PI*param.Ly_inv) * (2*M_PI*param.Ly_inv);
+
+        float energy = 0;
         for ( size_t j = 0; j < param.Ny; j++ )
         for ( size_t i = 0; i < param.Nx; i++ )
         {
-            float ii = (2*i < param.Nx) ? i : param.Nx - i; ii *= ii;
-            float jj = (2*j < param.Ny) ? j : param.Ny - j; jj *= jj;
-            float fac = fac_N/(ii*fac_x + jj*fac_y);
+            if ( j == 0 && i == 0 ) continue;
+
+            float ii = (2*i < param.Nx) ? i : param.Nx - i;
+            float jj = (2*j < param.Ny) ? j : param.Ny - j;
+            float fac = fac_N/(ii*ii*fac_x*fac_x + jj*jj*fac_y*fac_y);
             data[ j*param.Nx + i ] *= fac;
+
+            float Ex = ii*fac_x*data[ j*param.Nx + i ]; 
+            float Ey = jj*fac_y*data[ j*param.Nx + i ]; 
+            energy += Ex*Ex + Ey*Ey;
         }
-        data[0] = 0;
-        
+       
+        data[0] = 0; 
         fftwf_execute_r2r( plan, data, data );
+
+        energy *= param.Lx*param.Ly / 2;
+        return energy;
     }
 }
 
@@ -286,27 +324,40 @@ namespace dim3
         param = p;
     }
 
-    void poisson<double>::solve( double *data ) const noexcept
+    double poisson<double>::solve( double *data ) const noexcept
     {
         fftw_execute_r2r( plan, data, data );
 
         const double fac_N = double(1) / double( param.Nx * param.Ny * param.Nz );
-        const double fac_x = (2*M_PI*param.Lx_inv) * (2*M_PI*param.Lx_inv);
-        const double fac_y = (2*M_PI*param.Ly_inv) * (2*M_PI*param.Ly_inv);
-        const double fac_z = (2*M_PI*param.Lz_inv) * (2*M_PI*param.Lz_inv);
+        const double fac_x = (2*M_PI*param.Lx_inv);
+        const double fac_y = (2*M_PI*param.Ly_inv);
+        const double fac_z = (2*M_PI*param.Lz_inv);
+
+        double energy = 0;
         for ( size_t k = 0; k < param.Nz; k++ )
         for ( size_t j = 0; j < param.Ny; j++ )
         for ( size_t i = 0; i < param.Nx; i++ )
         {
-            double ii = (2*i < param.Nx) ? i : param.Nx - i; ii *= ii;
-            double jj = (2*j < param.Ny) ? j : param.Ny - j; jj *= jj;
-            double kk = (2*k < param.Nz) ? k : param.Nz - k; kk *= kk;
-            double fac = fac_N/(ii*fac_x + jj*fac_y + kk*fac_z);
+            if ( i == 0 && j == 0 && k == 0 )
+                continue;
+
+            double ii = (2*i < param.Nx) ? i : param.Nx - i;
+            double jj = (2*j < param.Ny) ? j : param.Ny - j;
+            double kk = (2*k < param.Nz) ? k : param.Nz - k;
+            double fac = fac_N/(ii*ii*fac_x*fac_x + jj*jj*fac_y*fac_y + kk*kk*fac_z*fac_z);
             data[ k*param.Nx*param.Ny + j*param.Nx + i ] *= fac;
+
+            double Ex = ii*fac_x*data[ k*param.Nx*param.Ny + j*param.Nx + i ]; 
+            double Ey = jj*fac_y*data[ k*param.Nx*param.Ny + j*param.Nx + i ]; 
+            double Ez = kk*fac_z*data[ k*param.Nx*param.Ny + j*param.Nx + i ]; 
+            energy += Ex*Ex + Ey*Ey + Ez*Ez;
         }
-        data[ 0 ] = 0;
-        
+       
+        data[0] = 0; 
         fftw_execute_r2r( plan, data, data );
+
+        energy *= param.Lx*param.Ly*param.Lz / 2;
+        return energy;
     }
 
 
@@ -346,27 +397,40 @@ namespace dim3
         param = p;
     }
 
-    void poisson<float>::solve( float *data ) const noexcept
+    float poisson<float>::solve( float *data ) const noexcept
     {
         fftwf_execute_r2r( plan, data, data );
 
         const float fac_N = float(1) / float( param.Nx * param.Ny * param.Nz );
-        const float fac_x = (2*M_PI*param.Lx_inv) * (2*M_PI*param.Lx_inv);
-        const float fac_y = (2*M_PI*param.Ly_inv) * (2*M_PI*param.Ly_inv);
-        const float fac_z = (2*M_PI*param.Lz_inv) * (2*M_PI*param.Lz_inv);
+        const float fac_x = (2*M_PI*param.Lx_inv);
+        const float fac_y = (2*M_PI*param.Ly_inv);
+        const float fac_z = (2*M_PI*param.Lz_inv);
+
+        float energy = 0;
         for ( size_t k = 0; k < param.Nz; k++ )
         for ( size_t j = 0; j < param.Ny; j++ )
         for ( size_t i = 0; i < param.Nx; i++ )
         {
-            float ii = (2*i < param.Nx) ? i : param.Nx - i; ii *= ii;
-            float jj = (2*j < param.Ny) ? j : param.Ny - j; jj *= jj;
-            float kk = (2*k < param.Nz) ? k : param.Nz - k; kk *= kk;
-            float fac = fac_N/(ii*fac_x + jj*fac_y + kk*fac_z);
+            if ( i == 0 && j == 0 && k == 0 )
+                continue;
+
+            float ii = (2*i < param.Nx) ? i : param.Nx - i;
+            float jj = (2*j < param.Ny) ? j : param.Ny - j;
+            float kk = (2*k < param.Nz) ? k : param.Nz - k;
+            float fac = fac_N/(ii*ii*fac_x*fac_x + jj*jj*fac_y*fac_y + kk*kk*fac_z*fac_z);
             data[ k*param.Nx*param.Ny + j*param.Nx + i ] *= fac;
+
+            float Ex = ii*fac_x*data[ k*param.Nx*param.Ny + j*param.Nx + i ]; 
+            float Ey = jj*fac_y*data[ k*param.Nx*param.Ny + j*param.Nx + i ]; 
+            float Ez = kk*fac_z*data[ k*param.Nx*param.Ny + j*param.Nx + i ]; 
+            energy += Ex*Ex + Ey*Ey + Ez*Ez;
         }
+
         data[0] = 0;
-        
         fftwf_execute_r2r( plan, data, data );
+
+        energy *= param.Lx*param.Ly*param.Lz / 2;
+        return energy;
     }
 }
 

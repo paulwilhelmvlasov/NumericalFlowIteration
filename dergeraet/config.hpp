@@ -92,6 +92,7 @@ namespace benchmarks
 		}
 	}
 }
+
 }
 
 namespace dim1
@@ -121,7 +122,7 @@ struct config_t
 template <typename real>
 config_t<real>::config_t() noexcept
 {
-    Nx = 256;
+    Nx = 512;
     Nu = 2048;
     u_min = -10;
     u_max =  10;
@@ -144,8 +145,8 @@ real config_t<real>::f0( real x, real u ) noexcept
 
 	constexpr real alpha = 0.01;
 	constexpr real k     = 0.5;
-    return 0.39894228040143267793994 * ( 1. + alpha*cos(k*x) ) * exp( -u*u/2. ) * u*u;
-    //return 0.39894228040143267793994 * ( 1. + alpha*cos(k*x) ) * exp( -u*u/2 );
+    //return 0.39894228040143267793994 * ( 1. + alpha*cos(k*x) ) * exp( -u*u/2. ) * u*u;
+    return 0.39894228040143267793994 * ( 1. + alpha*cos(k*x) ) * exp( -u*u/2 );
 }
 
 }
@@ -181,8 +182,8 @@ struct config_t
 template <typename real>
 config_t<real>::config_t() noexcept
 {
-    Nx = Ny = 64;
-    Nu = Nv = 128;
+    Nx = Ny = 128;
+    Nu = Nv = 512;
     u_min = v_min = -6;
     u_max = v_max =  6;
     x_min = y_min = 0;
@@ -190,7 +191,7 @@ config_t<real>::config_t() noexcept
     x_max = y_max = 4.0 * M_PI;
 
 
-    dt = 1.0/8.0; Nt = 31/dt;
+    dt = 1.0/64.0; Nt = 32./dt;
 
     Lx = x_max - x_min; Lx_inv = 1/Lx;
     Ly = y_max - y_min; Ly_inv = 1/Ly;
@@ -202,20 +203,17 @@ template <typename real>
 __host__ __device__
 real config_t<real>::f0( real x, real y, real u, real v ) noexcept
 {
-
     using std::sin;
     using std::cos;
     using std::exp;
 
-    constexpr real alpha = 1e-3;
-    constexpr real k  = 0.2;
-    constexpr real v0 = 2.4;
-    constexpr real pi    = real(M_PI);
-
-    constexpr real c = 1.0 / (8.0 * M_PI);
-
     return 1.0 / (2.0 * M_PI) * std::exp(-0.5 * (u*u + v*v)) * (1 + 0.5 * (std::cos(0.5*x) + std::cos(0.5*y)) );
 
+//    constexpr real alpha = 1e-3;
+//    constexpr real v0 = 2.4;
+//    constexpr real pi    = real(M_PI);
+//    constexpr real k  = 0.2;
+//    constexpr real c = 1.0 / (8.0 * M_PI);
 //    real pertube = 1.0 + alpha*(cos(k*x)+cos(k*y));
 //    real feq = ( exp(-0.5*(v-v0)*(v-v0)) + exp(-0.5*(v+v0)*(v+v0)) ) * ( exp(-0.5*(u-v0)*(u-v0)) + exp(-0.5*(u+v0)*(u+v0)) );
 //    return c * pertube  * feq;
@@ -258,14 +256,14 @@ struct config_t
 template <typename real>
 config_t<real>::config_t() noexcept
 {
-    Nx = Ny = Nz = 16;
+    Nx = Ny = Nz = 32;
     Nu = Nv = Nw = 64;
-    u_min = v_min = w_min = -10;
-    u_max = v_max = w_max = 10;
+    u_min = v_min = w_min = -15;
+    u_max = v_max = w_max =  15;
     x_min = y_min = z_min = 0;
     x_max = y_max = z_max = 4*M_PI;
 
-    dt = 1./4.; Nt = 31/dt;
+    dt = 1./32.; Nt = 31/dt;
 
     Lx = x_max - x_min; Lx_inv = 1/Lx;
     Ly = y_max - y_min; Ly_inv = 1/Ly;
@@ -273,7 +271,6 @@ config_t<real>::config_t() noexcept
     dx = Lx/Nx; dx_inv = 1/dx;
     dy = Ly/Ny; dy_inv = 1/dy;
     dz = Lz/Nz; dz_inv = 1/dz;
-
 }
 
 template <typename real>
@@ -286,7 +283,6 @@ real config_t<real>::f0( real x, real y, real z, real u, real v, real w ) noexce
 
 	constexpr real alpha = 0.05;
 	constexpr real k     = 0.5;
-    constexpr real pi    = real(M_PI);
     constexpr real c     = 0.06349363593424096978576330493464;
 
     return c * ( 1. + alpha*cos(k*x) + alpha*cos(k*y) + alpha*cos(k*z)) * exp( -(u*u+v*v+w*w)/2 );

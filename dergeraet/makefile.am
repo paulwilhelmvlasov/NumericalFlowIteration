@@ -14,7 +14,13 @@ am__v_NVCC_ = $(am__v_NVCC_$(AM_DEFAULT_VERBOSITY))
 am__v_NVCC_0 = @echo "  NVCC    " $@;
 am__v_NVCC_1 = 
 
+# atomicAdd requires at least compute_60
+CUDA_ARCH = --gpu-architecture=compute_60
+
+# Suprresses stupid false warnings by nvcc
+CUDA_WARN = -Xcudafe "--diag_suppress=unsigned_compare_with_zero"
+
 .cu.o:
-	$(AM_V_NVCC) $(NVCC) $(NVCC_FLAGS) -Xcudafe "--diag_suppress=unsigned_compare_with_zero" -I$(top_srcdir) -MD -MF $(DEPDIR)/$*.TPo -c -o $@ $<
+	$(AM_V_NVCC) $(NVCC) $(NVCC_FLAGS) $(CUDA_ARCH) $(CUDA_WARN) -I$(top_srcdir) -MD -MF $(DEPDIR)/$*.TPo -c -o $@ $<
 	$(AM_V_at) $(am__mv) $(DEPDIR)/$*.TPo $(DEPDIR)/$*.Po
 
