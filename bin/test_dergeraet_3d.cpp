@@ -55,6 +55,10 @@ template <typename real, size_t order>
 void do_matthias_shit( size_t n, size_t rank, size_t my_begin, size_t my_end,
                        config_t<real> conf, cuda_scheduler<real,order> &sched, real electric_energy );
 
+//template <typename real, size_t order>
+//void do_pauls_shit();
+
+
 template <typename real, size_t order>
 void test()
 {
@@ -115,7 +119,10 @@ void test()
 
     cuda_scheduler<real,order> sched { conf };
 
+    std::cout << "How much space does coeffs need: " << sizeof(real)*(conf.Nt+1)*stride_t << std::endl;
+
     std::unique_ptr<real[]> coeffs { new real[ (conf.Nt+1)*stride_t ] {} };
+
     void *tmp = std::aligned_alloc( poiss.alignment, sizeof(real)*conf.Nx*conf.Ny*conf.Nz );
     if ( tmp == nullptr ) throw std::bad_alloc {};
     std::unique_ptr<real,decltype(std::free)*> rho { reinterpret_cast<real*>(tmp), std::free };
@@ -128,10 +135,9 @@ void test()
     std::cout << "Nw = " << conf.Nw << std::endl;
     std::cout << "dt = " << conf.dt << std::endl;
 
-    real t_total = 0;
     for ( size_t n = 0; n <= conf.Nt; ++n )
     {
-        // The actual NuFI loop.
+        // The actual NuFI Loop
         sched. compute_rho( n, my_begin, my_end );
         sched.download_rho( rho.get(), my_begin, my_end );
 
@@ -139,7 +145,7 @@ void test()
                          rho.get(), rank_count.data(), rank_offset.data(),
                          MPI_COMM_WORLD );
 
-        const real electric_energy = poiss.solve( rho.get() );
+        real electric_energy = poiss.solve( rho.get() );
         interpolate<real,order>( coeffs.get() + n*stride_t, rho.get(), conf );
         sched.upload_phi( n, coeffs.get() );
 
@@ -147,8 +153,6 @@ void test()
         do_matthias_shit(n,rank,my_begin,my_end,conf,sched,electric_energy);
         //do_pauls_shit();
     }
-
-    std::cout << "Total time = " << t_total << std::endl;
 }
 
 template <typename real, size_t order>
@@ -160,7 +164,9 @@ void do_matthias_shit( size_t n, size_t rank, size_t my_begin, size_t my_end,
     sched.download_metrics( metrics );
     mpi::allreduce_add( MPI_IN_PLACE, metrics, 4, MPI_COMM_WORLD );
     metrics[1]  = std::sqrt(metrics[1]); // Take square-root for L²-norm
-    //metrics[2] += electric_energy;       // Total energy = kinetic + electric energy
+
+    real kinetic_energy = metrics[2];
+    real total_energy   = kinetic_energy + electric_energy;
 
     if ( rank == 0 )
     {
@@ -170,14 +176,19 @@ void do_matthias_shit( size_t n, size_t rank, size_t my_begin, size_t my_end,
 
         std::cout << std::setprecision(7) << std::scientific;
         std::cout << u8"t = " << n*conf.dt << '.' << std::endl;
-        std::cout << u8"L¹-norm:      " << std::setw(20) << metrics[0] << std::endl;
-        std::cout << u8"L²-norm:      " << std::setw(20) << metrics[1] << std::endl;
-        std::cout << u8"Total Energy: " << std::setw(20) << metrics[2] << std::endl;
-        std::cout << u8"Entropy:      " << std::setw(20) << metrics[3] << std::endl;
+        std::cout << u8"L¹-norm:      " << std::setw(20) << metrics[0]   << std::endl;
+        std::cout << u8"L²-norm:      " << std::setw(20) << metrics[1]   << std::endl;
+        std::cout << u8"Total Energy: " << std::setw(20) << total_energy << std::endl;
+        std::cout << u8"Entropy:      " << std::setw(20) << metrics[3]   << std::endl;
 
         std::cout << std::endl;
     }
 }
+
+//template <typename real, size_t order>
+//void do_pauls_shit()
+//{
+//}
 
 }
 
@@ -186,6 +197,6 @@ void do_matthias_shit( size_t n, size_t rank, size_t my_begin, size_t my_end,
 int main( int argc, char *argv[] )
 {
     dergeraet::mpi::programme prog(&argc,&argv);
-    dergeraet::dim3::test<double,4>();
+    dergeraet::dim3::test<float,4>();
 }
 

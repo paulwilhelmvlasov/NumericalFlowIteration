@@ -16,6 +16,7 @@
  * You should have received a copy of the GNU General Public License along with
  * Der Gerät; see the file COPYING.  If not see http://www.gnu.org/licenses.
  */
+
 #ifndef DERGERAET_CONFIG_HPP
 #define DERGERAET_CONFIG_HPP
 
@@ -29,68 +30,68 @@ namespace dim2
 {
 namespace benchmarks
 {
-	namespace weak_landau_damping
-	{
-		// Parameters taken from "Collela et. al - PIC 4th-order".
-		const double kx = 0.5;
-		const double ky = 0.5;
+    namespace weak_landau_damping
+    {
+        // Parameters taken from "Collela et. al - PIC 4th-order".
+        const double kx = 0.5;
+        const double ky = 0.5;
 
-		const double alpha = 0.05;
+        const double alpha = 0.05;
 
-		const double x_min = 0;
-		const double y_min = 0;
-		const double x_max = 2 * M_PI / kx;
-		const double y_max = 2 * M_PI / ky;
+        const double x_min = 0;
+        const double y_min = 0;
+        const double x_max = 2 * M_PI / kx;
+        const double y_max = 2 * M_PI / ky;
 
-		const double c = 1.0 / (2.0 * M_PI);
+        const double c = 1.0 / (2.0 * M_PI);
 
-		inline double f0(double x, double y, double u, double v)
-		{
-			return c * std::exp(-0.5 * (u*u + v*v)) * (1 + alpha * std::cos(kx*x)*std::cos(ky*y));
-		}
-	}
+        inline double f0(double x, double y, double u, double v)
+        {
+            return c * std::exp(-0.5 * (u*u + v*v)) * (1 + alpha * std::cos(kx*x)*std::cos(ky*y));
+        }
+    }
 
-	namespace two_stream_instability
-	{
-		// Parameters taken from "Collela et. al - PIC 4th-order".
-		const double kx = 0.5;
-		const double ky = 0.5;
+    namespace two_stream_instability
+    {
+        // Parameters taken from "Collela et. al - PIC 4th-order".
+        const double kx = 0.5;
+        const double ky = 0.5;
 
-		const double alpha = 0.05;
+        const double alpha = 0.05;
 
-		const double x_min = 0;
-		const double y_min = 0;
-		const double x_max = 2 * M_PI / kx;
-		const double y_max = 2 * M_PI / ky;
+        const double x_min = 0;
+        const double y_min = 0;
+        const double x_max = 2 * M_PI / kx;
+        const double y_max = 2 * M_PI / ky;
 
-		const double c = 1.0 / (12.0 * M_PI);
+        const double c = 1.0 / (12.0 * M_PI);
 
-		inline double f0(double x, double y, double u, double v)
-		{
-			return c * std::exp(-0.5 * (u*u + v*v)) * (1 + 5*u*u) * (1 + alpha * std::cos(kx*x));
-		}
-	}
+        inline double f0(double x, double y, double u, double v)
+        {
+            return c * std::exp(-0.5 * (u*u + v*v)) * (1 + 5*u*u) * (1 + alpha * std::cos(kx*x));
+        }
+    }
 
-	namespace fjalkow_two_beam_instability
-	{
-		// Parameters taken from "Cottet - Semi-Lagrangian pm for high-dim".
-		const double kx = 0.3;
-		const double ky = 0.3;
+    namespace fjalkow_two_beam_instability
+    {
+        // Parameters taken from "Cottet - Semi-Lagrangian pm for high-dim".
+        const double kx = 0.3;
+        const double ky = 0.3;
 
-		const double alpha = 0.05;
+        const double alpha = 0.05;
 
-		const double x_min = - M_PI / kx;
-		const double y_min = - M_PI / kx;
-		const double x_max = M_PI / kx;
-		const double y_max = M_PI / ky;
+        const double x_min = - M_PI / kx;
+        const double y_min = - M_PI / kx;
+        const double x_max = M_PI / kx;
+        const double y_max = M_PI / ky;
 
-		const double c = 7.0 / (4.0 * M_PI);
+        const double c = 7.0 / (4.0 * M_PI);
 
-		inline double f0(double x, double y, double u, double v)
-		{
-			return c * std::exp(-0.125*u*u - 0.5*v*v) * (std::sin(u / 3.0)*std::sin(u / 3.0)) * (1 + alpha * std::cos(kx*x));
-		}
-	}
+        inline double f0(double x, double y, double u, double v)
+        {
+            return c * std::exp(-0.125*u*u - 0.5*v*v) * (std::sin(u / 3.0)*std::sin(u / 3.0)) * (1 + alpha * std::cos(kx*x));
+        }
+    }
 }
 
 }
@@ -101,19 +102,19 @@ namespace dim1
 template <typename real>
 struct config_t
 {
-	size_t Nx;  // Number of grid points in physical space.
+    size_t Nx;  // Number of grid points in physical space.
     size_t Nu;  // Number of quadrature points in velocity space.
     size_t Nt;  // Number of time-steps.
     real   dt;  // Time-step size.
 
     // Dimensions of physical domain.
-	real x_min, x_max;
+    real x_min, x_max;
 
     // Integration limits for velocity space.
     real u_min, u_max;
 
     // Grid-sizes and their reciprocals.
-	real dx, dx_inv, Lx, Lx_inv;
+    real dx, dx_inv, Lx, Lx_inv;
 
     config_t() noexcept;
     __host__ __device__ static real f0( real x, real u ) noexcept;
@@ -143,8 +144,8 @@ real config_t<real>::f0( real x, real u ) noexcept
     using std::cos;
     using std::exp;
 
-	constexpr real alpha = 0.01;
-	constexpr real k     = 0.5;
+    constexpr real alpha = 0.01;
+    constexpr real k     = 0.5;
     //return 0.39894228040143267793994 * ( 1. + alpha*cos(k*x) ) * exp( -u*u/2. ) * u*u;
     return 0.39894228040143267793994 * ( 1. + alpha*cos(k*x) ) * exp( -u*u/2 );
 }
@@ -157,22 +158,22 @@ namespace dim2
 template <typename real>
 struct config_t
 {
-	size_t Nx, Ny;  // Number of grid points in physical space.
+    size_t Nx, Ny;  // Number of grid points in physical space.
     size_t Nu, Nv;  // Number of quadrature points in velocity space.
     size_t Nt;      // Number of time-steps.
     real   dt;      // Time-step size.
 
     // Dimensions of physical domain.
-	real x_min, x_max;
-	real y_min, y_max;
+    real x_min, x_max;
+    real y_min, y_max;
 
     // Integration limits for velocity space.
     real u_min, u_max;
     real v_min, v_max;
 
     // Grid-sizes and their reciprocals.
-	real dx, dx_inv, Lx, Lx_inv;
-	real dy, dy_inv, Ly, Ly_inv;
+    real dx, dx_inv, Lx, Lx_inv;
+    real dy, dy_inv, Ly, Ly_inv;
 
     config_t() noexcept;
     __host__ __device__ static real f0( real x, real y, real u, real v ) noexcept;
@@ -191,7 +192,7 @@ config_t<real>::config_t() noexcept
     x_max = y_max = 4.0 * M_PI;
 
 
-    dt = 1.0/64.0; Nt = 32./dt;
+    dt = 1.0/16.0; Nt = 31/dt;
 
     Lx = x_max - x_min; Lx_inv = 1/Lx;
     Ly = y_max - y_min; Ly_inv = 1/Ly;
@@ -228,15 +229,15 @@ namespace dim3
 template <typename real>
 struct config_t
 {
-	size_t Nx, Ny, Nz;  // Number of grid points in physical space.
+    size_t Nx, Ny, Nz;  // Number of grid points in physical space.
     size_t Nu, Nv, Nw;  // Number of quadrature points in velocity space.
     size_t Nt;          // Number of time-steps.
     real   dt;          // Time-step size.
 
     // Dimensions of physical domain.
-	real x_min, x_max;
-	real y_min, y_max;
-	real z_min, z_max;
+    real x_min, x_max;
+    real y_min, y_max;
+    real z_min, z_max;
 
     // Integration limits for velocity space.
     real u_min, u_max;
@@ -244,9 +245,9 @@ struct config_t
     real w_min, w_max;
 
     // Grid-sizes and their reciprocals.
-	real dx, dx_inv, Lx, Lx_inv;
-	real dy, dy_inv, Ly, Ly_inv;
-	real dz, dz_inv, Lz, Lz_inv;
+    real dx, dx_inv, Lx, Lx_inv;
+    real dy, dy_inv, Ly, Ly_inv;
+    real dz, dz_inv, Lz, Lz_inv;
 
     config_t() noexcept;
     __host__ __device__ static real f0( real x, real y, real z, real u, real v, real w ) noexcept;
@@ -256,14 +257,14 @@ struct config_t
 template <typename real>
 config_t<real>::config_t() noexcept
 {
-    Nx = Ny = Nz = 32;
-    Nu = Nv = Nw = 64;
-    u_min = v_min = w_min = -15;
-    u_max = v_max = w_max =  15;
+    Nx = Ny = Nz = 128;
+    Nu = Nv = Nw = 256;
+    u_min = v_min = w_min = -10;
+    u_max = v_max = w_max =  10;
     x_min = y_min = z_min = 0;
-    x_max = y_max = z_max = 4*M_PI;
+    x_max = y_max = z_max = 10*M_PI;
 
-    dt = 1./32.; Nt = 31/dt;
+    dt = 1./20.; Nt = 51/dt;
 
     Lx = x_max - x_min; Lx_inv = 1/Lx;
     Ly = y_max - y_min; Ly_inv = 1/Ly;
@@ -281,11 +282,18 @@ real config_t<real>::f0( real x, real y, real z, real u, real v, real w ) noexce
     using std::cos;
     using std::exp;
 
-	constexpr real alpha = 0.05;
-	constexpr real k     = 0.5;
-    constexpr real c     = 0.06349363593424096978576330493464;
+    constexpr real alpha = 0.001;
+    constexpr real k     = 0.2;
 
-    return c * ( 1. + alpha*cos(k*x) + alpha*cos(k*y) + alpha*cos(k*z)) * exp( -(u*u+v*v+w*w)/2 );
+    // Weak Landau Damping:
+    // constexpr real c     = 0.03174681796712048489288165246732; // Two Stream instability
+    // return c * ( 1. + alpha*cos(k*x) + alpha*cos(k*y) + alpha*cos(k*z)) * exp( -(u*u+v*v+w*w)/2 );
+
+    // Two Stream instability:
+    constexpr real c  = 0.06349363593424096978576330493464; // Weak Landau damping
+    constexpr real v0 = 2.4;
+    return c * (  (exp(-(v-v0)*(v-v0)/2.0) + exp(-(v+v0)*(v+v0)/2.0)) ) * exp(-(u*u+w*w)/2)
+             * ( 1 + alpha * (cos(k*x) + cos(k*y) + cos(k*z)) );
 }
 
 }

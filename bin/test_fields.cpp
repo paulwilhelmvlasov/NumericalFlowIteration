@@ -207,7 +207,7 @@ void test_2d()
 int main()
 {
     std::cout << std::scientific;
-    dergeraet::test_2d<float ,4>();
-    dergeraet::test_3d<float ,4>();
+    dergeraet::test_2d<double,4>();
+    dergeraet::test_3d<double,4>();
 }
 
