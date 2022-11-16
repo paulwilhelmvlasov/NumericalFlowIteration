@@ -40,7 +40,7 @@ void  free  ( void*  ptr  );
 void memcpy_to_host  ( void *dest, const void *src, size_t num );
 void memcpy_to_device( void *dest, const void *src, size_t num );
 
-
+void memset( void *dest, int val, size_t num );
 
 struct exception: public std::runtime_error
 {
@@ -245,6 +245,13 @@ void memcpy_to_device( void *dest, const void *src, size_t num )
 {
     cudaError_t code = cudaMemcpy( dest, src, num, cudaMemcpyHostToDevice );
     if ( code != cudaSuccess ) throw exception { code, "dergeraet::cuda::memcpy_to_device(): " };
+}
+
+inline
+void memset( void *dest, int val, size_t num )
+{
+    cudaError_t code = cudaMemset( dest, val, num );
+    if ( code != cudaSuccess ) throw exception { code, "dergeraet::cuda::memset(): " };
 }
 
 }

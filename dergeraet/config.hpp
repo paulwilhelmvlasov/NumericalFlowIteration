@@ -115,6 +115,7 @@ struct config_t
 
     // Grid-sizes and their reciprocals.
     real dx, dx_inv, Lx, Lx_inv;
+    real du;
 
     config_t() noexcept;
     __host__ __device__ static real f0( real x, real u ) noexcept;
@@ -123,17 +124,18 @@ struct config_t
 template <typename real>
 config_t<real>::config_t() noexcept
 {
-    Nx = 512;
-    Nu = 2048;
+    Nx = 1024;
+    Nu = 4096;
     u_min = -10;
     u_max =  10;
     x_min = 0;
     x_max = 4*M_PI;;
     
-    dt = 1./16.; Nt = 100/dt;
+    dt = 1./64.; Nt = 100/dt;
 
     Lx = x_max - x_min; Lx_inv = 1/Lx;
     dx = Lx/Nx; dx_inv = 1/dx;
+    du = (u_max - u_min)/Nu;
 }
 
 template <typename real>
@@ -146,8 +148,8 @@ real config_t<real>::f0( real x, real u ) noexcept
 
     constexpr real alpha = 0.01;
     constexpr real k     = 0.5;
-    //return 0.39894228040143267793994 * ( 1. + alpha*cos(k*x) ) * exp( -u*u/2. ) * u*u;
-    return 0.39894228040143267793994 * ( 1. + alpha*cos(k*x) ) * exp( -u*u/2 );
+    return 0.39894228040143267793994 * ( 1. + alpha*cos(k*x) ) * exp( -u*u/2. ) * u*u;
+    //return 0.39894228040143267793994 * ( 1. + alpha*cos(k*x) ) * exp( -u*u/2 );
 }
 
 }

@@ -57,30 +57,56 @@ void test()
 
     cuda_scheduler<real,order> sched { conf };
 
-    std::ofstream Emax_file( "Emax.txt" );
+    std::ofstream statistics_file( "statistics.csv" );
+    statistics_file << R"("Time"; "L1-Norm"; "L2-Norm"; "Electric Energy"; "Kinetic Energy"; "Total Energy"; "Entropy")";
+    statistics_file << std::endl;
+
+    statistics_file << std::scientific;
+          std::cout << std::scientific;
+
     for ( size_t n = 0; n < conf.Nt; ++n )
     {
-        sched.compute_rho ( n, 0, conf.Nx );
-        sched.download_rho( rho.get(), 0, conf.Nx );
+        std::memset( rho.get(), 0, conf.Nx*sizeof(real) );
+        sched.compute_rho ( n, 0, conf.Nx*conf.Nu );
+        sched.download_rho( rho.get() );
 
         real electric_energy = poiss.solve( rho.get() );
         dim1::interpolate<real,order>( coeffs.get() + n*stride_t, rho.get(), conf );
 
         sched.upload_phi( n, coeffs.get() );
 
-        real metrics[4];
-        sched.compute_metrics( n, 0, conf.Nx );
+        real metrics[4] = { 0, 0, 0, 0 };
+        sched.compute_metrics( n, 0, conf.Nx*conf.Nu );
         sched.download_metrics( metrics );
 
-        metrics[2] += electric_energy; 
+        real kinetic_energy = metrics[2];
+        real   total_energy = electric_energy + kinetic_energy;
+
         metrics[1]  = sqrt(metrics[1]);
 
-        std::cout << "L¹-Norm:      " << std::setw(20) << metrics[0] << std::endl;
-        std::cout << "L²-Norm:      " << std::setw(20) << metrics[1] << std::endl;
-        std::cout << "Total energy: " << std::setw(20) << metrics[2] << std::endl;
-        std::cout << "Entropy:      " << std::setw(20) << metrics[3] << std::endl;
-        std::cout << "El. Energy:   " << std::setw(20) << electric_energy << std::endl;
+        for ( size_t i = 0; i < 80; ++i )
+            std::cout << '=';
+        std::cout << std::endl;
 
+        std::cout << "t = " << conf.dt*n  << ".\n";
+
+        std::cout << "L¹-Norm:      " << std::setw(20) << metrics[0]      << std::endl;
+        std::cout << "L²-Norm:      " << std::setw(20) << metrics[1]      << std::endl;
+        std::cout << "Total energy: " << std::setw(20) << total_energy    << std::endl;
+        std::cout << "Entropy:      " << std::setw(20) << metrics[3]      << std::endl;
+
+        std::cout << std::endl;
+
+        statistics_file << conf.dt*n       << "; "
+                        << metrics[0]      << "; "
+                        << metrics[1]      << "; "
+                        << electric_energy << "; "
+                        <<  kinetic_energy << "; "
+                        <<    total_energy << "; "
+                        << metrics[3]      << std::endl;
+                       
+
+        /*
         real Emax = 0;
         for ( size_t i = 0; i < conf.Nx; ++i )
         {
@@ -88,7 +114,6 @@ void test()
             Emax = max( Emax, abs( dim1::eval<real,order,1>(x,coeffs.get()+n*stride_t,conf))); 
         }
 
-        /*
         std::stringstream filename; filename << "E" << n << ".txt";
         std::ofstream file( filename.str() ); file << std::scientific << std::setprecision(8);
         for ( size_t i = 0; i < conf.Nx; ++i )
@@ -98,12 +123,10 @@ void test()
             file << std::setw(20) << x << std::setw(20) << E << '\n';
         }
         file.close();
-        */
    
         Emax_file << std::setw(15) << n*conf.dt << std::setw(15) << std::setprecision(5) << std::scientific << Emax << std::endl; 
         std::cout << std::setw(15) << n*conf.dt << std::setw(15) << std::setprecision(5) << std::scientific << Emax << std::endl; 
 
-        /*
         std::stringstream filename = std::stringstream {}; filename << 'f' << n << ".txt"; 
         std::ofstream file( filename.str() );
         const size_t plotNu = 512, plotNx = 512;

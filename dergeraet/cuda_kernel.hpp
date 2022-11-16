@@ -20,6 +20,7 @@
 #ifndef DERGERAET_CUDA_KERNEL_HPP
 #define DERGERAET_CUDA_KERNEL_HPP
 
+#include <memory>
 #include <dergeraet/config.hpp>
 #include <dergeraet/cuda_runtime.hpp>
 
@@ -40,15 +41,16 @@ public:
     cuda_kernel& operator=( const cuda_kernel  &rhs ) = delete;
     cuda_kernel& operator=(       cuda_kernel &&rhs ) = default;
 
-    void  compute_rho( size_t n,  size_t l_min, size_t l_max );
-    void download_rho( real *rho, size_t l_min, size_t l_max );
+    void  compute_rho( size_t n,  size_t q_min, size_t q_max );
+    void download_rho( real *rho );
     void   upload_phi( size_t n, const real *coeffs );
-    void  compute_metrics( size_t n, size_t l_min, size_t l_max );
+    void  compute_metrics( size_t n, size_t q_min, size_t q_max );
     void download_metrics( real *metrics );
 
 private:
     config_t<real> conf; int device_number;
     cuda::autoptr cuda_coeffs, cuda_rho, cuda_metrics;
+    std::unique_ptr<real[]> tmp_rho; 
 };
 
 extern template class cuda_kernel<double,3>;
