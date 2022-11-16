@@ -69,7 +69,7 @@ void cuda_eval_metrics( size_t n, const real *coeffs, const config_t<real> conf,
     {
         atomicAdd( metrics + 0, weight*f );
         atomicAdd( metrics + 1, weight*f*f );
-        atomicAdd( metrics + 2, weight*(u*u*f) );
+        atomicAdd( metrics + 2, weight*(u*u*f/2) );
         atomicAdd( metrics + 3, (f>0) ? -weight*f*log(f) : 0 );
     }
 }
