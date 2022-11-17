@@ -188,8 +188,8 @@ config_t<real>::config_t() noexcept
 {
     Nx = Ny = 128;
     Nu = Nv = 512;
-    u_min = v_min = -6;
-    u_max = v_max =  6;
+    u_min = v_min = -10;
+    u_max = v_max =  10;
     x_min = y_min = 0;
 //    x_max = y_max = 10*M_PI;
     x_max = y_max = 4.0 * M_PI;
@@ -263,8 +263,8 @@ struct config_t
 template <typename real>
 config_t<real>::config_t() noexcept
 {
-    Nx = Ny = Nz = 128;
-    Nu = Nv = Nw = 256;
+    Nx = Ny = Nz = 32;
+    Nu = Nv = Nw = 32;
     u_min = v_min = w_min = -10;
     u_max = v_max = w_max =  10;
     x_min = y_min = z_min = 0;
@@ -279,8 +279,8 @@ config_t<real>::config_t() noexcept
     dy = Ly/Ny; dy_inv = 1/dy;
     dz = Lz/Nz; dz_inv = 1/dz;
     du = (u_max - u_min)/Nu;
-    dv = (v_max - v_min)/Nu;
-    dw = (w_max - w_min)/Nu;
+    dv = (v_max - v_min)/Nv;
+    dw = (w_max - w_min)/Nw;
 }
 
 template <typename real>

@@ -79,9 +79,9 @@ void test()
     size_t world_size = iworld_size;
     size_t rank       = irank;
 
-    size_t Nrho = conf.Nx * conf.Ny * conf.Nz;
-    size_t chunk_size = Nrho / world_size;
-    size_t remainder  = Nrho % world_size;
+    size_t Nquad = conf.Nx * conf.Ny * conf.Nz *conf.Nu * conf.Nv * conf.Nw;
+    size_t chunk_size = Nquad / world_size;
+    size_t remainder  = Nquad % world_size;
     std::vector<size_t> rank_boundaries( world_size + 1 );
     rank_boundaries[ 0 ] = 0;
     for ( size_t i = 0; i < world_size; ++i )
@@ -138,12 +138,11 @@ void test()
     for ( size_t n = 0; n <= conf.Nt; ++n )
     {
         // The actual NuFI Loop
+        std::memset( rho.get(), 0, sizeof(real)*conf.Nx*conf.Ny*conf.Nz );
         sched. compute_rho( n, my_begin, my_end );
-        sched.download_rho( rho.get(), my_begin, my_end );
+        sched.download_rho( rho.get() );
 
-        mpi::allgatherv( MPI_IN_PLACE, 0, 
-                         rho.get(), rank_count.data(), rank_offset.data(),
-                         MPI_COMM_WORLD );
+        mpi::allreduce_add( MPI_IN_PLACE, rho.get(), conf.Nx*conf.Ny*conf.Nz, MPI_COMM_WORLD );
 
         real electric_energy = poiss.solve( rho.get() );
         interpolate<real,order>( coeffs.get() + n*stride_t, rho.get(), conf );
@@ -159,7 +158,7 @@ template <typename real, size_t order>
 void do_matthias_shit( size_t n, size_t rank, size_t my_begin, size_t my_end,
                        config_t<real> conf, cuda_scheduler<real,order> &sched, real electric_energy )
 {
-    real metrics[4];
+    real metrics[4] { 0, 0, 0, 0 };
     sched.compute_metrics( n, my_begin, my_end );
     sched.download_metrics( metrics );
     mpi::allreduce_add( MPI_IN_PLACE, metrics, 4, MPI_COMM_WORLD );
