@@ -137,7 +137,7 @@ void test()
 
 
     bool plot_f = true;
-    bool write_coeffs = true;
+    bool write_coeffs = false;
 
 
     std::ofstream E_max_file;
@@ -248,7 +248,7 @@ void test()
             t_total += t_time_step;
         }
 
-        bool do_plots = (n%20 == 0);
+        bool do_plots = (n%(5*16) == 0);
         // Plotting E, rho and related metrics.
         size_t t = n*conf.dt;
         real E_l2 = 0;
@@ -297,7 +297,7 @@ void test()
                 	}
 				}
 				E_file << std::endl;
-				E_exact_file.ignore();
+				//E_exact_file.ignore();
         	}
 
 			//E_l2_error *= plot_dx*plot_dy*plot_dz;

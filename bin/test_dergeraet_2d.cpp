@@ -162,11 +162,14 @@ void test()
     if ( rank == 0 )
     	l2_norm_f_file.open( "l2_norm_f.txt" );
 
+   if(rank == 0)
+   {
    std::cout << "Nx = " << conf.Nx << std::endl;
    std::cout <<	"Ny = "	<< conf.Ny << std::endl;
    std::cout <<	"Nv = "	<< conf.Nv << std::endl;
    std::cout <<	"Nu = "	<< conf.Nu << std::endl;
    std::cout <<	"dt = "	<< conf.dt << std::endl;
+   }
 
     double t_total = 0;
     for ( size_t n = 0; n <= conf.Nt; ++n )
@@ -232,7 +235,7 @@ void test()
             t_total += t_time_step;
         }
 
-        bool do_plots = (n%8 == 0);
+        bool do_plots = (n%16 == 0);
         // Plotting E, rho and related metrics.
         size_t t = n*conf.dt;
         real E_l2 = 0;
@@ -245,7 +248,7 @@ void test()
         	std::ofstream E_file( E_filename.str() );
         	std::stringstream rho_filename; rho_filename << 'p' << t << ".txt";
 	        std::ofstream rho_file(rho_filename.str() );
-	        std::ifstream E_exact_file("../new_comp/E" + std::to_string(t) + ".txt");
+	        std::ifstream E_exact_file("../comparison_double/E" + std::to_string(t) + ".txt");
 
         	const size_t plotNx = 256, plotNy = 256;
         	const real plot_dx = (conf.x_max - conf.x_min)/plotNx;
@@ -336,8 +339,8 @@ void test()
 int main( int argc, char *argv[] )
 {
     dergeraet::mpi::programme prog(&argc,&argv);
-    dergeraet::dim2::test<float,4>();
-//    dergeraet::dim2::test<double,4>();
+//    dergeraet::dim2::test<float,4>();
+    dergeraet::dim2::test<double,4>();
 
 
 }
