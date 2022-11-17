@@ -124,14 +124,14 @@ struct config_t
 template <typename real>
 config_t<real>::config_t() noexcept
 {
-    Nx = 1024;
-    Nu = 4096;
+    Nx = 512;
+    Nu = 2048;
     u_min = -10;
     u_max =  10;
     x_min = 0;
     x_max = 4*M_PI;;
     
-    dt = 1./64.; Nt = 100/dt;
+    dt = 1./32.; Nt = 100/dt;
 
     Lx = x_max - x_min; Lx_inv = 1/Lx;
     dx = Lx/Nx; dx_inv = 1/dx;
@@ -176,6 +176,7 @@ struct config_t
     // Grid-sizes and their reciprocals.
     real dx, dx_inv, Lx, Lx_inv;
     real dy, dy_inv, Ly, Ly_inv;
+    real du, dv;
 
     config_t() noexcept;
     __host__ __device__ static real f0( real x, real y, real u, real v ) noexcept;
@@ -194,12 +195,14 @@ config_t<real>::config_t() noexcept
     x_max = y_max = 4.0 * M_PI;
 
 
-    dt = 1.0/16.0; Nt = 31/dt;
+    dt = 1.0/32.0; Nt = 31/dt;
 
     Lx = x_max - x_min; Lx_inv = 1/Lx;
     Ly = y_max - y_min; Ly_inv = 1/Ly;
     dx = Lx/Nx; dx_inv = 1/dx;
     dy = Ly/Ny; dy_inv = 1/dy;
+    du = (u_max - u_min)/Nu;
+    dv = (v_max - v_min)/Nv;
 }
 
 template <typename real>
@@ -250,6 +253,7 @@ struct config_t
     real dx, dx_inv, Lx, Lx_inv;
     real dy, dy_inv, Ly, Ly_inv;
     real dz, dz_inv, Lz, Lz_inv;
+    real du, dv, dw;
 
     config_t() noexcept;
     __host__ __device__ static real f0( real x, real y, real z, real u, real v, real w ) noexcept;
@@ -274,6 +278,9 @@ config_t<real>::config_t() noexcept
     dx = Lx/Nx; dx_inv = 1/dx;
     dy = Ly/Ny; dy_inv = 1/dy;
     dz = Lz/Nz; dz_inv = 1/dz;
+    du = (u_max - u_min)/Nu;
+    dv = (v_max - v_min)/Nu;
+    dw = (w_max - w_min)/Nu;
 }
 
 template <typename real>

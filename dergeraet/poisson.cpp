@@ -133,7 +133,7 @@ namespace dim1
         for ( size_t i = 1; i < param.Nx; i++ )
         {
             float ii = (2*i < param.Nx) ? i : param.Nx - i;
-            float fac = fac_N/(i*fac_x*i*fac_x);
+            float fac = fac_N/(ii*fac_x*ii*fac_x);
             data[i] *= fac;
 
             float Ex = ii*data[i]*fac_x;
@@ -259,8 +259,8 @@ namespace dim2
         fftwf_execute_r2r( plan, data, data );
 
         const float fac_N = float(1) / float( param.Nx * param.Ny );
-        const float fac_x = (2*M_PI*param.Lx_inv) * (2*M_PI*param.Lx_inv);
-        const float fac_y = (2*M_PI*param.Ly_inv) * (2*M_PI*param.Ly_inv);
+        const float fac_x = (2*M_PI*param.Lx_inv);
+        const float fac_y = (2*M_PI*param.Ly_inv);
 
         float energy = 0;
         for ( size_t j = 0; j < param.Ny; j++ )
