@@ -263,8 +263,8 @@ struct config_t
 template <typename real>
 config_t<real>::config_t() noexcept
 {
-    Nx = Ny = Nz = 128;
-    Nu = Nv = Nw = 256;
+    Nx = Ny = Nz = 32;
+    Nu = Nv = Nw = 32;
     u_min = v_min = w_min = -10;
     u_max = v_max = w_max =  10;
     x_min = y_min = z_min = 0;
@@ -279,8 +279,8 @@ config_t<real>::config_t() noexcept
     dy = Ly/Ny; dy_inv = 1/dy;
     dz = Lz/Nz; dz_inv = 1/dz;
     du = (u_max - u_min)/Nu;
-    dv = (v_max - v_min)/Nu;
-    dw = (w_max - w_min)/Nu;
+    dv = (v_max - v_min)/Nv;
+    dw = (w_max - w_min)/Nw;
 }
 
 template <typename real>
@@ -295,11 +295,11 @@ real config_t<real>::f0( real x, real y, real z, real u, real v, real w ) noexce
     constexpr real k     = 0.2;
 
     // Weak Landau Damping:
-    // constexpr real c     = 0.03174681796712048489288165246732; // Two Stream instability
+    // constexpr real c  = 0.06349363593424096978576330493464; // Weak Landau damping
     // return c * ( 1. + alpha*cos(k*x) + alpha*cos(k*y) + alpha*cos(k*z)) * exp( -(u*u+v*v+w*w)/2 );
 
     // Two Stream instability:
-    constexpr real c  = 0.06349363593424096978576330493464; // Weak Landau damping
+    constexpr real c     = 0.03174681796712048489288165246732; // Two Stream instability
     constexpr real v0 = 2.4;
     return c * (  (exp(-(v-v0)*(v-v0)/2.0) + exp(-(v+v0)*(v+v0)/2.0)) ) * exp(-(u*u+w*w)/2)
              * ( 1 + alpha * (cos(k*x) + cos(k*y) + cos(k*z)) );

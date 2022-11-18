@@ -290,16 +290,16 @@ public:
             throw cuda::exception( cudaErrorUnknown, "cuda_scheduler: Failed to create kernels." );
     }
 
-    void compute_rho( size_t n, size_t begin, size_t end )
+    void compute_rho( size_t n, size_t q_begin, size_t q_end )
     {
-        if ( begin == end ) return;
+        if ( q_begin == q_end ) return;
 
         size_t n_cards = kernels.size();
-        size_t N = end - begin;
+        size_t N = q_end - q_begin;
         size_t chunk_size = N / n_cards;
         size_t remainder  = N % n_cards;
 
-        size_t current = begin;
+        size_t current = q_begin;
         for ( size_t i = 0; i < n_cards; ++i )
         {
             if ( i < remainder )
@@ -315,49 +315,31 @@ public:
         }
     }
 
-    void download_rho( real *rho, size_t begin, size_t end )
+    void download_rho( real *rho )
     {
-        if ( begin == end ) return;
-
         size_t n_cards = kernels.size();
-        size_t N = end - begin;
-        size_t chunk_size = N / n_cards;
-        size_t remainder  = N % n_cards;
-
-        size_t current = begin;
         for ( size_t i = 0; i < n_cards; ++i )
-        {
-            if ( i < remainder )
-            {
-                kernels[i].download_rho( rho, current, current + chunk_size + 1 );
-                current = current + chunk_size + 1;
-            }
-            else
-            {
-                kernels[i].download_rho( rho, current, current + chunk_size );
-                current = current + chunk_size;
-            }
-        }
+            kernels[ i ].download_rho( rho );
     }
 
     void upload_phi( size_t n, const real *coeffs ) 
     {
         size_t n_cards = kernels.size();
-
         for ( size_t i = 0; i < n_cards; ++i )
             kernels[i].upload_phi(n,coeffs);
     }
 
-    void compute_metrics( size_t n, size_t begin, size_t end )
+
+    void compute_metrics( size_t n, size_t q_begin, size_t q_end )
     {
-        if ( begin == end ) return;
+        if ( q_begin == q_end ) return;
 
         size_t n_cards = kernels.size();
-        size_t N = end - begin;
+        size_t N = q_end - q_begin;
         size_t chunk_size = N / n_cards;
         size_t remainder  = N % n_cards;
 
-        size_t current = begin;
+        size_t current = q_begin;
         for ( size_t i = 0; i < n_cards; ++i )
         {
             if ( i < remainder )
@@ -375,26 +357,12 @@ public:
 
     void download_metrics( real *metrics )
     {
-        real tmp[ 4 ];
-
-        metrics[ 0 ] = 0;
-        metrics[ 1 ] = 0;
-        metrics[ 2 ] = 0;
-        metrics[ 3 ] = 0;
-
         for ( size_t i = 0; i < kernels.size(); ++i )
-        {
-            kernels[i].download_metrics(tmp);
-            metrics[ 0 ] += tmp[ 0 ];
-            metrics[ 1 ] += tmp[ 1 ];
-            metrics[ 2 ] += tmp[ 2 ];
-            metrics[ 3 ] += tmp[ 3 ];
-        }
+            kernels[i].download_metrics(metrics);
     }
 
 private:
     config_t<real> conf;
-
     std::vector< cuda_kernel<real,order> > kernels;
 };
 
