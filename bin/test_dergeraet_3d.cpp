@@ -159,7 +159,7 @@ void test()
         // After this, we can do shit to output statistics, etc.
         if(n % 16 == 0)
         {
-        	do_stats(n,rank,my_begin,my_end,conf,sched,electric_energy);
+        	do_stats(n,rank,my_begin,my_end,conf,sched,electric_energy,statistics_file);
         }
     }
 }
