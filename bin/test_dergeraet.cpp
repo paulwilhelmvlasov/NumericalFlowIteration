@@ -57,15 +57,17 @@ void test()
 
     cuda_scheduler<real,order> sched { conf };
 
-    std::ofstream statistics_file( "statistics.csv" );
+    std::ofstream statistics_file( "statistics_1d.csv" );
     statistics_file << R"("Time"; "L1-Norm"; "L2-Norm"; "Electric Energy"; "Kinetic Energy"; "Total Energy"; "Entropy")";
     statistics_file << std::endl;
 
     statistics_file << std::scientific;
           std::cout << std::scientific;
-
+    real total_comp_time = 0;
+    real comp_time_step = 0;
     for ( size_t n = 0; n < conf.Nt; ++n )
     {
+        stopwatch<real> timer;
         std::memset( rho.get(), 0, conf.Nx*sizeof(real) );
         sched.compute_rho ( n, 0, conf.Nx*conf.Nu );
         sched.download_rho( rho.get() );
@@ -74,6 +76,9 @@ void test()
         dim1::interpolate<real,order>( coeffs.get() + n*stride_t, rho.get(), conf );
 
         sched.upload_phi( n, coeffs.get() );
+
+	comp_time_step = timer.elapsed();
+	total_comp_time += comp_time_step;
 
         real metrics[4] = { 0, 0, 0, 0 };
         sched.compute_metrics( n, 0, conf.Nx*conf.Nu );
@@ -142,6 +147,8 @@ void test()
         }
         */
     }
+
+    std::cout << "Total computation time: " << total_comp_time << std::endl;
 }
 
 }
@@ -151,6 +158,6 @@ void test()
 
 int main()
 {
-    dergeraet::dim1::test<double,4>();
+    dergeraet::dim1::test<float,4>();
 }
 
