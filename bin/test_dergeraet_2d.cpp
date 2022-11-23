@@ -54,7 +54,7 @@ namespace dim2
 template <typename real, size_t order>
 void do_stats( size_t n, size_t rank, size_t my_begin, size_t my_end,
 				config_t<real> conf, cuda_scheduler<real,order> &sched, real electric_energy,
-				const std::ofstream& statistics_file );
+				std::ofstream& statistics_file );
 
 template <typename real, size_t order>
 void test()
@@ -162,7 +162,7 @@ void test()
 template <typename real, size_t order>
 void do_stats( size_t n, size_t rank, size_t my_begin, size_t my_end,
 				config_t<real> conf, cuda_scheduler<real,order> &sched, real electric_energy,
-				const std::ofstream& statistics_file)
+				std::ofstream& statistics_file)
 {
     real metrics[4] { 0, 0, 0, 0 };
     sched.compute_metrics( n, my_begin, my_end );
