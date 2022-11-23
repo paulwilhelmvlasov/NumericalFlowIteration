@@ -104,43 +104,6 @@ void test()
                         <<  kinetic_energy << "; "
                         <<    total_energy << "; "
                         << metrics[3]      << std::endl;
-                       
-
-        /*
-        real Emax = 0;
-        for ( size_t i = 0; i < conf.Nx; ++i )
-        {
-            real x = conf.x_min + i*conf.dx;
-            Emax = max( Emax, abs( dim1::eval<real,order,1>(x,coeffs.get()+n*stride_t,conf))); 
-        }
-
-        std::stringstream filename; filename << "E" << n << ".txt";
-        std::ofstream file( filename.str() ); file << std::scientific << std::setprecision(8);
-        for ( size_t i = 0; i < conf.Nx; ++i )
-        {
-            real x = conf.x_min + i*conf.dx;
-            real E = -dim1::eval<real,order,1>( x, coeffs.get() + n*stride_t, conf );
-            file << std::setw(20) << x << std::setw(20) << E << '\n';
-        }
-        file.close();
-   
-        Emax_file << std::setw(15) << n*conf.dt << std::setw(15) << std::setprecision(5) << std::scientific << Emax << std::endl; 
-        std::cout << std::setw(15) << n*conf.dt << std::setw(15) << std::setprecision(5) << std::scientific << Emax << std::endl; 
-
-        std::stringstream filename = std::stringstream {}; filename << 'f' << n << ".txt"; 
-        std::ofstream file( filename.str() );
-        const size_t plotNu = 512, plotNx = 512;
-        for ( size_t i = 0; i <= plotNu; ++i )
-        {
-            real u = conf.u_min + i*(conf.u_max-conf.u_min)/plotNu;
-            for ( size_t j = 0; j <= plotNx; ++j )
-            {
-                real x = conf.x_min + j*(conf.x_max-conf.x_min)/plotNx;
-                file << x << " " << u << " " << eval_f<real,order>( n, x, u, coeffs.get(), conf ) << std::endl;
-            }
-            file << std::endl;
-        }
-        */
     }
 }
 

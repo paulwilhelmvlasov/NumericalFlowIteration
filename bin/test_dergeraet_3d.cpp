@@ -52,12 +52,9 @@ namespace dim3
 {
 
 template <typename real, size_t order>
-void do_matthias_shit( size_t n, size_t rank, size_t my_begin, size_t my_end,
-                       config_t<real> conf, cuda_scheduler<real,order> &sched, real electric_energy );
-
-//template <typename real, size_t order>
-//void do_pauls_shit();
-
+void do_stats( size_t n, size_t rank, size_t my_begin, size_t my_end,
+                       config_t<real> conf, cuda_scheduler<real,order> &sched, real electric_energy,
+					   const std::ofstream& statistics_file );
 
 template <typename real, size_t order>
 void test()
@@ -119,6 +116,14 @@ void test()
 
     cuda_scheduler<real,order> sched { conf };
 
+    std::ofstream statistics_file( "statistics.csv" );
+    statistics_file << R"("Time"; "L1-Norm"; "L2-Norm"; "Electric Energy"; "Kinetic Energy"; "Total Energy"; "Entropy")";
+    statistics_file << std::endl;
+
+    statistics_file << std::scientific;
+          std::cout << std::scientific;
+
+
     std::cout << "How much space does coeffs need: " << sizeof(real)*(conf.Nt+1)*stride_t << std::endl;
 
     std::unique_ptr<real[]> coeffs { new real[ (conf.Nt+1)*stride_t ] {} };
@@ -127,13 +132,16 @@ void test()
     if ( tmp == nullptr ) throw std::bad_alloc {};
     std::unique_ptr<real,decltype(std::free)*> rho { reinterpret_cast<real*>(tmp), std::free };
 
-    std::cout << "Nx = " << conf.Nx << std::endl;
-    std::cout << "Ny = " << conf.Ny << std::endl;
-    std::cout << "Nz = " << conf.Nz << std::endl;
-    std::cout << "Nu = " << conf.Nu << std::endl;
-    std::cout << "Nv = " << conf.Nv << std::endl;
-    std::cout << "Nw = " << conf.Nw << std::endl;
-    std::cout << "dt = " << conf.dt << std::endl;
+    if(rank == 0)
+    {
+		std::cout << "Nx = " << conf.Nx << std::endl;
+		std::cout << "Ny = " << conf.Ny << std::endl;
+		std::cout << "Nz = " << conf.Nz << std::endl;
+		std::cout << "Nu = " << conf.Nu << std::endl;
+		std::cout << "Nv = " << conf.Nv << std::endl;
+		std::cout << "Nw = " << conf.Nw << std::endl;
+		std::cout << "dt = " << conf.dt << std::endl;
+    }
 
     for ( size_t n = 0; n <= conf.Nt; ++n )
     {
@@ -149,14 +157,17 @@ void test()
         sched.upload_phi( n, coeffs.get() );
 
         // After this, we can do shit to output statistics, etc.
-        do_matthias_shit(n,rank,my_begin,my_end,conf,sched,electric_energy);
-        //do_pauls_shit();
+        if(n % 16 == 0)
+        {
+        	do_stats(n,rank,my_begin,my_end,conf,sched,electric_energy);
+        }
     }
 }
 
 template <typename real, size_t order>
-void do_matthias_shit( size_t n, size_t rank, size_t my_begin, size_t my_end,
-                       config_t<real> conf, cuda_scheduler<real,order> &sched, real electric_energy )
+void do_stats( size_t n, size_t rank, size_t my_begin, size_t my_end,
+                       config_t<real> conf, cuda_scheduler<real,order> &sched, real electric_energy,
+					   const std::ofstream& statistics_file)
 {
     real metrics[4] { 0, 0, 0, 0 };
     sched.compute_metrics( n, my_begin, my_end );
@@ -181,13 +192,16 @@ void do_matthias_shit( size_t n, size_t rank, size_t my_begin, size_t my_end,
         std::cout << u8"Entropy:      " << std::setw(20) << metrics[3]   << std::endl;
 
         std::cout << std::endl;
+
+        statistics_file << conf.dt*n       << "; "
+                        << metrics[0]      << "; "
+                        << metrics[1]      << "; "
+                        << electric_energy << "; "
+                        <<  kinetic_energy << "; "
+                        <<    total_energy << "; "
+                        << metrics[3]      << std::endl;
     }
 }
-
-//template <typename real, size_t order>
-//void do_pauls_shit()
-//{
-//}
 
 }
 
