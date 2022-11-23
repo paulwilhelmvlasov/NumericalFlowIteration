@@ -207,6 +207,5 @@ int main( int argc, char *argv[] )
 {
     dergeraet::mpi::programme prog(&argc,&argv);
     dergeraet::dim2::test<float,4>();
-
 }
 
