@@ -48,7 +48,8 @@ namespace dim1
 		config_t<double> conf() const noexcept { return param; }
 		void             conf( const config_t<double> &new_param );
 
-		void solve( double *data ) const noexcept;
+        // Returns electric energy of solution.
+		double solve( double *data ) const noexcept;
 
 
 	private:
@@ -74,7 +75,8 @@ namespace dim1
 		config_t<float> conf() const noexcept { return param; }
 		void            conf( const config_t<float> &new_param );
 
-		void solve( float *data ) const noexcept;
+        // Returns electric energy of solution
+		float solve( float *data ) const noexcept;
 
 	private:
 		config_t<float> param;
@@ -105,7 +107,8 @@ namespace dim2
 		config_t<double> conf() const noexcept { return param; }
 		void             conf( const config_t<double> &new_param );
 
-		void solve( double *data ) const noexcept;
+        // Returns electric energy of solution. 
+		double solve( double *data ) const noexcept;
 
 
 	private:
@@ -131,7 +134,8 @@ namespace dim2
 		config_t<float> conf() const noexcept { return param; }
 		void            conf( const config_t<float> &new_param );
 
-		void solve( float *data ) const noexcept;
+        // Returns electric energy of solution. 
+		float solve( float *data ) const noexcept;
 
 	private:
 		config_t<float> param;
@@ -162,7 +166,8 @@ namespace dim3
 		config_t<double> conf() const noexcept { return param; }
 		void             conf( const config_t<double> &new_param );
 
-		void solve( double *data ) const noexcept;
+        // Returns electric energy of solution. 
+		double solve( double *data ) const noexcept;
 
 
 	private:
@@ -188,7 +193,8 @@ namespace dim3
 		config_t<float> conf() const noexcept { return param; }
 		void            conf( const config_t<float> &new_param );
 
-		void solve( float *data ) const noexcept;
+        // Returns electric energy of solution. 
+		float solve( float *data ) const noexcept;
 
 	private:
 		config_t<float> param;
