@@ -138,8 +138,12 @@ void test()
 		std::cout << "dt = " << conf.dt << std::endl;
     }
 
+    double compute_time_step = 0;
+    double compute_time_total = 0;
+
     for ( size_t n = 0; n <= conf.Nt; ++n )
     {
+    	stopwatch<double> timer;
         // The actual NuFI loop.
         std::memset( rho.get(), 0, sizeof(real)*conf.Nx*conf.Ny );
         sched. compute_rho( n, my_begin, my_end );
@@ -151,11 +155,23 @@ void test()
         interpolate<real,order>( coeffs.get() + n*stride_t, rho.get(), conf );
         sched.upload_phi( n, coeffs.get() );
 
+        compute_time_step = timer.elapsed();
+        compute_time_total += compute_time_step;
+        if(rank == 0)
+        {
+        	std::cout << n * conf.dt << " " << compute_time_step << std::endl;
+        }
+
         // Output statistics.
         if(n % 16 == 0)
         {
         	do_stats(n,rank,my_begin,my_end,conf,sched,electric_energy,statistics_file);
         }
+    }
+
+    if(rank == 0)
+    {
+    	std::cout << "Total compute time: " << compute_time_total << std::endl;
     }
 }
 
