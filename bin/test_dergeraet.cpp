@@ -117,10 +117,11 @@ void test()
 }
 
 }
+}
 
 
 int main()
 {
-    dergeraet::dim1::test<double,4>();
+    dergeraet::dim1::test<float,4>();
 }
 
