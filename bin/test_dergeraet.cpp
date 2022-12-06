@@ -64,8 +64,10 @@ void test()
     statistics_file << std::scientific;
           std::cout << std::scientific;
 
+    double total_time = 0;
     for ( size_t n = 0; n < conf.Nt; ++n )
     {
+        dergeraet::stopwatch<double> timer;
         std::memset( rho.get(), 0, conf.Nx*sizeof(real) );
         sched.compute_rho ( n, 0, conf.Nx*conf.Nu );
         sched.download_rho( rho.get() );
@@ -74,39 +76,44 @@ void test()
         dim1::interpolate<real,order>( coeffs.get() + n*stride_t, rho.get(), conf );
 
         sched.upload_phi( n, coeffs.get() );
+        double time_elapsed = timer.elapsed();
+        total_time += time_elapsed;
 
-        real metrics[4] = { 0, 0, 0, 0 };
-        sched.compute_metrics( n, 0, conf.Nx*conf.Nu );
-        sched.download_metrics( metrics );
+        if( false )
+        {
+            real metrics[4] = { 0, 0, 0, 0 };
+            sched.compute_metrics( n, 0, conf.Nx*conf.Nu );
+            sched.download_metrics( metrics );
 
-        real kinetic_energy = metrics[2];
-        real   total_energy = electric_energy + kinetic_energy;
+            real kinetic_energy = metrics[2];
+            real   total_energy = electric_energy + kinetic_energy;
 
-        metrics[1]  = sqrt(metrics[1]);
+            metrics[1]  = sqrt(metrics[1]);
 
-        for ( size_t i = 0; i < 80; ++i )
-            std::cout << '=';
-        std::cout << std::endl;
+            for ( size_t i = 0; i < 80; ++i )
+                std::cout << '=';
+            std::cout << std::endl;
 
-        std::cout << "t = " << conf.dt*n  << ".\n";
+            std::cout << "t = " << conf.dt*n  << ".\n";
 
-        std::cout << "L¹-Norm:      " << std::setw(20) << metrics[0]      << std::endl;
-        std::cout << "L²-Norm:      " << std::setw(20) << metrics[1]      << std::endl;
-        std::cout << "Total energy: " << std::setw(20) << total_energy    << std::endl;
-        std::cout << "Entropy:      " << std::setw(20) << metrics[3]      << std::endl;
+            std::cout << "L¹-Norm:      " << std::setw(20) << metrics[0]      << std::endl;
+            std::cout << "L²-Norm:      " << std::setw(20) << metrics[1]      << std::endl;
+            std::cout << "Total energy: " << std::setw(20) << total_energy    << std::endl;
+            std::cout << "Entropy:      " << std::setw(20) << metrics[3]      << std::endl;
 
-        std::cout << std::endl;
+            std::cout << std::endl;
 
-        statistics_file << conf.dt*n       << "; "
-                        << metrics[0]      << "; "
-                        << metrics[1]      << "; "
-                        << electric_energy << "; "
-                        <<  kinetic_energy << "; "
-                        <<    total_energy << "; "
-                        << metrics[3]      << std::endl;
+            statistics_file << conf.dt*n       << "; "
+                            << metrics[0]      << "; "
+                            << metrics[1]      << "; "
+                            << electric_energy << "; "
+                            <<  kinetic_energy << "; "
+                            <<    total_energy << "; "
+                            << metrics[3]      << std::endl;
+        }
     }
-}
-
+    
+    std::cout << "Elapsed time = " << total_time << std::endl;
 }
 
 }
