@@ -79,7 +79,7 @@ void test()
         double time_elapsed = timer.elapsed();
         total_time += time_elapsed;
 
-        if( false )
+        if( n % 2 == 0 )
         {
             real metrics[4] = { 0, 0, 0, 0 };
             sched.compute_metrics( n, 0, conf.Nx*conf.Nu );
@@ -122,6 +122,6 @@ void test()
 
 int main()
 {
-    dergeraet::dim1::test<float,4>();
+    dergeraet::dim1::test<double,4>();
 }
 

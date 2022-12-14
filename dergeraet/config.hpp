@@ -124,14 +124,14 @@ struct config_t
 template <typename real>
 config_t<real>::config_t() noexcept
 {
-    Nx = 8;
-    Nu = 32;
+    Nx = 128;
+    Nu = 512;
     u_min = -10;
     u_max =  10;
     x_min = 0;
     x_max = 4*M_PI;;
     
-    dt = 1./16.; Nt = 30/dt;
+    dt = 1./16.; Nt = 100.5/dt;
 
     Lx = x_max - x_min; Lx_inv = 1/Lx;
     dx = Lx/Nx; dx_inv = 1/dx;
@@ -149,7 +149,7 @@ real config_t<real>::f0( real x, real u ) noexcept
     constexpr real alpha = 0.01;
     constexpr real k     = 0.5;
     return 0.39894228040143267793994 * ( 1. + alpha*cos(k*x) ) * exp( -u*u/2. ) * u*u;
-    //return 0.39894228040143267793994 * ( 1. + alpha*cos(k*x) ) * exp( -u*u/2 );
+//    return 0.39894228040143267793994 * ( 1. + alpha*cos(k*x) ) * exp( -u*u/2 );
 }
 
 }
@@ -186,16 +186,16 @@ struct config_t
 template <typename real>
 config_t<real>::config_t() noexcept
 {
-    Nx = Ny = 32;
-    Nu = Nv = 128;
-    u_min = v_min = -6;
-    u_max = v_max =  6;
+    Nx = Ny = 64;
+    Nu = Nv = 256;
+    u_min = v_min = -10;
+    u_max = v_max =  10;
     x_min = y_min = 0;
 //    x_max = y_max = 10*M_PI;
     x_max = y_max = 4.0 * M_PI;
 
 
-    dt = 1.0/16.0; Nt = 31/dt;
+    dt = 1.0/16.0; Nt = 50/dt;
 
     Lx = x_max - x_min; Lx_inv = 1/Lx;
     Ly = y_max - y_min; Ly_inv = 1/Ly;
@@ -213,7 +213,8 @@ real config_t<real>::f0( real x, real y, real u, real v ) noexcept
     using std::cos;
     using std::exp;
 
-    return 1.0 / (2.0 * M_PI) * std::exp(-0.5 * (u*u + v*v)) * (1 + 0.5 * (std::cos(0.5*x) + std::cos(0.5*y)) );
+    return 1.0 / (2.0 * M_PI) * exp(-0.5 * (u*u + v*v))
+            * (1 + 0.5 * (cos(0.5*x) + cos(0.5*y)) );
 
 //    constexpr real alpha = 1e-3;
 //    constexpr real v0 = 2.4;
@@ -263,15 +264,15 @@ struct config_t
 template <typename real>
 config_t<real>::config_t() noexcept
 {
-    Nx = Ny = Nz = 8;
-    Nu = Nv = Nw = 16;
+    Nx = Ny = Nz = 16;
+    Nu = Nv = Nw = 64;
 
     u_min = v_min = w_min = -10;
     u_max = v_max = w_max =  10;
     x_min = y_min = z_min = 0;
     x_max = y_max = z_max = 10*M_PI;
 
-    dt = 1./4.; Nt = 101/dt;
+    dt = 1./16.; Nt = 30/dt;
 
     Lx = x_max - x_min; Lx_inv = 1/Lx;
     Ly = y_max - y_min; Ly_inv = 1/Ly;

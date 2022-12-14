@@ -160,15 +160,17 @@ void test()
         interpolate<real,order>( coeffs.get() + n*stride_t, rho.get(), conf );
         sched.upload_phi( n, coeffs.get() );
 
-        compute_time_step = timer.elapsed();
-        compute_time_total += compute_time_step;
         if(rank == 0)
         {
+        compute_time_step = timer.elapsed();
+        compute_time_total += compute_time_step;
+//        if(rank == 0)
+//        {
         	std::cout << n * conf.dt << " " << compute_time_step << std::endl;
         }
 
         // After this, we can do shit to output statistics, etc.
-        if(n % 1 == 0)
+        if(n % 1 == 0 && false)
         {
         	do_stats(n,rank,my_begin,my_end,conf,sched,electric_energy,statistics_file);
         }
