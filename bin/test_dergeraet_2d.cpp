@@ -183,7 +183,7 @@ void test()
 					for(size_t j = 0; j <= Ny_plot; j++)
 					{
 						real x = conf.x_min + i*dx_plot;
-						real y = conf.y_min + i*dy_plot;
+						real y = conf.y_min + j*dy_plot;
 						real Ex = -dim2::eval<real,order,1,0>( x, y,
 									coeffs.get() + n*stride_t, conf );
 						real Ey = -dim2::eval<real,order,1,0>( x, y,
