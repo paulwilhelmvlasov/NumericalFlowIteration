@@ -186,7 +186,7 @@ void test()
 						real y = conf.y_min + j*dy_plot;
 						real Ex = -dim2::eval<real,order,1,0>( x, y,
 									coeffs.get() + n*stride_t, conf );
-						real Ey = -dim2::eval<real,order,1,0>( x, y,
+						real Ey = -dim2::eval<real,order,0,1>( x, y,
 									coeffs.get() + n*stride_t, conf );
 						real phi = -dim2::eval<real,order,0,0>( x, y,
 									coeffs.get() + n*stride_t, conf );
