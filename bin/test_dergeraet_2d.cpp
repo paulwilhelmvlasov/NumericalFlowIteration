@@ -166,6 +166,35 @@ void test()
         if(n % 16 == 0)
         {
         	do_stats(n,rank,my_begin,my_end,conf,sched,electric_energy,statistics_file);
+
+        	// Give out electric field:
+        	if((rank == 0) && (n % 16 == 0))
+        	{
+				size_t Nx_plot = 128;
+				size_t Ny_plot = Nx_plot;
+				real dx_plot = conf.Lx / Nx_plot;
+				real dy_plot = dx_plot;
+				std::ofstream file_E( "E_" + std::to_string(t) + ".txt" );
+				std::ofstream file_phi( "phi_" + std::to_string(t) + ".txt" );
+				for(size_t i = 0; i <= Nx_plot; i++)
+				{
+					for(size_t j = 0; j <= Ny_plot; j++)
+					{
+						real x = conf.x_min + i*dx_plot;
+						real y = conf.y_min + i*dy_plot;
+						real Ex = -dim2::eval<real,order,1,0>( x, y,
+									coeffs.get() + n*stride_t, conf );
+						real Ey = -dim2::eval<real,order,1,0>( x, y,
+									coeffs.get() + n*stride_t, conf );
+						real phi = -dim2::eval<real,order,0,0>( x, y,
+									coeffs.get() + n*stride_t, conf );
+
+						file_E << x << " " << y << " " << Ex << " " << Ey << std::endl;
+						file_phi << x << " " << y << " " << phi << std::endl;
+					}
+					file_phi << std::endl;
+				}
+        	}
         }
     }
 
