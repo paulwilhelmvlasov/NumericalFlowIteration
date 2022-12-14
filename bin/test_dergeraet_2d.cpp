@@ -169,12 +169,13 @@ void test()
         	do_stats(n,rank,my_begin,my_end,conf,sched,electric_energy,statistics_file);
 
         	// Give out electric field:
-        	if((rank == 0) && (n % 16 == 0))
+        	if((rank == 0) && (n % (5*16) == 0))
         	{
 				size_t Nx_plot = 128;
 				size_t Ny_plot = Nx_plot;
 				real dx_plot = conf.Lx / Nx_plot;
 				real dy_plot = dx_plot;
+                                real t = n * conf.dt;
 				std::ofstream file_E( "E_" + std::to_string(t) + ".txt" );
 				std::ofstream file_phi( "phi_" + std::to_string(t) + ".txt" );
 				for(size_t i = 0; i <= Nx_plot; i++)
