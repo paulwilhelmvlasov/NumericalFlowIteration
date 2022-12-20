@@ -110,6 +110,25 @@ void test()
                             <<  kinetic_energy << "; "
                             <<    total_energy << "; "
                             << metrics[3]      << std::endl;
+
+            if(n % (100*16) == 0)
+            {
+				size_t Nx_plot = 256;
+				real dx_plot = conf.Lx / Nx_plot;
+				real t = n * conf.dt;
+				std::ofstream file_E( "E_" + std::to_string(t) + ".txt" );
+				std::ofstream file_rho( "rho_" + std::to_string(t) + ".txt" );
+				for(size_t i = 0; i <= Nx_plot; i++)
+				{
+					real x = conf.x_min + i*dx_plot;
+					real E = -dim1::eval<real,order,1>( x, coeffs.get() + n*stride_t, conf );
+					real rho = -dim1::eval<real,order,2>( x, coeffs.get() + n*stride_t, conf );
+
+					file_E << x << " " << E << std::endl;
+					file_rho << x << " " << rho << std::endl;
+				}
+
+            }
         }
     }
     
