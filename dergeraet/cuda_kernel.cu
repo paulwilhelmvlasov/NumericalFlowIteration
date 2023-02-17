@@ -27,6 +27,9 @@ namespace dergeraet
 namespace dim1
 {
 
+namespace periodic
+{
+
 template <typename real, size_t order>
 __global__
 void cuda_eval_rho( size_t n, const real *coeffs, const config_t<real> conf, real *rho,
@@ -183,6 +186,7 @@ template class cuda_kernel<float,6>;
 template class cuda_kernel<float,7>;
 template class cuda_kernel<float,8>;
 
+}
 }
 
 namespace dim2

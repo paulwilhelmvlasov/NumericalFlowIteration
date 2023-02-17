@@ -30,6 +30,9 @@ namespace dergeraet
 namespace dim1
 {
 
+namespace periodic
+{
+
 template <typename real, size_t order>
 class cuda_kernel
 {
@@ -67,6 +70,7 @@ extern template class cuda_kernel<float,6>;
 extern template class cuda_kernel<float,7>;
 extern template class cuda_kernel<float,8>;
 
+}
 }
 
 namespace dim2

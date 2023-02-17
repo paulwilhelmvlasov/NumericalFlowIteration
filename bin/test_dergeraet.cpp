@@ -37,7 +37,8 @@ namespace dergeraet
 
 namespace dim1
 {
-
+namespace periodic
+{
 template <typename real, size_t order>
 void test()
 {
@@ -73,7 +74,7 @@ void test()
         sched.download_rho( rho.get() );
 
         real electric_energy = poiss.solve( rho.get() );
-        dim1::interpolate<real,order>( coeffs.get() + n*stride_t, rho.get(), conf );
+        interpolate<real,order>( coeffs.get() + n*stride_t, rho.get(), conf );
 
         sched.upload_phi( n, coeffs.get() );
         double time_elapsed = timer.elapsed();
@@ -121,8 +122,8 @@ void test()
 				for(size_t i = 0; i <= Nx_plot; i++)
 				{
 					real x = conf.x_min + i*dx_plot;
-					real E = -dim1::eval<real,order,1>( x, coeffs.get() + n*stride_t, conf );
-					real rho = -dim1::eval<real,order,2>( x, coeffs.get() + n*stride_t, conf );
+					real E = -eval<real,order,1>( x, coeffs.get() + n*stride_t, conf );
+					real rho = -eval<real,order,2>( x, coeffs.get() + n*stride_t, conf );
 
 					file_E << x << " " << E << std::endl;
 					file_rho << x << " " << rho << std::endl;
@@ -137,10 +138,11 @@ void test()
 
 }
 }
+}
 
 
 int main()
 {
-    dergeraet::dim1::test<double,4>();
+    dergeraet::dim1::periodic::test<double,4>();
 }
 

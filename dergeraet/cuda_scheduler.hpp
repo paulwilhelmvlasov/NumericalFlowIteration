@@ -29,6 +29,8 @@ namespace dergeraet
 namespace dim1
 {
 
+namespace periodic
+{
 template <typename real, size_t order>
 class cuda_scheduler
 {
@@ -139,7 +141,7 @@ private:
 };
 
 
-
+}
 }
 
 namespace dim2
