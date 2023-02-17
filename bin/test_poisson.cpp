@@ -23,15 +23,217 @@
 #include <iomanip>
 
 #include <dergeraet/poisson.hpp>
+#include <dergeraet/finite_difference_poisson.hpp>
 #include <dergeraet/stopwatch.hpp>
 
 
 namespace dergeraet
 {
 
+namespace dim1
+{
+namespace fd_dirichlet
+{
+template <typename real>
+real rho( real x )
+{
+    using std::sin;
+    using std::cos;
+    return cos(x);
+}
+
+template <typename real>
+real phi( real x )
+{
+    using std::sin;
+    using std::cos;
+    return -cos(x) + (-1+cos(1))*x + 1;
+}
+
+template <typename real>
+void test()
+{
+	config_t<double> conf;
+	poisson_fd_dirichlet<double> poiss(conf);
+	size_t nx = 10;
+	conf.Nx = nx;
+	double h = 1.0/(nx-1);
+	double *x = new double[nx];
+	x[0] = 0;
+	for(size_t i = 1; i < nx-1; i++)
+	{
+		x[i] = rho(i * h);
+	}
+	x[nx-1] = 0;
+
+	std::cout << "Testing cg_fd_1d" << std::endl;
+	poiss.cg_fd_dirichlet(x, h, nx);
+
+	double err = 0;
+	for(size_t i = 0; i < nx; i++)
+	{
+		double y = i*h;
+		std::cout << "phi[" << y << "] = " << x[i] << " " << phi(y) << " " << std::abs(x[i] - phi(y)) << std::endl;
+		err += (x[i] - phi(y))*(x[i] - phi(y));
+	}
+	std::cout << "Total L2-error = " << std::sqrt(err) << std::endl;
+}
+
+}
+}
+
+
+namespace dim2
+{
+namespace fd_dirichlet
+{
+template <typename real>
+real rho( real x, real y, real z )
+{
+    using std::sin;
+    using std::cos;
+    return sin(x) + cos(y) + cos(z);
+}
+
+template <typename real>
+real phi( real x, real y, real z)
+{
+    using std::sin;
+    using std::cos;
+    return sin(x) + cos(y) + cos(z);
+}
+
+template <typename real>
+void test()
+{
+	config_t<double> conf;
+	poisson_fd_dirichlet<double> poiss(conf);
+	size_t n = 5;
+	conf.Nx = n;
+	conf.Ny = n;
+	double h = 1.0/n;
+	double *data = new double[(n+1)*(n+1)];
+
+	for(size_t i = 0; i <= n; i++)
+	{
+		for(size_t j = 0; j <= n; j++)
+		{
+			data[i*(n+1) + j] = 1;//rho(i*h, j*h); // Note that phi(x,y)=rho(x,y) in this particular case.
+		}
+	}
+
+
+	std::cout << "Testing cg_fd_2d" << std::endl;
+	poiss.cg_fd_dirichlet(data, h, n, 1e-10, 10);
+
+	double err = 0;
+	double l2_norm_phi = 0;
+	for(size_t i = 1; i < n; i++)
+	{
+		for(size_t j = 1; j < n; j++)
+		{
+			double x = i*h;
+			double y = j*h;
+			double phi_num = data[i*(n+1) + j];
+			double phi_exact = 1; //phi(x,y);
+			double dist = phi_num - phi_exact;
+			/*
+			std::cout << "phi[" << i << "," << j << "] = " << phi_num << " " << phi_exact
+							<< " " << std::abs(dist) << std::endl;
+			 */
+			err += (dist)*(dist);
+			l2_norm_phi += phi_exact*phi_exact;
+		}
+	}
+
+	std::cout << "Total L2-error = " << std::sqrt(err) << std::endl;
+	std::cout << "Relative L2-error = " << std::sqrt(err/l2_norm_phi) << std::endl;
+}
+
+}
+}
+
+
 namespace dim3
 {
+namespace fd_dirichlet
+{
+template <typename real>
+real rho( real x, real y, real z )
+{
+    using std::sin;
+    using std::cos;
+    return cos(x) + sin(y) + cos(z);
+}
 
+template <typename real>
+real phi( real x, real y, real z )
+{
+    using std::sin;
+    using std::cos;
+    return cos(x) + sin(y) + cos(z);
+}
+
+
+template <typename real>
+void test()
+{
+	config_t<double> conf;
+	size_t n = 15;
+	conf.Nx = n;
+	conf.Ny = n;
+	conf.Nz = n;
+	double h = 1.0/n;
+	poisson_fd_dirichlet<double> poiss(conf);
+	double *data = new double[(n+1)*(n+1)*(n+1)];
+
+	for(size_t i = 0; i <= n; i++)
+	{
+		for(size_t j = 0; j <= n; j++)
+		{
+			for(size_t k = 0; k <= n; k++)
+			{
+				//data[i*(n+1)*(n+1) + j*(n+1) + k] = 1;
+				data[i*(n+1)*(n+1) + j*(n+1) + k] = rho(i*h, j*h, k*h); // Note that phi(x,y)=rho(x,y) in this particular case.
+			}
+		}
+	}
+
+
+	poiss.cg_fd_dirichlet(data, h, n, 1e-10, 10);
+
+	double err = 0;
+	double l2_norm_phi = 0;
+	for(size_t i = 1; i < n; i++)
+	{
+		for(size_t j = 1; j < n; j++)
+		{
+			for(size_t k = 1; k < n; k++)
+			{
+				double x = i*h;
+				double y = j*h;
+				double z = k*h;
+				double phi_num = data[i*(n+1)*(n+1) + j*(n+1) + k];
+				//double phi_exact = 1; //phi(x,y,z);
+				double phi_exact = phi(x,y,z);
+				double dist = phi_num - phi_exact;
+				std::cout << "phi[" << i << "," << j << "," << k << "] = "
+								<< phi_num << " " << phi_exact
+								<< " " << std::abs(dist) << std::endl;
+				err += (dist)*(dist);
+				l2_norm_phi += phi_exact*phi_exact;
+			}
+		}
+	}
+
+	std::cout << "Total L2-error = " << std::sqrt(err) << std::endl;
+	std::cout << "Relative L2-error = " << std::sqrt(err/l2_norm_phi) << std::endl;
+
+}
+}
+
+namespace periodic
+{
 template <typename real>
 real rho( real x, real y, real z )
 {
@@ -116,17 +318,14 @@ void test()
 
     std::free(data);
 }
-
+}
 }
 
 }
 
 int main()
 {
-    std::cout << "Testing float.\n";
-    dergeraet::dim3::test<float>();
-
-    std::cout << "Testing double.\n";
-    dergeraet::dim3::test<double>();
+    std::cout << "Testing FD-Dirichlet-3d.\n";
+    dergeraet::dim3::fd_dirichlet::test<double>();
 }
 

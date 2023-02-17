@@ -1,6 +1,6 @@
 noinst_LIBRARIES = libdergeraet.a
 
-libdergeraet_a_SOURCES = poisson.cpp lapack.cpp blas.cpp cuda_kernel.cu
+libdergeraet_a_SOURCES = finite_difference_poisson.cpp poisson.cpp lapack.cpp blas.cpp cuda_kernel.cu
 
 # This includes the dependecies of cuda_kernel.cu and causes automatic
 # recompilaton if necessary. No more need to recompile everything.
