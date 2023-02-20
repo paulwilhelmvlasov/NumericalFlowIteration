@@ -33,6 +33,9 @@ namespace dergeraet
 namespace dim1
 {
 
+poisson_fd_dirichlet<double>::poisson_fd_dirichlet()
+{ }
+
 poisson_fd_dirichlet<double>::poisson_fd_dirichlet( const config_t<double> &p_param ):
     param { p_param }
 { }

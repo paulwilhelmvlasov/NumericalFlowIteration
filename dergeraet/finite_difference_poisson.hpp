@@ -39,7 +39,7 @@ namespace dim1
 	public:
         const size_t alignment { 64 };
 
-		poisson_fd_dirichlet() = delete;
+		poisson_fd_dirichlet();
         poisson_fd_dirichlet( const poisson_fd_dirichlet  &rhs ) = delete;
         poisson_fd_dirichlet(       poisson_fd_dirichlet &&rhs ) = delete;
         poisson_fd_dirichlet& operator=( const poisson_fd_dirichlet &rhs ) = delete;
@@ -51,8 +51,8 @@ namespace dim1
 		void             conf( const config_t<double> &new_param );
 
 		void cg_fd_dirichlet(double *x, double h, size_t nx, double eps = 1e-10,
-								size_t max_iter = 100000);
-		void solve( double *data, double eps = 1e-10, size_t max_iter = 100000); //const noexcept;
+								size_t max_iter = 10000);
+		void solve( double *data, double eps = 1e-10, size_t max_iter = 10000); //const noexcept;
 
 
 	private:
