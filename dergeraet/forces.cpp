@@ -55,6 +55,7 @@ void electro_static_force<real, order>::solve(real *rho)
 		poisson.solve(rho, eps, max_iter);
 		interpolate<real,order>( coeffs_E.get() + curr_tn*stride_t,
 											rho, poisson.param );
+		curr_tn++;
 	} else
 	{
 		throw std::exception("Current time step over set maximum number "
@@ -65,9 +66,44 @@ void electro_static_force<real, order>::solve(real *rho)
 template <typename real, size_t order>
 void electro_static_force<real, order>::solve()
 {
+
 	// Compute rho.
-	// ...
-	// solve(rho);
+	// For periodic Nx is enough as the left and right boundary
+	// have the same value, however, for Dirichlet this is no
+	// longer the case and one need Nx+1 values.
+	// Note: This has to be adjusted in the interpolator as well!
+	size_t Nx = poisson.param.Nx;
+	arma::Col<real> rho_values(Nx + 1);
+	#pragma parallel for
+	for(size_t i = 0; i <= Nx; i++)
+	{
+		// This is actually somewhat cheated as we do not use the
+		// force-evaluation which should be actually provided by
+		// this class. Actually we should integrate "eval_rho" as
+		// function in this class!
+		rho_values(i) = eval_rho(curr_tn, i, coeffs_E.get(), poisson.param);
+	}
+
+	solve(rho_values.memptr());
+}
+
+template <typename real, size_t order>
+real electro_static_force<real, order>::operator()(size_t tn, real x)
+{
+	return eval(x, coeffs_E.get() + tn*stride_t);
+}
+
+template <typename real, size_t order>
+arma::Col<real> electro_static_force<real, order>::operator()(size_t tn, arma::Col<real> x)
+{
+	arma::Col<real> E = x;
+	#pragma omp parallel for
+	for(size_t i = 0; i < x.n_rows; i++)
+	{
+		E(i) = this(tn, x(i));
+	}
+
+	return E;
 }
 
 }

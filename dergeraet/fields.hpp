@@ -62,6 +62,9 @@ real eval( real x, const real *coeffs, const config_t<real> &config ) noexcept
 template <typename real, size_t order>
 void interpolate( real *coeffs, const real *values, const config_t<real> &config )
 {
+	// Note: This is the same code as in the periodic case atm.
+	// Probaly this will have to be still changed to Nx+1 (left!=right
+	// boundary in the non-periodic setting). Check this!
     std::unique_ptr<real[]> tmp { new real[ config.Nx ] };
 
     for ( size_t i = 0; i < config.Nx; ++i )
