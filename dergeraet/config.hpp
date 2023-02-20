@@ -118,6 +118,10 @@ struct config_t
     real du;
 
     config_t() noexcept;
+    // Maybe we could subs this with a function pointer?
+    // Or write a class (interface) which can offers an
+    // operator() overload, i.e., can be called like a
+    // function.
     __host__ __device__ static real f0( real x, real u ) noexcept;
 };
 

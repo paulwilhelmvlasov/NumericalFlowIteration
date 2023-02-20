@@ -60,6 +60,11 @@ public:
     real operator()(size_t tn, real x);
     arma::Col<real> operator()(size_t tn, arma::Col<real> x);
 
+    real eval_ftilda( size_t n, real x, real u);
+    real eval_f( size_t n, real x, real u);
+    real eval_rho( size_t n, size_t i);
+    real eval_rho( size_t n, real x);
+
 private:
     poisson_fd_dirichlet<real> poisson;
 

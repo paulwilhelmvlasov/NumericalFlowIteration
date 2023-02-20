@@ -77,11 +77,7 @@ void electro_static_force<real, order>::solve()
 	#pragma parallel for
 	for(size_t i = 0; i <= Nx; i++)
 	{
-		// This is actually somewhat cheated as we do not use the
-		// force-evaluation which should be actually provided by
-		// this class. Actually we should integrate "eval_rho" as
-		// function in this class!
-		rho_values(i) = eval_rho(curr_tn, i, coeffs_E.get(), poisson.param);
+		rho_values(i) = eval_rho(curr_tn, i);
 	}
 
 	solve(rho_values.memptr());
@@ -105,6 +101,135 @@ arma::Col<real> electro_static_force<real, order>::operator()(size_t tn, arma::C
 
 	return E;
 }
+
+template <typename real, size_t order>
+real electro_static_force<real, order>::eval_ftilda( size_t n, real x,
+														real u)
+{
+    if ( n == 0 ) return config_t<real>::f0(x,u);
+    if ( n > curr_tn ) throw std::exception("n is still in future.");
+
+    real Ex;
+    const real *c;
+
+    // We omit the initial half-step.
+
+    while ( --n )
+    {
+        x  = x - poisson.param.dt*u;
+        c  = coeffs_E + n*stride_t;
+        if (x <= poisson.param.x_min) {
+        	Ex = -eval<real,order,1>(poisson.param.x_min,c,poisson.param);
+        } else if (x >= poisson.param.x_max) {
+        	Ex = -eval<real,order,1>(poisson.param.x_max,c,poisson.param);
+        } else {
+            Ex = -eval<real,order,1>(x,c,poisson.param);
+        }
+        u  = u + poisson.param.dt*Ex;
+        // This should be substituted by a more general approach.
+        // See my comment in config.hpp.
+        return config_t<real>::f0(x,u);
+    }
+
+    // The final half-step.
+    x -= poisson.param.dt*u;
+    c  = coeffs_E + n*stride_t;
+    if (x <= poisson.param.x_min) {
+    	Ex = -eval<real,order,1>(poisson.param.x_min,c,poisson.param);
+    } else if (x >= poisson.param.x_max) {
+    	Ex = -eval<real,order,1>(poisson.param.x_max,c,poisson.param);
+    } else {
+        Ex = -eval<real,order,1>(x,c,poisson.param);
+    }
+    u += 0.5*poisson.param.dt*Ex;
+
+    return config_t<real>::f0(x,u);
+}
+
+template <typename real, size_t order>
+real electro_static_force<real, order>::eval_f( size_t n, real x, real u)
+{
+    if ( n == 0 ) return config_t<real>::f0(x,u);
+    if ( n > curr_tn ) throw std::exception("n is still in future.");
+
+    real Ex;
+    const real *c;
+
+    // Initial half-step.
+    c  = coeffs_E + n*stride_t;
+    Ex = -eval<real,order,1>( x, c, poisson.param );
+    u += 0.5*poisson.param.dt*Ex;
+
+    while ( --n )
+    {
+        x  = x - poisson.param.dt*u;
+        c  = coeffs_E + n*stride_t;
+        if (x <= poisson.param.x_min) {
+        	Ex = -eval<real,order,1>(poisson.param.x_min,c,poisson.param);
+        } else if (x >= poisson.param.x_max) {
+        	Ex = -eval<real,order,1>(poisson.param.x_max,c,poisson.param);
+        } else {
+            Ex = -eval<real,order,1>(x,c,poisson.param);
+        }
+        u  = u + poisson.param.dt*Ex;
+        // This should be substituted by a more general approach.
+        // See my comment in config.hpp.
+        return config_t<real>::f0(x,u);
+    }
+
+    // The final half-step.
+    x -= poisson.param.dt*u;
+    c  = coeffs_E + n*stride_t;
+    if (x <= poisson.param.x_min) {
+    	Ex = -eval<real,order,1>(poisson.param.x_min,c,poisson.param);
+    } else if (x >= poisson.param.x_max) {
+    	Ex = -eval<real,order,1>(poisson.param.x_max,c,poisson.param);
+    } else {
+        Ex = -eval<real,order,1>(x,c,poisson.param);
+    }
+    u += 0.5*poisson.param.dt*Ex;
+
+    return config_t<real>::f0(x,u);
+}
+
+template <typename real, size_t order>
+real electro_static_force<real, order>::eval_rho( size_t n, size_t i)
+{
+    const real x = poisson.param.x_min + i*poisson.param.dx;
+    const real du = (poisson.param.u_max-poisson.param.u_min) / poisson.param.Nu;
+    const real u_min = poisson.param.u_min + 0.5*du;
+
+    real rho = 0;
+    for ( size_t ii = 0; ii < poisson.param.Nu; ++ii )
+        rho += eval_ftilda( n, x, u_min + ii*du);
+    rho = 1 - du*rho;
+
+    return rho;
+}
+
+template <typename real, size_t order>
+real electro_static_force<real, order>::eval_rho( size_t n, real x)
+{
+	if(x < poisson.param.x_min || x > poisson.param.x_max)
+	{
+		// This is the case when outside the domain.
+		// In this code we assume that f is 0 outside
+		// the domain and thus return 0 here.
+		return 0;
+	}
+
+    const real du = (poisson.param.u_max-poisson.param.u_min) / poisson.param.Nu;
+    const real u_min = poisson.param.u_min + 0.5*du;
+
+    real rho = 0;
+    for ( size_t ii = 0; ii < poisson.param.Nu; ++ii )
+        rho += eval_ftilda( n, x, u_min + ii*du);
+    rho = 1 - du*rho;
+
+    return rho;
+}
+
+
 
 }
 }
