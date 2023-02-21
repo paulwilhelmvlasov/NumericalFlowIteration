@@ -32,8 +32,18 @@ namespace dergeraet
 template <typename real>
 real f( real x, real y = 0, real z = 0 )
 {
+	// Periodic.
     using std::sin;
     return sin(3*x) + sin(3*y) + sin(3*z);
+}
+
+template <typename real>
+real g( real x, real y = 0, real z = 0 )
+{
+	// Non-periodic
+    using std::sin;
+    using std::cos;
+    return sin(0.1*x)*exp(0.2*x) + sin(3*y)*y*y + sin(3*z)*z;
 }
 
 template <typename real, size_t order>
@@ -202,12 +212,100 @@ void test_2d()
     std::cout << "Avg error: " << err_sum/(4096*4096) << std::endl;
 }
 
+template <typename real, size_t order>
+void test_1d()
+{
+    using std::abs;
+    using std::max;
+    using std::hypot;
+
+    std::cout << "Testing dim = 1.\n";
+
+    dim1::config_t<real> conf;
+    size_t Nx = 128 + 1;
+    conf.Nx     = Nx;
+    conf.x_min  = 0; conf.x_max = 4*M_PI;
+    conf.Lx     = conf.x_max - conf.x_min;
+    conf.Lx_inv = 1 / conf.Lx;
+    conf.dx     = real(conf.Lx) / (conf.Nx-1);
+    conf.dx_inv = real(1) / conf.dx;
+
+//    std::unique_ptr<real[]> values { new real[ conf.Nx ] };
+//    std::unique_ptr<real[]> coeffs { new real[ conf.Nx + order - 1 ] };
+    std::unique_ptr<real[]> values { new real[ Nx ] };
+    std::unique_ptr<real[]> coeffs { new real[ Nx + order - 1 ] };
+
+    // Bemerkung: Für den periodischen Fall hat obige Anzahl an Werten gereicht,
+    // weil man sie in der "zweiten Periode" als Stützstellen nutzen konnte.
+    // Im nicht-periodischen Fall ist das leider nicht einfach so möglich und
+    // der Interpolationscode muss nochmal neu geschrieben werden. Ggfs kann man
+    // die Auswertung aber beibehalten.
+
+
+
+    random_real<real> rand(0,1);
+//    for ( size_t i = 0; i < conf.Nx; ++i )
+    for ( size_t i = 0; i < Nx; ++i )
+    {
+        real x = conf.x_min + i*conf.dx;
+
+        //values[ i ] = f(x);
+        values[ i ] = g(x);
+    }
+
+    stopwatch<real> clock;
+    dim1::fd_dirichlet::interpolate<real,order>( coeffs.get(), values.get(), conf );
+    real elapsed = clock.elapsed();
+    std::cout << "Time for solving system: " << elapsed << ".\n";
+
+    std::cout << "Interpolation points:" << std::endl;
+    real sum = 0, err_sum = 0, err = 0, max_err = 0;
+//    for ( size_t i = 0; i < conf.Nx; ++i )
+    for ( size_t i = 0; i < Nx; ++i )
+    {
+        real x = conf.x_min + i*conf.dx;
+        real val = dim1::fd_dirichlet::eval<real,order>( x, coeffs.get(), conf );
+        max_err = max(abs(val-values[i]),max_err);
+        err = hypot(err,values[ i ] - val);
+        sum = hypot(sum,values[ i ]);
+    }
+    std::cout << "Max error: " << max_err << ". "
+              << "Absolute l²-Error: " << err << ". "
+              << "Relative l²-Error: " << err/sum << ".\n";
+
+    std::cout << "Random points:" << std::endl;
+    max_err = err_sum = 0;
+    random_real<real> randx( conf.x_min, conf.x_max );
+    for ( size_t i = 0; i < 4096; ++i )
+    {
+        real x = randx();
+        real approx = dim1::fd_dirichlet::eval<real,order>( x, coeffs.get(), conf );
+        //real exact  = f(x);
+        real exact  = g(x);
+        max_err = max( max_err, abs(approx-exact) );
+        err_sum += abs(approx-exact);
+    }
+    std::cout << "Max error: " << max_err << std::endl;
+    std::cout << "Avg error: " << err_sum/(4096) << std::endl;
+
+    std::cout << conf.x_min << " " << conf.x_max << std::endl;
+    std::cout << "S(x_min) = " << dim1::fd_dirichlet::eval<real,order>( conf.x_min, coeffs.get(), conf ) << std::endl;
+    //std::cout << "f(x_min) = " << f(conf.x_min) << std::endl;
+    std::cout << "g(x_min) = " << g(conf.x_min) << std::endl;
+
+    std::cout << "S(x_max) = " << dim1::fd_dirichlet::eval<real,order>( conf.x_max, coeffs.get(), conf ) << std::endl;
+    //std::cout << "f(x_max) = " << f(conf.x_max) << std::endl;
+    std::cout << "g(x_max) = " << g(conf.x_max) << std::endl;
+}
+
+
 }
 
 int main()
 {
     std::cout << std::scientific;
-    dergeraet::test_2d<double,4>();
-    dergeraet::test_3d<double,4>();
+    dergeraet::test_1d<double,4>();
+    //dergeraet::test_2d<double,4>();
+    //dergeraet::test_3d<double,4>();
 }
 

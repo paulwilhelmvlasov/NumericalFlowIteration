@@ -40,6 +40,7 @@ template <typename real, size_t order, size_t derivative = 0>
 __host__ __device__
 void N( real x, real *result, size_t stride = 1 ) noexcept
 {
+	// Returns the values of the Splines defined at x?
     static_assert( order > 0, "Splines must have order greater than zero." );
     constexpr int n { order      };
     constexpr int d { derivative };

@@ -68,14 +68,10 @@ void electro_static_force<real, order>::solve()
 {
 
 	// Compute rho.
-	// For periodic Nx is enough as the left and right boundary
-	// have the same value, however, for Dirichlet this is no
-	// longer the case and one need Nx+1 values.
-	// Note: This has to be adjusted in the interpolator as well!
 	size_t Nx = poisson.param.Nx;
-	arma::Col<real> rho_values(Nx + 1);
+	arma::Col<real> rho_values(Nx);
 	#pragma parallel for
-	for(size_t i = 0; i <= Nx; i++)
+	for(size_t i = 0; i < Nx; i++)
 	{
 		rho_values(i) = eval_rho(curr_tn, i);
 	}

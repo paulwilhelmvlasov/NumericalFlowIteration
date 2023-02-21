@@ -63,8 +63,7 @@ template <typename real, size_t order>
 void interpolate( real *coeffs, const real *values, const config_t<real> &config )
 {
 	// Note: This is the same code as in the periodic case atm.
-	// Probaly this will have to be still changed to Nx+1 (left!=right
-	// boundary in the non-periodic setting). Check this!
+	// Does this need adjustement for the non-periodic case?
     std::unique_ptr<real[]> tmp { new real[ config.Nx ] };
 
     for ( size_t i = 0; i < config.Nx; ++i )
@@ -91,11 +90,12 @@ void interpolate( real *coeffs, const real *values, const config_t<real> &config
                     for ( size_t ii = 0; ii < order; ++ii )
                         result += N[ii] * in[ i + ii ];
                 }
-                else
+/*                else
                 {
                     for ( size_t ii = 0; ii < order; ++ii )
+                    	// This has to be adjusted for non-periodic boundaries!
                         result += N[ii]*in[ (i+ii) % config.Nx ];
-                }
+                }*/
                 out[ i ] = result;
             }
         }
@@ -123,11 +123,12 @@ void interpolate( real *coeffs, const real *values, const config_t<real> &config
                     for ( size_t ii = 0; ii < order; ++ii )
                         out[ i + ii ]  += N[ii] * in[ i ];
                 }
-                else
+                /*else
                 {
                     for ( size_t ii = 0; ii < order; ++ii )
+                    	// This has to be adjusted for non-periodic boundaries!
                         out[ (i+ii) % config.Nx ] += N[ii]*in[ i ];
-                }
+                }*/
             }
         }
     };
@@ -186,6 +187,7 @@ void interpolate( real *coeffs, const real *values, const config_t<real> &config
 
     struct mat_t
     {
+    	// Defines a matrix A.
         const config_t<real> &config;
         real  N[ order ];
 
@@ -196,6 +198,7 @@ void interpolate( real *coeffs, const real *values, const config_t<real> &config
 
         void operator()( const real *in, real *out ) const
         {
+        	// This computes: out = A * in.
             #pragma omp parallel for 
             for ( size_t i = 0; i < config.Nx; ++i )
             {
@@ -217,16 +220,18 @@ void interpolate( real *coeffs, const real *values, const config_t<real> &config
 
     struct transposed_mat_t
     {
+    	// Defines transposed matrix At.
         const config_t<real> &config;
         real  N[ order ];
 
         transposed_mat_t( const config_t<real> &conf ): config { conf }
         {
-            splines1d::N<real,order>(0,N);
+            splines1d::N<real,order>(0,N); // Was tut das?
         }
 
         void operator()( const real *in, real *out ) const
         {
+        	// This computes: out = At * in.
             for ( size_t i = 0; i < config.Nx; ++i )
                 out[ i ] = 0;
 
