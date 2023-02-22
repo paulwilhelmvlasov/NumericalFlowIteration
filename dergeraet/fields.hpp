@@ -59,89 +59,24 @@ real eval( real x, const real *coeffs, const config_t<real> &config ) noexcept
     return factor*splines1d::eval<real,order,dx>( x, coeffs + ii );
 }
 
+template <typename real, size_t order, size_t dx = 0>
+class spline_interpolant
+{
+public:
+	spline_interpolant() = delete;
+	spline_interpolant( const spline_interpolant  &rhs ) = delete;
+	spline_interpolant( spline_interpolant &&rhs ) = delete;
+	spline_interpolant& operator=( const spline_interpolant  &rhs ) = delete;
+	spline_interpolant& operator=( spline_interpolant &&rhs ) = delete;
+
+	spline_interpolant(, )
+
+};
+
 template <typename real, size_t order>
 void interpolate( real *coeffs, const real *values, const config_t<real> &config )
 {
-	// Note: This is the same code as in the periodic case atm.
-	// Does this need adjustement for the non-periodic case?
-    std::unique_ptr<real[]> tmp { new real[ config.Nx ] };
-
-    for ( size_t i = 0; i < config.Nx; ++i )
-        tmp[ i ] = coeffs[ i ];
-
-    struct mat_t
-    {
-        const config_t<real> &config;
-        real  N[ order ];
-
-        mat_t( const config_t<real> &conf ): config { conf }
-        {
-            splines1d::N<real,order>(0,N);
-        }
-
-        void operator()( const real *in, real *out ) const
-        {
-            #pragma omp parallel for
-            for ( size_t i = 0; i < config.Nx; ++i )
-            {
-                real result = 0;
-                if ( i + order <= config.Nx )
-                {
-                    for ( size_t ii = 0; ii < order; ++ii )
-                        result += N[ii] * in[ i + ii ];
-                }
-/*                else
-                {
-                    for ( size_t ii = 0; ii < order; ++ii )
-                    	// This has to be adjusted for non-periodic boundaries!
-                        result += N[ii]*in[ (i+ii) % config.Nx ];
-                }*/
-                out[ i ] = result;
-            }
-        }
-    };
-
-    struct transposed_mat_t
-    {
-        const config_t<real> &config;
-        real  N[ order ];
-
-        transposed_mat_t( const config_t<real> &conf ): config { conf }
-        {
-            splines1d::N<real,order>(0,N);
-        }
-
-        void operator()( const real *in, real *out ) const
-        {
-            for ( size_t i = 0; i < config.Nx; ++i )
-                out[ i ] = 0;
-
-            for ( size_t i = 0; i < config.Nx; ++i )
-            {
-                if ( i + order <= config.Nx )
-                {
-                    for ( size_t ii = 0; ii < order; ++ii )
-                        out[ i + ii ]  += N[ii] * in[ i ];
-                }
-                /*else
-                {
-                    for ( size_t ii = 0; ii < order; ++ii )
-                    	// This has to be adjusted for non-periodic boundaries!
-                        out[ (i+ii) % config.Nx ] += N[ii]*in[ i ];
-                }*/
-            }
-        }
-    };
-
-    mat_t M { config }; transposed_mat_t Mt { config };
-    lsmr_options<real> opt; opt.silent = true;
-    lsmr( config.Nx, config.Nx, M, Mt, values, tmp.get(), opt );
-
-    if ( opt.iter == opt.max_iter )
-        std::cerr << "Warning. LSMR did not converge.\n";
-
-    for ( size_t i = 0; i < config.Nx + order - 1; ++i )
-        coeffs[ i ] = tmp[ i % config.Nx ];
+	// ...
 }
 
 
