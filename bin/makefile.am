@@ -1,4 +1,5 @@
-noinst_PROGRAMS = test_poisson test_gmres test_fields test_dergeraet #test_dergeraet_2d test_dergeraet_3d
+noinst_PROGRAMS = test_poisson test_gmres test_fields test_dergeraet \ #test_dergeraet_2d test_dergeraet_3d
+					 
 
 test_poisson_SOURCES = test_poisson.cpp
 test_poisson_LDADD   = $(top_builddir)/dergeraet/libdergeraet.a
@@ -15,6 +16,16 @@ test_fields_LDADD  += $(CUDA_LDFLAGS) $(BLAS_LIBS) -lfftw3 -lfftw3f
 test_dergeraet_SOURCES = test_dergeraet.cpp
 test_dergeraet_LDADD   = $(top_builddir)/dergeraet/libdergeraet.a 
 test_dergeraet_LDADD  += $(CUDA_LDFLAGS) $(BLAS_LIBS) -lfftw3 -lfftw3f
+
+test_nufi_cpu_SOURCES = test_nufi_cpu.cpp
+test_nufi_cpu_LDADD   = $(top_builddir)/dergeraet/libdergeraet.a 
+test_nufi_cpu_LDADD  += $(CUDA_LDFLAGS) $(BLAS_LIBS) -lfftw3 -lfftw3f
+
+test_nufi_cpu_2d_SOURCES = test_nufi_cpu_2d.cpp
+test_nufi_cpu_2d_LDADD   = $(top_builddir)/dergeraet/libdergeraet.a 
+test_nufi_cpu_2d_LDADD  += $(CUDA_LDFLAGS) $(BLAS_LIBS) -lfftw3 -lfftw3f
+
+
 
 # Programms using mpi are commented out as mpi does not work on Paul's workstation. 
 # If you like to use these files comment the respective files back in.
