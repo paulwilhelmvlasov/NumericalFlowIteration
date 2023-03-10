@@ -39,6 +39,7 @@ namespace dergeraet
 namespace dim2
 {
 
+
 template <typename real, size_t order>
 void test()
 {
@@ -46,6 +47,7 @@ void test()
     using std::max;
 
     config_t<real> conf;
+    conf.Nt = 70;
     size_t stride_t = (conf.Nx + order - 1) *
                       (conf.Ny + order - 1);
 
@@ -78,6 +80,7 @@ void test()
         total_time += timer_elapsed;
         dergeraet::stopwatch<double> timer_plots;
 
+/*
         real Emax = 0;
 	    real E_l2 = 0;
         for ( size_t i = 0; i < conf.Nx; ++i )
@@ -94,7 +97,9 @@ void test()
 
 	    double t = n*conf.dt;
         Emax_file << std::setw(15) << t << std::setw(15) << std::setprecision(5) << std::scientific << Emax << std::endl;
-        std::cout << std::setw(15) << t << std::setw(15) << std::setprecision(5) << std::scientific << Emax << " Comp-time: " << timer_elapsed << std::endl;
+        */
+        //std::cout << std::setw(15) << t << std::setw(15) << std::setprecision(5) << std::scientific << Emax << " Comp-time: " << timer_elapsed << std::endl;
+        std::cout << "n = " << n << " t = " << n*conf.dt << " Comp-time: " << timer_elapsed << std::endl;
 
     }
     std::cout << "Total time: " << total_time << std::endl;
@@ -103,7 +108,6 @@ void test()
 
 
 }
-
 }
 
 

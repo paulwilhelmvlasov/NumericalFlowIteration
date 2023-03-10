@@ -59,6 +59,7 @@ real eval( real x, const real *coeffs, const config_t<real> &config ) noexcept
     return factor*splines1d::eval<real,order,dx>( x, coeffs + ii );
 }
 
+/*
 template <typename real, size_t order, size_t dx = 0>
 class spline_interpolant
 {
@@ -68,11 +69,8 @@ public:
 	spline_interpolant( spline_interpolant &&rhs ) = delete;
 	spline_interpolant& operator=( const spline_interpolant  &rhs ) = delete;
 	spline_interpolant& operator=( spline_interpolant &&rhs ) = delete;
-
-	spline_interpolant(, )
-
 };
-
+*/
 template <typename real, size_t order>
 void interpolate( real *coeffs, const real *values, const config_t<real> &config )
 {

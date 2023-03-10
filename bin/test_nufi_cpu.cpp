@@ -46,6 +46,7 @@ void test()
     using std::max;
 
     config_t<real> conf;
+    conf.Nt = 70;
     const size_t stride_t = conf.Nx + order - 1;
 
     std::unique_ptr<real[]> coeffs { new real[ conf.Nt*stride_t ] {} };
@@ -65,11 +66,11 @@ void test()
 		#pragma omp parallel for
     	for(size_t i = 0; i<conf.Nx; i++)
     	{
-    		rho.get()[i] = eval_rho<real,order>(n, i, coeffs.get(), conf);
+    		rho.get()[i] = periodic::eval_rho<real,order>(n, i, coeffs.get(), conf);
     	}
 
         poiss.solve( rho.get() );
-        dim1::interpolate<real,order>( coeffs.get() + n*stride_t, rho.get(), conf );
+        periodic::interpolate<real,order>( coeffs.get() + n*stride_t, rho.get(), conf );
 
         double timer_elapsed = timer.elapsed();
         total_time += timer_elapsed;
@@ -80,7 +81,7 @@ void test()
         for ( size_t i = 0; i < conf.Nx; ++i )
         {
             real x = conf.x_min + i*conf.dx;
-            real E_abs = abs( dim1::eval<real,order,1>(x,coeffs.get()+n*stride_t,conf));
+            real E_abs = abs( periodic::eval<real,order,1>(x,coeffs.get()+n*stride_t,conf));
             Emax = max( Emax, E_abs );
 	        E_l2 += E_abs*E_abs;
         }
@@ -97,7 +98,6 @@ void test()
 
 
 }
-
 }
 
 
