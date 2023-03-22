@@ -229,4 +229,86 @@ real electro_static_force<real, order>::eval_rho( size_t n, real x)
 
 }
 }
+
+namespace dim3
+{
+
+namespace periodic
+{
+namespace maxwell
+{
+
+template <typename real, size_t order>
+electro_magnetic_force<real, order>::electro_magnetic_force(const config_t<real> &param,
+		real eps, size_t max_iter)
+		: eps(eps), max_iter(max_iter), param(param)
+{
+	l = param.Nx;
+	dx = param.dx;
+}
+
+template <typename real, size_t order>
+void electro_magnetic_force<real, order>::init_lhs_mat(arma::Mat<real> &lhs_mat)
+{
+	size_t n = order + l;
+	size_t N = n*n*n;
+
+	lhs_mat.reshape(N, N);
+
+	for(size_t a = 0; a < N; a++)
+	{
+		size_t sa = a / (n * n);
+		size_t tmp = a % (n * n);
+		size_t ja = tmp / n;
+		size_t ia = tmp % n;
+		for(size_t b = 0; b < N; b++)
+		{
+			size_t sb = b / (n * n);
+			tmp = b % (n * n);
+			size_t jb = tmp / n;
+			size_t ib = tmp % n;
+
+			real x = ib*dx;
+			real y = jb*dx;
+			real z = sb*dx;
+			lhs_mat(a,b) = N(x,ia,order,2)*N(y,ja,order,0)*N(z,sa,order,0)
+					+ N(x,ia,order,0)*N(y,ja,order,2)*N(z,sa,order,0)
+					+ N(x,ia,order,0)*N(y,ja,order,0)*N(z,sa,order,2)
+					+ N(x,ia,order,0)*N(y,ja,order,0)*N(z,sa,order,0)/light_speed;
+		}
+	}
+}
+
+template <typename real, size_t order>
+real electro_magnetic_force<real, order>::N(real x, size_t j, size_t k, size_t d)
+{
+// d = order of derivative
+// dim P_{k,l} = k+l = n
+	if(d == 0)
+	{
+		if(k = 1)
+		{
+			if(j*dx <= x && x < (j+1)*dx)
+			{
+				return 1;
+			}
+			return 0;
+		}
+
+		return ((x-j*dx)*N(x,j,k-1) + ((j+k)*dx-x)*N(x,j+1,k-1)) / ((k-1)*dx);
+	}
+	else if (d > 1)
+	{
+		return (N(x,j,k-1,d-1) - N(x,j+1,k-1,d-1) ) / dx;
+	}
+
+}
+
+
+
+}
+
+}
+}
+
 }

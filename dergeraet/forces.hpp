@@ -30,6 +30,7 @@ namespace dergeraet
 {
 
 namespace dim1
+
 {
 
 namespace fd_dirichlet
@@ -80,6 +81,71 @@ private:
 
 }
 }
+
+namespace dim3
+{
+
+namespace periodic
+{
+namespace maxwell
+{
+template <typename real, size_t order>
+class electro_magnetic_force
+{
+public:
+	electro_magnetic_force() = delete;
+	electro_magnetic_force( const electro_magnetic_force  &rhs ) = delete;
+	electro_magnetic_force( electro_magnetic_force &&rhs ) = delete;
+	electro_magnetic_force& operator=( const electro_magnetic_force  &rhs ) = delete;
+	electro_magnetic_force& operator=( electro_magnetic_force &&rhs ) = delete;
+
+	electro_magnetic_force(const config_t<real> &param,
+			real eps = 1e-10, size_t max_iter = 10000);
+    ~electro_magnetic_force();
+
+    real operator()(size_t tn, real x, real y, real z);
+    arma::Col<real> operator()(size_t tn, arma::Mat<real> xyz);
+
+    // I don't want to provide an interface to compute several values of f
+    // at once as there should be no incentive to compute and store *all*
+    // values of f at once!
+    real eval_f(size_t tn, real x, real y, real z);
+    arma::Mat<real> eval_rho_j(size_t tn, arma::Mat<real> xyz);
+
+    real N(real x, size_t j, size_t k, size_t d = 0);
+
+    void init_lhs_mat(arma::Mat<real> &lhs_mat);
+
+private:
+    arma::Mat<real> lhs_mat;
+
+    std::unique_ptr<real[]> coeffs_phi;
+    std::unique_ptr<real[]> coeffs_A_x;
+    std::unique_ptr<real[]> coeffs_A_y;
+    std::unique_ptr<real[]> coeffs_A_z;
+
+    size_t curr_tn = 0;
+    real eps = 1e-10;
+    size_t max_iter = 10000;
+
+    size_t l = 0; // l+2 nodes in each dimension including left and right boundary
+    real dx = 0;
+
+    real light_speed = 10;
+
+    config_t<real> param;
+
+    size_t stride_x;
+    size_t stride_y;
+    size_t stride_z;
+    size_t stride_t;
+};
+
+}
+}
+}
+
+
 }
 
 
