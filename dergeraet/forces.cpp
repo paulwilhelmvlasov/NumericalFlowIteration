@@ -245,7 +245,12 @@ electro_magnetic_force<real, order>::electro_magnetic_force(const config_t<real>
 {
 	l = param.Nx;
 	dx = param.dx;
+
+	init_lhs_mat(lhs_mat);
 }
+
+template <typename real, size_t order>
+electro_magnetic_force<real, order>::~electro_magnetic_force() { }
 
 template <typename real, size_t order>
 void electro_magnetic_force<real, order>::init_lhs_mat(arma::Mat<real> &lhs_mat)
