@@ -112,6 +112,10 @@ public:
     real eval_f(size_t tn, real x, real y, real z);
     arma::Mat<real> eval_rho_j(size_t tn, arma::Mat<real> xyz);
 
+    void solve_phi_j(const arma::Mat<real> &rho_j);
+    void solve_phi(const arma::Col<real> &rho);
+    void solve_j(const arma::Col<real> &ji, size_t i);
+
     real N(real x, size_t j, size_t k, size_t d = 0);
 
     void init_lhs_mat(arma::Mat<real> &lhs_mat);
@@ -128,16 +132,19 @@ private:
     real eps = 1e-10;
     size_t max_iter = 10000;
 
-    size_t l = 0; // l+2 nodes in each dimension including left and right boundary
+    // We assume all dimensions have the same amount of nodes for now.
+    // l+2 nodes in each dimension (l inner nodes, i.e., excluding boundary nodes).
+    // All other B-Spline-coefficients are equal to their c_{j-l-1} counterparts
+    // due to the periodicity condition.
+    size_t l = 0;
     real dx = 0;
 
     real light_speed = 10;
+    real mu0 = 1;
+    real eps0 = 1;
 
     config_t<real> param;
 
-    size_t stride_x;
-    size_t stride_y;
-    size_t stride_z;
     size_t stride_t;
 };
 

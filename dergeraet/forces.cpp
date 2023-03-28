@@ -243,6 +243,8 @@ electro_magnetic_force<real, order>::electro_magnetic_force(const config_t<real>
 		real eps, size_t max_iter)
 		: eps(eps), max_iter(max_iter), param(param)
 {
+	stride_t = (param.Nx + order - 1) * (param.Ny + order - 1) * (param.Nz + order - 1);
+
 	l = param.Nx;
 	dx = param.dx;
 
@@ -255,7 +257,8 @@ electro_magnetic_force<real, order>::~electro_magnetic_force() { }
 template <typename real, size_t order>
 void electro_magnetic_force<real, order>::init_lhs_mat(arma::Mat<real> &lhs_mat)
 {
-	size_t n = order + l;
+	// (Laplace - 1/c^2) phi
+	size_t n = l;
 	size_t N = n*n*n;
 
 	lhs_mat.reshape(N, N);
@@ -279,21 +282,31 @@ void electro_magnetic_force<real, order>::init_lhs_mat(arma::Mat<real> &lhs_mat)
 			lhs_mat(a,b) = N(x,ia,order,2)*N(y,ja,order,0)*N(z,sa,order,0)
 					+ N(x,ia,order,0)*N(y,ja,order,2)*N(z,sa,order,0)
 					+ N(x,ia,order,0)*N(y,ja,order,0)*N(z,sa,order,2)
-					+ N(x,ia,order,0)*N(y,ja,order,0)*N(z,sa,order,0)/light_speed;
+					+ N(x,ia,order,0)*N(y,ja,order,0)*N(z,sa,order,0)/(light_speed*light_speed);
 		}
 	}
 }
 
 template <typename real, size_t order>
+void electro_magnetic_force<real, order>::solve_phi(const arma::Col<real> &rho)
+{
+
+}
+
+
+template <typename real, size_t order>
 real electro_magnetic_force<real, order>::N(real x, size_t j, size_t k, size_t d)
 {
+// Notation from Dahmen & Reusken, chapter 9.
 // d = order of derivative
 // dim P_{k,l} = k+l = n
 	if(d == 0)
 	{
 		if(k = 1)
 		{
-			if(j*dx <= x && x < (j+1)*dx)
+			real tj = param.x_min + j * dx;
+			real tj1 = tj + dx;
+			if(tj <= x && x < tj1)
 			{
 				return 1;
 			}
