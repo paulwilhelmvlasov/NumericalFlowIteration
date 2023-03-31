@@ -26,76 +26,6 @@
 namespace dergeraet
 {
 
-namespace dim2
-{
-namespace benchmarks
-{
-    namespace weak_landau_damping
-    {
-        // Parameters taken from "Collela et. al - PIC 4th-order".
-        const double kx = 0.5;
-        const double ky = 0.5;
-
-        const double alpha = 0.05;
-
-        const double x_min = 0;
-        const double y_min = 0;
-        const double x_max = 2 * M_PI / kx;
-        const double y_max = 2 * M_PI / ky;
-
-        const double c = 1.0 / (2.0 * M_PI);
-
-        inline double f0(double x, double y, double u, double v)
-        {
-            return c * std::exp(-0.5 * (u*u + v*v)) * (1 + alpha * std::cos(kx*x)*std::cos(ky*y));
-        }
-    }
-
-    namespace two_stream_instability
-    {
-        // Parameters taken from "Collela et. al - PIC 4th-order".
-        const double kx = 0.5;
-        const double ky = 0.5;
-
-        const double alpha = 0.05;
-
-        const double x_min = 0;
-        const double y_min = 0;
-        const double x_max = 2 * M_PI / kx;
-        const double y_max = 2 * M_PI / ky;
-
-        const double c = 1.0 / (12.0 * M_PI);
-
-        inline double f0(double x, double y, double u, double v)
-        {
-            return c * std::exp(-0.5 * (u*u + v*v)) * (1 + 5*u*u) * (1 + alpha * std::cos(kx*x));
-        }
-    }
-
-    namespace fjalkow_two_beam_instability
-    {
-        // Parameters taken from "Cottet - Semi-Lagrangian pm for high-dim".
-        const double kx = 0.3;
-        const double ky = 0.3;
-
-        const double alpha = 0.05;
-
-        const double x_min = - M_PI / kx;
-        const double y_min = - M_PI / kx;
-        const double x_max = M_PI / kx;
-        const double y_max = M_PI / ky;
-
-        const double c = 7.0 / (4.0 * M_PI);
-
-        inline double f0(double x, double y, double u, double v)
-        {
-            return c * std::exp(-0.125*u*u - 0.5*v*v) * (std::sin(u / 3.0)*std::sin(u / 3.0)) * (1 + alpha * std::cos(kx*x));
-        }
-    }
-}
-
-}
-
 namespace dim1
 {
 
@@ -232,9 +162,12 @@ real config_t<real>::f0( real x, real y, real u, real v ) noexcept
 
 }
 
-
 namespace dim3
 {
+
+// We should either edit this to have separate configs for
+// Poisson and Maxwell, i.e., separate namespaces or change
+// the interfaces for the respective force-classes.
 
 template <typename real>
 struct config_t
@@ -259,6 +192,11 @@ struct config_t
     real dy, dy_inv, Ly, Ly_inv;
     real dz, dz_inv, Lz, Lz_inv;
     real du, dv, dw;
+
+    // Light speed and other constants.
+    real mu0 = 1;
+    real eps0 = 1;
+    real light_speed = 1/std::sqrt(eps0*mu0);
 
     config_t() noexcept;
     __host__ __device__ static real f0( real x, real y, real z, real u, real v, real w ) noexcept;

@@ -235,13 +235,11 @@ namespace dim3
 
 namespace periodic
 {
-namespace maxwell
-{
 
 template <typename real, size_t order>
 electro_magnetic_force<real, order>::electro_magnetic_force(const config_t<real> &param,
 		real eps, size_t max_iter)
-		: eps(eps), max_iter(max_iter), param(param)
+		: maxwell_solver(param), eps(eps), max_iter(max_iter), param(param)
 {
 	stride_t = (param.Nx + order - 1) * (param.Ny + order - 1) * (param.Nz + order - 1);
 
@@ -249,82 +247,43 @@ electro_magnetic_force<real, order>::electro_magnetic_force(const config_t<real>
 	dx = param.dx;
 
 	init_lhs_mat(lhs_mat);
+
+	coeffs_phi = std::unique_ptr<real[]>(new real[ param.Nt * stride_t ] {});
+	coeffs_A_x = std::unique_ptr<real[]>(new real[ param.Nt * stride_t ] {});
+	coeffs_A_y = std::unique_ptr<real[]>(new real[ param.Nt * stride_t ] {});
+	coeffs_A_z = std::unique_ptr<real[]>(new real[ param.Nt * stride_t ] {});
+
+	// The first 2 time-steps have to be initialized to be able to start
+	// the NuFI iteration due to the backwards differencing.
+	// ...
 }
 
 template <typename real, size_t order>
 electro_magnetic_force<real, order>::~electro_magnetic_force() { }
 
 template <typename real, size_t order>
-void electro_magnetic_force<real, order>::init_lhs_mat(arma::Mat<real> &lhs_mat)
+void electro_magnetic_force<real, order>::solve_phi(real* rho_phi)
 {
-	// (Laplace - 1/c^2) phi
-	size_t n = l;
-	size_t N = n*n*n;
+	// Expects to be give rho in FFTW-compatible format and return phi in
+	// the same array.
 
-	lhs_mat.reshape(N, N);
+	// .. do some maxwell-backwards-differencing stuff
 
-	for(size_t a = 0; a < N; a++)
-	{
-		size_t sa = a / (n * n);
-		size_t tmp = a % (n * n);
-		size_t ja = tmp / n;
-		size_t ia = tmp % n;
-		for(size_t b = 0; b < N; b++)
-		{
-			size_t sb = b / (n * n);
-			tmp = b % (n * n);
-			size_t jb = tmp / n;
-			size_t ib = tmp % n;
-
-			real x = ib*dx;
-			real y = jb*dx;
-			real z = sb*dx;
-			lhs_mat(a,b) = N(x,ia,order,2)*N(y,ja,order,0)*N(z,sa,order,0)
-					+ N(x,ia,order,0)*N(y,ja,order,2)*N(z,sa,order,0)
-					+ N(x,ia,order,0)*N(y,ja,order,0)*N(z,sa,order,2)
-					+ N(x,ia,order,0)*N(y,ja,order,0)*N(z,sa,order,0)/(light_speed*light_speed);
-		}
-	}
-}
-
-template <typename real, size_t order>
-void electro_magnetic_force<real, order>::solve_phi(const arma::Col<real> &rho)
-{
-
+    maxwell_solver.solve(rho_phi);
 }
 
 
 template <typename real, size_t order>
-real electro_magnetic_force<real, order>::N(real x, size_t j, size_t k, size_t d)
+void solve_j(real* j_A_i)
 {
-// Notation from Dahmen & Reusken, chapter 9.
-// d = order of derivative
-// dim P_{k,l} = k+l = n
-	if(d == 0)
-	{
-		if(k = 1)
-		{
-			real tj = param.x_min + j * dx;
-			real tj1 = tj + dx;
-			if(tj <= x && x < tj1)
-			{
-				return 1;
-			}
-			return 0;
-		}
+	// Expects to be give j_i in FFTW-compatible format and return A_i in
+	// the same array.
 
-		return ((x-j*dx)*N(x,j,k-1) + ((j+k)*dx-x)*N(x,j+1,k-1)) / ((k-1)*dx);
-	}
-	else if (d > 1)
-	{
-		return (N(x,j,k-1,d-1) - N(x,j+1,k-1,d-1) ) / dx;
-	}
+	// .. do some maxwell-backwards-differencing stuff
 
+    maxwell_solver.solve(j_A_i);
 }
 
-
-
-}
 
 }
 }

@@ -20,11 +20,13 @@
 #ifndef DERGERAET_FORCES_HPP
 #define DERGERAET_FORCES_HPP
 
+#include <fftw3.h>
 #include <memory>
 
 #include <dergeraet/config.hpp>
 #include <dergeraet/fields.hpp>
 #include <dergeraet/finite_difference_poisson.hpp>
+#include <dergeraet/maxwell.hpp>
 
 namespace dergeraet
 {
@@ -87,8 +89,7 @@ namespace dim3
 
 namespace periodic
 {
-namespace maxwell
-{
+
 template <typename real, size_t order>
 class electro_magnetic_force
 {
@@ -112,43 +113,42 @@ public:
     real eval_f(size_t tn, real x, real y, real z);
     arma::Mat<real> eval_rho_j(size_t tn, arma::Mat<real> xyz);
 
-    void solve_phi_j(const arma::Mat<real> &rho_j);
-    void solve_phi(const arma::Col<real> &rho);
-    void solve_j(const arma::Col<real> &ji, size_t i);
+    real eval_phi(size_t tn, real x, real y, real z);
+    real eval_j(size_t tn, real x, real y, real z, size_t i);
 
-    real N(real x, size_t j, size_t k, size_t d = 0);
+    real eval_E(size_t tn, real x, real y, real z, size_t i);
+    real eval_B(size_t tn, real x, real y, real z, size_t i);
 
-    void init_lhs_mat(arma::Mat<real> &lhs_mat);
+    void solve_phi(real* rho_phi);
+    void solve_j(real* j_A_i);
 
-private:
-    arma::Mat<real> lhs_mat;
+// private: // For debugging purposes leave it in public for now.
 
     std::unique_ptr<real[]> coeffs_phi;
     std::unique_ptr<real[]> coeffs_A_x;
     std::unique_ptr<real[]> coeffs_A_y;
     std::unique_ptr<real[]> coeffs_A_z;
 
+    size_t stride_t;
+
     size_t curr_tn = 0;
     real eps = 1e-10;
     size_t max_iter = 10000;
 
-    // We assume all dimensions have the same amount of nodes for now.
+    // We assume all dimensions have the same amount of nodes for now, i.e., dx=dy=dz.
     // l+2 nodes in each dimension (l inner nodes, i.e., excluding boundary nodes).
     // All other B-Spline-coefficients are equal to their c_{j-l-1} counterparts
     // due to the periodicity condition.
     size_t l = 0;
+	size_t n = l+1;
+	size_t N = n*n*n;
     real dx = 0;
 
-    real light_speed = 10;
-    real mu0 = 1;
-    real eps0 = 1;
-
     config_t<real> param;
-
-    size_t stride_t;
+    maxwell<real> maxwell_solver;
 };
 
-}
+
 }
 }
 

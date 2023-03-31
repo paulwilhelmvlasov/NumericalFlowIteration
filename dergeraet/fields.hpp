@@ -126,7 +126,8 @@ void interpolate( real *coeffs, const real *values, const config_t<real> &config
 
         mat_t( const config_t<real> &conf ): config { conf }
         {
-            splines1d::N<real,order>(0,N);
+            splines1d::N<real,order>(0,N); // Man wertet immer in der
+			   // Referenz Koordinate 0 aus.
         }
 
         void operator()( const real *in, real *out ) const
@@ -139,12 +140,13 @@ void interpolate( real *coeffs, const real *values, const config_t<real> &config
                 if ( i + order <= config.Nx )
                 {
                     for ( size_t ii = 0; ii < order; ++ii )
-                        result += N[ii] * in[ i + ii ];
+                        result += N[ii] * in[ i + ii ]; // Inside domain
                 }
                 else
                 {
                     for ( size_t ii = 0; ii < order; ++ii )
-                        result += N[ii]*in[ (i+ii) % config.Nx ];
+                        result += N[ii]*in[ (i+ii) % config.Nx ]; // almost boundary
+                    // thus periodicity condition
                 }
                 out[ i ] = result;
             }
@@ -159,12 +161,14 @@ void interpolate( real *coeffs, const real *values, const config_t<real> &config
 
         transposed_mat_t( const config_t<real> &conf ): config { conf }
         {
-            splines1d::N<real,order>(0,N); // Was tut das?
+            splines1d::N<real,order>(0,N); // Man wertet immer in der
+            							   // Referenz Koordinate 0 aus.
         }
 
         void operator()( const real *in, real *out ) const
         {
         	// This computes: out = At * in.
+        	// Is this right? Or is here in*At computed?
             for ( size_t i = 0; i < config.Nx; ++i )
                 out[ i ] = 0;
 
