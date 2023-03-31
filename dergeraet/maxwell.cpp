@@ -103,25 +103,25 @@ maxwell<float>::maxwell( const config_t<float> &p_param ):
     size_t mem_size  = sizeof(float) * param.Nx * param.Ny * param.Nz;
     void *tmp = std::aligned_alloc( alignment, mem_size );
     if ( tmp == nullptr ) throw std::bad_alloc {};
-    memptr mem { reinterpret_cast<double*>(tmp), std::free };
+    memptr mem { reinterpret_cast<float*>(tmp), std::free };
 
     plan = fftwf_plan_r2r_3d( param.Nz, param.Ny, param.Nx, mem.get(), mem.get(),
                              FFTW_DHT, FFTW_DHT, FFTW_DHT, FFTW_MEASURE );
 }
 
-maxwell<double>::~maxwell()
+maxwell<float>::~maxwell()
 {
     fftwf_destroy_plan( plan );
 }
 
-void maxwell<double>::conf( const config_t<float> &p )
+void maxwell<float>::conf( const config_t<float> &p )
 {
     using memptr = std::unique_ptr<float,decltype(std::free)*>;
 
     size_t mem_size  = sizeof(float) * p.Nx * p.Nx * p.Nz;
     void *tmp = std::aligned_alloc( alignment, mem_size );
     if ( tmp == nullptr ) throw std::bad_alloc {};
-    memptr mem { reinterpret_cast<double*>(tmp), &std::free };
+    memptr mem { reinterpret_cast<float*>(tmp), &std::free };
 
     fftwf_destroy_plan( plan );
     plan = fftwf_plan_r2r_3d( p.Nz, p.Ny, p.Nx, mem.get(), mem.get(),
@@ -157,7 +157,7 @@ void maxwell<float>::solve( float *data ) const noexcept
     }
 
 
-    fftw_execute_r2r( plan, data, data );
+    fftwf_execute_r2r( plan, data, data );
 }
 
 

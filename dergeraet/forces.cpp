@@ -278,7 +278,7 @@ void electro_magnetic_force<real, order>::solve_phi(real* rho_phi)
 		real y = param.y_min + j*param.dy;
 		real z = param.z_min + k*param.dz;
 
-		rho_phi[s] /= -eps0;
+		rho_phi[s] /= -param.eps0;
 		rho_phi[s] += (-2*eval_phi(curr_tn, x, y, z) + eval_phi(curr_tn-1,x,y,z))*dt_sq_inv;
 	}
 
@@ -287,7 +287,7 @@ void electro_magnetic_force<real, order>::solve_phi(real* rho_phi)
 
 
 template <typename real, size_t order>
-void solve_j(real* j_A_i, size_t i)
+void electro_magnetic_force<real, order>::solve_j(real* j_A_i, size_t i)
 {
 	// Expects to be give j_i in FFTW-compatible format and return A_i in
 	// the same array.
@@ -305,7 +305,7 @@ void solve_j(real* j_A_i, size_t i)
 		real y = param.y_min + j*param.dy;
 		real z = param.z_min + k*param.dz;
 
-		j_A_i[s] *= -mu0;
+		j_A_i[s] *= -param.mu0;
 		j_A_i[s] += (-2*eval_j(curr_tn, x, y, z, i) + eval_j(curr_tn-1,x,y,z, i))*dt_sq_inv;
 	}
 
