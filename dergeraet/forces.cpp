@@ -246,8 +246,6 @@ electro_magnetic_force<real, order>::electro_magnetic_force(const config_t<real>
 	l = param.Nx;
 	dx = param.dx;
 
-	init_lhs_mat(lhs_mat);
-
 	coeffs_phi = std::unique_ptr<real[]>(new real[ param.Nt * stride_t ] {});
 	coeffs_A_x = std::unique_ptr<real[]>(new real[ param.Nt * stride_t ] {});
 	coeffs_A_y = std::unique_ptr<real[]>(new real[ param.Nt * stride_t ] {});
@@ -267,19 +265,49 @@ void electro_magnetic_force<real, order>::solve_phi(real* rho_phi)
 	// Expects to be give rho in FFTW-compatible format and return phi in
 	// the same array.
 
-	// .. do some maxwell-backwards-differencing stuff
+	real dt_sq_inv = 1.0 / (param.dt*param.dt);
+
+	//#pragma omp parallel for
+	for(size_t i = 0; i < n; i++)
+	for(size_t j = 0; j < n; j++)
+	for(size_t k = 0; k < n; k++)
+	{
+		size_t s = i + j*param.Nx + k*param.Nx*param.Ny; // Is this correct?
+
+		real x = param.x_min + i*param.dx;
+		real y = param.y_min + j*param.dy;
+		real z = param.z_min + k*param.dz;
+
+		rho_phi[s] /= -eps0;
+		rho_phi[s] += (-2*eval_phi(curr_tn, x, y, z) + eval_phi(curr_tn-1,x,y,z))*dt_sq_inv;
+	}
 
     maxwell_solver.solve(rho_phi);
 }
 
 
 template <typename real, size_t order>
-void solve_j(real* j_A_i)
+void solve_j(real* j_A_i, size_t i)
 {
 	// Expects to be give j_i in FFTW-compatible format and return A_i in
 	// the same array.
 
-	// .. do some maxwell-backwards-differencing stuff
+	real dt_sq_inv = 1.0 / (param.dt*param.dt);
+
+	//#pragma omp parallel for
+	for(size_t i = 0; i < n; i++)
+	for(size_t j = 0; j < n; j++)
+	for(size_t k = 0; k < n; k++)
+	{
+		size_t s = i + j*param.Nx + k*param.Nx*param.Ny; // Is this correct?
+
+		real x = param.x_min + i*param.dx;
+		real y = param.y_min + j*param.dy;
+		real z = param.z_min + k*param.dz;
+
+		j_A_i[s] *= -mu0;
+		j_A_i[s] += (-2*eval_j(curr_tn, x, y, z, i) + eval_j(curr_tn-1,x,y,z, i))*dt_sq_inv;
+	}
 
     maxwell_solver.solve(j_A_i);
 }

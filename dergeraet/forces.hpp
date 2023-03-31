@@ -120,7 +120,7 @@ public:
     real eval_B(size_t tn, real x, real y, real z, size_t i);
 
     void solve_phi(real* rho_phi);
-    void solve_j(real* j_A_i);
+    void solve_j(real* j_A_i, size_t i);
 
 // private: // For debugging purposes leave it in public for now.
 
