@@ -267,7 +267,7 @@ void electro_magnetic_force<real, order>::solve_phi(real* rho_phi, bool save_res
 
 	real dt_sq_inv = 1.0 / (param.dt*param.dt);
 
-	//#pragma omp parallel for
+	#pragma omp parallel for
 	for(size_t i = 0; i < n; i++)
 	for(size_t j = 0; j < n; j++)
 	for(size_t k = 0; k < n; k++)
@@ -279,7 +279,7 @@ void electro_magnetic_force<real, order>::solve_phi(real* rho_phi, bool save_res
 		real z = param.z_min + k*param.dz;
 
 		rho_phi[s] /= -param.eps0;
-		rho_phi[s] += (-2*eval_phi(curr_tn, x, y, z) + eval_phi(curr_tn-1,x,y,z))*dt_sq_inv;
+		rho_phi[s] += (-2*phi(curr_tn, x, y, z) + phi(curr_tn-1,x,y,z))*dt_sq_inv;
 	}
 
     maxwell_solver.solve(rho_phi);
@@ -306,7 +306,7 @@ void electro_magnetic_force<real, order>::solve_j(real* j_A_i, size_t index, boo
 
 	real dt_sq_inv = 1.0 / (param.dt*param.dt);
 
-	//#pragma omp parallel for
+	#pragma omp parallel for
 	for(size_t i = 0; i < n; i++)
 	for(size_t j = 0; j < n; j++)
 	for(size_t k = 0; k < n; k++)
@@ -318,7 +318,7 @@ void electro_magnetic_force<real, order>::solve_j(real* j_A_i, size_t index, boo
 		real z = param.z_min + k*param.dz;
 
 		j_A_i[s] *= -param.mu0;
-		j_A_i[s] += (-2*eval_j(curr_tn,x,y,z,index) + eval_j(curr_tn-1,x,y,z,index))*dt_sq_inv;
+		j_A_i[s] += (-2*A(curr_tn,x,y,z,index) + A(curr_tn-1,x,y,z,index))*dt_sq_inv;
 	}
 
     maxwell_solver.solve(j_A_i);
@@ -349,6 +349,50 @@ void electro_magnetic_force<real, order>::solve_j(real* j_A_i, size_t index, boo
     }
 }
 
+template <typename real, size_t order>
+real E(size_t tn, real x, real y, real z, size_t i)
+{
+	real A_time_derivative = (A(tn,x,y,z,i) - A(tn-1,x,y,z,i)) / param.dt;
+	switch(i)
+	{
+	case 1:
+		return -(phi<1,0,0>(tn,x,y,z) + A_time_derivative);
+	case 2:
+		return -(phi<0,1,0>(tn,x,y,z) + A_time_derivative);
+	case 3:
+		return -(phi<0,0,1>(tn,x,y,z) + A_time_derivative);
+	default:
+		throw std::exception("Only 3d but index not equal 1,2 or 3!");
+	}
+
+}
+
+template <typename real, size_t order>
+real B(size_t tn, real x, real y, real z, size_t i)
+{
+	switch(i)
+	{
+	case 1:
+		return A<0,1,0>(tn,x,y,z,3) - A<0,0,1>(tn,x,y,z,2);
+	case 2:
+		return A<0,0,1>(tn,x,y,z,1) - A<1,0,0>(tn,x,y,z,3);
+	case 3:
+		return A<1,0,0>(tn,x,y,z,2) - A<0,1,0>(tn,x,y,z,1);
+	default:
+		throw std::exception("Only 3d but index not equal 1,2 or 3!");
+	}
+}
+
+
+
+template <typename real, size_t order>
+arma::Col<real> operator()(size_t t, real x, real y, real z, real v, real u, real w)
+{
+	// E + v/c x B
+	return {E(t,x,y,z,1) + light_speed_inv * (u*B(t,x,y,z,3)-w*B(t,x,y,z,2)),
+			E(t,x,y,z,2) + light_speed_inv * (w*B(t,x,y,z,1)-v*B(t,x,y,z,3)),
+			E(t,x,y,z,3) + light_speed_inv * (v*B(t,x,y,z,2)-w*B(t,x,y,z,1))};
+}
 
 }
 }

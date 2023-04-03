@@ -104,23 +104,26 @@ public:
 			real eps = 1e-10, size_t max_iter = 10000);
     ~electro_magnetic_force();
 
-    real operator()(size_t tn, real x, real y, real z);
-    arma::Col<real> operator()(size_t tn, arma::Mat<real> xyz);
+    arma::Col<real> operator()(size_t tn, real x, real y, real z, real v, real u, real w);
 
     // I don't want to provide an interface to compute several values of f
     // at once as there should be no incentive to compute and store *all*
     // values of f at once!
-    real eval_f(size_t tn, real x, real y, real z);
-    arma::Mat<real> eval_rho_j(size_t tn, arma::Mat<real> xyz);
+    real eval_f(size_t tn, real x, real y, real z, real v, real u, real w);
+    // Also provide an interface evaluate f with a function pointer to
+    // the initial data.
+    arma::Col<real> eval_rho_j(size_t tn, real x, real y, real z);
 
-    real eval_phi(size_t tn, real x, real y, real z);
-    real eval_j(size_t tn, real x, real y, real z, size_t i);
+    template <size_t dx = 0, size_t dy = 0, size_t dz = 0>
+    real phi(size_t tn, real x, real y, real z);
+    template <size_t dx = 0, size_t dy = 0, size_t dz = 0>
+    real A(size_t tn, real x, real y, real z, size_t i);
 
-    real eval_E(size_t tn, real x, real y, real z, size_t i);
-    real eval_B(size_t tn, real x, real y, real z, size_t i);
+    real E(size_t tn, real x, real y, real z, size_t i);
+    real B(size_t tn, real x, real y, real z, size_t i);
 
     void solve_phi(real* rho_phi, bool save_result = true);
-    void solve_j(real* j_A_i, size_t index, bool save_result = true);
+    void solve_A(real* j_A_i, size_t index, bool save_result = true);
 
 // private: // For debugging purposes leave it in public for now.
 

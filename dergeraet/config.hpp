@@ -197,6 +197,7 @@ struct config_t
     real mu0 = 1;
     real eps0 = 1;
     real light_speed = 1/std::sqrt(eps0*mu0);
+    real light_speed_inv = std::sqrt(eps0*mu0);
 
     config_t() noexcept;
     __host__ __device__ static real f0( real x, real y, real z, real u, real v, real w ) noexcept;
