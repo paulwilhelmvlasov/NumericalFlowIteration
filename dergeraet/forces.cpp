@@ -236,8 +236,8 @@ namespace dim3
 namespace periodic
 {
 
-template <typename real, size_t order>
-electro_magnetic_force<real, order>::electro_magnetic_force(const config_t<real> &param,
+template <typename real>
+electro_magnetic_force<real>::electro_magnetic_force(const config_t<real> &param,
 		real eps, size_t max_iter)
 		: maxwell_solver(param), eps(eps), max_iter(max_iter), param(param)
 {
@@ -246,111 +246,58 @@ electro_magnetic_force<real, order>::electro_magnetic_force(const config_t<real>
 	l = param.Nx;
 	dx = param.dx;
 
-	coeffs_phi = std::unique_ptr<real[]>(new real[ param.Nt * stride_t ] {});
-	coeffs_A_x = std::unique_ptr<real[]>(new real[ param.Nt * stride_t ] {});
-	coeffs_A_y = std::unique_ptr<real[]>(new real[ param.Nt * stride_t ] {});
-	coeffs_A_z = std::unique_ptr<real[]>(new real[ param.Nt * stride_t ] {});
+	coeffs_phi = std::unique_ptr<real[]>(new real[ (param.Nt + 1) * stride_t ] {});
+	coeffs_A_x = std::unique_ptr<real[]>(new real[ (param.Nt + 1) * stride_t ] {});
+	coeffs_A_y = std::unique_ptr<real[]>(new real[ (param.Nt + 1) * stride_t ] {});
+	coeffs_A_z = std::unique_ptr<real[]>(new real[ (param.Nt + 1) * stride_t ] {});
 
 	// The first 2 time-steps have to be initialized to be able to start
 	// the NuFI iteration due to the backwards differencing.
 	// ...
 }
 
-template <typename real, size_t order>
-electro_magnetic_force<real, order>::~electro_magnetic_force() { }
+template <typename real>
+electro_magnetic_force<real>::~electro_magnetic_force() { }
 
-template <typename real, size_t order>
-void electro_magnetic_force<real, order>::solve_phi(real* rho_phi, bool save_result)
+template <typename real>
+arma::Col<real> electro_magnetic_force<real>::operator()(size_t t, real x, real y, real z, real v, real u, real w)
 {
-	// Expects to be give rho in FFTW-compatible format and return phi in
-	// the same array.
-
-	real dt_sq_inv = 1.0 / (param.dt*param.dt);
-
-	#pragma omp parallel for
-	for(size_t i = 0; i < n; i++)
-	for(size_t j = 0; j < n; j++)
-	for(size_t k = 0; k < n; k++)
-	{
-		size_t s = i + j*param.Nx + k*param.Nx*param.Ny; // Is this correct?
-
-		real x = param.x_min + i*param.dx;
-		real y = param.y_min + j*param.dy;
-		real z = param.z_min + k*param.dz;
-
-		rho_phi[s] /= -param.eps0;
-		rho_phi[s] += (-2*phi(curr_tn, x, y, z) + phi(curr_tn-1,x,y,z))*dt_sq_inv;
-	}
-
-    maxwell_solver.solve(rho_phi);
-
-    if(save_result)
-    {
-    	for(size_t i = 0; i < N; i++)
-    	{
-    		coeffs_phi.get()[curr_tn*stride_t + i] = rho_phi[i];
-    	}
-    }
+	// E + v/c x B
+	return {E(t,x,y,z,1) + param.light_speed_inv * (u*B(t,x,y,z,3)-w*B(t,x,y,z,2)),
+			E(t,x,y,z,2) + param.light_speed_inv * (w*B(t,x,y,z,1)-v*B(t,x,y,z,3)),
+			E(t,x,y,z,3) + param.light_speed_inv * (v*B(t,x,y,z,2)-w*B(t,x,y,z,1))};
 }
 
-
-template <typename real, size_t order>
-void electro_magnetic_force<real, order>::solve_j(real* j_A_i, size_t index, bool save_result)
+template <typename real>
+template <size_t dx, size_t dy, size_t dz>
+real electro_magnetic_force<real>::phi(size_t tn, real x, real y, real z)
 {
-	// Expects to be give j_i in FFTW-compatible format and return A_i in
-	// the same array.
-	if(index == 0 || index > 3)
+	return dergeraet::dim3::eval<real, order, dx, dy, dz>(x, y, z,
+			coeffs_phi.get() + tn*stride_t, param);
+}
+
+template <typename real>
+template <size_t dx, size_t dy, size_t dz>
+real electro_magnetic_force<real>::A(size_t tn, real x, real y, real z, size_t i)
+{
+	switch(i)
 	{
+	case 1:
+		return dergeraet::dim3::eval<real, order, dx, dy, dz>(x, y, z,
+				coeffs_A_x.get() + tn*stride_t, param);
+	case 2:
+		return dergeraet::dim3::eval<real, order, dx, dy, dz>(x, y, z,
+				coeffs_A_y.get() + tn*stride_t, param);
+	case 3:
+		return dergeraet::dim3::eval<real, order, dx, dy, dz>(x, y, z,
+				coeffs_A_z.get() + tn*stride_t, param);
+	default:
 		throw std::exception("Only 3d but index not equal 1,2 or 3!");
 	}
-
-	real dt_sq_inv = 1.0 / (param.dt*param.dt);
-
-	#pragma omp parallel for
-	for(size_t i = 0; i < n; i++)
-	for(size_t j = 0; j < n; j++)
-	for(size_t k = 0; k < n; k++)
-	{
-		size_t s = i + j*param.Nx + k*param.Nx*param.Ny; // Is this correct?
-
-		real x = param.x_min + i*param.dx;
-		real y = param.y_min + j*param.dy;
-		real z = param.z_min + k*param.dz;
-
-		j_A_i[s] *= -param.mu0;
-		j_A_i[s] += (-2*A(curr_tn,x,y,z,index) + A(curr_tn-1,x,y,z,index))*dt_sq_inv;
-	}
-
-    maxwell_solver.solve(j_A_i);
-
-    if(save_result)
-    {
-    	switch(index)
-    	{
-    	case 1:
-        	for(size_t i = 0; i < N; i++)
-        	{
-        		coeffs_A_x.get()[curr_tn*stride_t + i] = j_A_i[i];
-        	}
-        	break;
-    	case 2:
-        	for(size_t i = 0; i < N; i++)
-        	{
-        		coeffs_A_y.get()[curr_tn*stride_t + i] = j_A_i[i];
-        	}
-        	break;
-    	case 3:
-        	for(size_t i = 0; i < N; i++)
-        	{
-        		coeffs_A_z.get()[curr_tn*stride_t + i] = j_A_i[i];
-        	}
-        	break;
-    	}
-    }
 }
 
-template <typename real, size_t order>
-real E(size_t tn, real x, real y, real z, size_t i)
+template <typename real>
+real electro_magnetic_force<real>::E(size_t tn, real x, real y, real z, size_t i)
 {
 	real A_time_derivative = (A(tn,x,y,z,i) - A(tn-1,x,y,z,i)) / param.dt;
 	switch(i)
@@ -367,8 +314,8 @@ real E(size_t tn, real x, real y, real z, size_t i)
 
 }
 
-template <typename real, size_t order>
-real B(size_t tn, real x, real y, real z, size_t i)
+template <typename real>
+real electro_magnetic_force<real>::B(size_t tn, real x, real y, real z, size_t i)
 {
 	switch(i)
 	{
@@ -384,15 +331,86 @@ real B(size_t tn, real x, real y, real z, size_t i)
 }
 
 
-
-template <typename real, size_t order>
-arma::Col<real> operator()(size_t t, real x, real y, real z, real v, real u, real w)
+template <typename real>
+void electro_magnetic_force<real>::solve_phi(real* rho_phi, bool save_result)
 {
-	// E + v/c x B
-	return {E(t,x,y,z,1) + light_speed_inv * (u*B(t,x,y,z,3)-w*B(t,x,y,z,2)),
-			E(t,x,y,z,2) + light_speed_inv * (w*B(t,x,y,z,1)-v*B(t,x,y,z,3)),
-			E(t,x,y,z,3) + light_speed_inv * (v*B(t,x,y,z,2)-w*B(t,x,y,z,1))};
+	// Expects to be give rho in FFTW-compatible format and return phi in
+	// the same array.
+
+	real dt_sq_inv = 1.0 / (param.dt*param.dt);
+
+	#pragma omp parallel for
+	for(size_t i = 0; i < n; i++)
+	for(size_t j = 0; j < n; j++)
+	for(size_t k = 0; k < n; k++)
+	{
+		size_t s = i + j*param.Nx + k*param.Nx*param.Ny;
+
+		real x = param.x_min + i*param.dx;
+		real y = param.y_min + j*param.dy;
+		real z = param.z_min + k*param.dz;
+
+		rho_phi[s] /= -param.eps0;
+		rho_phi[s] += (-2*phi(curr_tn, x, y, z) + phi(curr_tn-1,x,y,z))*dt_sq_inv;
+	}
+
+    maxwell_solver.solve(rho_phi);
+
+    if(save_result)
+    {
+        dergeraet::dim3::interpolate(coeffs_phi.get() + curr_tn*stride_t, rho_phi, param);
+    }
 }
+
+
+template <typename real>
+void electro_magnetic_force<real>::solve_A(real* j_A_i, size_t index, bool save_result)
+{
+	// Expects to be give j_i in FFTW-compatible format and return A_i in
+	// the same array.
+	if(index == 0 || index > 3)
+	{
+		throw std::exception("Only 3d but index not equal 1,2 or 3!");
+	}
+
+	real dt_sq_inv = 1.0 / (param.dt*param.dt);
+
+	#pragma omp parallel for
+	for(size_t i = 0; i < n; i++)
+	for(size_t j = 0; j < n; j++)
+	for(size_t k = 0; k < n; k++)
+	{
+		size_t s = i + j*param.Nx + k*param.Nx*param.Ny;
+
+		real x = param.x_min + i*param.dx;
+		real y = param.y_min + j*param.dy;
+		real z = param.z_min + k*param.dz;
+
+		j_A_i[s] *= -param.mu0;
+		j_A_i[s] += (-2*A(curr_tn,x,y,z,index) + A(curr_tn-1,x,y,z,index))*dt_sq_inv;
+	}
+
+    maxwell_solver.solve(j_A_i);
+
+    // Computing coefficients is still missing!!!
+
+    if(save_result)
+    {
+    	switch(index)
+    	{
+    	case 1:
+            dergeraet::dim3::interpolate<real,order>(coeffs_A_x.get() + curr_tn*stride_t, j_A_i, param);
+            break;
+    	case 2:
+    		dergeraet::dim3::interpolate<real,order>(coeffs_A_y.get() + curr_tn*stride_t, j_A_i, param);
+        	break;
+    	case 3:
+    		dergeraet::dim3::interpolate<real,order>(coeffs_A_z.get() + curr_tn*stride_t, j_A_i, param);
+        	break;
+    	}
+    }
+}
+
 
 }
 }
