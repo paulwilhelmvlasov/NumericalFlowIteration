@@ -396,7 +396,7 @@ real electro_magnetic_force<real>::B(size_t tn, real x, real y, real z, size_t i
 template <typename real>
 void electro_magnetic_force<real>::solve_phi(real* rho_phi, bool save_result)
 {
-	// Expects to be give rho in FFTW-compatible format and return phi in
+	// Expects to be given rho in FFTW-compatible format and return phi in
 	// the same array.
 
 	real dt_sq_inv = 1.0 / (param.dt*param.dt);
@@ -428,7 +428,7 @@ void electro_magnetic_force<real>::solve_phi(real* rho_phi, bool save_result)
 template <typename real>
 void electro_magnetic_force<real>::solve_A(real* j_A_i, size_t index, bool save_result)
 {
-	// Expects to be give j_i in FFTW-compatible format and return A_i in
+	// Expects to be given j_i in FFTW-compatible format and return A_i in
 	// the same array.
 	if(index == 0 || index > 3)
 	{
@@ -471,6 +471,60 @@ void electro_magnetic_force<real>::solve_A(real* j_A_i, size_t index, bool save_
         	break;
     	}
     }
+}
+
+template <typename real>
+void electro_magnetic_force<real>::solve_next_time_step()
+{
+	// Bring the arrays in the correct alignement for FFTW.
+    using memptr = std::unique_ptr<float,decltype(std::free)*>;
+
+    size_t mem_size  = sizeof(float) * param.Nx * param.Nx * param.Nz;
+
+    void *tmp_rho = std::aligned_alloc( alignment, mem_size );
+    if ( tmp_rho == nullptr ) throw std::bad_alloc {};
+    memptr mem_rho_phi { reinterpret_cast<float*>(tmp_rho), &std::free };
+
+    void *tmp_j_x = std::aligned_alloc( alignment, mem_size );
+    if ( tmp_j_x == nullptr ) throw std::bad_alloc {};
+    memptr mem_j_A_x { reinterpret_cast<float*>(tmp_j_x), &std::free };
+
+    void *tmp_j_y = std::aligned_alloc( alignment, mem_size );
+    if ( tmp_j_y == nullptr ) throw std::bad_alloc {};
+    memptr mem_j_A_y { reinterpret_cast<float*>(tmp_j_y), &std::free };
+
+    void *tmp_j_z = std::aligned_alloc( alignment, mem_size );
+    if ( tmp_j_z == nullptr ) throw std::bad_alloc {};
+    memptr mem_j_A_z { reinterpret_cast<float*>(tmp_j_z), &std::free };
+
+    arma::Col<real> rho_j(4);
+
+    // Compute rho and j.
+	#pragma omp parallel for
+    for(size_t i = 0; i < param.Nx; i++)
+    for(size_t j = 0; j < param.Ny; j++)
+    for(size_t k = 0; k < param.Nz; k++)
+    {
+    	real x = param.x_min + i * param.dx;
+    	real y = param.y_min + j * param.dy;
+    	real z = param.z_min + k * param.dz;
+
+    	rho_j = eval_rho_j(curr_tn + 1,x,y,z);
+
+    	mem_rho_phi[i + j*param.Nx + k*param.Nx*param.Ny] = rho_j(0);
+    	mem_j_A_x[i + j*param.Nx + k*param.Nx*param.Ny] = rho_j(1);
+    	mem_j_A_y[i + j*param.Nx + k*param.Nx*param.Ny] = rho_j(2);
+    	mem_j_A_z[i + j*param.Nx + k*param.Nx*param.Ny] = rho_j(3);
+    }
+
+    // Solve for phi and A and save the results.
+    solve_phi(mem_rho_phi, true);
+    solve_A(mem_j_A_x, 1, true);
+    solve_A(mem_j_A_y, 2, true);
+    solve_A(mem_j_A_z, 3, true);
+
+    // Increment the state-time.
+    curr_tn++;
 }
 
 

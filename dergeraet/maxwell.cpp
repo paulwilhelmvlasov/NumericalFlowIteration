@@ -66,6 +66,8 @@ void maxwell<double>::conf( const config_t<double> &p )
 
 void maxwell<double>::solve( double *data ) const noexcept
 {
+	// This expects already precomputed (wrt. to the time-discretization
+	// method used) rhs data.
     fftw_execute_r2r( plan, data, data );
 
     const double fac_N = double(1) / double( param.Nx * param.Ny * param.Nz );
@@ -132,6 +134,8 @@ void maxwell<float>::conf( const config_t<float> &p )
 
 void maxwell<float>::solve( float *data ) const noexcept
 {
+	// This expects already precomputed (wrt. to the time-discretization
+	// method used) rhs data.
     fftwf_execute_r2r( plan, data, data );
 
     const float fac_N = double(1) / double( param.Nx * param.Ny * param.Nz );

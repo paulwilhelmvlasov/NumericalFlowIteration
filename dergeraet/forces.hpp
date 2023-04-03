@@ -122,7 +122,7 @@ public:
     void solve_A(real* j_A_i, size_t index, bool save_result = true);
 
     void init_first_time_step_coeffs(); // Todo
-    void solve_next_time_step(); // Todo
+    void solve_next_time_step();
 
 private:
 
@@ -130,6 +130,8 @@ private:
     std::unique_ptr<real[]> coeffs_A_x;
     std::unique_ptr<real[]> coeffs_A_y;
     std::unique_ptr<real[]> coeffs_A_z;
+
+    size_t alignment { 64 };
 
     size_t stride_t;
 
