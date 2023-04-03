@@ -260,12 +260,23 @@ template <typename real>
 electro_magnetic_force<real>::~electro_magnetic_force() { }
 
 template <typename real>
-arma::Col<real> electro_magnetic_force<real>::operator()(size_t t, real x, real y, real z, real v, real u, real w)
+real electro_magnetic_force<real>::eval_f(size_t tn, real x, real y, real z, real v, real u, real w)
 {
-	// E + v/c x B
-	return {E(t,x,y,z,1) + param.light_speed_inv * (u*B(t,x,y,z,3)-w*B(t,x,y,z,2)),
-			E(t,x,y,z,2) + param.light_speed_inv * (w*B(t,x,y,z,1)-v*B(t,x,y,z,3)),
-			E(t,x,y,z,3) + param.light_speed_inv * (v*B(t,x,y,z,2)-w*B(t,x,y,z,1))};
+	// Using symplectic Euler.
+	if(tn == 0) return param.f0(x, y, z, v, u, w);
+
+	for(; tn > 0; tn--)
+	{
+		x -= param.dt * v;
+		y -= param.dt * u;
+		z -= param.dt * w;
+
+		v += param.dt * this(tn,x,y,z,v,u,w,1);
+		u += param.dt * this(tn,x,y,z,v,u,w,2);
+		w += param.dt * this(tn,x,y,z,v,u,w,3);
+	}
+
+	return config_t<real>::f0(x,y,z,u,v,w);
 }
 
 template <typename real>
@@ -294,6 +305,31 @@ real electro_magnetic_force<real>::A(size_t tn, real x, real y, real z, size_t i
 	default:
 		throw std::exception("Only 3d but index not equal 1,2 or 3!");
 	}
+}
+
+template <typename real>
+real electro_magnetic_force<real>::operator()(size_t t, real x, real y, real z, real v, real u, real w, size_t i)
+{
+	switch(i)
+	{
+	case 1:
+		return E(t,x,y,z,1) + param.light_speed_inv * (u*B(t,x,y,z,3)-w*B(t,x,y,z,2));
+	case 2:
+		return E(t,x,y,z,2) + param.light_speed_inv * (w*B(t,x,y,z,1)-v*B(t,x,y,z,3));
+	case 3:
+		return E(t,x,y,z,3) + param.light_speed_inv * (v*B(t,x,y,z,2)-w*B(t,x,y,z,1));
+	default:
+		throw std::exception("Only 3d but index not equal 1,2 or 3!");
+	}
+}
+
+template <typename real>
+arma::Col<real> electro_magnetic_force<real>::operator()(size_t t, real x, real y, real z, real v, real u, real w)
+{
+	// E + v/c x B
+	return {this(t,x,y,z,v,u,w,1),
+			this(t,x,y,z,v,u,w,2),
+			this(t,x,y,z,v,u,w,3)};
 }
 
 template <typename real>

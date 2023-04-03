@@ -112,6 +112,7 @@ public:
     template <size_t dx = 0, size_t dy = 0, size_t dz = 0>
     real A(size_t tn, real x, real y, real z, size_t i);
 
+    real operator()(size_t tn, real x, real y, real z, real v, real u, real w, size_t i);
     arma::Col<real> operator()(size_t tn, real x, real y, real z, real v, real u, real w);
 
     real E(size_t tn, real x, real y, real z, size_t i);
