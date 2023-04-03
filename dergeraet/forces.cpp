@@ -280,6 +280,32 @@ real electro_magnetic_force<real>::eval_f(size_t tn, real x, real y, real z, rea
 }
 
 template <typename real>
+arma::Col<real> electro_magnetic_force<real>::eval_rho_j(size_t tn, real x, real y, real z)
+{
+	arma::Col<real> rho_j = {0,0,0,0};
+
+	real dvuw = param.dv*param.du*param.dw;
+
+	for(size_t i = 0; i < param.Nv; i++)
+	for(size_t j = 0; j < param.Nu; j++)
+	for(size_t k = 0; k < param.Nw; k++)
+	{
+		real v = param.v_min + real(i+0.5) * param.dv;
+		real u = param.u_min + real(j+0.5) * param.du;
+		real w = param.w_min + real(k+0.5) * param.dw;
+
+		real f = eval_f(tn,x,y,z,v,u,w);
+
+		rho_j(0) += dvuw * f;
+		rho_j(1) += dvuw * v * f;
+		rho_j(2) += dvuw * u * f;
+		rho_j(3) += dvuw * w * f;
+	}
+
+	return rho_j;
+}
+
+template <typename real>
 template <size_t dx, size_t dy, size_t dz>
 real electro_magnetic_force<real>::phi(size_t tn, real x, real y, real z)
 {

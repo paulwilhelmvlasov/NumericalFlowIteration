@@ -104,8 +104,8 @@ public:
 			real eps = 1e-10, size_t max_iter = 10000);
     ~electro_magnetic_force();
 
-    real eval_f(size_t tn, real x, real y, real z, real v, real u, real w); // Todo
-    arma::Col<real> eval_rho_j(size_t tn, real x, real y, real z); // Todo
+    real eval_f(size_t tn, real x, real y, real z, real v, real u, real w);
+    arma::Col<real> eval_rho_j(size_t tn, real x, real y, real z);
 
     template <size_t dx = 0, size_t dy = 0, size_t dz = 0>
     real phi(size_t tn, real x, real y, real z);
@@ -122,6 +122,7 @@ public:
     void solve_A(real* j_A_i, size_t index, bool save_result = true);
 
     void init_first_time_step_coeffs(); // Todo
+    void solve_next_time_step(); // Todo
 
 private:
 
