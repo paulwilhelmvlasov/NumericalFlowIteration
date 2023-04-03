@@ -119,8 +119,8 @@ public:
     real eval_E(size_t tn, real x, real y, real z, size_t i);
     real eval_B(size_t tn, real x, real y, real z, size_t i);
 
-    void solve_phi(real* rho_phi);
-    void solve_j(real* j_A_i, size_t i);
+    void solve_phi(real* rho_phi, bool save_result = true);
+    void solve_j(real* j_A_i, size_t index, bool save_result = true);
 
 // private: // For debugging purposes leave it in public for now.
 

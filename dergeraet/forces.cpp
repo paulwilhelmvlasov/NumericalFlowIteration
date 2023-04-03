@@ -260,7 +260,7 @@ template <typename real, size_t order>
 electro_magnetic_force<real, order>::~electro_magnetic_force() { }
 
 template <typename real, size_t order>
-void electro_magnetic_force<real, order>::solve_phi(real* rho_phi)
+void electro_magnetic_force<real, order>::solve_phi(real* rho_phi, bool save_result)
 {
 	// Expects to be give rho in FFTW-compatible format and return phi in
 	// the same array.
@@ -283,14 +283,26 @@ void electro_magnetic_force<real, order>::solve_phi(real* rho_phi)
 	}
 
     maxwell_solver.solve(rho_phi);
+
+    if(save_result)
+    {
+    	for(size_t i = 0; i < N; i++)
+    	{
+    		coeffs_phi.get()[curr_tn*stride_t + i] = rho_phi[i];
+    	}
+    }
 }
 
 
 template <typename real, size_t order>
-void electro_magnetic_force<real, order>::solve_j(real* j_A_i, size_t i)
+void electro_magnetic_force<real, order>::solve_j(real* j_A_i, size_t index, bool save_result)
 {
 	// Expects to be give j_i in FFTW-compatible format and return A_i in
 	// the same array.
+	if(index == 0 || index > 3)
+	{
+		throw std::exception("Only 3d but index not equal 1,2 or 3!");
+	}
 
 	real dt_sq_inv = 1.0 / (param.dt*param.dt);
 
@@ -306,10 +318,35 @@ void electro_magnetic_force<real, order>::solve_j(real* j_A_i, size_t i)
 		real z = param.z_min + k*param.dz;
 
 		j_A_i[s] *= -param.mu0;
-		j_A_i[s] += (-2*eval_j(curr_tn, x, y, z, i) + eval_j(curr_tn-1,x,y,z, i))*dt_sq_inv;
+		j_A_i[s] += (-2*eval_j(curr_tn,x,y,z,index) + eval_j(curr_tn-1,x,y,z,index))*dt_sq_inv;
 	}
 
     maxwell_solver.solve(j_A_i);
+
+    if(save_result)
+    {
+    	switch(index)
+    	{
+    	case 1:
+        	for(size_t i = 0; i < N; i++)
+        	{
+        		coeffs_A_x.get()[curr_tn*stride_t + i] = j_A_i[i];
+        	}
+        	break;
+    	case 2:
+        	for(size_t i = 0; i < N; i++)
+        	{
+        		coeffs_A_y.get()[curr_tn*stride_t + i] = j_A_i[i];
+        	}
+        	break;
+    	case 3:
+        	for(size_t i = 0; i < N; i++)
+        	{
+        		coeffs_A_z.get()[curr_tn*stride_t + i] = j_A_i[i];
+        	}
+        	break;
+    	}
+    }
 }
 
 
