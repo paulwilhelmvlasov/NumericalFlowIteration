@@ -253,7 +253,7 @@ electro_magnetic_force<real>::electro_magnetic_force(const config_t<real> &param
 
 	// The first 2 time-steps have to be initialized to be able to start
 	// the NuFI iteration due to the backwards differencing.
-	// ...
+	init_first_time_step_coeffs();
 }
 
 template <typename real>
