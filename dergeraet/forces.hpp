@@ -121,7 +121,9 @@ public:
     void solve_phi(real* rho_phi, bool save_result = true);
     void solve_A(real* j_A_i, size_t index, bool save_result = true);
 
-    void init_first_time_step_coeffs(); // Todo
+    void init_first_time_step_coeffs();
+    void init_first_time_step_coeffs(real* phi_0, real* phi_1, real* A_x_0, real* A_x_1,
+									 real* A_y_0, real* A_y_1, real* A_z_0, real* A_z_1);
     void solve_next_time_step();
 
 private:
@@ -139,10 +141,6 @@ private:
     real eps = 1e-10;
     size_t max_iter = 10000;
 
-    // We assume all dimensions have the same amount of nodes for now, i.e., dx=dy=dz.
-    // l+2 nodes in each dimension (l inner nodes, i.e., excluding boundary nodes).
-    // All other B-Spline-coefficients are equal to their c_{j-l-1} counterparts
-    // due to the periodicity condition.
     static const size_t order = 4;
     size_t l = 0;
 	size_t n = l+1;

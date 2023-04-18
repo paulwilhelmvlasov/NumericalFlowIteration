@@ -474,6 +474,42 @@ void electro_magnetic_force<real>::solve_A(real* j_A_i, size_t index, bool save_
 }
 
 template <typename real>
+void electro_magnetic_force<real>::init_first_time_step_coeffs()
+{
+	// Think about how to do this correctly!!!
+	// Init 0th and 1st time-step with potentials=0, i.e., vanishing fields.
+	for(size_t i = 0; i < 2*stride_t; i++)
+	{
+		coeffs_phi.get()[i] = 0;
+		coeffs_A_x.get()[i] = 0;
+		coeffs_A_y.get()[i] = 0;
+		coeffs_A_z.get()[i] = 0;
+	}
+}
+
+template <typename real>
+void electro_magnetic_force<real>::init_first_time_step_coeffs(real* phi_0, real* phi_1,
+		 real* A_x_0, real* A_x_1, real* A_y_0, real* A_y_1, real* A_z_0, real* A_z_1)
+{
+	// Set coeffs for t = 0.
+	for(size_t i = 0; i < stride_t; i++)
+	{
+		coeffs_phi.get()[i] = phi_0[i];
+		coeffs_A_x.get()[i] = A_x_0[i];
+		coeffs_A_y.get()[i] = A_y_0[i];
+		coeffs_A_z.get()[i] = A_z_0[i];
+	}
+	// Set coeffs for t = t_1.
+	for(size_t i = stride_t; i < 2*stride_t; i++)
+	{
+		coeffs_phi.get()[i] = phi_1[i];
+		coeffs_A_x.get()[i] = A_x_1[i];
+		coeffs_A_y.get()[i] = A_y_1[i];
+		coeffs_A_z.get()[i] = A_z_1[i];
+	}
+}
+
+template <typename real>
 void electro_magnetic_force<real>::solve_next_time_step()
 {
 	// Bring the arrays in the correct alignement for FFTW.
