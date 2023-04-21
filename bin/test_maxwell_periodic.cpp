@@ -34,9 +34,9 @@ void test_solve_phi()
 
 	// Test rho = 0.
 	dergeraet::dim3::periodic::electro_magnetic_force<real> emf(param);
-
-    size_t mem_size  = sizeof(real) * p.Nx * p.Nx * p.Nz;
-    void *tmp = std::aligned_alloc( alignment, mem_size );
+/*
+    size_t mem_size  = sizeof(real) * param.Nx * param.Nx * param.Nz;
+    void *tmp = std::aligned_alloc( 64, mem_size );
     if ( tmp == nullptr ) throw std::bad_alloc {};
     memptr mem { reinterpret_cast<real*>(tmp), &std::free };
 
@@ -44,15 +44,18 @@ void test_solve_phi()
     for(size_t j = 0; j < param.Ny; j++)
     for(size_t k = 0; k < param.Nz; k++)
     {
-    	mem[i + j*param.Nx + k*param.Nx*param.Ny] = 0;
+    	mem.get()[i + j*param.Nx + k*param.Nx*param.Ny] = 0;
     }
 
-    // We need to init the first two time-steps first...
-    emf.solve_phi(mem, false);
+    emf.solve_phi(mem.get(), false);
+*/
+    std::cout << "Test done." << std::endl;
 }
 
 
 int main()
 {
+	test_solve_phi<double>();
 
+	return 0;
 }

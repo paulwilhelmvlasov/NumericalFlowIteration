@@ -235,7 +235,6 @@ namespace dim3
 
 namespace periodic
 {
-
 template <typename real>
 electro_magnetic_force<real>::electro_magnetic_force(const config_t<real> &param,
 		real eps, size_t max_iter)
