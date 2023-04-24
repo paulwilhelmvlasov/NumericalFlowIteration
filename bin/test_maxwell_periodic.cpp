@@ -22,7 +22,9 @@
 
 #include <iomanip>
 
-#include <dergeraet/forces.hpp>
+//#include <dergeraet/forces.hpp>
+//#include <dergeraet/poisson.hpp>
+#include <dergeraet/maxwell.hpp>
 #include <dergeraet/stopwatch.hpp>
 
 template <typename real>
@@ -33,7 +35,9 @@ void test_solve_phi()
 	dergeraet::dim3::config_t<real> param;
 
 	// Test rho = 0.
-	dergeraet::dim3::periodic::electro_magnetic_force<real> emf(param);
+	//dergeraet::dim3::periodic::electro_magnetic_force<real> emf(param, 1e-10, 1000);
+	//dergeraet::dim3::electro_magnetic_force<real> emf(param, 1e-10, 1000);
+	dergeraet::dim3::maxwell<real> mama(param);
 /*
     size_t mem_size  = sizeof(real) * param.Nx * param.Nx * param.Nz;
     void *tmp = std::aligned_alloc( 64, mem_size );

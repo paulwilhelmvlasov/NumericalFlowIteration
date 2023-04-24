@@ -31,7 +31,7 @@ namespace fd_dirichlet
 {
 
 template <typename real, size_t order>
-electro_static_force<real, order>::electro_static_force(const config_t<real> &p_param,
+electro_static_force<real, order>::electro_static_force(const dergeraet::dim1::config_t<real> &p_param,
 		real eps, size_t max_iter)
 : poisson(p_param), eps(eps), max_iter(max_iter)
 {
@@ -102,7 +102,7 @@ template <typename real, size_t order>
 real electro_static_force<real, order>::eval_ftilda( size_t n, real x,
 														real u)
 {
-    if ( n == 0 ) return config_t<real>::f0(x,u);
+    if ( n == 0 ) return dergeraet::dim1::config_t<real>::f0(x,u);
     if ( n > curr_tn ) throw std::exception("n is still in future.");
 
     real Ex;
@@ -124,7 +124,7 @@ real electro_static_force<real, order>::eval_ftilda( size_t n, real x,
         u  = u + poisson.param.dt*Ex;
         // This should be substituted by a more general approach.
         // See my comment in config.hpp.
-        return config_t<real>::f0(x,u);
+        return dergeraet::dim1::config_t<real>::f0(x,u);
     }
 
     // The final half-step.
@@ -139,13 +139,13 @@ real electro_static_force<real, order>::eval_ftilda( size_t n, real x,
     }
     u += 0.5*poisson.param.dt*Ex;
 
-    return config_t<real>::f0(x,u);
+    return dergeraet::dim1::config_t<real>::f0(x,u);
 }
 
 template <typename real, size_t order>
 real electro_static_force<real, order>::eval_f( size_t n, real x, real u)
 {
-    if ( n == 0 ) return config_t<real>::f0(x,u);
+    if ( n == 0 ) return dergeraet::dim1::config_t<real>::f0(x,u);
     if ( n > curr_tn ) throw std::exception("n is still in future.");
 
     real Ex;
@@ -170,7 +170,7 @@ real electro_static_force<real, order>::eval_f( size_t n, real x, real u)
         u  = u + poisson.param.dt*Ex;
         // This should be substituted by a more general approach.
         // See my comment in config.hpp.
-        return config_t<real>::f0(x,u);
+        return dergeraet::dim1::config_t<real>::f0(x,u);
     }
 
     // The final half-step.
@@ -185,7 +185,7 @@ real electro_static_force<real, order>::eval_f( size_t n, real x, real u)
     }
     u += 0.5*poisson.param.dt*Ex;
 
-    return config_t<real>::f0(x,u);
+    return dergeraet::dim1::config_t<real>::f0(x,u);
 }
 
 template <typename real, size_t order>
@@ -233,10 +233,10 @@ real electro_static_force<real, order>::eval_rho( size_t n, real x)
 namespace dim3
 {
 
-namespace periodic
-{
+//namespace periodic
+//{
 template <typename real>
-electro_magnetic_force<real>::electro_magnetic_force(const config_t<real> &param,
+electro_magnetic_force<real>::electro_magnetic_force(const dergeraet::dim3::config_t<real> &param,
 		real eps, size_t max_iter)
 		: maxwell_solver(param), eps(eps), max_iter(max_iter), param(param)
 {
@@ -275,7 +275,7 @@ real electro_magnetic_force<real>::eval_f(size_t tn, real x, real y, real z, rea
 		w += param.dt * this(tn,x,y,z,v,u,w,3);
 	}
 
-	return config_t<real>::f0(x,y,z,u,v,w);
+	return dergeraet::dim3::config_t<real>::f0(x,y,z,u,v,w);
 }
 
 template <typename real>
@@ -566,4 +566,4 @@ void electro_magnetic_force<real>::solve_next_time_step()
 }
 }
 
-}
+//}

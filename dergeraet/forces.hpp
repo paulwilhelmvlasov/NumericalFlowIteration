@@ -87,8 +87,8 @@ private:
 namespace dim3
 {
 
-namespace periodic
-{
+//namespace periodic
+//{
 
 template <typename real>
 class electro_magnetic_force
@@ -103,7 +103,7 @@ public:
 	// Todo: There should be a way to either pass the coefficients for the
 	// first two time-steps or at least specify how the initialization is
 	// supposed to be done!
-	electro_magnetic_force(const config_t<real> &param,
+	electro_magnetic_force(const dergeraet::dim3::config_t<real> &param,
 			real eps = 1e-10, size_t max_iter = 10000);
     ~electro_magnetic_force();
 
@@ -150,7 +150,7 @@ private:
 	size_t N = n*n*n;
     real dx = 0;
 
-    config_t<real> param;
+    dergeraet::dim3::config_t<real> param;
     maxwell<real> maxwell_solver;
 };
 
@@ -159,7 +159,7 @@ private:
 }
 
 
-}
+//}
 
 
 #endif

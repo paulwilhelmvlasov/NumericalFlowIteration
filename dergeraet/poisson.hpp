@@ -175,7 +175,7 @@ namespace dim3
         fftw_plan plan;
 	};
 
-	// Declaration for real = float.
+	// Definition for real = float.
 	template <>
 	class poisson<float>
 	{
