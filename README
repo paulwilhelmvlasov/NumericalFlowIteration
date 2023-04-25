@@ -1,0 +1,39 @@
+## Instruction for use on the Cluster
+
+1. Clone the project
+
+2. Copy the include folder into `` ~/local/ ``
+
+3. Add the following code to either your ``.bashrc`` or ``.zshrc``:
+
+```
+module unload intel
+module unload intelmpi
+module load cuda/11.6
+module load gcc/11
+module load openmpi/4.1.1
+
+export C_INCLUDE_PATH=$MPI_INCLUDE:$CUDA_ROOT/include:$C_INCLUDE_PATH
+export CPLUS_INCLUDE_PATH=$MPI_INCLUDE:$CUDA_ROOT/include:$CPLUS_INCLUDE_PATH
+export LIBRARY_PATH=$MPI_LIBDIR:$CUDA_ROOT/lib64:$LIBRARY_PATH
+export LD_LIBRARY_PATH=$MPI_LIBDIR:$CUDA_ROOT/lib64:$LD_LIBRARY_PATH
+export C_INCLUDE_PATH=~/local/include:$C_INCLUDE_PATH
+export CPLUS_INCLUDE_PATH=~/local/include:$CPLUS_INCLUDE_PATH
+export LIBRARY_PATH=~/local/lib:$LIBRARY_PATH
+export LD_LIBRARY_PATH=~/local/lib:$LD_LIBRARY_PATH
+```
+
+4. Next execute the following commands in the main folder:
+
+```
+autoreconf --install
+./configure
+make
+```
+
+5. Lastly you can test the install:
+```
+mkdir build
+cd build
+../bin/test_dergeraet
+```
