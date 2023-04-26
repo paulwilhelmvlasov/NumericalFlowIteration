@@ -23,7 +23,6 @@
 #include <iomanip>
 
 #include <dergeraet/forces.hpp>
-#include <dergeraet/electro_magnetic_force.hpp>
 #include <dergeraet/stopwatch.hpp>
 
 namespace dergeraet
