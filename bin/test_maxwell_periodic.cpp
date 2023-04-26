@@ -52,11 +52,10 @@ void test_solve_phi()
 	// Test rho = 0.
 	electro_magnetic_force emf(param, 1e-10, 1000);
 
-/*
-    size_t mem_size  = sizeof(real) * param.Nx * param.Nx * param.Nz;
+    size_t mem_size  = sizeof(double) * param.Nx * param.Nx * param.Nz;
     void *tmp = std::aligned_alloc( 64, mem_size );
     if ( tmp == nullptr ) throw std::bad_alloc {};
-    memptr mem { reinterpret_cast<real*>(tmp), &std::free };
+    memptr mem { reinterpret_cast<double*>(tmp), &std::free };
 
     for(size_t i = 0; i < param.Nx; i++)
     for(size_t j = 0; j < param.Ny; j++)
@@ -66,8 +65,17 @@ void test_solve_phi()
     }
 
     emf.solve_phi(mem.get(), false);
-*/
-    std::cout << "Test done." << std::endl;
+
+    for(size_t i = 0; i < param.Nx; i++)
+    for(size_t j = 0; j < param.Ny; j++)
+    for(size_t k = 0; k < param.Nz; k++)
+    {
+    	std::cout << i*param.dx << " " << j*param.dy << " " <<
+    	k*param.dz << " " << mem.get()[i + j*param.Nx + k*param.Nx*param.Ny] << std::endl;
+    }
+
+
+    std::cout << "Test done 0." << std::endl;
 }
 
 }
