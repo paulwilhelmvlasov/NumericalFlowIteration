@@ -254,6 +254,8 @@ electro_magnetic_force::electro_magnetic_force(const config_t<double> &param,
 	// The first 2 time-steps have to be initialized to be able to start
 	// the NuFI iteration due to the backwards differencing.
 	init_first_time_step_coeffs();
+
+	curr_tn = 2;
 }
 
 electro_magnetic_force::~electro_magnetic_force() { }
@@ -414,8 +416,21 @@ void electro_magnetic_force::solve_phi(double* rho_phi, bool save_result)
 		double y = param.y_min + j*param.dy;
 		double z = param.z_min + k*param.dz;
 
+		if(std::isnan(rho_phi[s]))
+		{
+			throw std::runtime_error("Line 419: rho_phi[" + std::to_string(s) + "] is nan.");
+		}
 		rho_phi[s] /= -param.eps0;
 		rho_phi[s] += (-2*phi(curr_tn, x, y, z) + phi(curr_tn-1,x,y,z))*dt_sq_inv;
+		if(std::isnan(rho_phi[s]))
+		{
+			std::cout << rho_phi[s] << std::endl;
+			std::cout << param.eps0 << std::endl;
+			std::cout << phi(curr_tn, x, y, z) << std::endl;
+			std::cout << phi(curr_tn-1, x, y, z) << std::endl;
+			std::cout << dt_sq_inv << std::endl;
+			throw std::runtime_error("Line 425: rho_phi[" + std::to_string(s) + "] is nan.");
+		}
 	}
 
     maxwell_solver.solve(rho_phi);

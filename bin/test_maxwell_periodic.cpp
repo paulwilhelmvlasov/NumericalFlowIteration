@@ -43,9 +43,11 @@ void test()
 namespace dim3
 {
 
-void test_solve_phi()
+void test_0_solve_phi()
 {
     using memptr = std::unique_ptr<double,decltype(std::free)*>;
+
+    std::cout << std::scientific;
 
     config_t<double> param;
 
@@ -78,6 +80,57 @@ void test_solve_phi()
     std::cout << "Test done 0." << std::endl;
 }
 
+void test_1_solve_phi()
+{
+    using memptr = std::unique_ptr<double,decltype(std::free)*>;
+
+    config_t<double> param;
+
+    std::cout << std::scientific;
+
+	electro_magnetic_force emf(param);
+
+    size_t mem_size  = sizeof(double) * param.Nx * param.Nx * param.Nz;
+    void *tmp = std::aligned_alloc( 64, mem_size );
+    if ( tmp == nullptr ) throw std::bad_alloc {};
+    memptr mem { reinterpret_cast<double*>(tmp), &std::free };
+
+    double c = -(3 + 1.0/param.dt);
+    for(size_t i = 0; i < param.Nx; i++)
+    for(size_t j = 0; j < param.Ny; j++)
+    for(size_t k = 0; k < param.Nz; k++)
+    {
+    	double x = i*param.dx;
+    	double y = j*param.dy;
+    	double z = k*param.dz;
+    	mem.get()[i + j*param.Nx + k*param.Nx*param.Ny] = c*cos(x)*cos(y)*cos(z);
+    }
+
+    emf.solve_phi(mem.get(), false);
+
+    double total_error = 0;
+    for(size_t i = 0; i < param.Nx; i++)
+    for(size_t j = 0; j < param.Ny; j++)
+    for(size_t k = 0; k < param.Nz; k++)
+    {
+    	double x = i*param.dx;
+    	double y = j*param.dy;
+    	double z = k*param.dz;
+    	double phi_num = mem.get()[i + j*param.Nx + k*param.Nx*param.Ny];
+    	double phi_exact = cos(x)*cos(y)*cos(z);
+    	double err = abs(phi_num-phi_exact);
+    	total_error += err;
+    	std::cout << x << " " << y << " " << z
+    			<< " " << phi_num << std::endl;
+//				<< " " << phi_exact
+//    			<< " " << err << std::endl;
+    }
+
+
+    std::cout << "Test done 1. Total error = " << total_error << std::endl;
+}
+
+
 }
 }
 
@@ -85,7 +138,8 @@ void test_solve_phi()
 
 int main()
 {
-	dergeraet::dim3::test_solve_phi();
+	dergeraet::dim3::test_0_solve_phi();
+	dergeraet::dim3::test_1_solve_phi();
 
 	return 0;
 }

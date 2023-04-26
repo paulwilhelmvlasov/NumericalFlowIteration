@@ -194,10 +194,10 @@ struct config_t
     real du, dv, dw;
 
     // Light speed and other constants.
-    real mu0 = 1;
-    real eps0 = 1;
-    real light_speed = 1/std::sqrt(eps0*mu0);
-    real light_speed_inv = std::sqrt(eps0*mu0);
+    real mu0;
+    real eps0;
+    real light_speed;
+    real light_speed_inv;
 
     config_t() noexcept;
     __host__ __device__ static real f0( real x, real y, real z, real u, real v, real w ) noexcept;
@@ -226,6 +226,12 @@ config_t<real>::config_t() noexcept
     du = (u_max - u_min)/Nu;
     dv = (v_max - v_min)/Nv;
     dw = (w_max - w_min)/Nw;
+
+    mu0 = 1;
+    eps0 = 1;
+    light_speed = 1/std::sqrt(eps0*mu0);
+    light_speed_inv = std::sqrt(eps0*mu0);
+
 }
 
 template <typename real>
