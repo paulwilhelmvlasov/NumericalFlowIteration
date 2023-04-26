@@ -1,0 +1,5 @@
+To run this with the autotools buildsystem run:
+
+autoreconf --install
+./configure
+make 

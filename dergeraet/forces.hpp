@@ -90,7 +90,6 @@ namespace dim3
 //namespace periodic
 //{
 
-template <typename real>
 class electro_magnetic_force
 {
 public:
@@ -103,55 +102,60 @@ public:
 	// Todo: There should be a way to either pass the coefficients for the
 	// first two time-steps or at least specify how the initialization is
 	// supposed to be done!
-	electro_magnetic_force(const dergeraet::dim3::config_t<real> &param,
-			real eps = 1e-10, size_t max_iter = 10000);
+	electro_magnetic_force(const config_t<double> &param,
+			double eps = 1e-10, size_t max_iter = 10000);
     ~electro_magnetic_force();
 
-    real eval_f(size_t tn, real x, real y, real z, real v, real u, real w);
-    arma::Col<real> eval_rho_j(size_t tn, real x, real y, real z);
+    double eval_f(size_t tn, double x, double y, double z, double v,
+    		double u, double w);
+    arma::Col<double> eval_rho_j(size_t tn, double x, double y, double z);
 
     template <size_t dx = 0, size_t dy = 0, size_t dz = 0>
-    real phi(size_t tn, real x, real y, real z);
+    double phi(size_t tn, double x, double y, double z);
+
     template <size_t dx = 0, size_t dy = 0, size_t dz = 0>
-    real A(size_t tn, real x, real y, real z, size_t i);
+    double A(size_t tn, double x, double y, double z, size_t i);
 
-    real operator()(size_t tn, real x, real y, real z, real v, real u, real w, size_t i);
-    arma::Col<real> operator()(size_t tn, real x, real y, real z, real v, real u, real w);
+    double operator()(size_t tn, double x, double y, double z, double v,
+    		double u, double w, size_t i);
+    arma::Col<double> operator()(size_t tn, double x, double y, double z,
+    		double v, double u, double w);
 
-    real E(size_t tn, real x, real y, real z, size_t i);
-    real B(size_t tn, real x, real y, real z, size_t i);
+    double E(size_t tn, double x, double y, double z, size_t i);
+    double B(size_t tn, double x, double y, double z, size_t i);
 
-    void solve_phi(real* rho_phi, bool save_result = true);
-    void solve_A(real* j_A_i, size_t index, bool save_result = true);
+    void solve_phi(double* rho_phi, bool save_result = true);
+    void solve_A(double* j_A_i, size_t index, bool save_result = true);
 
     void init_first_time_step_coeffs();
-    void init_first_time_step_coeffs(real* phi_0, real* phi_1, real* A_x_0, real* A_x_1,
-									 real* A_y_0, real* A_y_1, real* A_z_0, real* A_z_1);
+    void init_first_time_step_coeffs(double* phi_0, double* phi_1,
+					double* A_x_0, double* A_x_1, double* A_y_0,
+					double* A_y_1, double* A_z_0, double* A_z_1);
     void solve_next_time_step();
 
 private:
 
-    std::unique_ptr<real[]> coeffs_phi;
-    std::unique_ptr<real[]> coeffs_A_x;
-    std::unique_ptr<real[]> coeffs_A_y;
-    std::unique_ptr<real[]> coeffs_A_z;
+    std::unique_ptr<double[]> coeffs_phi;
+    std::unique_ptr<double[]> coeffs_A_x;
+    std::unique_ptr<double[]> coeffs_A_y;
+    std::unique_ptr<double[]> coeffs_A_z;
 
     size_t alignment { 64 };
 
     size_t stride_t;
 
     size_t curr_tn = 0;
-    real eps = 1e-10;
+    double eps = 1e-10;
     size_t max_iter = 10000;
 
     static const size_t order = 4;
     size_t l = 0;
 	size_t n = l+1;
 	size_t N = n*n*n;
-    real dx = 0;
+	double dx = 0;
 
-    dergeraet::dim3::config_t<real> param;
-    maxwell<real> maxwell_solver;
+    config_t<double> param;
+    maxwell<double> maxwell_solver;
 };
 
 

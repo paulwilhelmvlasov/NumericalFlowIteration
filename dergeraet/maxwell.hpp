@@ -16,6 +16,7 @@
  * You should have received a copy of the GNU General Public License along with
  * Der Gerät; see the file COPYING.  If not see http://www.gnu.org/licenses.
  */
+
 #ifndef DERGERAET_MAXWELL_HPP
 #define DERGERAET_MAXWELL_HPP
 

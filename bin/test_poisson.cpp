@@ -23,6 +23,7 @@
 #include <iomanip>
 
 #include <dergeraet/poisson.hpp>
+#include <dergeraet/forces.hpp>
 #include <dergeraet/finite_difference_poisson.hpp>
 #include <dergeraet/stopwatch.hpp>
 

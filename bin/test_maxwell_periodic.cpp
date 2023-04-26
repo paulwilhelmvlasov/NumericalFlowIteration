@@ -22,22 +22,37 @@
 
 #include <iomanip>
 
-//#include <dergeraet/forces.hpp>
-//#include <dergeraet/poisson.hpp>
-#include <dergeraet/maxwell.hpp>
+#include <dergeraet/forces.hpp>
+#include <dergeraet/electro_magnetic_force.hpp>
 #include <dergeraet/stopwatch.hpp>
 
+namespace dergeraet
+{
+namespace dim1
+{
+namespace fd_dirichlet
+{
 template <typename real>
+void test()
+{
+    config_t<real> param;
+	electro_static_force<real, 4> esf(param);
+}
+}
+}
+
+namespace dim3
+{
+
 void test_solve_phi()
 {
-    using memptr = std::unique_ptr<real,decltype(std::free)*>;
+    using memptr = std::unique_ptr<double,decltype(std::free)*>;
 
-	dergeraet::dim3::config_t<real> param;
+    config_t<double> param;
 
 	// Test rho = 0.
-	//dergeraet::dim3::periodic::electro_magnetic_force<real> emf(param, 1e-10, 1000);
-	//dergeraet::dim3::electro_magnetic_force<real> emf(param, 1e-10, 1000);
-	dergeraet::dim3::maxwell<real> mama(param);
+	electro_magnetic_force emf(param, 1e-10, 1000);
+
 /*
     size_t mem_size  = sizeof(real) * param.Nx * param.Nx * param.Nz;
     void *tmp = std::aligned_alloc( 64, mem_size );
@@ -56,10 +71,14 @@ void test_solve_phi()
     std::cout << "Test done." << std::endl;
 }
 
+}
+}
+
+
 
 int main()
 {
-	test_solve_phi<double>();
+	dergeraet::dim3::test_solve_phi();
 
 	return 0;
 }
