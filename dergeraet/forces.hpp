@@ -26,7 +26,6 @@
 #include <dergeraet/config.hpp>
 #include <dergeraet/fields.hpp>
 #include <dergeraet/finite_difference_poisson.hpp>
-#include <dergeraet/maxwell.hpp>
 
 namespace dergeraet
 {
@@ -124,17 +123,18 @@ public:
     double E(size_t tn, double x, double y, double z, size_t i);
     double B(size_t tn, double x, double y, double z, size_t i);
 
-    void solve_phi(double* rho_phi, bool save_result = true);
-    void solve_A(double* j_A_i, size_t index, bool save_result = true);
+    void solve_phi(double* rho);
+    void solve_A(double* j_x, double* j_y, double* j_z);
 
-    void init_first_time_step_coeffs();
-    void init_first_time_step_coeffs(double* phi_0, double* phi_1,
+    void init_first_time_step();
+    void init_first_time_step(double* phi_0, double* phi_1,
 					double* A_x_0, double* A_x_1, double* A_y_0,
 					double* A_y_1, double* A_z_0, double* A_z_1);
     void solve_next_time_step();
 
 private:
 
+    // Coefficients of the B-Spline representation.
     std::unique_ptr<double[]> coeffs_phi;
     std::unique_ptr<double[]> coeffs_A_x;
     std::unique_ptr<double[]> coeffs_A_y;
@@ -155,7 +155,6 @@ private:
 	double dx = 0;
 
     config_t<double> param;
-    maxwell<double> maxwell_solver;
 };
 
 

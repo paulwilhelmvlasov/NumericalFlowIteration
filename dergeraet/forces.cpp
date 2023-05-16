@@ -238,7 +238,7 @@ namespace dim3
 
 electro_magnetic_force::electro_magnetic_force(const config_t<double> &param,
 		double eps, size_t max_iter)
-		: maxwell_solver(param), eps(eps), max_iter(max_iter), param(param)
+		: eps(eps), max_iter(max_iter), param(param)
 {
 
 	stride_t = (param.Nx + order - 1) * (param.Ny + order - 1) * (param.Nz + order - 1);
@@ -253,7 +253,7 @@ electro_magnetic_force::electro_magnetic_force(const config_t<double> &param,
 
 	// The first 2 time-steps have to be initialized to be able to start
 	// the NuFI iteration due to the backwards differencing.
-	init_first_time_step_coeffs();
+	init_first_time_step(); // Todo: This has to be rewritten!
 
 	curr_tn = 2;
 }
@@ -263,6 +263,9 @@ electro_magnetic_force::~electro_magnetic_force() { }
 double electro_magnetic_force::eval_f(size_t tn, double x, double y,
 		double z, double v, double u, double w)
 {
+	// Todo: Use Stoermer-Verlet instead of symplectic Euler
+	// or offer the user a flag to chose time-integration method.
+
 	// Using symplectic Euler.
 	if(tn == 0) return param.f0(x, y, z, v, u, w);
 
@@ -287,6 +290,7 @@ arma::Col<double> electro_magnetic_force::eval_rho_j(size_t tn, double x,
 
 	double dvuw = param.dv*param.du*param.dw;
 
+	// Evaluation using mid-point integration rule.
 	for(size_t i = 0; i < param.Nv; i++)
 	for(size_t j = 0; j < param.Nu; j++)
 	for(size_t k = 0; k < param.Nw; k++)
@@ -366,7 +370,8 @@ arma::Col<double> electro_magnetic_force::operator()(size_t t, double x,
 double electro_magnetic_force::E(size_t tn, double x, double y, double z,
 		size_t i)
 {
-	double A_time_derivative = (A(tn,x,y,z,i) - A(tn-1,x,y,z,i)) / param.dt;
+	double A_time_derivative = (1.5*A(tn,x,y,z,i) - 2*A(tn-1,x,y,z,i)
+								+ 0.5*A(tn-2,x,y,z,i)) / param.dt;
 	switch(i)
 	{
 	case 1:
@@ -398,87 +403,50 @@ double electro_magnetic_force::B(size_t tn, double x, double y, double z, size_t
 }
 
 
-void electro_magnetic_force::solve_phi(double* rho_phi, bool save_result)
+void electro_magnetic_force::solve_phi(double* rho)
 {
-	// Expects to be given rho in FFTW-compatible format and return phi in
-	// the same array.
+	// Given rho at t=t_n computes phi at t=t_{n+1} and saves the coefficients.
+	// rho is given as a (Nx3)-matrix.
+	// We re-use the rho array to store the phi values as each rho value
+	// is only exactly once for the corresponding phi value.
 
-	double dt_sq_inv = 1.0 / (param.dt*param.dt);
+	double dt_inv_sq = 1.0 / (param.dt*param.dt);
+	double c_sq = param.light_speed*param.light_speed;
+	double c_sq_eps = c_sq/param.eps0;
 
-	#pragma omp parallel for
-	for(size_t i = 0; i < n; i++)
-	for(size_t j = 0; j < n; j++)
-	for(size_t k = 0; k < n; k++)
+	for(size_t i = 0; i < param.Nx; i++)
 	{
-		size_t s = i + j*param.Nx + k*param.Nx*param.Ny;
-
-		double x = param.x_min + i*param.dx;
-		double y = param.y_min + j*param.dy;
-		double z = param.z_min + k*param.dz;
-
-		rho_phi[s] /= -param.eps0;
-		rho_phi[s] += (-2*phi(curr_tn, x, y, z) + phi(curr_tn-1,x,y,z))*dt_sq_inv;
+		for(size_t j = 0; j < param.Ny; j++)
+		{
+			for(size_t k = 0; k < param.Nz; k++)
+			{
+				double x = param.x_min + i*param.dx;
+				double y = param.y_min + j*param.dy;
+				double z = param.z_min + k*param.dz;
+				size_t mat_index = i + j*param.Nx + k*param.Nx*param.Ny;
+				rho(mat_index) = 2*phi(curr_tn,x,y,z) - phi(curr_tn-1,x,y,z)
+						+ dt_inv_sq * (c_sq_eps*rho(mat_index)
+						+ c_sq * ( phi<2,0,0>(curr_tn,x,y,z)
+								+ phi<0,2,0>(curr_tn,x,y,z)
+								+ phi<0,0,2>(curr_tn,x,y,z) ) );
+			}
+		}
 	}
 
-    maxwell_solver.solve(rho_phi);
-
-    if(save_result)
-    {
-        dergeraet::dim3::interpolate<double,order>(coeffs_phi.get() + curr_tn*stride_t, rho_phi, param);
-    }
+// Todo
 }
 
 
-void electro_magnetic_force::solve_A(double* j_A_i, size_t index, bool save_result)
+void electro_magnetic_force::solve_A(double* j_x, double* j_y, double* j_z)
 {
-	// Expects to be given j_i in FFTW-compatible format and return A_i in
-	// the same array.
-	if(index == 0 || index > 3)
-	{
-		throw std::runtime_error("Only 3d but index not equal 1,2 or 3!");
-	}
+	// Given j at t=t_n computes A at t=t_{n+1} and saves the coefficients.
+	// j is given as 3 (Nx3)-matrices.
 
-	double dt_sq_inv = 1.0 / (param.dt*param.dt);
-
-	#pragma omp parallel for
-	for(size_t i = 0; i < n; i++)
-	for(size_t j = 0; j < n; j++)
-	for(size_t k = 0; k < n; k++)
-	{
-		size_t s = i + j*param.Nx + k*param.Nx*param.Ny;
-
-		double x = param.x_min + i*param.dx;
-		double y = param.y_min + j*param.dy;
-		double z = param.z_min + k*param.dz;
-
-		j_A_i[s] *= -param.mu0;
-		j_A_i[s] += (-2*A(curr_tn,x,y,z,index) + A(curr_tn-1,x,y,z,index))*dt_sq_inv;
-	}
-
-    maxwell_solver.solve(j_A_i);
-
-    // Computing coefficients is still missing!!!
-
-    if(save_result)
-    {
-    	switch(index)
-    	{
-    	case 1:
-            dergeraet::dim3::interpolate<double,order>(coeffs_A_x.get() + curr_tn*stride_t, j_A_i, param);
-            break;
-    	case 2:
-    		dergeraet::dim3::interpolate<double,order>(coeffs_A_y.get() + curr_tn*stride_t, j_A_i, param);
-        	break;
-    	case 3:
-    		dergeraet::dim3::interpolate<double,order>(coeffs_A_z.get() + curr_tn*stride_t, j_A_i, param);
-        	break;
-    	}
-    }
+// Todo
 }
 
-void electro_magnetic_force::init_first_time_step_coeffs()
+void electro_magnetic_force::init_first_time_step()
 {
-	// Think about how to do this correctly!!!
 	// Init 0th and 1st time-step with potentials=0, i.e., vanishing fields.
 	for(size_t i = 0; i < 2*stride_t; i++)
 	{
@@ -489,10 +457,13 @@ void electro_magnetic_force::init_first_time_step_coeffs()
 	}
 }
 
-void electro_magnetic_force::init_first_time_step_coeffs(double* phi_0,
+void electro_magnetic_force::init_first_time_step(double* phi_0,
 			double* phi_1, double* A_x_0, double* A_x_1, double* A_y_0,
 			double* A_y_1, double* A_z_0, double* A_z_1)
 {
+	// Expects the coefficients to be provided (not the values).
+	// Todo: Rewrite this to take the values instead of the coeffs!
+
 	// Set coeffs for t = 0.
 	for(size_t i = 0; i < stride_t; i++)
 	{
@@ -513,52 +484,13 @@ void electro_magnetic_force::init_first_time_step_coeffs(double* phi_0,
 
 void electro_magnetic_force::solve_next_time_step()
 {
-	// Bring the arrays in the correct alignement for FFTW.
-    using memptr = std::unique_ptr<double,decltype(std::free)*>;
-
-    size_t mem_size  = sizeof(double) * param.Nx * param.Nx * param.Nz;
-
-    void *tmp_rho = std::aligned_alloc( alignment, mem_size );
-    if ( tmp_rho == nullptr ) throw std::bad_alloc {};
-    memptr mem_rho_phi { reinterpret_cast<double*>(tmp_rho), &std::free };
-
-    void *tmp_j_x = std::aligned_alloc( alignment, mem_size );
-    if ( tmp_j_x == nullptr ) throw std::bad_alloc {};
-    memptr mem_j_A_x { reinterpret_cast<double*>(tmp_j_x), &std::free };
-
-    void *tmp_j_y = std::aligned_alloc( alignment, mem_size );
-    if ( tmp_j_y == nullptr ) throw std::bad_alloc {};
-    memptr mem_j_A_y { reinterpret_cast<double*>(tmp_j_y), &std::free };
-
-    void *tmp_j_z = std::aligned_alloc( alignment, mem_size );
-    if ( tmp_j_z == nullptr ) throw std::bad_alloc {};
-    memptr mem_j_A_z { reinterpret_cast<double*>(tmp_j_z), &std::free };
-
-    arma::Col<double> rho_j(4);
-
-    // Compute rho and j.
-	#pragma omp parallel for
-    for(size_t i = 0; i < param.Nx; i++)
-    for(size_t j = 0; j < param.Ny; j++)
-    for(size_t k = 0; k < param.Nz; k++)
-    {
-    	double x = param.x_min + i * param.dx;
-    	double y = param.y_min + j * param.dy;
-    	double z = param.z_min + k * param.dz;
-
-    	rho_j = eval_rho_j(curr_tn + 1,x,y,z);
-
-    	mem_rho_phi.get()[i + j*param.Nx + k*param.Nx*param.Ny] = rho_j(0);
-    	mem_j_A_x.get()[i + j*param.Nx + k*param.Nx*param.Ny] = rho_j(1);
-    	mem_j_A_y.get()[i + j*param.Nx + k*param.Nx*param.Ny] = rho_j(2);
-    	mem_j_A_z.get()[i + j*param.Nx + k*param.Nx*param.Ny] = rho_j(3);
-    }
-
     // Solve for phi and A and save the results.
     solve_phi(mem_rho_phi.get(), true);
     solve_A(mem_j_A_x.get(), 1, true);
     solve_A(mem_j_A_y.get(), 2, true);
     solve_A(mem_j_A_z.get(), 3, true);
+
+    // Todo: Save rho and j!
 
     // Increment the state-time.
     curr_tn++;
