@@ -236,7 +236,10 @@ namespace dim3
 //namespace periodic
 //{
 
-electro_magnetic_force::electro_magnetic_force(const config_t<double> &param,
+electro_magnetic_force::electro_magnetic_force(double* phi_0, double* phi_1,
+		double* A_x_0, double* A_x_1, double* A_y_0,
+		double* A_y_1, double* A_z_0, double* A_z_1,
+		const config_t<double> &param,
 		double eps, size_t max_iter)
 		: eps(eps), max_iter(max_iter), param(param)
 {
@@ -253,9 +256,7 @@ electro_magnetic_force::electro_magnetic_force(const config_t<double> &param,
 
 	// The first 2 time-steps have to be initialized to be able to start
 	// the NuFI iteration due to the backwards differencing.
-	init_first_time_step(); // Todo: This has to be rewritten!
-
-	curr_tn = 2;
+	init_first_time_step(phi_0, phi_1, A_x_0, A_x_1, A_y_0, A_y_1, A_z_0, A_z_1);
 }
 
 electro_magnetic_force::~electro_magnetic_force() { }
@@ -405,7 +406,7 @@ double electro_magnetic_force::B(size_t tn, double x, double y, double z, size_t
 
 void electro_magnetic_force::solve_phi(double* rho)
 {
-	// Given rho at t=t_n computes phi at t=t_{n+1} and saves the coefficients.
+	// Given rho and phi at t=t_n computes phi at t=t_{n+1} and saves the coefficients.
 	// We re-use the rho array to store the phi values as each rho value
 	// is only exactly once for the corresponding phi value.
 
@@ -432,14 +433,13 @@ void electro_magnetic_force::solve_phi(double* rho)
 		}
 	}
 
-	// Todo: Check if this call is correctly written!
 	interpolate<double, order>(coeffs_phi.get() + curr_tn*stride_t, rho, param);
 }
 
 
 void electro_magnetic_force::solve_A(double* j_x, double* j_y, double* j_z)
 {
-	// Given j at t=t_n computes A at t=t_{n+1} and saves the coefficients.
+	// Given j and A at t=t_n computes A at t=t_{n+1} and saves the coefficients.
 	// The values of A_i are written in the respective j_i as each value of
 	// j is used exactly once.
 
@@ -485,47 +485,34 @@ void electro_magnetic_force::solve_A(double* j_x, double* j_y, double* j_z)
 		}
 	}
 
-	// Todo: Check if this call is correctly written!
 	interpolate<double, order>(coeffs_A_x.get() + curr_tn*stride_t, j_x, param);
 	interpolate<double, order>(coeffs_A_y.get() + curr_tn*stride_t, j_y, param);
 	interpolate<double, order>(coeffs_A_z.get() + curr_tn*stride_t, j_z, param);
-}
-
-void electro_magnetic_force::init_first_time_step()
-{
-	// Init 0th and 1st time-step with potentials=0, i.e., vanishing fields.
-	for(size_t i = 0; i < 2*stride_t; i++)
-	{
-		coeffs_phi.get()[i] = 0;
-		coeffs_A_x.get()[i] = 0;
-		coeffs_A_y.get()[i] = 0;
-		coeffs_A_z.get()[i] = 0;
-	}
 }
 
 void electro_magnetic_force::init_first_time_step(double* phi_0,
 			double* phi_1, double* A_x_0, double* A_x_1, double* A_y_0,
 			double* A_y_1, double* A_z_0, double* A_z_1)
 {
+	// Takes values of phi and A for t=0 and t=\Delta t. Saves interpolants to
+	// these quantaties and sets curr_tn=1.
+
 	// Expects the coefficients to be provided (not the values).
 	// Todo: Rewrite this to take the values instead of the coeffs!
 
-	// Set coeffs for t = 0.
-	for(size_t i = 0; i < stride_t; i++)
-	{
-		coeffs_phi.get()[i] = phi_0[i];
-		coeffs_A_x.get()[i] = A_x_0[i];
-		coeffs_A_y.get()[i] = A_y_0[i];
-		coeffs_A_z.get()[i] = A_z_0[i];
-	}
-	// Set coeffs for t = t_1.
-	for(size_t i = stride_t; i < 2*stride_t; i++)
-	{
-		coeffs_phi.get()[i] = phi_1[i];
-		coeffs_A_x.get()[i] = A_x_1[i];
-		coeffs_A_y.get()[i] = A_y_1[i];
-		coeffs_A_z.get()[i] = A_z_1[i];
-	}
+	// Computes coeffs for t = t_0.
+	interpolate<double, order>(coeffs_phi.get(), phi_0, param);
+	interpolate<double, order>(coeffs_A_x.get(), A_x_0, param);
+	interpolate<double, order>(coeffs_A_y.get(), A_y_0, param);
+	interpolate<double, order>(coeffs_A_z.get(), A_z_0, param);
+
+	// Computes coeffs for t = t_1.
+	interpolate<double, order>(coeffs_phi.get() + stride_t, phi_1, param);
+	interpolate<double, order>(coeffs_A_x.get() + stride_t, A_x_1, param);
+	interpolate<double, order>(coeffs_A_y.get() + stride_t, A_y_1, param);
+	interpolate<double, order>(coeffs_A_z.get() + stride_t, A_z_1, param);
+
+	curr_tn = 1;
 }
 
 void electro_magnetic_force::solve_next_time_step(double* rho, double* j_x,

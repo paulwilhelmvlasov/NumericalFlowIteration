@@ -101,7 +101,10 @@ public:
 	// Todo: There should be a way to either pass the coefficients for the
 	// first two time-steps or at least specify how the initialization is
 	// supposed to be done!
-	electro_magnetic_force(const config_t<double> &param,
+	electro_magnetic_force(double* phi_0, double* phi_1,
+			double* A_x_0, double* A_x_1, double* A_y_0,
+			double* A_y_1, double* A_z_0, double* A_z_1,
+			const config_t<double> &param,
 			double eps = 1e-10, size_t max_iter = 10000);
     ~electro_magnetic_force();
 
