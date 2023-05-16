@@ -129,7 +129,8 @@ public:
     void solve_phi(double* rho);
     void solve_A(double* j_x, double* j_y, double* j_z);
 
-    void init_first_time_step();
+    // Todo: Provide a function which computes the first two potentials
+    // from the electric and magnetic fields at t=0?
     void init_first_time_step(double* phi_0, double* phi_1,
 					double* A_x_0, double* A_x_1, double* A_y_0,
 					double* A_y_1, double* A_z_0, double* A_z_1);
