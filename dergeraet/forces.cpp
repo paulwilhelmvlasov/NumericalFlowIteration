@@ -406,11 +406,10 @@ double electro_magnetic_force::B(size_t tn, double x, double y, double z, size_t
 void electro_magnetic_force::solve_phi(double* rho)
 {
 	// Given rho at t=t_n computes phi at t=t_{n+1} and saves the coefficients.
-	// rho is given as a (Nx3)-matrix.
 	// We re-use the rho array to store the phi values as each rho value
 	// is only exactly once for the corresponding phi value.
 
-	double dt_inv_sq = 1.0 / (param.dt*param.dt);
+	double dt_sq = param.dt*param.dt;
 	double c_sq = param.light_speed*param.light_speed;
 	double c_sq_eps = c_sq/param.eps0;
 
@@ -424,8 +423,8 @@ void electro_magnetic_force::solve_phi(double* rho)
 				double y = param.y_min + j*param.dy;
 				double z = param.z_min + k*param.dz;
 				size_t mat_index = i + j*param.Nx + k*param.Nx*param.Ny;
-				rho(mat_index) = 2*phi(curr_tn,x,y,z) - phi(curr_tn-1,x,y,z)
-						+ dt_inv_sq * (c_sq_eps*rho(mat_index)
+				rho[mat_index] = 2*phi(curr_tn,x,y,z) - phi(curr_tn-1,x,y,z)
+						+ dt_sq * (c_sq_eps*rho[mat_index]
 						+ c_sq * ( phi<2,0,0>(curr_tn,x,y,z)
 								+ phi<0,2,0>(curr_tn,x,y,z)
 								+ phi<0,0,2>(curr_tn,x,y,z) ) );
@@ -433,16 +432,63 @@ void electro_magnetic_force::solve_phi(double* rho)
 		}
 	}
 
-// Todo
+	// Todo: Check if this call is correctly written!
+	interpolate<double, order>(coeffs_phi.get() + curr_tn*stride_t, rho, param);
 }
 
 
 void electro_magnetic_force::solve_A(double* j_x, double* j_y, double* j_z)
 {
 	// Given j at t=t_n computes A at t=t_{n+1} and saves the coefficients.
-	// j is given as 3 (Nx3)-matrices.
+	// The values of A_i are written in the respective j_i as each value of
+	// j is used exactly once.
 
-// Todo
+	double dt_sq = param.dt*param.dt;
+	double c_sq = param.light_speed*param.light_speed;
+	double c_sq_mu = c_sq*param.mu0;
+
+	for(size_t i = 0; i < param.Nx; i++)
+	{
+		for(size_t j = 0; j < param.Ny; j++)
+		{
+			for(size_t k = 0; k < param.Nz; k++)
+			{
+				double x = param.x_min + i*param.dx;
+				double y = param.y_min + j*param.dy;
+				double z = param.z_min + k*param.dz;
+				size_t mat_index = i + j*param.Nx + k*param.Nx*param.Ny;
+
+				// A_x:
+				j_x[mat_index] = 2*A(curr_tn,x,y,z,1) - A(curr_tn-1,x,y,z,1)
+										+ dt_sq * (c_sq_mu*j_x[mat_index]
+										+ c_sq * ( A<2,0,0>(curr_tn,x,y,z,1)
+													+ A<0,2,0>(curr_tn,x,y,z,1)
+													+ A<0,0,2>(curr_tn,x,y,z,1) ));
+
+				// A_y:
+				j_y[mat_index] = 2*A(curr_tn,x,y,z,2) - A(curr_tn-1,x,y,z,2)
+										+ dt_sq * (c_sq_mu*j_y[mat_index]
+										+ c_sq * ( A<2,0,0>(curr_tn,x,y,z,2)
+													+ A<0,2,0>(curr_tn,x,y,z,2)
+													+ A<0,0,2>(curr_tn,x,y,z,2) ));
+
+				// A_z:
+				j_z[mat_index] = 2*A(curr_tn,x,y,z,3) - A(curr_tn-1,x,y,z,3)
+										+ dt_sq * (c_sq_mu*j_z[mat_index]
+										+ c_sq * ( A<2,0,0>(curr_tn,x,y,z,3)
+													+ A<0,2,0>(curr_tn,x,y,z,3)
+													+ A<0,0,2>(curr_tn,x,y,z,3) ));
+
+
+
+			}
+		}
+	}
+
+	// Todo: Check if this call is correctly written!
+	interpolate<double, order>(coeffs_A_x.get() + curr_tn*stride_t, j_x, param);
+	interpolate<double, order>(coeffs_A_y.get() + curr_tn*stride_t, j_y, param);
+	interpolate<double, order>(coeffs_A_z.get() + curr_tn*stride_t, j_z, param);
 }
 
 void electro_magnetic_force::init_first_time_step()
@@ -482,15 +528,12 @@ void electro_magnetic_force::init_first_time_step(double* phi_0,
 	}
 }
 
-void electro_magnetic_force::solve_next_time_step()
+void electro_magnetic_force::solve_next_time_step(double* rho, double* j_x,
+													double* j_y, double* j_z)
 {
     // Solve for phi and A and save the results.
-    solve_phi(mem_rho_phi.get(), true);
-    solve_A(mem_j_A_x.get(), 1, true);
-    solve_A(mem_j_A_y.get(), 2, true);
-    solve_A(mem_j_A_z.get(), 3, true);
-
-    // Todo: Save rho and j!
+    solve_phi(rho);
+    solve_A(j_x, j_y, j_z);
 
     // Increment the state-time.
     curr_tn++;

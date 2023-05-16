@@ -130,7 +130,7 @@ public:
     void init_first_time_step(double* phi_0, double* phi_1,
 					double* A_x_0, double* A_x_1, double* A_y_0,
 					double* A_y_1, double* A_z_0, double* A_z_1);
-    void solve_next_time_step();
+    void solve_next_time_step(double* rho, double* j_x, double* j_y, double* j_z);
 
 private:
 
