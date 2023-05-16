@@ -104,9 +104,15 @@ void test_1_solve_phi()
     	double y = j*param.dy;
     	double z = k*param.dz;
     	mem.get()[i + j*param.Nx + k*param.Nx*param.Ny] = c*cos(x)*cos(y)*cos(z);
+    	// Die hier berechneten/gespeicherten Werte machen Sinn.
+    	std::cout << mem.get()[i + j*param.Nx + k*param.Nx*param.Ny] << " " << c << std::endl;
     }
 
-    emf.solve_phi(mem.get(), false);
+    emf.solve_phi(mem.get(), false); // Diese Routine macht grossen Mist!
+
+    // Überlege nochmal, ob man nicht die Routinen für j und phi
+    // Berechnung ganz in den "Maxwell-Solver" auslagern soll.
+    // Dann dort debuggen!
 
     double total_error = 0;
     for(size_t i = 0; i < param.Nx; i++)
@@ -117,11 +123,13 @@ void test_1_solve_phi()
     	double y = j*param.dy;
     	double z = k*param.dz;
     	double phi_num = mem.get()[i + j*param.Nx + k*param.Nx*param.Ny];
+    	// Bei phi_num kommt aber immer 38 raus. Das ist komisch...
     	double phi_exact = cos(x)*cos(y)*cos(z);
     	double err = abs(phi_num-phi_exact);
     	total_error += err;
-    	std::cout << x << " " << y << " " << z
-    			<< " " << phi_num << std::endl;
+//    	std::cout << x << " " << y << " " << z
+//    			<< " " << phi_num - 38
+//				<< std::endl;
 //				<< " " << phi_exact
 //    			<< " " << err << std::endl;
     }
@@ -138,7 +146,7 @@ void test_1_solve_phi()
 
 int main()
 {
-	dergeraet::dim3::test_0_solve_phi();
+	//dergeraet::dim3::test_0_solve_phi();
 	dergeraet::dim3::test_1_solve_phi();
 
 	return 0;
