@@ -96,8 +96,63 @@ void test_1_solve_phi()
 	electro_magnetic_force emf(phi_0.data(), phi_1.data(), A_x_0.data(), A_x_1.data(),
 			A_y_0.data(), A_y_1.data(), A_z_0.data(), A_z_1.data(), param);
 
+	// Test error at t = 0.
+	double total_error_0 = 0;
+	for(size_t i = 0; i < param.Nx; i++)
+	{
+		for(size_t j = 0; j < param.Ny; j++)
+		{
+			for(size_t k = 0; k < param.Nz; k++)
+			{
+				double x = param.x_min + i*param.dx;
+				double y = param.y_min + j*param.dy;
+				double z = param.z_min + k*param.dz;
+
+				double phi_num = emf.phi(0, x, y, z);
+				double phi_exact = pot_0(x,y,z);
+
+				double dist = phi_num - phi_exact;
+				total_error_0 += std::sqrt(dist*dist);
+			}
+		}
+	}
+
+	// Test error at t = dt.
+	double total_error_1 = 0;
+	double total_error_1_A_x_1 = 0;
+	for(size_t i = 0; i < param.Nx; i++)
+	{
+		for(size_t j = 0; j < param.Ny; j++)
+		{
+			for(size_t k = 0; k < param.Nz; k++)
+			{
+				double x = param.x_min + i*param.dx;
+				double y = param.y_min + j*param.dy;
+				double z = param.z_min + k*param.dz;
+
+				double phi_num = emf.phi(1, x, y, z);
+				double phi_exact = pot_0(x,y,z) + param.dt*param.dt
+						*param.light_speed*param.light_speed
+						*(1.0/param.eps0 - 1)*rho_0(x,y,z);
+
+				double dist = phi_num - phi_exact;
+				total_error_1 += std::sqrt(dist*dist);
+
+				double A_x_1_num = emf.A(1, x, y, z, 1);
+				double A_x_1_exact = 0;
+
+				dist = A_x_1_num - A_x_1_exact;
+				total_error_1_A_x_1 += std::sqrt(dist*dist);
+			}
+		}
+	}
+
+
+
     std::cout << "Test done 1. " << std::endl;
-    //Total error = " << total_error << std::endl;
+    std::cout << "L2-error at t=0:  " << total_error_0 << std::endl;
+    std::cout << "L2-error at t=dt:  " << total_error_1 << std::endl;
+    std::cout << "L2-error of A_x at t=dt:  " << total_error_1_A_x_1 << std::endl;
 }
 
 

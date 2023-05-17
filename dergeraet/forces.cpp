@@ -311,36 +311,6 @@ arma::Col<double> electro_magnetic_force::eval_rho_j(size_t tn, double x,
 	return rho_j;
 }
 
-template <size_t dx, size_t dy, size_t dz>
-double electro_magnetic_force::phi(size_t tn, double x, double y,
-		double z)
-{
-	return dergeraet::dim3::eval<double, order, dx, dy, dz>(x, y, z,
-			coeffs_phi.get() + tn*stride_t, param);
-}
-
-template <size_t dx, size_t dy, size_t dz>
-double electro_magnetic_force::A(size_t tn, double x, double y,
-		double z, size_t i)
-{
-	switch(i)
-	{
-	case 1:
-		return dergeraet::dim3::eval<double, order, dx, dy, dz>(x, y, z,
-				coeffs_A_x.get() + tn*stride_t, param);
-	case 2:
-		return dergeraet::dim3::eval<double, order, dx, dy, dz>(x, y, z,
-				coeffs_A_y.get() + tn*stride_t, param);
-	case 3:
-		return dergeraet::dim3::eval<double, order, dx, dy, dz>(x, y, z,
-				coeffs_A_z.get() + tn*stride_t, param);
-	default:
-		throw std::runtime_error("Only 3d but index not equal 1,2 or 3!");
-	}
-
-	return 0;
-}
-
 double electro_magnetic_force::operator()(size_t t, double x, double y,
 		double z, double v, double u, double w, size_t i)
 {
