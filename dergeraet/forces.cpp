@@ -497,9 +497,6 @@ void electro_magnetic_force::init_first_time_step(double* phi_0,
 	// Takes values of phi and A for t=0 and t=\Delta t. Saves interpolants to
 	// these quantaties and sets curr_tn=1.
 
-	// Expects the coefficients to be provided (not the values).
-	// Todo: Rewrite this to take the values instead of the coeffs!
-
 	// Computes coeffs for t = t_0.
 	interpolate<double, order>(coeffs_phi.get(), phi_0, param);
 	interpolate<double, order>(coeffs_A_x.get(), A_x_0, param);

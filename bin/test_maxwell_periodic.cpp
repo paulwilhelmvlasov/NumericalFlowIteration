@@ -43,97 +43,58 @@ void test()
 namespace dim3
 {
 
-void test_0_solve_phi()
-{
-    using memptr = std::unique_ptr<double,decltype(std::free)*>;
-
-    std::cout << std::scientific;
-
-    config_t<double> param;
-
-	// Test rho = 0.
-	electro_magnetic_force emf(param, 1e-10, 1000);
-
-    size_t mem_size  = sizeof(double) * param.Nx * param.Nx * param.Nz;
-    void *tmp = std::aligned_alloc( 64, mem_size );
-    if ( tmp == nullptr ) throw std::bad_alloc {};
-    memptr mem { reinterpret_cast<double*>(tmp), &std::free };
-
-    for(size_t i = 0; i < param.Nx; i++)
-    for(size_t j = 0; j < param.Ny; j++)
-    for(size_t k = 0; k < param.Nz; k++)
-    {
-    	mem.get()[i + j*param.Nx + k*param.Nx*param.Ny] = 0;
-    }
-
-    emf.solve_phi(mem.get(), false);
-
-    for(size_t i = 0; i < param.Nx; i++)
-    for(size_t j = 0; j < param.Ny; j++)
-    for(size_t k = 0; k < param.Nz; k++)
-    {
-    	std::cout << i*param.dx << " " << j*param.dy << " " <<
-    	k*param.dz << " " << mem.get()[i + j*param.Nx + k*param.Nx*param.Ny] << std::endl;
-    }
-
-
-    std::cout << "Test done 0." << std::endl;
-}
-
 void test_1_solve_phi()
 {
-    using memptr = std::unique_ptr<double,decltype(std::free)*>;
 
-    config_t<double> param;
+	// Initialize config.
+	config_t<double> param;
+	double alpha = 0.01;
+	double kx = 0.5;
+	double ky = 0.5;
+	double kz = 0.5;
 
-    std::cout << std::scientific;
+	// Initialize phi, A vectors at t=0,t_1.
+	std::vector<double> phi_0(param.Nx*param.Ny*param.Nz, 0);
+	std::vector<double> A_x_0(param.Nx*param.Ny*param.Nz, 0);
+	std::vector<double> A_y_0(param.Nx*param.Ny*param.Nz, 0);
+	std::vector<double> A_z_0(param.Nx*param.Ny*param.Nz, 0);
 
-	electro_magnetic_force emf(param);
+	std::vector<double> phi_1(param.Nx*param.Ny*param.Nz, 0);
+	std::vector<double> A_x_1(param.Nx*param.Ny*param.Nz, 0);
+	std::vector<double> A_y_1(param.Nx*param.Ny*param.Nz, 0);
+	std::vector<double> A_z_1(param.Nx*param.Ny*param.Nz, 0);
 
-    size_t mem_size  = sizeof(double) * param.Nx * param.Nx * param.Nz;
-    void *tmp = std::aligned_alloc( 64, mem_size );
-    if ( tmp == nullptr ) throw std::bad_alloc {};
-    memptr mem { reinterpret_cast<double*>(tmp), &std::free };
+	// Compute values for phi, A at t=0,t_1.
+	auto pot_0 = [&alpha, &k](double x, double y, double z){
+		return alpha * ( std::cos(kx*x) + std::cos(ky*y) + std::cos(kz*z) );
+	};
 
-    double c = -(3 + 1.0/param.dt);
-    for(size_t i = 0; i < param.Nx; i++)
-    for(size_t j = 0; j < param.Ny; j++)
-    for(size_t k = 0; k < param.Nz; k++)
-    {
-    	double x = i*param.dx;
-    	double y = j*param.dy;
-    	double z = k*param.dz;
-    	mem.get()[i + j*param.Nx + k*param.Nx*param.Ny] = c*cos(x)*cos(y)*cos(z);
-    	// Die hier berechneten/gespeicherten Werte machen Sinn.
-    	std::cout << mem.get()[i + j*param.Nx + k*param.Nx*param.Ny] << " " << c << std::endl;
-    }
+	auto rho_0 = [&alpha, &k](double x, double y, double z){
+		return alpha * ( std::cos(kx*x) + std::cos(ky*y) + std::cos(kz*z) ) ;
+	};
 
-    emf.solve_phi(mem.get(), false); // Diese Routine macht grossen Mist!
+	for(size_t i = 0; i < param.Nx; i++)
+	{
+		for(size_t j = 0; j < param.Ny; j++)
+		{
+			for(size_t k = 0; k < param.Nz; k++)
+			{
+				double x = param.x_min + i*param.dx;
+				double y = param.y_min + j*param.dy;
+				double z = param.z_min + k*param.dz;
+				size_t index = i + j*param.Nx + k*param.Nx*param.Ny;
 
-    // Überlege nochmal, ob man nicht die Routinen für j und phi
-    // Berechnung ganz in den "Maxwell-Solver" auslagern soll.
-    // Dann dort debuggen!
+				phi_0[index] = pot_0(x,y,z);
+				phi_1[index] = pot_0(x,y,z) + param.dt*param.dt
+								*param.light_speed*param.light_speed
+								*(1.0/param.eps0 - 1)*rho_0(x,y,z);
+			}
+		}
+	}
 
-    double total_error = 0;
-    for(size_t i = 0; i < param.Nx; i++)
-    for(size_t j = 0; j < param.Ny; j++)
-    for(size_t k = 0; k < param.Nz; k++)
-    {
-    	double x = i*param.dx;
-    	double y = j*param.dy;
-    	double z = k*param.dz;
-    	double phi_num = mem.get()[i + j*param.Nx + k*param.Nx*param.Ny];
-    	// Bei phi_num kommt aber immer 38 raus. Das ist komisch...
-    	double phi_exact = cos(x)*cos(y)*cos(z);
-    	double err = abs(phi_num-phi_exact);
-    	total_error += err;
-//    	std::cout << x << " " << y << " " << z
-//    			<< " " << phi_num - 38
-//				<< std::endl;
-//				<< " " << phi_exact
-//    			<< " " << err << std::endl;
-    }
-
+	// Init electro_magnetic_force.
+	electro_magnetic_force emf(phi_0.data(), phi_1.data(), A_x_0.data(), A_x_1.data(),
+			A_y_0.data(), A_y_1.data(), A_z_0.data(), A_z_1.data(), param);
 
     std::cout << "Test done 1. Total error = " << total_error << std::endl;
 }
@@ -146,7 +107,6 @@ void test_1_solve_phi()
 
 int main()
 {
-	//dergeraet::dim3::test_0_solve_phi();
 	dergeraet::dim3::test_1_solve_phi();
 
 	return 0;
