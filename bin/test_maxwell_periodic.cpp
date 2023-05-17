@@ -65,11 +65,11 @@ void test_1_solve_phi()
 	std::vector<double> A_z_1(param.Nx*param.Ny*param.Nz, 0);
 
 	// Compute values for phi, A at t=0,t_1.
-	auto pot_0 = [&alpha, &k](double x, double y, double z){
+	auto pot_0 = [&alpha, &kx, &ky, &kz](double x, double y, double z){
 		return alpha * ( std::cos(kx*x) + std::cos(ky*y) + std::cos(kz*z) );
 	};
 
-	auto rho_0 = [&alpha, &k](double x, double y, double z){
+	auto rho_0 = [&alpha, &kx, &ky, &kz](double x, double y, double z){
 		return alpha * ( std::cos(kx*x) + std::cos(ky*y) + std::cos(kz*z) ) ;
 	};
 
@@ -96,7 +96,8 @@ void test_1_solve_phi()
 	electro_magnetic_force emf(phi_0.data(), phi_1.data(), A_x_0.data(), A_x_1.data(),
 			A_y_0.data(), A_y_1.data(), A_z_0.data(), A_z_1.data(), param);
 
-    std::cout << "Test done 1. Total error = " << total_error << std::endl;
+    std::cout << "Test done 1. " << std::endl;
+    //Total error = " << total_error << std::endl;
 }
 
 
