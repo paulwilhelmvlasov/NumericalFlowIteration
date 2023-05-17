@@ -119,6 +119,7 @@ void test_1_solve_phi()
 
 	// Test error at t = dt.
 	double total_error_1 = 0;
+	double total_error_infty_1 = 0;
 	double total_error_1_A_x_1 = 0;
 	for(size_t i = 0; i < param.Nx; i++)
 	{
@@ -137,6 +138,7 @@ void test_1_solve_phi()
 
 				double dist = phi_num - phi_exact;
 				total_error_1 += std::sqrt(dist*dist);
+				total_error_infty_1 = std::max(std::abs(dist),total_error_infty_1);
 
 				double A_x_1_num = emf.A(1, x, y, z, 1);
 				double A_x_1_exact = 0;
@@ -152,6 +154,7 @@ void test_1_solve_phi()
     std::cout << "Test done 1. " << std::endl;
     std::cout << "L2-error at t=0:  " << total_error_0 << std::endl;
     std::cout << "L2-error at t=dt:  " << total_error_1 << std::endl;
+    std::cout << "Linfty-error at t=dt:  " << total_error_infty_1 << std::endl;
     std::cout << "L2-error of A_x at t=dt:  " << total_error_1_A_x_1 << std::endl;
 }
 

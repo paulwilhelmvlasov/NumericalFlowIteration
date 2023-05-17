@@ -262,26 +262,62 @@ electro_magnetic_force::electro_magnetic_force(double* phi_0, double* phi_1,
 electro_magnetic_force::~electro_magnetic_force() { }
 
 double electro_magnetic_force::eval_f(size_t tn, double x, double y,
-		double z, double v, double u, double w)
+		double z, double v, double u, double w, bool use_stoermer_verlet)
 {
-	// Todo: Use Stoermer-Verlet instead of symplectic Euler
-	// or offer the user a flag to chose time-integration method.
-
-	// Using symplectic Euler.
 	if(tn == 0) return param.f0(x, y, z, v, u, w);
 
-	for(; tn > 0; tn--)
+	// Todo: Replace this if with a compiler-flag/pre-compiler-if?
+	if(use_stoermer_verlet)
 	{
-		x -= param.dt * v;
-		y -= param.dt * u;
-		z -= param.dt * w;
+		double v_half, u_half, w_half;
+		for(; tn > 0; tn--)
+		{
+			// First half-step in v direction.
+			v_half = v + 0.5*param.dt*operator()(tn,x,y,z,v,u,w,1);
+			u_half = u + 0.5*param.dt*operator()(tn,x,y,z,v,u,w,2);
+			w_half = w + 0.5*param.dt*operator()(tn,x,y,z,v,u,w,3);
 
-		v += param.dt * operator()(tn,x,y,z,v,u,w,1);
-		u += param.dt * operator()(tn,x,y,z,v,u,w,2);
-		w += param.dt * operator()(tn,x,y,z,v,u,w,3);
+			// Full step in x direction.
+			x = x - param.dt*v_half;
+			y = y - param.dt*u_half;
+			z = z - param.dt*w_half;
+
+			// Second half-step in v direction.
+			// Entries of lhs-matrix (1 + 0.5*dt*W_B).
+			double a = 1;
+			double b = -0.5*param.dt*B(tn-1,x,y,z,3);
+			double c = 0.5*param.dt*B(tn-1,x,y,z,2);
+			double d = 0.5*param.dt*B(tn-1,x,y,z,3);
+			double e = 1;
+			double f = -0.5*param.dt*B(tn-1,x,y,z,1);
+			double g = -0.5*param.dt*B(tn-1,x,y,z,2);
+			double h = 0.5*param.dt*B(tn-1,x,y,z,1);
+			double i = 1;
+			double detGB = a*e*i + b*f*g + c*d*h - c*e*g - b*d*i - a*f*h;
+			double detGB_inv = 1.0 / detGB;
+			// Computing second half-step.
+			double rhs_1 = v_half + 0.5*param.dt*E(tn-1,x,y,z);
+			double rhs_2 = u_half + 0.5*param.dt*E(tn-1,x,y,z);
+			double rhs_3 = w_half + 0.5*param.dt*E(tn-1,x,y,z);
+			v = detGB_inv*( (e*i-f*h)*rhs_1 + (c*h-b*i)*rhs_2 + (b*f-c*e)*rhs_3 );
+			u = detGB_inv*( (f*g-d*i)*rhs_1 + (a*i-c*g)*rhs_2 + (c*d-a*f)*rhs_3 );
+			w = detGB_inv*( (d*h-e*g)*rhs_1 + (b*g-a*h)*rhs_2 + (a*e-b*d)*rhs_3 );
+		}
+	} else {
+		// Using symplectic Euler.
+		for(; tn > 0; tn--)
+		{
+			x -= param.dt * v;
+			y -= param.dt * u;
+			z -= param.dt * w;
+
+			v += param.dt * operator()(tn,x,y,z,v,u,w,1);
+			u += param.dt * operator()(tn,x,y,z,v,u,w,2);
+			w += param.dt * operator()(tn,x,y,z,v,u,w,3);
+		}
 	}
 
-	return dergeraet::dim3::config_t<double>::f0(x,y,z,u,v,w);
+	return dergeraet::dim3::config_t<double>::f0(x,y,z,v,u,w);
 }
 
 arma::Col<double> electro_magnetic_force::eval_rho_j(size_t tn, double x,

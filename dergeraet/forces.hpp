@@ -109,7 +109,7 @@ public:
     ~electro_magnetic_force();
 
     double eval_f(size_t tn, double x, double y, double z, double v,
-    		double u, double w);
+    		double u, double w, bool use_stoermer_verlet = false);
     arma::Col<double> eval_rho_j(size_t tn, double x, double y, double z);
 
     template <size_t dx = 0, size_t dy = 0, size_t dz = 0>
