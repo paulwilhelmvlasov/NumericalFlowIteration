@@ -27,18 +27,6 @@
 
 namespace dergeraet
 {
-namespace dim1
-{
-namespace fd_dirichlet
-{
-template <typename real>
-void test()
-{
-    config_t<real> param;
-	electro_static_force<real, 4> esf(param);
-}
-}
-}
 
 namespace dim3
 {
@@ -64,6 +52,15 @@ void test_1_solve_phi()
 	std::vector<double> A_y_1(param.Nx*param.Ny*param.Nz, 0);
 	std::vector<double> A_z_1(param.Nx*param.Ny*param.Nz, 0);
 
+	// Init E_0 and E_1.
+	std::vector<double> E_x_0(param.Nx*param.Ny*param.Nz, 0);
+	std::vector<double> E_y_0(param.Nx*param.Ny*param.Nz, 0);
+	std::vector<double> E_z_0(param.Nx*param.Ny*param.Nz, 0);
+
+	std::vector<double> E_x_1(param.Nx*param.Ny*param.Nz, 0);
+	std::vector<double> E_y_1(param.Nx*param.Ny*param.Nz, 0);
+	std::vector<double> E_z_1(param.Nx*param.Ny*param.Nz, 0);
+
 	// Compute values for phi, A at t=0,t_1.
 	auto pot_0 = [&alpha, &kx, &ky, &kz](double x, double y, double z){
 		return alpha * ( std::cos(kx*x) + std::cos(ky*y) + std::cos(kz*z) );
@@ -73,6 +70,39 @@ void test_1_solve_phi()
 		return alpha * ( std::cos(kx*x) + std::cos(ky*y) + std::cos(kz*z) ) ;
 	};
 
+	auto E = [&alpha, &kx, &ky, &kz](size_t t, double x, double y, double z, size_t i,
+			double lambda){
+		if(t == 0)
+		{
+			switch(i)
+			{
+			case 1:
+				return alpha/kx * std::sin(kx*x);
+			case 2:
+				return alpha/ky * std::sin(ky*y);
+			case 3:
+				return alpha/kz * std::sin(kz*z);
+			default:
+				throw std::runtime_error("Only 3d but index not equal 1,2 or 3!");
+			}
+		}else{
+			switch(i)
+			{
+			case 1:
+				return alpha * (1.0/kx * std::sin(kx*x) + lambda*kx*std::sin(kx*x));
+			case 2:
+				return alpha * (1.0/ky * std::sin(ky*y) + lambda*ky*std::sin(ky*y));
+			case 3:
+				return alpha * (1.0/kz * std::sin(kz*z) + lambda*kz*std::sin(kz*z));
+			default:
+				throw std::runtime_error("Only 3d but index not equal 1,2 or 3!");
+			}
+		}
+	};
+
+
+	double lambda = param.dt*param.dt * param.light_speed*param.light_speed
+						* (1.0/param.eps0 - 1);
 	for(size_t i = 0; i < param.Nx; i++)
 	{
 		for(size_t j = 0; j < param.Ny; j++)
@@ -88,13 +118,23 @@ void test_1_solve_phi()
 				phi_1[index] = pot_0(x,y,z) + param.dt*param.dt
 								*param.light_speed*param.light_speed
 								*(1.0/param.eps0 - 1)*rho_0(x,y,z);
+
+				E_x_0[index] = E(0, x, y, z, 1, lambda);
+				E_y_0[index] = E(0, x, y, z, 2, lambda);
+				E_z_0[index] = E(0, x, y, z, 3, lambda);
+
+				E_x_1[index] = E(1, x, y, z, 1, lambda);
+				E_y_1[index] = E(1, x, y, z, 2, lambda);
+				E_z_1[index] = E(1, x, y, z, 3, lambda);
 			}
 		}
 	}
 
 	// Init electro_magnetic_force.
 	electro_magnetic_force emf(phi_0.data(), phi_1.data(), A_x_0.data(), A_x_1.data(),
-			A_y_0.data(), A_y_1.data(), A_z_0.data(), A_z_1.data(), param);
+				 A_y_0.data(), A_y_1.data(), A_z_0.data(), A_z_1.data(), E_x_0.data(),
+				 E_x_1.data(), E_y_0.data(), E_y_1.data(), E_z_0.data(), E_z_1.data(),
+				 param);
 
 	// Test error at t = 0.
 	double total_error_0 = 0;

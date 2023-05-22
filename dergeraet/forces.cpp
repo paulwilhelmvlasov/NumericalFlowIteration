@@ -239,6 +239,8 @@ namespace dim3
 electro_magnetic_force::electro_magnetic_force(double* phi_0, double* phi_1,
 		double* A_x_0, double* A_x_1, double* A_y_0,
 		double* A_y_1, double* A_z_0, double* A_z_1,
+		double* E_x_0, double* E_x_1, double* E_y_0,
+		double* E_y_1, double* E_z_0, double* E_z_1,
 		const config_t<double> &param,
 		double eps, size_t max_iter)
 		: eps(eps), max_iter(max_iter), param(param)
@@ -256,7 +258,8 @@ electro_magnetic_force::electro_magnetic_force(double* phi_0, double* phi_1,
 
 	// The first 2 time-steps have to be initialized to be able to start
 	// the NuFI iteration due to the backwards differencing.
-	init_first_time_step(phi_0, phi_1, A_x_0, A_x_1, A_y_0, A_y_1, A_z_0, A_z_1);
+	init_first_time_step(phi_0, phi_1, A_x_0, A_x_1, A_y_0, A_y_1, A_z_0, A_z_1,
+							E_x_0, E_x_1, E_y_0, E_y_1, E_z_0, E_z_1);
 }
 
 electro_magnetic_force::~electro_magnetic_force() { }
@@ -311,9 +314,13 @@ double electro_magnetic_force::eval_f(size_t tn, double x, double y,
 			y -= param.dt * u;
 			z -= param.dt * w;
 
+			std::cout << "operator()" << 1 << std::endl;
 			v += param.dt * operator()(tn,x,y,z,v,u,w,1);
+			std::cout << "operator()" << 2 << std::endl;
 			u += param.dt * operator()(tn,x,y,z,v,u,w,2);
+			std::cout << "operator()" << 3 << std::endl;
 			w += param.dt * operator()(tn,x,y,z,v,u,w,3);
+			std::cout << "operator() done" << std::endl;
 		}
 	}
 
@@ -336,7 +343,9 @@ arma::Col<double> electro_magnetic_force::eval_rho_j(size_t tn, double x,
 		double u = param.u_min + double(j+0.5) * param.du;
 		double w = param.w_min + double(k+0.5) * param.dw;
 
+		std::cout << "Eval f" << std::endl;
 		double f = eval_f(tn,x,y,z,v,u,w);
+		std::cout << "Eval f done" << std::endl;
 
 		rho_j(0) += dvuw * f;
 		rho_j(1) += dvuw * v * f;
@@ -352,12 +361,15 @@ std::vector<std::vector<double>> electro_magnetic_force::eval_rho_j(size_t tn)
 	std::vector<std::vector<double>> rj(4, std::vector<double>(param.Nx*param.Ny*param.Nz,0) );
 	arma::Col<double> rho_j = {0,0,0,0};
 
+	std::cout << "Starting eval rho j." << std::endl;
+
 	for(size_t i = 0; i < param.Nx; i++)
 	{
 		for(size_t j = 0; j < param.Ny; j++)
 		{
 			for(size_t k = 0; k < param.Nz; k++)
 			{
+				std::cout << "Eval rho j:" << i << " " << j << " " << k << std::endl;
 				double x = param.x_min + i*param.dx;
 				double y = param.y_min + j*param.dy;
 				double z = param.z_min + k*param.dz;
@@ -365,9 +377,13 @@ std::vector<std::vector<double>> electro_magnetic_force::eval_rho_j(size_t tn)
 
 				rho_j = eval_rho_j(tn, x, y, z);
 
+				std::cout << "0" << std::endl;
 				rj[0][index] = rho_j(0);
+				std::cout << "1" << std::endl;
 				rj[1][index] = rho_j(1);
+				std::cout << "2" << std::endl;
 				rj[2][index] = rho_j(2);
+				std::cout << "3" << std::endl;
 				rj[3][index] = rho_j(3);
 			}
 		}
@@ -379,18 +395,22 @@ std::vector<std::vector<double>> electro_magnetic_force::eval_rho_j(size_t tn)
 double electro_magnetic_force::operator()(size_t t, double x, double y,
 		double z, double v, double u, double w, size_t i)
 {
+	std::cout << "Eval force" << std::endl;
 	switch(i)
 	{
 	case 1:
+		std::cout << "case 1" << std::endl;
 		return E(t,x,y,z,1) + param.light_speed_inv * (u*B(t,x,y,z,3)-w*B(t,x,y,z,2));
 	case 2:
+		std::cout << "case 2" << std::endl;
 		return E(t,x,y,z,2) + param.light_speed_inv * (w*B(t,x,y,z,1)-v*B(t,x,y,z,3));
 	case 3:
+		std::cout << "case 3" << std::endl;
 		return E(t,x,y,z,3) + param.light_speed_inv * (v*B(t,x,y,z,2)-w*B(t,x,y,z,1));
 	default:
 		throw std::runtime_error("Only 3d but index not equal 1,2 or 3!");
 	}
-
+	std::cout << "Eval force failed" << std::endl;
 	return 0;
 }
 
@@ -403,22 +423,55 @@ arma::Col<double> electro_magnetic_force::operator()(size_t t, double x,
 			operator()(t,x,y,z,v,u,w,3)};
 }
 
-double electro_magnetic_force::E(size_t tn, double x, double y, double z,
-		size_t i)
+double electro_magnetic_force::E(size_t tn, double x, double y, double z, size_t i)
 {
-	double A_time_derivative = (1.5*A(tn,x,y,z,i) - 2*A(tn-1,x,y,z,i)
-								+ 0.5*A(tn-2,x,y,z,i)) / param.dt;
-	switch(i)
+	// Careful: As to evaluate E we use a 2-backwards-formula we need to assume tn > 1.
+	// Otherwise we need to fall back to pre-given values.
+	if(tn > 1)
 	{
-	case 1:
-		return -(phi<1,0,0>(tn,x,y,z) + A_time_derivative);
-	case 2:
-		return -(phi<0,1,0>(tn,x,y,z) + A_time_derivative);
-	case 3:
-		return -(phi<0,0,1>(tn,x,y,z) + A_time_derivative);
-	default:
-		throw std::runtime_error("Only 3d but index not equal 1,2 or 3!");
+		double A_time_derivative = (1.5*A(tn,x,y,z,i) - 2*A(tn-1,x,y,z,i)
+									+ 0.5*A(tn-2,x,y,z,i)) / param.dt;
+		switch(i)
+		{
+		case 1:
+			return -(phi<1,0,0>(tn,x,y,z) + A_time_derivative);
+		case 2:
+			return -(phi<0,1,0>(tn,x,y,z) + A_time_derivative);
+		case 3:
+			return -(phi<0,0,1>(tn,x,y,z) + A_time_derivative);
+		default:
+			throw std::runtime_error("Only 3d but index not equal 1,2 or 3!");
+		}
 	}
+	else if(tn == 0)
+	{
+		switch(i)
+		{
+		case 1:
+			return dergeraet::dim3::eval<double, order>(x, y, z, coeffs_E_x_0.get(), param);
+		case 2:
+			return dergeraet::dim3::eval<double, order>(x, y, z, coeffs_E_y_0.get(), param);
+		case 3:
+			return dergeraet::dim3::eval<double, order>(x, y, z, coeffs_E_z_0.get(), param);
+		default:
+			throw std::runtime_error("Only 3d but index not equal 1,2 or 3!");
+		}
+	}
+	else if(tn == 1)
+	{
+		switch(i)
+		{
+		case 1:
+			return dergeraet::dim3::eval<double, order>(x, y, z, coeffs_E_x_1.get(), param);
+		case 2:
+			return dergeraet::dim3::eval<double, order>(x, y, z, coeffs_E_y_1.get(), param);
+		case 3:
+			return dergeraet::dim3::eval<double, order>(x, y, z, coeffs_E_z_1.get(), param);
+		default:
+			throw std::runtime_error("Only 3d but index not equal 1,2 or 3!");
+		}
+	}
+
 	return 0;
 }
 
@@ -527,7 +580,9 @@ void electro_magnetic_force::solve_A(double* j_x, double* j_y, double* j_z)
 
 void electro_magnetic_force::init_first_time_step(double* phi_0,
 			double* phi_1, double* A_x_0, double* A_x_1, double* A_y_0,
-			double* A_y_1, double* A_z_0, double* A_z_1)
+			double* A_y_1, double* A_z_0, double* A_z_1, double* E_x_0,
+			double* E_x_1, double* E_y_0, double* E_y_1, double* E_z_0,
+			double* E_z_1)
 {
 	// Takes values of phi and A for t=0 and t=\Delta t. Saves interpolants to
 	// these quantaties and sets curr_tn=1.
@@ -538,11 +593,20 @@ void electro_magnetic_force::init_first_time_step(double* phi_0,
 	interpolate<double, order>(coeffs_A_y.get(), A_y_0, param);
 	interpolate<double, order>(coeffs_A_z.get(), A_z_0, param);
 
+	interpolate<double, order>(coeffs_E_x_0.get(), E_x_0, param);
+	interpolate<double, order>(coeffs_E_y_0.get(), E_y_0, param);
+	interpolate<double, order>(coeffs_E_z_0.get(), E_z_0, param);
+
+
 	// Computes coeffs for t = t_1.
 	interpolate<double, order>(coeffs_phi.get() + stride_t, phi_1, param);
 	interpolate<double, order>(coeffs_A_x.get() + stride_t, A_x_1, param);
 	interpolate<double, order>(coeffs_A_y.get() + stride_t, A_y_1, param);
 	interpolate<double, order>(coeffs_A_z.get() + stride_t, A_z_1, param);
+
+	interpolate<double, order>(coeffs_E_x_1.get(), E_x_1, param);
+	interpolate<double, order>(coeffs_E_y_1.get(), E_y_1, param);
+	interpolate<double, order>(coeffs_E_z_1.get(), E_z_1, param);
 
 	curr_tn = 1;
 }

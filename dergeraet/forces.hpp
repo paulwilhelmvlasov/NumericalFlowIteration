@@ -101,6 +101,8 @@ public:
 	electro_magnetic_force(double* phi_0, double* phi_1,
 			double* A_x_0, double* A_x_1, double* A_y_0,
 			double* A_y_1, double* A_z_0, double* A_z_1,
+			double* E_x_0, double* E_x_1, double* E_y_0,
+			double* E_y_1, double* E_z_0, double* E_z_1,
 			const config_t<double> &param,
 			double eps = 1e-10, size_t max_iter = 10000);
     ~electro_magnetic_force();
@@ -155,7 +157,9 @@ public:
     // from the electric and magnetic fields at t=0?
     void init_first_time_step(double* phi_0, double* phi_1,
 					double* A_x_0, double* A_x_1, double* A_y_0,
-					double* A_y_1, double* A_z_0, double* A_z_1);
+					double* A_y_1, double* A_z_0, double* A_z_1,
+					double* E_x_0, double* E_x_1, double* E_y_0,
+					double* E_y_1, double* E_z_0, double* E_z_1);
     void solve_next_time_step(double* rho, double* j_x, double* j_y, double* j_z);
 
 private:
@@ -165,6 +169,14 @@ private:
     std::unique_ptr<double[]> coeffs_A_x;
     std::unique_ptr<double[]> coeffs_A_y;
     std::unique_ptr<double[]> coeffs_A_z;
+
+    std::unique_ptr<double[]> coeffs_E_x_0;
+    std::unique_ptr<double[]> coeffs_E_y_0;
+    std::unique_ptr<double[]> coeffs_E_z_0;
+
+    std::unique_ptr<double[]> coeffs_E_x_1;
+    std::unique_ptr<double[]> coeffs_E_y_1;
+    std::unique_ptr<double[]> coeffs_E_z_1;
 
     size_t alignment { 64 };
 
