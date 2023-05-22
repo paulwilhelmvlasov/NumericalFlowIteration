@@ -141,21 +141,23 @@ void test_landau_damping()
 
 	double init_time = timer_total.elapsed();
 	std::cout << "Init done." << std::endl;
+	std::cout << "Init time = " << init_time << std::endl;
 	timer_total.reset();
 	// Do NuFI loop.
 	for(size_t t = 2; t <= param.Nt; t++)
 	{
+		stopwatch<double> inner_timer;
 		// Get values of rho and j at previous time-step.
 		std::cout << "Eval rho_j at time-step " << t << std::endl;
 		rj = emf.eval_rho_j(t-1);
 		// Compute next time-step.
 		std::cout << "Solve next time step at t = " << t*param.dt << std::endl;
 		emf.solve_next_time_step(rj[0].data(), rj[1].data(), rj[2].data(), rj[3].data());
+		std::cout << "This time-step took " << inner_timer.elapsed() << std::endl;
 	}
 
 	double loop_time = timer_total.elapsed();
 	double total_time = init_time + loop_time;
-	std::cout << "Init time = " << init_time << std::endl;
 	std::cout << "Loop time = " << loop_time << std::endl;
 	std::cout << "Total computation time = " << total_time << std::endl;
 }

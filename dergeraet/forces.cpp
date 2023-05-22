@@ -322,13 +322,9 @@ double electro_magnetic_force::eval_f(size_t tn, double x, double y,
 			y -= param.dt * u;
 			z -= param.dt * w;
 
-			std::cout << "operator()" << 1 << std::endl;
 			v += param.dt * operator()(tn,x,y,z,v,u,w,1);
-			std::cout << "operator()" << 2 << std::endl;
 			u += param.dt * operator()(tn,x,y,z,v,u,w,2);
-			std::cout << "operator()" << 3 << std::endl;
 			w += param.dt * operator()(tn,x,y,z,v,u,w,3);
-			std::cout << "operator() done" << std::endl;
 		}
 	}
 
@@ -351,9 +347,7 @@ arma::Col<double> electro_magnetic_force::eval_rho_j(size_t tn, double x,
 		double u = param.u_min + double(j+0.5) * param.du;
 		double w = param.w_min + double(k+0.5) * param.dw;
 
-		std::cout << "Eval f" << std::endl;
 		double f = eval_f(tn,x,y,z,v,u,w);
-		std::cout << "Eval f done" << std::endl;
 
 		rho_j(0) += dvuw * f;
 		rho_j(1) += dvuw * v * f;
@@ -369,15 +363,13 @@ std::vector<std::vector<double>> electro_magnetic_force::eval_rho_j(size_t tn)
 	std::vector<std::vector<double>> rj(4, std::vector<double>(param.Nx*param.Ny*param.Nz,0) );
 	arma::Col<double> rho_j = {0,0,0,0};
 
-	std::cout << "Starting eval rho j." << std::endl;
-
+	#pragma omp parallel for
 	for(size_t i = 0; i < param.Nx; i++)
 	{
 		for(size_t j = 0; j < param.Ny; j++)
 		{
 			for(size_t k = 0; k < param.Nz; k++)
 			{
-				std::cout << "Eval rho j:" << i << " " << j << " " << k << std::endl;
 				double x = param.x_min + i*param.dx;
 				double y = param.y_min + j*param.dy;
 				double z = param.z_min + k*param.dz;
@@ -385,13 +377,9 @@ std::vector<std::vector<double>> electro_magnetic_force::eval_rho_j(size_t tn)
 
 				rho_j = eval_rho_j(tn, x, y, z);
 
-				std::cout << "0" << std::endl;
 				rj[0][index] = rho_j(0);
-				std::cout << "1" << std::endl;
 				rj[1][index] = rho_j(1);
-				std::cout << "2" << std::endl;
 				rj[2][index] = rho_j(2);
-				std::cout << "3" << std::endl;
 				rj[3][index] = rho_j(3);
 			}
 		}
@@ -403,22 +391,18 @@ std::vector<std::vector<double>> electro_magnetic_force::eval_rho_j(size_t tn)
 double electro_magnetic_force::operator()(size_t t, double x, double y,
 		double z, double v, double u, double w, size_t i)
 {
-	std::cout << "Eval force" << std::endl;
 	switch(i)
 	{
 	case 1:
-		std::cout << "case 1" << std::endl;
 		return E(t,x,y,z,1) + param.light_speed_inv * (u*B(t,x,y,z,3)-w*B(t,x,y,z,2));
 	case 2:
-		std::cout << "case 2" << std::endl;
 		return E(t,x,y,z,2) + param.light_speed_inv * (w*B(t,x,y,z,1)-v*B(t,x,y,z,3));
 	case 3:
-		std::cout << "case 3" << std::endl;
 		return E(t,x,y,z,3) + param.light_speed_inv * (v*B(t,x,y,z,2)-w*B(t,x,y,z,1));
 	default:
 		throw std::runtime_error("Only 3d but index not equal 1,2 or 3!");
 	}
-	std::cout << "Eval force failed" << std::endl;
+
 	return 0;
 }
 
