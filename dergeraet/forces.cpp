@@ -483,6 +483,50 @@ double electro_magnetic_force::B(size_t tn, double x, double y, double z, size_t
 	return 0;
 }
 
+double electro_magnetic_force::E_norm(size_t tn, size_t Nx, size_t Ny, size_t Nz, size_t type)
+{
+	double dx = param.Lx / Nx;
+	double dy = param.Ly / Ny;
+	double dz = param.Lz / Nz;
+
+	double norm = 0;
+
+	for(size_t i = 0; i < Nx; i++)
+	{
+		for(size_t j = 0; j < Ny; j++)
+		{
+			for(size_t k = 0; k < Nz; k++)
+			{
+				double x = param.x_min + (i+0.5)*dx;
+				double y = param.y_min + (j+0.5)*dy;
+				double z = param.z_min + (k+0.5)*dz;
+
+				double Ex = E(tn,x,y,z,1);
+				double Ey = E(tn,x,y,z,2);
+				double Ez = E(tn,x,y,z,3);
+
+				// Which norm to consider. 0 stands for inf-norm.
+				if(type == 0)
+				{
+					double curr = std::sqrt(Ex*Ex + Ey*Ey + Ez*Ez);
+					norm = std::max(norm, curr);
+				} else if(type == 1)
+				{
+					norm += std::abs(Ex) + std::abs(Ey) + std::abs(Ez);
+				} else if(type == 2)
+				{
+					norm += std::sqrt(Ex*Ex + Ey*Ey + Ez*Ez);
+				} else
+				{
+					throw std::runtime_error("Type not implemented yet.");
+				}
+			}
+		}
+	}
+
+	return norm;
+}
+
 
 void electro_magnetic_force::solve_phi(double* rho)
 {

@@ -36,7 +36,7 @@ void test_landau_damping()
 	stopwatch<double> timer_total;
 	// Initialize config.
 	config_t<double> param;
-	param.Nt = 10;
+	//param.Nt = 32;
 	double alpha = 0.01;
 	double kx = 0.5;
 	double ky = 0.5;
@@ -143,6 +143,11 @@ void test_landau_damping()
 	std::cout << "Init done." << std::endl;
 	std::cout << "Init time = " << init_time << std::endl;
 	timer_total.reset();
+
+	std::ofstream E_l2("E_l2.txt");
+	E_l2 << 0 << " " << emf.E_norm(0) << std::endl;
+	E_l2 << param.dt << " " << emf.E_norm(1) << std::endl;
+
 	// Do NuFI loop.
 	for(size_t t = 2; t <= param.Nt; t++)
 	{
@@ -153,7 +158,12 @@ void test_landau_damping()
 		// Compute next time-step.
 		std::cout << "Solve next time step at t = " << t*param.dt << std::endl;
 		emf.solve_next_time_step(rj[0].data(), rj[1].data(), rj[2].data(), rj[3].data());
-		std::cout << "This time-step took " << inner_timer.elapsed() << std::endl;
+		double E2 = emf.E_norm(t);
+		E_l2 << t*param.dt << " " << E2 << std::endl;
+		std::cout << "This time-step took " << inner_timer.elapsed()
+				<< ". E2 = " << E2 << std::endl;
+
+
 	}
 
 	double loop_time = timer_total.elapsed();
