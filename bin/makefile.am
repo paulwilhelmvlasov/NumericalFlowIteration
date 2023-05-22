@@ -1,5 +1,5 @@
 noinst_PROGRAMS = test_poisson test_maxwell_periodic test_gmres test_fields \
-					test_dergeraet test_nufi_cpu test_nufi_cpu_2d
+					test_dergeraet test_nufi_cpu test_nufi_cpu_2d test_vlasov_maxwell
 #test_dergeraet_2d test_dergeraet_3d
 					 
 
@@ -10,6 +10,10 @@ test_poisson_LDADD  += $(CUDA_LDFLAGS) $(BLAS_LIBS) -lfftw3 -lfftw3f
 test_maxwell_periodic_SOURCES = test_maxwell_periodic.cpp
 test_maxwell_periodic_LDADD   = $(top_builddir)/dergeraet/libdergeraet.a
 test_maxwell_periodic_LDADD  += $(CUDA_LDFLAGS) $(BLAS_LIBS) -lfftw3 -lfftw3f
+
+test_vlasov_maxwell_SOURCES = test_vlasov_maxwell.cpp
+test_vlasov_maxwell_LDADD   = $(top_builddir)/dergeraet/libdergeraet.a
+test_vlasov_maxwell_LDADD  += $(CUDA_LDFLAGS) $(BLAS_LIBS) -lfftw3 -lfftw3f
 
 test_gmres_SOURCES = test_gmres.cpp
 test_gmres_LDADD   = $(top_builddir)/dergeraet/libdergeraet.a

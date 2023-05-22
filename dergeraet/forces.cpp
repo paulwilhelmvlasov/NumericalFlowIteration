@@ -296,9 +296,9 @@ double electro_magnetic_force::eval_f(size_t tn, double x, double y,
 			double detGB = a*e*i + b*f*g + c*d*h - c*e*g - b*d*i - a*f*h;
 			double detGB_inv = 1.0 / detGB;
 			// Computing second half-step.
-			double rhs_1 = v_half + 0.5*param.dt*E(tn-1,x,y,z);
-			double rhs_2 = u_half + 0.5*param.dt*E(tn-1,x,y,z);
-			double rhs_3 = w_half + 0.5*param.dt*E(tn-1,x,y,z);
+			double rhs_1 = v_half + 0.5*param.dt*E(tn-1,x,y,z,1);
+			double rhs_2 = u_half + 0.5*param.dt*E(tn-1,x,y,z,2);
+			double rhs_3 = w_half + 0.5*param.dt*E(tn-1,x,y,z,3);
 			v = detGB_inv*( (e*i-f*h)*rhs_1 + (c*h-b*i)*rhs_2 + (b*f-c*e)*rhs_3 );
 			u = detGB_inv*( (f*g-d*i)*rhs_1 + (a*i-c*g)*rhs_2 + (c*d-a*f)*rhs_3 );
 			w = detGB_inv*( (d*h-e*g)*rhs_1 + (b*g-a*h)*rhs_2 + (a*e-b*d)*rhs_3 );
@@ -345,6 +345,35 @@ arma::Col<double> electro_magnetic_force::eval_rho_j(size_t tn, double x,
 	}
 
 	return rho_j;
+}
+
+std::vector<std::vector<double>> electro_magnetic_force::eval_rho_j(size_t tn)
+{
+	std::vector<std::vector<double>> rj(4, std::vector<double>(param.Nx*param.Ny*param.Nz,0) );
+	arma::Col<double> rho_j = {0,0,0,0};
+
+	for(size_t i = 0; i < param.Nx; i++)
+	{
+		for(size_t j = 0; j < param.Ny; j++)
+		{
+			for(size_t k = 0; k < param.Nz; k++)
+			{
+				double x = param.x_min + i*param.dx;
+				double y = param.y_min + j*param.dy;
+				double z = param.z_min + k*param.dz;
+				size_t index = i + j*param.Nx + k*param.Nx*param.Ny;
+
+				rho_j = eval_rho_j(tn, x, y, z);
+
+				rj[0][index] = rho_j(0);
+				rj[1][index] = rho_j(1);
+				rj[2][index] = rho_j(2);
+				rj[3][index] = rho_j(3);
+			}
+		}
+	}
+
+	return rj;
 }
 
 double electro_magnetic_force::operator()(size_t t, double x, double y,

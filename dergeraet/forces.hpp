@@ -98,9 +98,6 @@ public:
 	electro_magnetic_force& operator=( const electro_magnetic_force  &rhs ) = delete;
 	electro_magnetic_force& operator=( electro_magnetic_force &&rhs ) = delete;
 
-	// Todo: There should be a way to either pass the coefficients for the
-	// first two time-steps or at least specify how the initialization is
-	// supposed to be done!
 	electro_magnetic_force(double* phi_0, double* phi_1,
 			double* A_x_0, double* A_x_1, double* A_y_0,
 			double* A_y_1, double* A_z_0, double* A_z_1,
@@ -110,7 +107,9 @@ public:
 
     double eval_f(size_t tn, double x, double y, double z, double v,
     		double u, double w, bool use_stoermer_verlet = false);
+    // Todo: Rewrite this to use std::vector<double> instead!
     arma::Col<double> eval_rho_j(size_t tn, double x, double y, double z);
+    std::vector<std::vector<double>> eval_rho_j(size_t tn);
 
     template <size_t dx = 0, size_t dy = 0, size_t dz = 0>
     double phi(size_t tn, double x, double y, double z)
