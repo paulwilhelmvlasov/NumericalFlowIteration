@@ -256,6 +256,14 @@ electro_magnetic_force::electro_magnetic_force(double* phi_0, double* phi_1,
 	coeffs_A_y = std::unique_ptr<double[]>(new double[ (param.Nt + 1) * stride_t ] {});
 	coeffs_A_z = std::unique_ptr<double[]>(new double[ (param.Nt + 1) * stride_t ] {});
 
+	coeffs_E_x_0 = std::unique_ptr<double[]>(new double[ stride_t ] {});
+	coeffs_E_y_0 = std::unique_ptr<double[]>(new double[ stride_t ] {});
+	coeffs_E_z_0 = std::unique_ptr<double[]>(new double[ stride_t ] {});
+
+	coeffs_E_x_1 = std::unique_ptr<double[]>(new double[ stride_t ] {});
+	coeffs_E_y_1 = std::unique_ptr<double[]>(new double[ stride_t ] {});
+	coeffs_E_z_1 = std::unique_ptr<double[]>(new double[ stride_t ] {});
+
 	// The first 2 time-steps have to be initialized to be able to start
 	// the NuFI iteration due to the backwards differencing.
 	init_first_time_step(phi_0, phi_1, A_x_0, A_x_1, A_y_0, A_y_1, A_z_0, A_z_1,
