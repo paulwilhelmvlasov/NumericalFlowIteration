@@ -144,24 +144,28 @@ void test_landau_damping()
 	std::cout << "Init time = " << init_time << std::endl;
 	timer_total.reset();
 
-	std::ofstream E_l2("E_l2.txt");
-	E_l2 << 0 << " " << emf.E_norm(0) << std::endl;
-	E_l2 << param.dt << " " << emf.E_norm(1) << std::endl;
+	std::ofstream E_norm("E_norm.txt");
+	E_norm << 0 << " " << emf.E_norm(0) << std::endl;
+	std::cout << "t = " << 0 << ". E_norm = " << emf.E_norm(0) << std::endl;
+	E_norm << param.dt << " " << emf.E_norm(1) << std::endl;
+	std::cout << "t = " << param.dt << ". E_norm = " << emf.E_norm(1) << std::endl;
 
 	// Do NuFI loop.
 	for(size_t t = 2; t <= param.Nt; t++)
 	{
 		stopwatch<double> inner_timer;
 		// Get values of rho and j at previous time-step.
-		std::cout << "Eval rho_j at time-step " << t << std::endl;
 		rj = emf.eval_rho_j(t-1);
+
 		// Compute next time-step.
-		std::cout << "Solve next time step at t = " << t*param.dt << std::endl;
 		emf.solve_next_time_step(rj[0].data(), rj[1].data(), rj[2].data(), rj[3].data());
-		double E2 = emf.E_norm(t);
-		E_l2 << t*param.dt << " " << E2 << std::endl;
+
+		// Test/output.
+		double E_n = emf.E_norm(t);
+		E_norm << t*param.dt << " " << E_n << std::endl;
 		std::cout << "This time-step took " << inner_timer.elapsed()
-				<< ". E2 = " << E2 << std::endl;
+				<< ". t = " << t*param.dt
+				<< ". E_norm = " << E_n << std::endl;
 
 
 	}

@@ -244,15 +244,15 @@ real config_t<real>::f0( real x, real y, real z, real u, real v, real w ) noexce
     using std::exp;
 
     constexpr real alpha = 0.01;
-    //constexpr real k     = 0.2;
     constexpr real k     = 0.5;
 
     // Weak Landau Damping:
     constexpr real c  = 0.06349363593424096978576330493464; // Weak Landau damping
-    return c * ( 1. + alpha*cos(k*x) + alpha*cos(k*y) + alpha*cos(k*z)) * exp( -(u*u+v*v+w*w)/2 );
+    return c * ( 1. + alpha*cos(k*x) + alpha*cos(k*y) + alpha*cos(k*z)) * exp( -(u*u+v*v+w*w)/2.0 );
 
     // Two Stream instability:
     /*
+    //constexpr real k     = 0.2;
     constexpr real c     = 0.03174681796712048489288165246732; // Two Stream instability
     constexpr real v0 = 2.4;
     return c * (  (exp(-(v-v0)*(v-v0)/2.0) + exp(-(v+v0)*(v+v0)/2.0)) ) * exp(-(u*u+w*w)/2)

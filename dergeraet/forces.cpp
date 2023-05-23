@@ -334,7 +334,7 @@ double electro_magnetic_force::eval_f(size_t tn, double x, double y,
 arma::Col<double> electro_magnetic_force::eval_rho_j(size_t tn, double x,
 		double y, double z)
 {
-	arma::Col<double> rho_j = {0,0,0,0};
+	arma::Col<double> rho_j = {1,0,0,0};
 
 	double dvuw = param.dv*param.du*param.dw;
 
@@ -349,7 +349,7 @@ arma::Col<double> electro_magnetic_force::eval_rho_j(size_t tn, double x,
 
 		double f = eval_f(tn,x,y,z,v,u,w);
 
-		rho_j(0) += dvuw * f;
+		rho_j(0) -= dvuw * f;
 		rho_j(1) += dvuw * v * f;
 		rho_j(2) += dvuw * u * f;
 		rho_j(3) += dvuw * w * f;
@@ -512,16 +512,21 @@ double electro_magnetic_force::E_norm(size_t tn, size_t Nx, size_t Ny, size_t Nz
 					norm = std::max(norm, curr);
 				} else if(type == 1)
 				{
-					norm += std::abs(Ex) + std::abs(Ey) + std::abs(Ez);
+					norm += std::sqrt(Ex*Ex + Ey*Ey + Ez*Ez);
 				} else if(type == 2)
 				{
-					norm += std::sqrt(Ex*Ex + Ey*Ey + Ez*Ez);
+					norm += Ex*Ex + Ey*Ey + Ez*Ez;
 				} else
 				{
 					throw std::runtime_error("Type not implemented yet.");
 				}
 			}
 		}
+	}
+
+	if(type > 0)
+	{
+		norm *= dx*dy*dz;
 	}
 
 	return norm;
