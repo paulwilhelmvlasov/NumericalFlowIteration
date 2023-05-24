@@ -108,7 +108,7 @@ public:
     ~electro_magnetic_force();
 
     double eval_f(size_t tn, double x, double y, double z, double v,
-    		double u, double w, bool use_stoermer_verlet = false);
+    		double u, double w, bool use_stoermer_verlet = true);
     // Todo: Rewrite this to use std::vector<double> instead!
     arma::Col<double> eval_rho_j(size_t tn, double x, double y, double z);
     std::vector<std::vector<double>> eval_rho_j(size_t tn);
@@ -165,6 +165,8 @@ public:
 					double* E_y_1, double* E_z_0, double* E_z_1);
     void solve_next_time_step(double* rho, double* j_x, double* j_y, double* j_z);
 
+    static const size_t order = 4;
+
 private:
 
     // Coefficients of the B-Spline representation.
@@ -189,7 +191,6 @@ private:
     double eps = 1e-10;
     size_t max_iter = 10000;
 
-    static const size_t order = 4;
     size_t l = 0;
 	size_t n = l+1;
 	size_t N = n*n*n;

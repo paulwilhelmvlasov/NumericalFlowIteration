@@ -554,7 +554,7 @@ void electro_magnetic_force::solve_phi(double* rho)
 				double z = param.z_min + k*param.dz;
 				size_t mat_index = i + j*param.Nx + k*param.Nx*param.Ny;
 				rho[mat_index] = 2*phi(curr_tn,x,y,z) - phi(curr_tn-1,x,y,z)
-						+ dt_sq * (c_sq_eps*rho[mat_index]
+						+ dt_sq * ( c_sq_eps*rho[mat_index]
 						+ c_sq * ( phi<2,0,0>(curr_tn,x,y,z)
 								+ phi<0,2,0>(curr_tn,x,y,z)
 								+ phi<0,0,2>(curr_tn,x,y,z) ) );
@@ -562,7 +562,7 @@ void electro_magnetic_force::solve_phi(double* rho)
 		}
 	}
 
-	interpolate<double, order>(coeffs_phi.get() + curr_tn*stride_t, rho, param);
+	interpolate<double, order>(coeffs_phi.get() + (curr_tn+1)*stride_t, rho, param);
 }
 
 
@@ -614,9 +614,9 @@ void electro_magnetic_force::solve_A(double* j_x, double* j_y, double* j_z)
 		}
 	}
 
-	interpolate<double, order>(coeffs_A_x.get() + curr_tn*stride_t, j_x, param);
-	interpolate<double, order>(coeffs_A_y.get() + curr_tn*stride_t, j_y, param);
-	interpolate<double, order>(coeffs_A_z.get() + curr_tn*stride_t, j_z, param);
+	interpolate<double, order>(coeffs_A_x.get() + (curr_tn+1)*stride_t, j_x, param);
+	interpolate<double, order>(coeffs_A_y.get() + (curr_tn+1)*stride_t, j_y, param);
+	interpolate<double, order>(coeffs_A_z.get() + (curr_tn+1)*stride_t, j_z, param);
 }
 
 void electro_magnetic_force::init_first_time_step(double* phi_0,

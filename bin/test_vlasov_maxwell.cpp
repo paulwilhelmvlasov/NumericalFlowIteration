@@ -23,6 +23,8 @@
 #include <iomanip>
 
 #include <dergeraet/forces.hpp>
+#include <dergeraet/poisson.hpp>
+#include <dergeraet/rho.hpp>
 #include <dergeraet/stopwatch.hpp>
 
 namespace dergeraet
@@ -30,6 +32,138 @@ namespace dergeraet
 
 namespace dim3
 {
+
+void get_weak_landau_first_two_time_step_electric_field(const config_t<double>& param,
+		double* phi_0, double* phi_1, double* E0_x, double* E0_y, double* E0_z,
+		double* E1_x, double* E1_y, double* E1_z)
+{
+    poisson<double> poiss( param );
+
+    size_t stride_t = (param.Nx + electro_magnetic_force::order - 1) *
+                      (param.Ny + electro_magnetic_force::order - 1) *
+					  (param.Nz + electro_magnetic_force::order - 1);
+
+    size_t Nt = 2.0 / param.dt;
+    std::unique_ptr<double[]> coeffs { new double[ (Nt+1)*stride_t ] {} };
+
+    void *tmp = std::aligned_alloc( poiss.alignment, sizeof(double)*param.Nx*param.Ny*param.Nz );
+    if ( tmp == nullptr ) throw std::bad_alloc {};
+    std::unique_ptr<double,decltype(std::free)*> rho { reinterpret_cast<double*>(tmp),
+    													std::free };
+
+	std::ofstream E_max_str("E_max.txt");
+
+    std::cout << "Start precompute: t = 0." << std::endl;
+    // t = 0:
+    // Compute rho.
+	#pragma omp parallel for
+    for(size_t l = 0; l < param.Nx*param.Ny*param.Nz; l++)
+    {
+    	rho.get()[l] = dergeraet::dim3::eval_rho<double, electro_magnetic_force::order>( 0, l, coeffs.get(), param);
+    }
+    // Solve for phi.
+    poiss.solve( rho.get() );
+    // Interpolate phi.
+    interpolate<double,electro_magnetic_force::order>( coeffs.get(), rho.get(), param );
+    // Store the required values of E0.
+    double Emax = 0;
+	#pragma omp parallel for
+    for(size_t l = 0; l < param.Nx*param.Ny*param.Nz; l++)
+    {
+        size_t k   = l   / (param.Nx * param.Ny);
+        size_t tmp = l   % (param.Nx * param.Ny);
+        size_t j   = tmp / param.Nx;
+        size_t i   = tmp % param.Nx;
+
+        double x = param.x_min + i*param.dx;
+        double y = param.y_min + j*param.dy;
+        double z = param.z_min + k*param.dz;
+
+        phi_0[l] = eval<double, electro_magnetic_force::order, 0, 0, 0>(x,y,z,coeffs.get(), param);
+
+        E0_x[l] = -eval<double, electro_magnetic_force::order, 1, 0, 0>(x,y,z,coeffs.get(), param);
+        E0_y[l] = -eval<double, electro_magnetic_force::order, 0, 1, 0>(x,y,z,coeffs.get(), param);
+        E0_z[l] = -eval<double, electro_magnetic_force::order, 0, 0, 1>(x,y,z,coeffs.get(), param);
+
+        Emax = std::max(Emax, std::sqrt(E0_x[l]*E0_x[l] + E0_y[l]*E0_y[l] + E0_z[l]*E0_z[l]));
+    }
+
+    E_max_str << 0 << " " << Emax << std::endl;
+
+    std::cout << "Start precompute: t = dt." << std::endl;
+    // t = dt.
+    // Compute rho.
+	#pragma omp parallel for
+    for(size_t l = 0; l < param.Nx*param.Ny*param.Nz; l++)
+    {
+    	rho.get()[l] = eval_rho<double, electro_magnetic_force::order>( 1, l, coeffs.get() + stride_t, param);
+    }
+    // Solve for phi.
+    poiss.solve( rho.get() );
+    // Interpolate phi.
+    interpolate<double,electro_magnetic_force::order>( coeffs.get() + stride_t, rho.get(), param );
+    // Store the required values of E0.
+    Emax = 0;
+	#pragma omp parallel for
+    for(size_t l = 0; l < param.Nx*param.Ny*param.Nz; l++)
+    {
+        size_t k   = l   / (param.Nx * param.Ny);
+        size_t tmp = l   % (param.Nx * param.Ny);
+        size_t j   = tmp / param.Nx;
+        size_t i   = tmp % param.Nx;
+
+        double x = param.x_min + i*param.dx;
+        double y = param.y_min + j*param.dy;
+        double z = param.z_min + k*param.dz;
+
+        phi_1[l] = eval<double, electro_magnetic_force::order, 0, 0, 0>(x,y,z,coeffs.get(), param);
+
+        E1_x[l] = -eval<double, electro_magnetic_force::order, 1, 0, 0>(x,y,z,coeffs.get() + stride_t, param);
+        E1_y[l] = -eval<double, electro_magnetic_force::order, 0, 1, 0>(x,y,z,coeffs.get() + stride_t, param);
+        E1_z[l] = -eval<double, electro_magnetic_force::order, 0, 0, 1>(x,y,z,coeffs.get() + stride_t, param);
+        Emax = std::max(Emax, std::sqrt(E1_x[l]*E1_x[l] + E1_y[l]*E1_y[l] + E1_z[l]*E1_z[l]));
+    }
+
+    E_max_str << param.dt << " " << Emax << std::endl;
+
+    // t > dt.
+    for(size_t n = 2; n <= Nt; n++)
+    {
+        std::cout << "Start precompute: t = " << n << "*dt." << std::endl;
+        // t = n*dt.
+        // Compute rho.
+    	#pragma omp parallel for
+        for(size_t l = 0; l < param.Nx*param.Ny*param.Nz; l++)
+        {
+        	rho.get()[l] = eval_rho<double, electro_magnetic_force::order>( n, l, coeffs.get() + n*stride_t, param);
+        }
+        // Solve for phi.
+        poiss.solve( rho.get() );
+        // Interpolate phi.
+        interpolate<double,electro_magnetic_force::order>( coeffs.get() + n*stride_t, rho.get(), param );
+        // Plot.
+        Emax = 0;
+		#pragma omp parallel for
+		for(size_t l = 0; l < param.Nx*param.Ny*param.Nz; l++)
+		{
+			size_t k   = l   / (param.Nx * param.Ny);
+			size_t tmp = l   % (param.Nx * param.Ny);
+			size_t j   = tmp / param.Nx;
+			size_t i   = tmp % param.Nx;
+
+			double x = param.x_min + i*param.dx;
+			double y = param.y_min + j*param.dy;
+			double z = param.z_min + k*param.dz;
+
+			double Ex = -eval<double, electro_magnetic_force::order, 1, 0, 0>(x,y,z,coeffs.get() + n*stride_t, param);
+			double Ey = -eval<double, electro_magnetic_force::order, 0, 1, 0>(x,y,z,coeffs.get() + n*stride_t, param);
+			double Ez = -eval<double, electro_magnetic_force::order, 0, 0, 1>(x,y,z,coeffs.get() + n*stride_t, param);
+			Emax = std::max(Emax, std::sqrt(Ex*Ex + Ey*Ey + Ez*Ez));
+		}
+
+		E_max_str << n*param.dt << " " << Emax << std::endl;
+    }
+}
 
 void test_landau_damping()
 {
@@ -71,6 +205,7 @@ void test_landau_damping()
 		return alpha * ( std::cos(kx*x) + std::cos(ky*y) + std::cos(kz*z) ) ;
 	};
 
+	/*
 	auto E = [&alpha, &kx, &ky, &kz](size_t t, double x, double y, double z, size_t i,
 			double lambda){
 		if(t == 0)
@@ -104,6 +239,9 @@ void test_landau_damping()
 
 	double lambda = param.dt*param.dt * param.light_speed*param.light_speed
 						* (1.0/param.eps0 - 1);
+	*/
+
+	/*
 	for(size_t i = 0; i < param.Nx; i++)
 	{
 		for(size_t j = 0; j < param.Ny; j++)
@@ -120,6 +258,8 @@ void test_landau_damping()
 								*param.light_speed*param.light_speed
 								*(1.0/param.eps0 - 1)*rho_0(x,y,z);
 
+
+
 				E_x_0[index] = E(0, x, y, z, 1, lambda);
 				E_y_0[index] = E(0, x, y, z, 2, lambda);
 				E_z_0[index] = E(0, x, y, z, 3, lambda);
@@ -130,6 +270,12 @@ void test_landau_damping()
 			}
 		}
 	}
+	*/
+
+	get_weak_landau_first_two_time_step_electric_field(param,
+						phi_0.data(), phi_1.data(),
+						E_x_0.data(), E_y_0.data(), E_z_0.data(),
+						E_x_1.data(), E_y_1.data(), E_z_1.data());
 
 	// Init electro_magnetic_force.
 	electro_magnetic_force emf(phi_0.data(), phi_1.data(), A_x_0.data(), A_x_1.data(),

@@ -210,13 +210,13 @@ config_t<real>::config_t() noexcept
     Nx = Ny = Nz = 8;
     Nu = Nv = Nw = 16;
 
-    u_min = v_min = w_min = -10;
-    u_max = v_max = w_max =  10;
+    u_min = v_min = w_min = -6;
+    u_max = v_max = w_max =  6;
     x_min = y_min = z_min = 0;
     //x_max = y_max = z_max = 10*M_PI;
     x_max = y_max = z_max = 4*M_PI;
 
-    dt = 1./16.; Nt = 30/dt;
+    dt = 1./8.; Nt = 30/dt;
 
     Lx = x_max - x_min; Lx_inv = 1/Lx;
     Ly = y_max - y_min; Ly_inv = 1/Ly;
@@ -228,8 +228,8 @@ config_t<real>::config_t() noexcept
     dv = (v_max - v_min)/Nv;
     dw = (w_max - w_min)/Nw;
 
-    mu0 = 1;
-    eps0 = 1;
+    mu0 = 1.0;
+    eps0 = 1.0;
     light_speed = 1/std::sqrt(eps0*mu0);
     light_speed_inv = std::sqrt(eps0*mu0);
 
