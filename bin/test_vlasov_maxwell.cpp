@@ -44,6 +44,7 @@ void get_weak_landau_first_two_time_step_electric_field(const config_t<double>& 
 					  (param.Nz + electro_magnetic_force::order - 1);
 
     size_t Nt = 2.0 / param.dt;
+    //size_t Nt = 1;
     std::unique_ptr<double[]> coeffs { new double[ (Nt+1)*stride_t ] {} };
 
     void *tmp = std::aligned_alloc( poiss.alignment, sizeof(double)*param.Nx*param.Ny*param.Nz );
@@ -116,7 +117,7 @@ void get_weak_landau_first_two_time_step_electric_field(const config_t<double>& 
         double y = param.y_min + j*param.dy;
         double z = param.z_min + k*param.dz;
 
-        phi_1[l] = eval<double, electro_magnetic_force::order, 0, 0, 0>(x,y,z,coeffs.get(), param);
+        phi_1[l] = eval<double, electro_magnetic_force::order, 0, 0, 0>(x,y,z,coeffs.get() + stride_t, param);
 
         E1_x[l] = -eval<double, electro_magnetic_force::order, 1, 0, 0>(x,y,z,coeffs.get() + stride_t, param);
         E1_y[l] = -eval<double, electro_magnetic_force::order, 0, 1, 0>(x,y,z,coeffs.get() + stride_t, param);

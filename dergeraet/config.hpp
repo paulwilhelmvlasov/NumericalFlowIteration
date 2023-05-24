@@ -231,7 +231,7 @@ config_t<real>::config_t() noexcept
     mu0 = 1.0;
     eps0 = 1.0;
     light_speed = 1/std::sqrt(eps0*mu0);
-    light_speed_inv = std::sqrt(eps0*mu0);
+    light_speed_inv = 1.0 / light_speed;
 
 }
 
