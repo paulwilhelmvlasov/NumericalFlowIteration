@@ -394,11 +394,11 @@ double electro_magnetic_force::operator()(size_t t, double x, double y,
 	switch(i)
 	{
 	case 1:
-		return E(t,x,y,z,1) + param.light_speed_inv * (u*B(t,x,y,z,3)-w*B(t,x,y,z,2));
+		return E(t,x,y,z,1) + (u*B(t,x,y,z,3)-w*B(t,x,y,z,2));
 	case 2:
-		return E(t,x,y,z,2) + param.light_speed_inv * (w*B(t,x,y,z,1)-v*B(t,x,y,z,3));
+		return E(t,x,y,z,2) + (w*B(t,x,y,z,1)-v*B(t,x,y,z,3));
 	case 3:
-		return E(t,x,y,z,3) + param.light_speed_inv * (v*B(t,x,y,z,2)-w*B(t,x,y,z,1));
+		return E(t,x,y,z,3) + (v*B(t,x,y,z,2)-w*B(t,x,y,z,1));
 	default:
 		throw std::runtime_error("Only 3d but index not equal 1,2 or 3!");
 	}
