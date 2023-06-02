@@ -483,7 +483,7 @@ double electro_magnetic_force::B(size_t tn, double x, double y, double z, size_t
 	return 0;
 }
 
-double electro_magnetic_force::E_norm(size_t tn, size_t Nx, size_t Ny, size_t Nz, size_t type)
+double electro_magnetic_force::E_norm(size_t tn, size_t Nx, size_t Ny, size_t Nz, size_t type, bool stream)
 {
 	double dx = param.Lx / Nx;
 	double dy = param.Ly / Ny;
@@ -491,6 +491,7 @@ double electro_magnetic_force::E_norm(size_t tn, size_t Nx, size_t Ny, size_t Nz
 
 	double norm = 0;
 
+	std::ofstream E_str("Electric_field_" + std::to_string(tn*param.dt) +  ".txt");
 	for(size_t i = 0; i < Nx; i++)
 	{
 		for(size_t j = 0; j < Ny; j++)
@@ -504,6 +505,11 @@ double electro_magnetic_force::E_norm(size_t tn, size_t Nx, size_t Ny, size_t Nz
 				double Ex = E(tn,x,y,z,1);
 				double Ey = E(tn,x,y,z,2);
 				double Ez = E(tn,x,y,z,3);
+
+				if(stream)
+				{
+					E_str << x << " " << y << " " << z << " " << Ex << " " << Ey << " " << Ez << std::endl;
+				}
 
 				// Which norm to consider. 0 stands for inf-norm.
 				if(type == 0)
@@ -531,6 +537,62 @@ double electro_magnetic_force::E_norm(size_t tn, size_t Nx, size_t Ny, size_t Nz
 
 	return norm;
 }
+
+double electro_magnetic_force::B_norm(size_t tn, size_t Nx, size_t Ny, size_t Nz, size_t type, bool stream)
+{
+	double dx = param.Lx / Nx;
+	double dy = param.Ly / Ny;
+	double dz = param.Lz / Nz;
+
+	double norm = 0;
+
+	std::ofstream B_str("Magnetic_field_" + std::to_string(tn*param.dt) +  ".txt");
+	for(size_t i = 0; i < Nx; i++)
+	{
+		for(size_t j = 0; j < Ny; j++)
+		{
+			for(size_t k = 0; k < Nz; k++)
+			{
+				double x = param.x_min + (i+0.5)*dx;
+				double y = param.y_min + (j+0.5)*dy;
+				double z = param.z_min + (k+0.5)*dz;
+
+				double Bx = B(tn,x,y,z,1);
+				double By = B(tn,x,y,z,2);
+				double Bz = B(tn,x,y,z,3);
+
+				if(stream)
+				{
+					B_str << x << " " << y << " " << z << " " << Bx << " " << By << " " << Bz << std::endl;
+				}
+
+				// Which norm to consider. 0 stands for inf-norm.
+				if(type == 0)
+				{
+					double curr = std::sqrt(Bx*Bx + By*By + Bz*Bz);
+					norm = std::max(norm, curr);
+				} else if(type == 1)
+				{
+					norm += std::sqrt(Bx*Bx + By*By + Bz*Bz);
+				} else if(type == 2)
+				{
+					norm += Bx*Bx + By*By + Bz*Bz;
+				} else
+				{
+					throw std::runtime_error("Type not implemented yet.");
+				}
+			}
+		}
+	}
+
+	if(type > 0)
+	{
+		norm *= dx*dy*dz;
+	}
+
+	return norm;
+}
+
 
 
 void electro_magnetic_force::solve_phi(double* rho)

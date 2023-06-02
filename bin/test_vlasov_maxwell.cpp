@@ -144,7 +144,8 @@ void get_weak_landau_first_two_time_step_electric_field(const config_t<double>& 
         interpolate<double,electro_magnetic_force::order>( coeffs.get() + n*stride_t, rho.get(), param );
         // Plot.
         Emax = 0;
-		#pragma omp parallel for
+		//#pragma omp parallel for
+        std::ofstream E_str("Exact_Electric_field_" + std::to_string(n*param.dt) +  ".txt");
 		for(size_t l = 0; l < param.Nx*param.Ny*param.Nz; l++)
 		{
 			size_t k   = l   / (param.Nx * param.Ny);
@@ -160,6 +161,8 @@ void get_weak_landau_first_two_time_step_electric_field(const config_t<double>& 
 			double Ey = -eval<double, electro_magnetic_force::order, 0, 1, 0>(x,y,z,coeffs.get() + n*stride_t, param);
 			double Ez = -eval<double, electro_magnetic_force::order, 0, 0, 1>(x,y,z,coeffs.get() + n*stride_t, param);
 			Emax = std::max(Emax, std::sqrt(Ex*Ex + Ey*Ey + Ez*Ez));
+
+			E_str << x << " " << y << " " << z << " " << Ex << " " << Ey << " " << Ez << std::endl;
 		}
 
 		E_max_str << n*param.dt << " " << Emax << std::endl;
@@ -297,6 +300,13 @@ void test_landau_damping()
 	E_norm << param.dt << " " << emf.E_norm(1) << std::endl;
 	std::cout << "t = " << param.dt << ". E_norm = " << emf.E_norm(1) << std::endl;
 
+	std::ofstream B_norm("B_norm.txt");
+	B_norm << 0 << " " << emf.B_norm(0) << std::endl;
+	std::cout << "t = " << 0 << ". B_norm = " << emf.B_norm(0) << std::endl;
+	B_norm << param.dt << " " << emf.B_norm(1) << std::endl;
+	std::cout << "t = " << param.dt << ". B_norm = " << emf.B_norm(1) << std::endl;
+
+
 	// Do NuFI loop.
 	for(size_t t = 2; t <= param.Nt; t++)
 	{
@@ -313,6 +323,12 @@ void test_landau_damping()
 		std::cout << "This time-step took " << inner_timer.elapsed()
 				<< ". t = " << t*param.dt
 				<< ". E_norm = " << E_n << std::endl;
+
+		double B_n = emf.B_norm(t);
+		B_norm << t*param.dt << " " << B_n << std::endl;
+		std::cout << "This time-step took " << inner_timer.elapsed()
+				<< ". t = " << t*param.dt
+				<< ". B_norm = " << B_n << std::endl;
 
 
 	}

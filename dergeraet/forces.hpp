@@ -151,7 +151,11 @@ public:
     double B(size_t tn, double x, double y, double z, size_t i);
 
     double E_norm(size_t tn, size_t Nx = 64, size_t Ny = 64, size_t Nz = 64,
-    				size_t type = 0);
+    				size_t type = 0, bool stream = true);
+
+    double B_norm(size_t tn, size_t Nx = 64, size_t Ny = 64, size_t Nz = 64,
+    				size_t type = 0, bool stream = true);
+
 
     void solve_phi(double* rho);
     void solve_A(double* j_x, double* j_y, double* j_z);
