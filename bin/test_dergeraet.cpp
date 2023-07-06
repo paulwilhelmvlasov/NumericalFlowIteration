@@ -124,11 +124,8 @@ void test()
 				for(size_t i = 0; i <= Nx_plot; i++)
 				{
 					real x = conf.x_min + i*dx_plot;
-					real E = -eval<real,order,1>( x, coeffs.get() + n*stride_t, conf );
-					real rho = -eval<real,order,2>( x, coeffs.get() + n*stride_t, conf );
-
-					real E = -dim1::eval<real,order,1>( x, coeffs.get() + n*stride_t, conf );
-					real rho = -dim1::eval<real,order,2>( x, coeffs.get() + n*stride_t, conf );
+					real E = -dim1::periodic::eval<real,order,1>( x, coeffs.get() + n*stride_t, conf );
+					real rho = -dim1::periodic::eval<real,order,2>( x, coeffs.get() + n*stride_t, conf );
 					file_E << x << " " << E << std::endl;
 					file_rho << x << " " << rho << std::endl;
 				}
@@ -254,12 +251,12 @@ void test_dirichlet()
 				{
                     
 					real x = conf.x_min + i*dx_plot;
-					real E = -dim1::eval<real,order,1>( x, coeffs.get() + n*stride_t, conf ); //maybe have to change stride?
-					real rho = -dim1::eval<real,order,2>( x, coeffs.get() + n*stride_t, conf );
+					real E = -dim1::dirichlet::eval<real,order,1>( x, coeffs.get() + n*stride_t, conf ); //maybe have to change stride?
+					real rho = -dim1::dirichlet::eval<real,order,2>( x, coeffs.get() + n*stride_t, conf );
                     //outputfile<<x<<"\t"<< -dim1::eval<real,order,1>( x, coeffs.get() + n*stride_t, conf )<<"\n";
 					file_E << x << " " << E << std::endl;
 					file_rho << x << " " << rho << std::endl;
-                    outputfile<<x<<"\t"<< dim1::eval<real,order,0>( x, coeffs.get() + n*stride_t, conf )<<"\n";
+                    outputfile<<x<<"\t"<< dim1::dirichlet::eval<real,order,0>( x, coeffs.get() + n*stride_t, conf )<<"\n";
 
 					
 				}
@@ -280,6 +277,6 @@ void test_dirichlet()
 int main()
 {
     //dergeraet::dim1::periodic::test<double,4>();
-    dergeraet::dim1::test_dirichlet<double,4>();
+    dergeraet::dim1::periodic::test_dirichlet<double,4>();
 }
 
