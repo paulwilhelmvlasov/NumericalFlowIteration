@@ -95,7 +95,7 @@ real eval( real x, const real *coefficients, size_t stride = 1 ) noexcept
     real c[ order ];
     for ( size_t j = 0; j < order; ++j )
         c[j] = coefficients[ stride * j ];
-
+        
     // Differentiate if necessary.
     for ( size_t j = 1; j <= d; ++j )
         for ( size_t i = n; i-- > j; )

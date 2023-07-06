@@ -5,7 +5,7 @@ libdergeraet_a_SOURCES = finite_difference_poisson.cpp forces.cpp maxwell.cpp po
 # This includes the dependecies of cuda_kernel.cu and causes automatic
 # recompilaton if necessary. No more need to recompile everything.
 # Dependencies are automatically determined when compiling for the first time.
-include ./$(DEPDIR)/cuda_kernel.Po
+-include ./$(DEPDIR)/cuda_kernel.Po
 
 # The following four variables are only used for "pretty printing" the output
 # when running make.

@@ -199,8 +199,180 @@ void interpolate( real *coeffs, const real *values, const config_t<real> &config
         coeffs[ i ] = tmp[ i % config.Nx ];
 }
 }
+namespace dirichlet{
+    
+    template <typename real, size_t order, size_t dx = 0>
+__host__ __device__
+real eval( real x, const real *coeffs, const config_t<real> &config ) noexcept
+{
+    using std::floor;
 
+    // Shift to a box that starts at 0.
+    x -= config.x_min;
+
+    // Get "periodic position" in box at origin.
+    x = x - config.Lx * floor( x*config.Lx_inv ); 
+
+    // Knot number
+    real x_knot = floor( x*config.dx_inv ); 
+
+    size_t ii = static_cast<size_t>(x_knot);
+
+    // Convert x to reference coordinates.
+    x = x*config.dx_inv - x_knot;
+
+    // Scale according to derivative.
+    real factor = 1;
+    for ( size_t i = 0; i < dx; ++i ) factor *= config.dx_inv;
+
+    return factor*splines1d::eval<real,order,dx>( x, coeffs + ii );
 }
+
+template <typename real, size_t order>
+void interpolate( real *coeffs, const real *values, const config_t<real> &config )
+{
+    std::cout<<"In Interpolate"<<std::endl;
+    std::unique_ptr<real[]> tmp { new real[ config.Nx+order-2 ] };
+
+    //std::unique_ptr<real[]> tmp_values { new real[ config.Nx+order-1 ] };
+
+    for ( size_t i = 0; i < config.Nx+order-2; ++i ){
+        tmp[ i ] = coeffs[ i ];
+        
+    }
+    
+    
+
+    struct mat_t
+    {
+        const config_t<real> &config;
+        real  N[ order ];
+
+        mat_t( const config_t<real> &conf ): config { conf }
+        {
+            //std::cout<<"calling N"<<std::endl;
+            splines1d::N<real,order>(0,N);
+            
+                
+            
+        }
+
+        void operator()( const real *in, real *out ) const
+        {                       
+            int k = 2;
+            //#pragma omp parallel for 
+            for ( size_t i = 0; i < config.Nx+order-2; ++i )
+            {
+                real result = 0;
+                if ( i == 0 )
+                {
+                    for ( size_t ii = 0; ii < order-1; ++ii ){
+                        result += N[ii+1] * in[ i + ii ];
+                    }
+                }
+                else if(i<config.Nx+1){
+                    for ( size_t ii = 0; ii < order; ++ii )
+                        result += N[ii] * in[ i + ii -1];
+                }
+                else 
+                {
+                    for ( size_t ii = 0; ii < order-k; ++ii )
+                    {
+                        result += N[ii]*in[ i+ii -1];
+                        //std::cout<<"i:"<<i<<"out of "<<config.Nx+order-3<<"N[ "<<ii<<"]:"<<N[ii]<<std::endl;
+
+                    }
+                    k = k+1;
+
+
+                }
+                out[ i ] = result;
+            }
+
+            // for(int j = 0; j<config.Nx+2*order;j++){
+            //     std::cout<<"in at position "<<j<<" :"<<in[j]<<std::endl;
+            //     std::cout<<"out at position "<<j<<" :"<<out[j]<<std::endl;
+            // }
+        }
+    };
+
+    struct transposed_mat_t
+    {
+        const config_t<real> &config;
+        real  N[ order ];
+        real N_deriv[order];
+
+        transposed_mat_t( const config_t<real> &conf ): config { conf }
+        {
+            splines1d::N<real,order>(0,N);
+            splines1d::N<real,order,1>(0,N_deriv);
+            for(int i = 0; i<order;i++){
+                std::cout<<"n-deriv:"<<N_deriv[i]<<"\t";
+            }
+        }
+
+        void operator()( const real *in, real *out ) const
+        {
+            for ( size_t i = 0; i < config.Nx+order-2; ++i )
+                out[ i ] = 0;
+
+            // for ( size_t i = 0; i < config.Nx+order-2; ++i )
+            //     std::cout<<"in["<<i<<"] : "<<in[i]<<"\t";
+
+            // for ( size_t i = 0; i < config.Nx+order-1; ++i )
+            // {
+               
+            //     for ( size_t ii = 0; ii < order; ++ii )
+            //         out[ i + ii ]  += N[ii] * in[ i ];
+            // }
+            int k = 2;
+            //#pragma omp parallel for 
+            for ( size_t i = 0; i < config.Nx+order-2; ++i )
+            {
+                real result = 0;
+                if ( i == 0 )
+                {
+                    for ( size_t ii = 0; ii < order-1; ++ii )
+                        result += N[ii+1] * in[ i + ii ];
+                }
+                else if(i<config.Nx+1){
+                    for ( size_t ii = 0; ii < order; ++ii )
+                        result += N[ii] * in[ i + ii -1];
+                }
+                else 
+                {
+                    for ( size_t ii = 0; ii < order-k; ++ii )
+                    {
+                        result += N[ii]*in[ i+ii -1];
+                    }
+                    k = k+1;
+
+
+                }
+                out[ i ] = result;
+
+            } 
+            
+            // for ( size_t i = 0; i < config.Nx+order-2; ++i )
+            //     std::cout<<"out["<<i<<"] : "<<out[i]<<"\t";  
+            // std::cout<<"\n"<<std::endl;
+        }
+        
+    };
+
+    mat_t M { config }; transposed_mat_t Mt { config };
+    lsmr_options<real> opt; opt.silent = true;
+    lsmr( config.Nx+order-2, config.Nx+order-2, M, Mt, values, tmp.get(), opt );
+
+    if ( opt.iter == opt.max_iter )
+        std::cerr << "Warning. LSMR did not converge.\n";
+
+    for ( size_t i = 0; i < config.Nx + order - 2; ++i )
+        coeffs[ i ] = tmp[ i ];
+}
+}
+}
+
 
 namespace dim2
 {
