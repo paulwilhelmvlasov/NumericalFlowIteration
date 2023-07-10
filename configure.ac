@@ -2,8 +2,6 @@ AC_INIT([dergeraet],[0.1])
 AC_CANONICAL_TARGET
 AC_CONFIG_MACRO_DIR([m4])
 
-LT_INIT([dergeraet/fortran_test/lib/libCExample.la])
-
 AM_INIT_AUTOMAKE([nostdinc dist-xz])
 AM_SILENT_RULES([no])
 AM_PROG_AR
@@ -19,7 +17,7 @@ AX_CXX_COMPILE_STDCXX_17([noext],[mandatory])
 AX_CHECK_CUDA
 AX_BLAS
 
-AC_SUBST([AM_CPPFLAGS],['-I$(top_srcdir)'])
+AC_SUBST([AM_CPPFLAGS],['-I$(top_srcdir) -I/home/paul/Projekte/htlib'])
 
 AC_CONFIG_HEADERS([dergeraet/autoconfig.hpp])
 AC_CONFIG_FILES([Makefile
