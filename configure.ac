@@ -2,14 +2,17 @@ AC_INIT([dergeraet],[0.1])
 AC_CANONICAL_TARGET
 AC_CONFIG_MACRO_DIR([m4])
 
+LT_INIT([dergeraet/fortran_test/lib/libCExample.la])
+
 AM_INIT_AUTOMAKE([nostdinc dist-xz])
-AM_SILENT_RULES([yes])
+AM_SILENT_RULES([no])
 AM_PROG_AR
 AC_PROG_RANLIB
 
 AC_LANG([C++])
 AC_PROG_CC
 AC_PROG_CXX
+AC_PROG_FC
 AC_OPENMP
 AC_SUBST([AM_CXXFLAGS],["$OPENMP_CXXFLAGS"]) 
 AX_CXX_COMPILE_STDCXX_17([noext],[mandatory])

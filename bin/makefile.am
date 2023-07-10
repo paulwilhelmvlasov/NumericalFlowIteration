@@ -1,7 +1,9 @@
 noinst_PROGRAMS = test_poisson test_maxwell_periodic test_gmres test_fields \
-					test_dergeraet test_nufi_cpu test_nufi_cpu_2d test_vlasov_maxwell
+					test_dergeraet test_nufi_cpu test_nufi_cpu_2d test_vlasov_maxwell \
+					fortran_binding_test_example
 #test_dergeraet_2d test_dergeraet_3d
-					 
+
+lib_LTLIBRARIES = libCExample.la	 
 
 test_poisson_SOURCES = test_poisson.cpp
 test_poisson_LDADD   = $(top_builddir)/dergeraet/libdergeraet.a
@@ -35,6 +37,10 @@ test_nufi_cpu_2d_SOURCES = test_nufi_cpu_2d.cpp
 test_nufi_cpu_2d_LDADD   = $(top_builddir)/dergeraet/libdergeraet.a 
 test_nufi_cpu_2d_LDADD  += $(CUDA_LDFLAGS) $(BLAS_LIBS) -lfftw3 -lfftw3f
 
+fortran_binding_test_example_SOURCES = fortran_binding_test_example.cpp 
+fortran_binding_test_example_LDADD   = $(top_builddir)/dergeraet/libdergeraet.a
+fortran_binding_test_example_LDADD  += -lgfortran 
+fortran_binding_test_example_LDFLAGS = $(top_builddir)/dergeraet/fortran_test/lib/libCExample.a
 
 # Programms using mpi are commented out as mpi does not work on Paul's workstation. 
 # If you like to use these files comment the respective files back in.

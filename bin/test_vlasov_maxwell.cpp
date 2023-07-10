@@ -43,7 +43,7 @@ void get_weak_landau_first_two_time_step_electric_field(const config_t<double>& 
                       (param.Ny + electro_magnetic_force::order - 1) *
 					  (param.Nz + electro_magnetic_force::order - 1);
 
-    size_t Nt = 2.0 / param.dt;
+    size_t Nt = 0;//2.0 / param.dt;
     //size_t Nt = 1;
     std::unique_ptr<double[]> coeffs { new double[ (Nt+1)*stride_t ] {} };
 
@@ -53,6 +53,8 @@ void get_weak_landau_first_two_time_step_electric_field(const config_t<double>& 
     													std::free };
 
 	std::ofstream E_max_str("E_max.txt");
+	//std::ofstream j_max_str("j_max.txt");
+	//std::ofstream j_l2_str("j_l2.txt");
 
     std::cout << "Start precompute: t = 0." << std::endl;
     // t = 0:
@@ -68,6 +70,8 @@ void get_weak_landau_first_two_time_step_electric_field(const config_t<double>& 
     interpolate<double,electro_magnetic_force::order>( coeffs.get(), rho.get(), param );
     // Store the required values of E0.
     double Emax = 0;
+    //double j_max = 0;
+    //double j_l2 = 0;
 	#pragma omp parallel for
     for(size_t l = 0; l < param.Nx*param.Ny*param.Nz; l++)
     {
@@ -87,9 +91,34 @@ void get_weak_landau_first_two_time_step_electric_field(const config_t<double>& 
         E0_z[l] = -eval<double, electro_magnetic_force::order, 0, 0, 1>(x,y,z,coeffs.get(), param);
 
         Emax = std::max(Emax, std::sqrt(E0_x[l]*E0_x[l] + E0_y[l]*E0_y[l] + E0_z[l]*E0_z[l]));
+
+
+		// eval j at x,y,z:
+        /*
+		double j_1 = 0;
+		double j_2 = 0;
+		double j_3 = 0;
+		for(size_t iv = 0; iv < param.Nv; iv++)
+		for(size_t iu = 0; iu < param.Nu; iu++)
+		for(size_t iw = 0; iw < param.Nw; iw++)
+		{
+			double v = param.v_min + double(iv + 0.5) * param.dv;
+			double u = param.u_min + double(iu + 0.5) * param.du;
+			double w = param.w_min + double(iw + 0.5) * param.dw;
+
+			double f = eval_f<double, electro_magnetic_force::order>( 0, x, y, z, v, u, w, coeffs.get(), param);
+			j_1 += v*f;
+			j_2 += u*f;
+			j_3 += w*f;
+		}
+		j_max = std::max(j_max, std::sqrt(j_1*j_1 + j_2*j_2 + j_3*j_3));
+		j_l2 += j_1*j_1 + j_2*j_2 + j_3*j_3;
+		*/
     }
 
     E_max_str << 0 << " " << Emax << std::endl;
+    //j_max_str << 0 << " " << j_max << std::endl;
+    //j_l2_str << 0 << " " << j_l2 << std::endl;
 
     std::cout << "Start precompute: t = dt." << std::endl;
     // t = dt.
@@ -103,8 +132,10 @@ void get_weak_landau_first_two_time_step_electric_field(const config_t<double>& 
     poiss.solve( rho.get() );
     // Interpolate phi.
     interpolate<double,electro_magnetic_force::order>( coeffs.get() + stride_t, rho.get(), param );
-    // Store the required values of E0.
+    // Store the required values of E1.
     Emax = 0;
+    //j_max = 0;
+    //j_l2 = 0;
 	#pragma omp parallel for
     for(size_t l = 0; l < param.Nx*param.Ny*param.Nz; l++)
     {
@@ -123,9 +154,33 @@ void get_weak_landau_first_two_time_step_electric_field(const config_t<double>& 
         E1_y[l] = -eval<double, electro_magnetic_force::order, 0, 1, 0>(x,y,z,coeffs.get() + stride_t, param);
         E1_z[l] = -eval<double, electro_magnetic_force::order, 0, 0, 1>(x,y,z,coeffs.get() + stride_t, param);
         Emax = std::max(Emax, std::sqrt(E1_x[l]*E1_x[l] + E1_y[l]*E1_y[l] + E1_z[l]*E1_z[l]));
+
+		// eval j at x,y,z:
+        /*
+		double j_1 = 0;
+		double j_2 = 0;
+		double j_3 = 0;
+		for(size_t iv = 0; iv < param.Nv; iv++)
+		for(size_t iu = 0; iu < param.Nu; iu++)
+		for(size_t iw = 0; iw < param.Nw; iw++)
+		{
+			double v = param.v_min + double(iv + 0.5) * param.dv;
+			double u = param.u_min + double(iu + 0.5) * param.du;
+			double w = param.w_min + double(iw + 0.5) * param.dw;
+
+			double f = eval_f<double, electro_magnetic_force::order>( 1, x, y, z, v, u, w, coeffs.get() + 1*stride_t, param);
+			j_1 += v*f;
+			j_2 += u*f;
+			j_3 += w*f;
+		}
+		j_max = std::max(j_max, std::sqrt(j_1*j_1 + j_2*j_2 + j_3*j_3));
+		j_l2 += j_1*j_1 + j_2*j_2 + j_3*j_3;
+		*/
     }
 
     E_max_str << param.dt << " " << Emax << std::endl;
+    //j_max_str << param.dt << " " << j_max << std::endl;
+    //j_l2_str << param.dt << " " << j_l2 << std::endl;
 
     // t > dt.
     for(size_t n = 2; n <= Nt; n++)
@@ -144,8 +199,12 @@ void get_weak_landau_first_two_time_step_electric_field(const config_t<double>& 
         interpolate<double,electro_magnetic_force::order>( coeffs.get() + n*stride_t, rho.get(), param );
         // Plot.
         Emax = 0;
+        double j_max = 0;
+        double j_l2 = 0;
 		//#pragma omp parallel for
         std::ofstream E_str("Exact_Electric_field_" + std::to_string(n*param.dt) +  ".txt");
+        //std::ofstream j_str("j_exact_" + std::to_string(n*param.dt) +  ".txt");
+		#pragma omp parallel for
 		for(size_t l = 0; l < param.Nx*param.Ny*param.Nz; l++)
 		{
 			size_t k   = l   / (param.Nx * param.Ny);
@@ -163,9 +222,34 @@ void get_weak_landau_first_two_time_step_electric_field(const config_t<double>& 
 			Emax = std::max(Emax, std::sqrt(Ex*Ex + Ey*Ey + Ez*Ez));
 
 			E_str << x << " " << y << " " << z << " " << Ex << " " << Ey << " " << Ez << std::endl;
+
+			// eval j at x,y,z:
+			/*
+			double j_1 = 0;
+			double j_2 = 0;
+			double j_3 = 0;
+			for(size_t iv = 0; iv < param.Nv; iv++)
+			for(size_t iu = 0; iu < param.Nu; iu++)
+			for(size_t iw = 0; iw < param.Nw; iw++)
+			{
+				double v = param.v_min + double(iv + 0.5) * param.dv;
+				double u = param.u_min + double(iu + 0.5) * param.du;
+				double w = param.w_min + double(iw + 0.5) * param.dw;
+
+				double f = eval_f<double, electro_magnetic_force::order>( n, x, y, z, v, u, w, coeffs.get() + n*stride_t, param);
+				j_1 += v*f;
+				j_2 += u*f;
+				j_3 += w*f;
+			}
+			j_str << x << " " << y << " " << z << " " << j_1 << " " << j_2 << " " << j_3 << std::endl;
+			j_max = std::max(j_max, std::sqrt(j_1*j_1 + j_2*j_2 + j_3*j_3));
+			j_l2 += j_1*j_1 + j_2*j_2 + j_3*j_3;
+			*/
 		}
 
 		E_max_str << n*param.dt << " " << Emax << std::endl;
+		//j_max_str << n*param.dt << " " << j_max << std::endl;
+		//j_l2_str << n*param.dt << " " << std::sqrt(param.dv*param.dw*param.du*j_l2) << std::endl;
     }
 }
 
@@ -201,81 +285,6 @@ void test_landau_damping()
 	std::vector<double> E_z_1(param.Nx*param.Ny*param.Nz, 0);
 
 	// Compute values for phi, A at t=0,t_1.
-	auto pot_0 = [&alpha, &kx, &ky, &kz](double x, double y, double z){
-		return alpha * ( std::cos(kx*x) + std::cos(ky*y) + std::cos(kz*z) );
-	};
-
-	auto rho_0 = [&alpha, &kx, &ky, &kz](double x, double y, double z){
-		return alpha * ( std::cos(kx*x) + std::cos(ky*y) + std::cos(kz*z) ) ;
-	};
-
-	/*
-	auto E = [&alpha, &kx, &ky, &kz](size_t t, double x, double y, double z, size_t i,
-			double lambda){
-		if(t == 0)
-		{
-			switch(i)
-			{
-			case 1:
-				return alpha/kx * std::sin(kx*x);
-			case 2:
-				return alpha/ky * std::sin(ky*y);
-			case 3:
-				return alpha/kz * std::sin(kz*z);
-			default:
-				throw std::runtime_error("Only 3d but index not equal 1,2 or 3!");
-			}
-		}else{
-			switch(i)
-			{
-			case 1:
-				return alpha * (1.0/kx * std::sin(kx*x) + lambda*kx*std::sin(kx*x));
-			case 2:
-				return alpha * (1.0/ky * std::sin(ky*y) + lambda*ky*std::sin(ky*y));
-			case 3:
-				return alpha * (1.0/kz * std::sin(kz*z) + lambda*kz*std::sin(kz*z));
-			default:
-				throw std::runtime_error("Only 3d but index not equal 1,2 or 3!");
-			}
-		}
-	};
-
-
-	double lambda = param.dt*param.dt * param.light_speed*param.light_speed
-						* (1.0/param.eps0 - 1);
-	*/
-
-	/*
-	for(size_t i = 0; i < param.Nx; i++)
-	{
-		for(size_t j = 0; j < param.Ny; j++)
-		{
-			for(size_t k = 0; k < param.Nz; k++)
-			{
-				double x = param.x_min + i*param.dx;
-				double y = param.y_min + j*param.dy;
-				double z = param.z_min + k*param.dz;
-				size_t index = i + j*param.Nx + k*param.Nx*param.Ny;
-
-				phi_0[index] = pot_0(x,y,z);
-				phi_1[index] = pot_0(x,y,z) + param.dt*param.dt
-								*param.light_speed*param.light_speed
-								*(1.0/param.eps0 - 1)*rho_0(x,y,z);
-
-
-
-				E_x_0[index] = E(0, x, y, z, 1, lambda);
-				E_y_0[index] = E(0, x, y, z, 2, lambda);
-				E_z_0[index] = E(0, x, y, z, 3, lambda);
-
-				E_x_1[index] = E(1, x, y, z, 1, lambda);
-				E_y_1[index] = E(1, x, y, z, 2, lambda);
-				E_z_1[index] = E(1, x, y, z, 3, lambda);
-			}
-		}
-	}
-	*/
-
 	get_weak_landau_first_two_time_step_electric_field(param,
 						phi_0.data(), phi_1.data(),
 						E_x_0.data(), E_y_0.data(), E_z_0.data(),
@@ -330,6 +339,23 @@ void test_landau_damping()
 				<< ". t = " << t*param.dt
 				<< ". B_norm = " << B_n << std::endl;
 
+		/*
+		for(size_t i = 0; i < param.Nx; i++)
+		{
+			for(size_t j = 0; j < param.Ny; j++)
+			{
+				for(size_t k = 0; k < param.Nz; k++)
+				{
+					size_t index = i + j*param.Nx + k*param.Nx*param.Ny;
+
+					std::cout << rj[1][index] << " " << rj[2][index] << " " << rj[3][index] << std::endl;
+
+					// There are non-zero entries already at tn = 3. Check if this is
+					// the same for the electro-static case.
+				}
+			}
+		}
+		*/
 
 	}
 

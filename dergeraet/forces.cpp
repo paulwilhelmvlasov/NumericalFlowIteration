@@ -349,13 +349,13 @@ arma::Col<double> electro_magnetic_force::eval_rho_j(size_t tn, double x,
 
 		double f = eval_f(tn,x,y,z,v,u,w);
 
-		rho_j(0) -= dvuw * f;
-		rho_j(1) += dvuw * v * f;
-		rho_j(2) += dvuw * u * f;
-		rho_j(3) += dvuw * w * f;
+		rho_j(0) -= f;
+		rho_j(1) += v * f;
+		rho_j(2) += u * f;
+		rho_j(3) += w * f;
 	}
 
-	return rho_j;
+	return dvuw * rho_j;
 }
 
 std::vector<std::vector<double>> electro_magnetic_force::eval_rho_j(size_t tn)

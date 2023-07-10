@@ -53,7 +53,7 @@ public:
 private:
     config_t<real> conf; int device_number;
     cuda::autoptr cuda_coeffs, cuda_rho, cuda_metrics;
-    std::unique_ptr<real[]> tmp_rho; 
+    std::unique_ptr<real[]> tmp_rho;
 };
 
 extern template class cuda_kernel<double,3>;
