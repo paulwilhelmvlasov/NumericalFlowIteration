@@ -60,10 +60,10 @@ int main(int argc, char **argv)
 	  int32_t n[dim]{Nx,Nv};
 	  int32_t* nPtr1 = &n[0];
 	  //std::vector<double> vec(Nx*Nv);
-	  std::shared_ptr<double[]> vec_shared_ptr(new double[Nx*Nv]);
-	  double* testVec = (double*)malloc(Nx*Nv);
+	  //std::shared_ptr<double[]> vec_shared_ptr(new double[Nx*Nv]);
+	  //double* testVec = (double*)malloc(Nx*Nv);
 	  double* vec[Nx*Nv];
-	  double** vecPtr = &testVec;
+	  double** vecPtr = &vec[0];
 	  //double* ptr = vec_shared_ptr.get();//vec.data();
 	  //double** vecPtr = &ptr;
 	  int32_t size = Nx*Nv;
@@ -84,27 +84,10 @@ int main(int argc, char **argv)
 	  int32_t rank_rand_row = 10; // Was genau tun diese beiden Parameter?
 	  int32_t rank_rand_col = 10;
 
+	  std::cout << Nx << std::endl;
+	  std::cout << Nv << std::endl;
+	  std::cout << vec[0][0] << std::endl;
 
-
-	  std::cout << "Test" << std::endl;
-	  //std::cout << testVec[0] << std::endl;
-	  std::cout << *vec+5 << std::endl; // Das kompiliert und laueft durch.
-	  std::cout << *(testVec+5) << std::endl; // Das kompiliert und laueft durch.
-	  /*
-	  for(size_t k = 0; k < size; k++)
-	  {
-		  size_t i = k/Nx;
-		  size_t j = k % Nx;
-
-		  double x = i*dx;
-		  double v = -vmax + j*dv;
-
-		  //double f = vec[k];
-		  double f = vec[0][k]; // Das segfaulted...
-
-		  std::cout << i << " " << j << " " << f << std::endl;
-	  }
-*/
 	  chtl_s_init_truncation_option(optsPtr, &tcase, &tol, &cross_no_loops, &nNodes, &rank, &rank_rand_row, &rank_rand_col);
 	  std::cout << "chtl_s_init_truncation_option finished." << std::endl;
 	  chtl_s_htensor_init_balanced(htensorPtr, dPtr, nPtr1);
@@ -114,9 +97,6 @@ int main(int argc, char **argv)
 	  chtl_s_htensor_vectorize(htensorPtr,vecPtr, sizePtr); // Das da segfaulted auch gerne...
 	  std::cout << "chtl_s_htensor_vectorize finished." << std::endl;
 
-
-	  std::cout << (vec+5) << std::endl; // Das kompiliert und laueft durch.
-	  std::cout << *(testVec+5) << std::endl; // Das kompiliert und laueft durch.
 /*
 	  double total_l1_error = 0;
 	  std::cout << size << std::endl;
@@ -130,7 +110,7 @@ int main(int argc, char **argv)
 
 
 		  //double f = vec[0][0];
-		  double f = vec[k];
+		  double f = **(vec+k);
 		  std::cout << f << std::endl;
 		  double f_exact = f_2d(x,v);
 		  //double f_exact = 1.0/(1+i + j);
