@@ -530,6 +530,297 @@ void interpolate( real *coeffs, const real *values, const config_t<real> &config
     }
 }
 
+namespace dirichlet{
+template <typename real, size_t order, size_t dx = 0, size_t dy = 0>
+__host__ __device__
+real eval( real x, real y, const real *coeffs, const config_t<real> &config )
+{
+    using std::floor;
+
+    // Shift to a box that starts at 0.
+    x -= config.x_min;
+    y -= config.y_min;
+
+    // Get "periodic position" in box at origin.
+    //x = x - config.Lx * floor( x*config.Lx_inv ); 
+    //y = y - config.Ly * floor( y*config.Ly_inv ); 
+
+    // Knot number
+    real x_knot = floor( x*config.dx_inv ); 
+    real y_knot = floor( y*config.dy_inv ); 
+
+    size_t ii = static_cast<size_t>(x_knot);
+    size_t jj = static_cast<size_t>(y_knot);
+
+    // Convert x to reference coordinates.
+    x = x*config.dx_inv - x_knot;
+    y = y*config.dy_inv - y_knot;
+
+    const size_t stride_x = 1;
+    const size_t stride_y = config.Nx + order - 1;//would have to be a guess what this is
+     
+    // Scale according to derivative.
+    real factor = 1;
+    for ( size_t i = 0; i < dx; ++i ) factor *= config.dx_inv;
+    for ( size_t j = 0; j < dy; ++j ) factor *= config.dy_inv;
+
+    coeffs += jj*stride_y + ii;
+    return factor*splines2d::eval<real,order,dx,dy>( x, y, coeffs, stride_y, stride_x );
+}
+
+template <typename real, size_t order>
+void interpolate( real *coeffs, const real *values, const config_t<real> &config )
+{
+    std::unique_ptr<real[]> tmp { new real[ (config.Nx+order-2) * (config.Ny+order-2) ] };
+
+    size_t stride_x = 1;
+    size_t stride_y =  config.Nx + order - 2; //why are you defined like this
+
+    for ( size_t j = 0; j < config.Ny+order-2; ++j )
+    for ( size_t i = 0; i < config.Nx+order-2; ++i )
+    {
+        //tmp [ j*config.Nx + i ] = coeffs[ j*stride_y + i*stride_x ];
+        tmp [ j*(config.Nx+order-2) + i ] = 0;
+    }
+
+    struct mat_t
+    {
+        const config_t<real> &config;
+        real  N[ order ];
+
+        mat_t( const config_t<real> &conf ): config { conf }
+        {
+            splines1d::N<real,order>(0,N);
+        }
+
+        void operator()( const real *in, real *out ) const
+        {
+            #pragma omp parallel for 
+            for ( size_t l = 0; l < (config.Nx+order-2)*(config.Ny+order-2); ++l )
+            {
+                size_t j =  l / (config.Nx+order-2);
+                size_t i =  l % (config.Nx+order-2);
+                real result = 0;
+                //fallunterscheidungen: in 1d: gucken ob i am Rand ist, falls ja erstes element von N[ii] überspringen
+                //das jetzt analog für 2D-Fall. als grundlage dient formel vom 2D periodic case
+                if((i == 0) && (j==0))
+                {   
+                    for ( size_t jj = 0; jj < order-1; ++jj ){
+                    for ( size_t ii = 0; ii < order-1; ++ii ){
+                        result += N[ii+1] * N[jj+1]* in[jj*(config.Nx+order-2) + ii ]; //i and j are 0 anyways
+                    }
+                    }
+                }
+                else if((i == config.Nx +1) && (j == 0)){ 
+                
+                    for ( size_t jj = 0; jj < order-1; ++jj ){  
+                    for ( size_t ii = 0; ii < order-2; ++ii )
+                    {
+                        result += N[ii]*N[jj+1]*in[jj*(config.Nx+order-2) + i + ii -1];
+                    }
+                }
+                }
+                else if((i == 0) && (j == config.Ny +1)){ 
+                
+                for ( size_t jj = 0; jj < order-2; ++jj ){  
+                for ( size_t ii = 0; ii < order-1; ++ii )
+                    {
+                        result += N[ii+1]*N[jj]*in[(j+jj-1)*(config.Nx+order-2) + ii ];
+                    }
+                    }
+                }
+                else if((i == config.Nx +1) && (j == config.Ny +1)){ 
+                
+                for ( size_t jj = 0; jj < order-2; ++jj ){  
+                for ( size_t ii = 0; ii < order-2; ++ii )
+                    {
+                        result += N[ii]*N[jj]*in[(j+jj-1)*(config.Nx+order-2) + i + ii -1];
+                    }
+                    }
+                }
+                else if(i == 0){ 
+                
+                for ( size_t jj = 0; jj < order; ++jj ){  
+                for ( size_t ii = 0; ii < order-1; ++ii )
+                    {
+                        result += N[ii+1]*N[jj]*in[(j+jj)*(config.Nx+order-2) + ii];
+                    }
+                    }
+                }
+                else if(j == 0){ 
+                
+                for ( size_t jj = 0; jj < order-1; ++jj ){  
+                for ( size_t ii = 0; ii < order; ++ii )
+                    {
+                        result += N[ii]*N[jj+1]*in[(jj)*(config.Nx+order-2) + i + ii];
+                    }
+                    }
+                }
+                else if(i == config.Nx+1){ 
+                
+                for ( size_t jj = 0; jj < order; ++jj ){  
+                for ( size_t ii = 0; ii < order-2; ++ii )
+                    {
+                        result += N[ii]*N[jj]*in[(j+jj)*(config.Nx+order-2) + i + ii -1 ];
+                    }
+                    }
+                }
+                else if(j == config.Ny+1){ 
+                
+                for ( size_t jj = 0; jj < order-2; ++jj ){  
+                for ( size_t ii = 0; ii < order; ++ii )
+                    {
+                        result += N[ii]*N[jj]*in[(j+jj - 1)*(config.Nx+order-2) + i + ii ];
+                    }
+                    }
+                }
+                else{
+                
+                    
+                    for ( size_t jj = 0; jj < order; ++jj )
+                    for ( size_t ii = 0; ii < order; ++ii )
+                    {
+                        result += N[jj]*N[ii]*in[ (j+jj)*config.Nx + ii + i ];
+                    }
+                    
+                }               
+                
+                out[ l ] = result;
+                
+            }
+        }
+    };
+
+    struct transposed_mat_t
+    {
+        const config_t<real> &config;
+        real  N[ order ];
+
+        transposed_mat_t( const config_t<real> &conf ): config { conf }
+        {
+            splines1d::N<real,order>(0,N);
+        }
+
+        void operator()( const real *in, real *out ) const
+        { //copy paste from above as it should be symmetric
+            for ( size_t l = 0; l < (config.Nx+order-2)*(config.Ny+order-2); ++l )
+                out[ l ] = 0;
+
+            #pragma omp parallel for 
+            for ( size_t l = 0; l < (config.Nx+order-2)*(config.Ny+order-2); ++l )
+            {
+                size_t j =  l / (config.Nx+order-2);
+                size_t i =  l % (config.Nx+order-2);
+                real result = 0;
+                //fallunterscheidungen: in 1d: gucken ob i am Rand ist, falls ja erstes element von N[ii] überspringen
+                //das jetzt analog für 2D-Fall. als grundlage dient formel vom 2D periodic case
+                if((i == 0) && (j==0))
+                {   
+                    for ( size_t jj = 0; jj < order-1; ++jj ){
+                    for ( size_t ii = 0; ii < order-1; ++ii ){
+                        result += N[ii+1] * N[jj+1]* in[jj*(config.Nx+order-2) + ii ]; //i and j are 0 anyways
+                    }
+                    }
+                }
+                else if((i == config.Nx +1) && (j == 0)){ 
+                
+                    for ( size_t jj = 0; jj < order-1; ++jj ){  
+                    for ( size_t ii = 0; ii < order-2; ++ii )
+                    {
+                        result += N[ii]*N[jj+1]*in[jj*(config.Nx+order-2) + i + ii -1];
+                    }
+                }
+                }
+                else if((i == 0) && (j == config.Ny +1)){ 
+                
+                for ( size_t jj = 0; jj < order-2; ++jj ){  
+                for ( size_t ii = 0; ii < order-1; ++ii )
+                    {
+                        result += N[ii+1]*N[jj]*in[(j+jj-1)*(config.Nx+order-2) + ii ];
+                    }
+                    }
+                }
+                else if((i == config.Nx +1) && (j == config.Ny +1)){ 
+                
+                for ( size_t jj = 0; jj < order-2; ++jj ){  
+                for ( size_t ii = 0; ii < order-2; ++ii )
+                    {
+                        result += N[ii]*N[jj]*in[(j+jj-1)*(config.Nx+order-2) + i + ii -1];
+                    }
+                    }
+                }
+                else if(i == 0){ 
+                
+                for ( size_t jj = 0; jj < order; ++jj ){  
+                for ( size_t ii = 0; ii < order-1; ++ii )
+                    {
+                        result += N[ii+1]*N[jj]*in[(j+jj)*(config.Nx+order-2) + ii];
+                    }
+                    }
+                }
+                else if(j == 0){ 
+                
+                for ( size_t jj = 0; jj < order-1; ++jj ){  
+                for ( size_t ii = 0; ii < order; ++ii )
+                    {
+                        result += N[ii]*N[jj+1]*in[(jj)*(config.Nx+order-2) + i + ii];
+                    }
+                    }
+                }
+                else if(i == config.Nx+1){ 
+                
+                for ( size_t jj = 0; jj < order; ++jj ){  
+                for ( size_t ii = 0; ii < order-2; ++ii )
+                    {
+                        result += N[ii]*N[jj]*in[(j+jj)*(config.Nx+order-2) + i + ii -1 ];
+                    }
+                    }
+                }
+                else if(j == config.Ny+1){ 
+                
+                for ( size_t jj = 0; jj < order-2; ++jj ){  
+                for ( size_t ii = 0; ii < order; ++ii )
+                    {
+                        result += N[ii]*N[jj]*in[(j+jj - 1)*(config.Nx+order-2) + i + ii ];
+                    }
+                    }
+                }
+                else{
+                
+                    
+                    for ( size_t jj = 0; jj < order; ++jj )
+                    for ( size_t ii = 0; ii < order; ++ii )
+                    {
+                        result += N[jj]*N[ii]*in[ (j+jj)*config.Nx + ii + i ];
+                    }
+                    
+                }               
+                
+                out[ l ] = result;
+                
+            }
+        }
+    };
+
+               mat_t M  { config };
+    transposed_mat_t Mt { config };
+
+    lsmr_options<real> opt; opt.silent = true;
+    lsmr( (config.Nx+order-2)*(config.Ny+order-2), (config.Nx+order-2)*(config.Ny+order-2), M, Mt, values, tmp.get(), opt );
+
+    if ( opt.iter == opt.max_iter )
+        std::cerr << "Warning. LSMR did not converge. Residual = " << opt.residual << std::endl;
+
+    for ( size_t j = 0; j < config.Ny + order - 2; ++j )
+    for ( size_t i = 0; i < config.Nx + order - 2; ++i )
+    {
+        coeffs[ j*stride_y + i*stride_x ] = tmp[ (j%(config.Ny+order-2))*(config.Nx+order-2) +
+                                                 (i%(config.Nx+order-2)) ];
+    }
+}
+
+}
+
 }
 
 namespace dim3
