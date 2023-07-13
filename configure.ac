@@ -2,8 +2,6 @@ AC_INIT([dergeraet],[0.1])
 AC_CANONICAL_TARGET
 AC_CONFIG_MACRO_DIR([m4])
 
-LT_INIT([dergeraet/fortran_test/lib/libCExample.la])
-
 AM_INIT_AUTOMAKE([nostdinc dist-xz])
 AM_SILENT_RULES([no])
 AM_PROG_AR
