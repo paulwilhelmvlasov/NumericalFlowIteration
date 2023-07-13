@@ -111,9 +111,9 @@ void test()
                             <<    total_energy << "; "
                             << metrics[3]      << std::endl;
 
-            if(n % (100*16) == 0)
+            if(n % (10*32) == 0)
             {
-				size_t Nx_plot = 256;
+				size_t Nx_plot = 512;
 				real dx_plot = conf.Lx / Nx_plot;
 				real t = n * conf.dt;
 				std::ofstream file_E( "E_" + std::to_string(t) + ".txt" );
@@ -126,6 +126,23 @@ void test()
 
 					file_E << x << " " << E << std::endl;
 					file_rho << x << " " << rho << std::endl;
+				}
+
+				size_t Nv_plot = Nx_plot;
+				real dv_plot = (conf.u_max - conf.u_min)/Nv_plot;
+
+				std::ofstream file_f( "f_" + std::to_string(t) + ".txt" );
+				for(size_t i = 0; i<=Nx_plot; i++)
+				{
+					for(size_t j = 0; j <= Nv_plot; j++)
+					{
+						real x = conf.x_min + i*dx_plot;
+						real v = conf.u_min + j*dv_plot;
+						real f = eval_f<real, order>(n, x, v, coeffs.get(), conf);
+						
+						file_f << x << " " << v << " " << f << std::endl;
+					}
+					file_f << std::endl;
 				}
 
             }
