@@ -208,7 +208,7 @@ template <typename real>
 config_t<real>::config_t() noexcept
 {
     Nx = Ny = Nz = 16;
-    Nu = Nv = Nw = 64;
+    Nu = Nv = Nw = 256;
 
     u_min = v_min = w_min = -6;
     u_max = v_max = w_max =  6;
