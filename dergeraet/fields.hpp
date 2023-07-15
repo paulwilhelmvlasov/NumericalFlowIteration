@@ -202,6 +202,125 @@ void interpolate( real *coeffs, const real *values, const config_t<real> &config
 
 }
 
+namespace dim_1_half
+{
+template <typename real, size_t order, size_t dx = 0>
+__host__ __device__
+real eval( real x, const real *coeffs, const config_t<real> &config ) noexcept
+{
+    using std::floor;
+
+    // Shift to a box that starts at 0.
+    x -= config.x_min;
+
+    // Get "periodic position" in box at origin.
+    x = x - config.Lx * floor( x*config.Lx_inv );
+
+    // Knot number
+    real x_knot = floor( x*config.dx_inv );
+
+    size_t ii = static_cast<size_t>(x_knot);
+
+    // Convert x to reference coordinates.
+    x = x*config.dx_inv - x_knot;
+
+    // Scale according to derivative.
+    real factor = 1;
+    for ( size_t i = 0; i < dx; ++i ) factor *= config.dx_inv;
+
+    return factor*splines1d::eval<real,order,dx>( x, coeffs + ii );
+}
+
+template <typename real, size_t order>
+void interpolate( real *coeffs, const real *values, const config_t<real> &config )
+{
+    std::unique_ptr<real[]> tmp { new real[ config.Nx ] };
+
+    for ( size_t i = 0; i < config.Nx; ++i )
+        tmp[ i ] = coeffs[ i ];
+
+    struct mat_t
+    {
+    	// Defines a matrix A.
+        const config_t<real> &config;
+        real  N[ order ];
+
+        mat_t( const config_t<real> &conf ): config { conf }
+        {
+            splines1d::N<real,order>(0,N); // Man wertet immer in der
+			   // Referenz Koordinate 0 aus.
+        }
+
+        void operator()( const real *in, real *out ) const
+        {
+        	// This computes: out = A * in.
+            #pragma omp parallel for
+            for ( size_t i = 0; i < config.Nx; ++i )
+            {
+                real result = 0;
+                if ( i + order <= config.Nx )
+                {
+                    for ( size_t ii = 0; ii < order; ++ii )
+                        result += N[ii] * in[ i + ii ]; // Inside domain
+                }
+                else
+                {
+                    for ( size_t ii = 0; ii < order; ++ii )
+                        result += N[ii]*in[ (i+ii) % config.Nx ]; // almost boundary
+                    // thus periodicity condition
+                }
+                out[ i ] = result;
+            }
+        }
+    };
+
+    struct transposed_mat_t
+    {
+    	// Defines transposed matrix At.
+        const config_t<real> &config;
+        real  N[ order ];
+
+        transposed_mat_t( const config_t<real> &conf ): config { conf }
+        {
+            splines1d::N<real,order>(0,N); // Man wertet immer in der
+            							   // Referenz Koordinate 0 aus.
+        }
+
+        void operator()( const real *in, real *out ) const
+        {
+        	// This computes: out = At * in.
+        	// Is this right? Or is here in*At computed?
+            for ( size_t i = 0; i < config.Nx; ++i )
+                out[ i ] = 0;
+
+            for ( size_t i = 0; i < config.Nx; ++i )
+            {
+                if ( i + order <= config.Nx )
+                {
+                    for ( size_t ii = 0; ii < order; ++ii )
+                        out[ i + ii ]  += N[ii] * in[ i ];
+                }
+                else
+                {
+                    for ( size_t ii = 0; ii < order; ++ii )
+                        out[ (i+ii) % config.Nx ] += N[ii]*in[ i ];
+                }
+            }
+        }
+    };
+
+    mat_t M { config }; transposed_mat_t Mt { config };
+    lsmr_options<real> opt; opt.silent = true;
+    lsmr( config.Nx, config.Nx, M, Mt, values, tmp.get(), opt );
+
+    if ( opt.iter == opt.max_iter )
+        std::cerr << "Warning. LSMR did not converge.\n";
+
+    for ( size_t i = 0; i < config.Nx + order - 1; ++i )
+        coeffs[ i ] = tmp[ i % config.Nx ];
+}
+}
+
 namespace dim2
 {
 

@@ -88,6 +88,76 @@ real config_t<real>::f0( real x, real u ) noexcept
 
 }
 
+namespace dim_1_half
+{
+
+template <typename real>
+struct config_t
+{
+    size_t Nx;  // Number of grid points in physical space.
+    size_t Nu;  // Number of quadrature points in velocity space.
+    size_t Nv;  // Number of quadrature points in velocity space.
+    size_t Nt;  // Number of time-steps.
+    real   dt;  // Time-step size.
+
+    // Dimensions of physical domain.
+    real x_min, x_max;
+
+    // Integration limits for velocity space.
+    real u_min, u_max;
+    real v_min, v_max;
+
+    // Grid-sizes and their reciprocals.
+    real dx, dx_inv, Lx, Lx_inv;
+    real du, dv;
+
+    config_t() noexcept;
+    // Maybe we could subs this with a function pointer?
+    // Or write a class (interface) which can offers an
+    // operator() overload, i.e., can be called like a
+    // function.
+    __host__ __device__ static real f0( real x, real u, real v) noexcept;
+};
+
+template <typename real>
+config_t<real>::config_t() noexcept
+{
+    Nx = 64;
+    Nu = 256;
+    Nv = 256;
+    u_min = -10;
+    u_max =  10;
+    v_min = -10;
+    v_max =  10;
+    x_min = 0;
+    x_max = 2*M_PI/0.4; // Careful: Different k from other benchmarks!
+
+    dt = 1./16.; Nt = 50/dt;
+
+    Lx = x_max - x_min; Lx_inv = 1/Lx;
+    dx = Lx/Nx; dx_inv = 1/dx;
+    du = (u_max - u_min)/Nu;
+    dv = (v_max - v_min)/Nv;
+}
+
+template <typename real>
+__host__ __device__
+real config_t<real>::f0( real x, real u, real v ) noexcept
+{
+    using std::sin;
+    using std::cos;
+    using std::exp;
+
+    constexpr real alpha = 0.5;
+    constexpr real k     = 0.4;
+
+    // Das muss noch angepasst werden!
+    return 0.39894228040143267793994 * ( 1. + alpha*cos(k*x) ) * exp( -(u*u+v*v)/2. );
+}
+
+}
+
+
 namespace dim2
 {
 
