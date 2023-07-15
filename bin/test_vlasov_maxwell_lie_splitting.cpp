@@ -237,8 +237,8 @@ int main()
     double magn_energy = 0;
     for(size_t i = 0; i < conf.Nx; i++)
     {
-        constexpr double alpha = 0.5;
-        constexpr double k     = 0.4;
+        constexpr double alpha = 0.01;
+        constexpr double k     = 0.5;
     	double x = conf.x_min + i*conf.dx;
     	E_1[i] = -alpha/k*std::sin(k*x);
     	E_2[i] = 0;

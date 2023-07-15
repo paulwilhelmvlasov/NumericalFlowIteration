@@ -130,9 +130,9 @@ config_t<real>::config_t() noexcept
     v_min = -10;
     v_max =  10;
     x_min = 0;
-    x_max = 2*M_PI/0.4; // Careful: Different k from other benchmarks!
+    x_max = 2*M_PI/0.5; // Careful: Different k from other benchmarks!
 
-    dt = 1./16.; Nt = 50/dt;
+    dt = 1./32.; Nt = 50/dt;
 
     Lx = x_max - x_min; Lx_inv = 1/Lx;
     dx = Lx/Nx; dx_inv = 1/dx;
@@ -148,8 +148,8 @@ real config_t<real>::f0( real x, real u, real v ) noexcept
     using std::cos;
     using std::exp;
 
-    constexpr real alpha = 0.5;
-    constexpr real k     = 0.4;
+    constexpr real alpha = 0.01;
+    constexpr real k     = 0.5;
 
     // Das muss noch angepasst werden!
     return 0.39894228040143267793994 * ( 1. + alpha*cos(k*x) ) * exp( -(u*u+v*v)/2. );
