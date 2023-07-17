@@ -237,12 +237,14 @@ int main()
     double magn_energy = 0;
     for(size_t i = 0; i < conf.Nx; i++)
     {
-        constexpr double alpha = 0.01;
-        constexpr double k     = 0.5;
+    	//  Weibel instability:
+    	double alpha = 1e-4;
+    	double beta = 1e-4;
+    	double k = 1.25;
     	double x = conf.x_min + i*conf.dx;
     	E_1[i] = -alpha/k*std::sin(k*x);
     	E_2[i] = 0;
-    	B_3[i] = 0;
+    	B_3[i] = beta*std::cos(k*x);
 
     	elec_energy += E_1[i]*E_1[i] + E_2[i]*E_2[i];
     	magn_energy += B_3[i]*B_3[i];
@@ -264,22 +266,27 @@ int main()
     for(size_t nt = 1; nt <= conf.Nt; nt++)
     {
     	// Compute next J_Hf.
+    	//std::cout << "Start J_Hf." << std::endl;
     	backwards_iteration_J_Hf(nt, coeffs_E_1.get(), coeffs_E_2.get(), coeffs_B_3.get(), coeffs_J_Hf_1.get(),
     								coeffs_J_Hf_2.get(), conf, stride_t);
 
     	// Compute next avrg_J_Hf.
+    	//std::cout << "Start avrg_J_Hf." << std::endl;
     	backwards_iteration_avrg_J_Hf(nt, coeffs_E_1.get(), coeffs_E_2.get(), coeffs_B_3.get(), avrg_J_Hf_1[nt-1], avrg_J_Hf_2[nt-1],
     									conf, stride_t);
 
     	// Compute next E.
+    	//std::cout << "Start E." << std::endl;
     	compute_E(nt, coeffs_E_1.get(), coeffs_E_2.get(), coeffs_B_3.get(), coeffs_J_Hf_1.get(), coeffs_J_Hf_2.get(), avrg_J_Hf_1.data(),
     				avrg_J_Hf_2.data(), conf, stride_t);
 
     	// Compute next B.
+    	//std::cout << "Start B." << std::endl;
     	compute_B(nt, coeffs_E_2.get(), coeffs_B_3.get(), conf, stride_t);
 
     	// Do output etc.
-    	size_t n_plot = 100;
+    	//std::cout << "Start output." << std::endl;
+    	size_t n_plot = 128;
     	double dx_plot = (conf.x_max-conf.x_min)/n_plot;
         elec_energy = 0;
         magn_energy = 0;
