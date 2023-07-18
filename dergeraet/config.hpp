@@ -122,18 +122,19 @@ struct config_t
 template <typename real>
 config_t<real>::config_t() noexcept
 {
-    Nx = 128;
-    Nu = 512;
-    Nv = 512;
+    Nx = 32;
+    Nu = 128;
+    Nv = 128;
     u_min = -10;
     u_max =  10;
     v_min = -10;
     v_max =  10;
     x_min = 0;
-    x_max = 2*M_PI/1.25; // Careful: Different k from other benchmarks!
-    //x_max = 2*M_PI/0.5; // Careful: Different k from other benchmarks!
+    //x_max = 2*M_PI/1.25; // Careful: Different k from other benchmarks!
+    x_max = 2*M_PI/0.5; // Careful: Different k from other benchmarks!
 
-    dt = 1./32.; Nt = 50/dt;
+    dt = 1./16.;
+    Nt = 50/dt;
 
     Lx = x_max - x_min; Lx_inv = 1/Lx;
     dx = Lx/Nx; dx_inv = 1/dx;
@@ -151,12 +152,14 @@ real config_t<real>::f0( real x, real u, real v ) noexcept
 
 
 //	  Landau Damping:
-    /*
+
     constexpr real alpha = 0.01;
     constexpr real k     = 0.5;
-    return 0.39894228040143267793994 * ( 1. + alpha*cos(k*x) ) * exp( -(u*u+v*v)/2. );
-    */
+    constexpr real fac = 1.0/(2*M_PI);
+    return fac * ( 1. + alpha*cos(k*x) ) * exp( -(u*u+v*v)/2. );
+
 //  Weibel instability:
+    /*
     constexpr real alpha = 1e-4;
     constexpr real k = 1.25;
     constexpr real beta = 1e-4;
@@ -165,6 +168,7 @@ real config_t<real>::f0( real x, real u, real v ) noexcept
     real fac = 1.0 / (M_PI * vth * std::sqrt(Tr));
     return fac * ( 1. + alpha*cos(k*x) )
     			* exp( -0.5*(u*u+v*v/Tr)/vth );
+    */
 }
 
 }

@@ -63,6 +63,7 @@ double eval_f(size_t nt, double x, double u, double v, double* coeffs_E_1, doubl
 		x -= conf.dt*u;
 		B = -conf.dt*(dergeraet::dim_1_half::eval<double,order>(x, coeffs_B_3 + nt*stride_t, conf)
 				+ conf.dt*dergeraet::dim_1_half::eval<double,order,1>(x, coeffs_E_2 + nt*stride_t, conf));
+
 		exp_jb_times_v(B, u, v, conf.dt);
 		u -= conf.dt*dergeraet::dim_1_half::eval<double,order>(x, coeffs_E_1 + nt*stride_t, conf);
 		v -= conf.dt*dergeraet::dim_1_half::eval<double,order>(x, coeffs_E_2 + nt*stride_t, conf);
@@ -99,9 +100,12 @@ void backwards_iteration_J_Hf(size_t nt, double* coeffs_E_1, double* coeffs_E_2,
 				x -= 0.5*conf.dt*u;
 				double B = -conf.dt*(dergeraet::dim_1_half::eval<double,order>(x, coeffs_B_3 + nt*stride_t, conf)
 						+ conf.dt*dergeraet::dim_1_half::eval<double,order,1>(x, coeffs_E_2 + nt*stride_t, conf));
+
 				exp_jb_times_v(B, u, v, conf.dt);
 				u -= conf.dt*dergeraet::dim_1_half::eval<double,order>(x, coeffs_E_1 + nt*stride_t, conf);
 				v -= conf.dt*dergeraet::dim_1_half::eval<double,order>(x, coeffs_E_2 + nt*stride_t, conf);
+
+				exp_jb_times_v(-B, u, v, conf.dt);
 
 				double f = eval_f(nt-1, x, u, v, coeffs_E_1, coeffs_E_2, coeffs_B_3, conf, stride_t);
 
@@ -141,8 +145,10 @@ void backwards_iteration_avrg_J_Hf(size_t nt, double* coeffs_E_1, double* coeffs
 			for(size_t k = 0; k < conf.Nv; k++)
 			{
 				double v = conf.v_min + k*conf.dv;
+
 				double B = -conf.dt*(dergeraet::dim_1_half::eval<double,order>(x, coeffs_B_3 + nt*stride_t, conf)
 						+ conf.dt*dergeraet::dim_1_half::eval<double,order,1>(x, coeffs_E_2 + nt*stride_t, conf));
+
 				exp_jb_times_v(B, u, v, conf.dt);
 				u -= conf.dt*dergeraet::dim_1_half::eval<double,order>(x, coeffs_E_1 + nt*stride_t, conf);
 				v -= conf.dt*dergeraet::dim_1_half::eval<double,order>(x, coeffs_E_2 + nt*stride_t, conf);
@@ -183,8 +189,8 @@ void compute_E(size_t nt, double* coeffs_E_1, double* coeffs_E_2, double* coeffs
 		E_values_2[i] = dergeraet::dim_1_half::eval<double,order>(x, coeffs_E_2 + (nt-1)*stride_t, conf)
 						- conf.dt*dergeraet::dim_1_half::eval<double,order,1>(x, coeffs_B_3 + (nt-1)*stride_t, conf)
 						- conf.dt*conf.dt*dergeraet::dim_1_half::eval<double,order,2>(x, coeffs_E_2 + (nt-1)*stride_t, conf)
-						- dergeraet::dim_1_half::eval<double,order>(x, coeffs_J_Hf_2 + (nt-1)*stride_t, conf)
-						+ conf.dt*avrg_J_Hf_2[nt-1];
+						- dergeraet::dim_1_half::eval<double,order>(x, coeffs_J_Hf_2 + (nt-1)*stride_t, conf);
+						//+ conf.dt*avrg_J_Hf_2[nt-1];
 	}
 
 	dergeraet::dim_1_half::interpolate<double,order>(coeffs_E_1 + nt*stride_t, E_values_1.data(), conf);
@@ -238,13 +244,13 @@ int main()
     for(size_t i = 0; i < conf.Nx; i++)
     {
     	//  Weibel instability:
-    	double alpha = 1e-4;
-    	double beta = 1e-4;
-    	double k = 1.25;
+    	double alpha = 1e-2;
+    	double beta = 1e-2;
+    	double k = 0.5;//1.25;
     	double x = conf.x_min + i*conf.dx;
-    	E_1[i] = -alpha/k*std::sin(k*x);
+    	E_1[i] = alpha/k*std::sin(k*x);
     	E_2[i] = 0;
-    	B_3[i] = beta*std::cos(k*x);
+    	B_3[i] = 0;//beta*std::cos(k*x);
 
     	elec_energy += E_1[i]*E_1[i] + E_2[i]*E_2[i];
     	magn_energy += B_3[i]*B_3[i];
@@ -272,8 +278,8 @@ int main()
 
     	// Compute next avrg_J_Hf.
     	//std::cout << "Start avrg_J_Hf." << std::endl;
-    	backwards_iteration_avrg_J_Hf(nt, coeffs_E_1.get(), coeffs_E_2.get(), coeffs_B_3.get(), avrg_J_Hf_1[nt-1], avrg_J_Hf_2[nt-1],
-    									conf, stride_t);
+//    	backwards_iteration_avrg_J_Hf(nt, coeffs_E_1.get(), coeffs_E_2.get(), coeffs_B_3.get(), avrg_J_Hf_1[nt-1], avrg_J_Hf_2[nt-1],
+//    									conf, stride_t);
 
     	// Compute next E.
     	//std::cout << "Start E." << std::endl;
