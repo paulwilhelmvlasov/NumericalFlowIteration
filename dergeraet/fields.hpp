@@ -557,7 +557,7 @@ real eval( real x, real y, const real *coeffs, const config_t<real> &config )
     y = y*config.dy_inv - y_knot;
 
     const size_t stride_x = 1;
-    const size_t stride_y = config.Nx + order - 1;//would have to be a guess what this is
+    const size_t stride_y = config.Nx + order - 2;//would have to be a guess what this is
      
     // Scale according to derivative.
     real factor = 1;
@@ -680,7 +680,7 @@ void interpolate( real *coeffs, const real *values, const config_t<real> &config
                     for ( size_t jj = 0; jj < order; ++jj )
                     for ( size_t ii = 0; ii < order; ++ii )
                     {
-                        result += N[jj]*N[ii]*in[ (j+jj)*config.Nx + ii + i ];
+                        result += N[jj]*N[ii]*in[ (j+jj)*(config.Nx + order -2)  + ii + i ];
                     }
                     
                 }               
@@ -791,7 +791,7 @@ void interpolate( real *coeffs, const real *values, const config_t<real> &config
                     for ( size_t jj = 0; jj < order; ++jj )
                     for ( size_t ii = 0; ii < order; ++ii )
                     {
-                        result += N[jj]*N[ii]*in[ (j+jj)*config.Nx + ii + i ];
+                        result += N[jj]*N[ii]*in[ (j+jj)*(config.Nx + order -2) + ii + i ];
                     }
                     
                 }               

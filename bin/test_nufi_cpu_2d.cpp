@@ -126,10 +126,11 @@ void test()
     													sizeof(real)*conf.Nx*conf.Ny)), std::free };
     std::unique_ptr<real,decltype(std::free)*> rho_ext { reinterpret_cast<real*>(std::aligned_alloc(64,
     													sizeof(real)*(conf.Nx+order-2)*(conf.Ny+order-2))), std::free };
+
     if ( rho == nullptr ) throw std::bad_alloc {};
     if ( rho_ext == nullptr ) throw std::bad_alloc {};
 
-    poisson<real> poiss( conf );
+    poisson<real> poiss( conf ); // FD Poisson
 
     std::ofstream Emax_file( "Emax.txt" );
     double total_time = 0;
