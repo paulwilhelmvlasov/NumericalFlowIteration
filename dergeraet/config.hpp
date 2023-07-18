@@ -124,7 +124,7 @@ config_t<real>::config_t() noexcept
 {
     Nx = 32;
     Nu = 128;
-    Nv = 128;
+    Nv = Nu;
     u_min = -10;
     u_max =  10;
     v_min = -10;
@@ -133,7 +133,7 @@ config_t<real>::config_t() noexcept
     //x_max = 2*M_PI/1.25; // Careful: Different k from other benchmarks!
     x_max = 2*M_PI/0.5; // Careful: Different k from other benchmarks!
 
-    dt = 1./16.;
+    dt = 1./32.;
     Nt = 50/dt;
 
     Lx = x_max - x_min; Lx_inv = 1/Lx;

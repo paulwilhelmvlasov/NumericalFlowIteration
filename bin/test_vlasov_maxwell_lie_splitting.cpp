@@ -35,11 +35,10 @@ double sign(double x)
 	}
 }
 
-void exp_jb_times_v(double B, double& v1, double& v2, double dt, double tol=1e-16)
+void exp_jb_times_v(double B, double& v1, double& v2, double tol=1e-16)
 {
 	// Evaluates exp(-dt*J_B)*v.
 	// If B=0, then exp(J_B)=I.
-	B *= -dt;
 
 	if(std::abs(B) > tol)
 	{
@@ -54,6 +53,24 @@ void exp_jb_times_v(double B, double& v1, double& v2, double dt, double tol=1e-1
 	}
 }
 
+template <size_t dx = 0>
+double eval_E_1(size_t nt, double x, double* coeffs_E_1, const dergeraet::dim_1_half::config_t<double>& conf, size_t stride_t)
+{
+	return dergeraet::dim_1_half::eval<double,order,dx>(x, coeffs_E_1 + nt*stride_t, conf);
+}
+
+template <size_t dx = 0>
+double eval_E_2(size_t nt, double x, double* coeffs_E_2, const dergeraet::dim_1_half::config_t<double>& conf, size_t stride_t)
+{
+	return dergeraet::dim_1_half::eval<double,order,dx>(x, coeffs_E_2 + nt*stride_t, conf);
+}
+
+template <size_t dx = 0>
+double eval_B_3(size_t nt, double x, double* coeffs_B_3, const dergeraet::dim_1_half::config_t<double>& conf, size_t stride_t)
+{
+	return dergeraet::dim_1_half::eval<double,order,dx>(x, coeffs_B_3 + nt*stride_t, conf);
+}
+
 double eval_f(size_t nt, double x, double u, double v, double* coeffs_E_1, double* coeffs_E_2,
 				double* coeffs_B_3, const dergeraet::dim_1_half::config_t<double>& conf, size_t stride_t)
 {
@@ -61,12 +78,12 @@ double eval_f(size_t nt, double x, double u, double v, double* coeffs_E_1, doubl
 	for(;nt > 0; nt--)
 	{
 		x -= conf.dt*u;
-		B = -conf.dt*(dergeraet::dim_1_half::eval<double,order>(x, coeffs_B_3 + nt*stride_t, conf)
-				+ conf.dt*dergeraet::dim_1_half::eval<double,order,1>(x, coeffs_E_2 + nt*stride_t, conf));
+		B = -conf.dt*(eval_B_3(nt-1, x, coeffs_B_3, conf, stride_t) - conf.dt*eval_E_2<1>(nt-1, x, coeffs_E_2, conf, stride_t));
 
-		exp_jb_times_v(B, u, v, conf.dt);
-		u -= conf.dt*dergeraet::dim_1_half::eval<double,order>(x, coeffs_E_1 + nt*stride_t, conf);
-		v -= conf.dt*dergeraet::dim_1_half::eval<double,order>(x, coeffs_E_2 + nt*stride_t, conf);
+		exp_jb_times_v(B, u, v);
+
+		u -= conf.dt*eval_E_1(nt-1,x,coeffs_E_1,conf,stride_t);
+		v -= conf.dt*eval_E_2(nt-1,x,coeffs_E_2,conf,stride_t);
 	}
 
 	return conf.f0(x, u, v);
@@ -75,10 +92,9 @@ double eval_f(size_t nt, double x, double u, double v, double* coeffs_E_1, doubl
 void backwards_iteration_J_Hf(size_t nt, double* coeffs_E_1, double* coeffs_E_2, double* coeffs_B_3,
 								double* coeffs_J_Hf_1, double* coeffs_J_Hf_2, const dergeraet::dim_1_half::config_t<double>& conf, size_t stride_t)
 {
-	// nt is the next time-step for which one wants to compute J_Hf. For nt it is already given.
+	// nt is the next time-step for which one wants to compute J_Hf.
 	// Computes J_Hf on a grid and interpolates it then using B-Splines.
 	// Todo: Think about a clever way to parallelize this!
-
 	if(nt == 0)
 	{
 		throw std::runtime_error("nt > 0 expected. J_Hf only exists after init.");
@@ -97,15 +113,17 @@ void backwards_iteration_J_Hf(size_t nt, double* coeffs_E_1, double* coeffs_E_2,
 			for(size_t k = 0; k < conf.Nv; k++)
 			{
 				double v = conf.v_min + k*conf.dv;
-				x -= 0.5*conf.dt*u;
-				double B = -conf.dt*(dergeraet::dim_1_half::eval<double,order>(x, coeffs_B_3 + nt*stride_t, conf)
-						+ conf.dt*dergeraet::dim_1_half::eval<double,order,1>(x, coeffs_E_2 + nt*stride_t, conf));
 
-				exp_jb_times_v(B, u, v, conf.dt);
-				u -= conf.dt*dergeraet::dim_1_half::eval<double,order>(x, coeffs_E_1 + nt*stride_t, conf);
-				v -= conf.dt*dergeraet::dim_1_half::eval<double,order>(x, coeffs_E_2 + nt*stride_t, conf);
+				//x -= 0.5*conf.dt*u;
+				x -= conf.dt*u;
 
-				exp_jb_times_v(-B, u, v, conf.dt);
+				double B = -conf.dt*( eval_B_3(nt-1, x, coeffs_B_3, conf, stride_t)
+							- conf.dt*eval_E_2<1>(nt-1, x, coeffs_E_2, conf, stride_t) );
+
+				exp_jb_times_v(B, u, v);
+
+				u -= conf.dt*eval_E_1(nt-1,x,coeffs_E_1,conf,stride_t);
+				v -= conf.dt*eval_E_2(nt-1,x,coeffs_E_2,conf,stride_t);
 
 				double f = eval_f(nt-1, x, u, v, coeffs_E_1, coeffs_E_2, coeffs_B_3, conf, stride_t);
 
@@ -113,8 +131,9 @@ void backwards_iteration_J_Hf(size_t nt, double* coeffs_E_1, double* coeffs_E_2,
 				j_hf_2[i] += (conf.v_min+k*conf.dv)*f;
 			}
 		}
-		j_hf_1[i] *= conf.dt*conf.du*conf.dv;
-		j_hf_2[i] *= conf.dt*conf.du*conf.dv;
+
+		j_hf_1[i] *= conf.du*conf.dv;
+		j_hf_2[i] *= conf.du*conf.dv;
 	}
 
 	dergeraet::dim_1_half::interpolate<double,order>(coeffs_J_Hf_1 + (nt-1)*stride_t, j_hf_1.data(), conf);
@@ -127,6 +146,7 @@ void backwards_iteration_avrg_J_Hf(size_t nt, double* coeffs_E_1, double* coeffs
 {
 	// nt is the next time-step for which one wants to compute avrg_J_Hf. For nt it is already given.
 	// Todo: Think about a clever way to parallelize this!
+	// Do we really need this in the periodic case? See CROUSEILLES et.al. paper.
 
 	if(nt == 0)
 	{
@@ -146,12 +166,11 @@ void backwards_iteration_avrg_J_Hf(size_t nt, double* coeffs_E_1, double* coeffs
 			{
 				double v = conf.v_min + k*conf.dv;
 
-				double B = -conf.dt*(dergeraet::dim_1_half::eval<double,order>(x, coeffs_B_3 + nt*stride_t, conf)
-						+ conf.dt*dergeraet::dim_1_half::eval<double,order,1>(x, coeffs_E_2 + nt*stride_t, conf));
+				double B = -conf.dt*(eval_B_3(nt-1,x,coeffs_B_3,conf,stride_t) - conf.dt*eval_E_2<1>(nt-1,x,coeffs_E_2,conf,stride_t));
 
 				exp_jb_times_v(B, u, v, conf.dt);
-				u -= conf.dt*dergeraet::dim_1_half::eval<double,order>(x, coeffs_E_1 + nt*stride_t, conf);
-				v -= conf.dt*dergeraet::dim_1_half::eval<double,order>(x, coeffs_E_2 + nt*stride_t, conf);
+				u -= conf.dt*eval_E_1(nt-1,x,coeffs_E_1,conf,stride_t);
+				v -= conf.dt*eval_E_2(nt-1,x,coeffs_E_2,conf,stride_t);
 
 				double f = eval_f(nt-1, x, u, v, coeffs_E_1, coeffs_E_2, coeffs_B_3, conf, stride_t);
 
@@ -183,14 +202,13 @@ void compute_E(size_t nt, double* coeffs_E_1, double* coeffs_E_2, double* coeffs
 	for(size_t i = 0; i< conf.Nx; i++)
 	{
 		double x = conf.x_min + i*conf.dx;
-		E_values_1[i] = dergeraet::dim_1_half::eval<double,order>(x, coeffs_E_1 + (nt-1)*stride_t, conf)
-								- dergeraet::dim_1_half::eval<double,order>(x, coeffs_J_Hf_1 + (nt-1)*stride_t, conf)
-								+ conf.dt*avrg_J_Hf_1[nt-1];
-		E_values_2[i] = dergeraet::dim_1_half::eval<double,order>(x, coeffs_E_2 + (nt-1)*stride_t, conf)
-						- conf.dt*dergeraet::dim_1_half::eval<double,order,1>(x, coeffs_B_3 + (nt-1)*stride_t, conf)
-						- conf.dt*conf.dt*dergeraet::dim_1_half::eval<double,order,2>(x, coeffs_E_2 + (nt-1)*stride_t, conf)
-						- dergeraet::dim_1_half::eval<double,order>(x, coeffs_J_Hf_2 + (nt-1)*stride_t, conf);
-						//+ conf.dt*avrg_J_Hf_2[nt-1];
+
+		E_values_1[i] = eval_E_1(nt-1,x,coeffs_E_1,conf,stride_t)
+						- conf.dt*dergeraet::dim_1_half::eval<double,order>(x, coeffs_J_Hf_1 + (nt-1)*stride_t, conf);
+
+		E_values_2[i] = eval_E_2(nt-1,x,coeffs_E_2,conf,stride_t) - conf.dt*eval_B_3<1>(nt-1,x,coeffs_B_3,conf,stride_t)
+						+ conf.dt*conf.dt*eval_E_2<2>(nt-1,x,coeffs_E_2,conf,stride_t)
+						- conf.dt*dergeraet::dim_1_half::eval<double,order>(x, coeffs_J_Hf_2 + (nt-1)*stride_t, conf);
 	}
 
 	dergeraet::dim_1_half::interpolate<double,order>(coeffs_E_1 + nt*stride_t, E_values_1.data(), conf);
@@ -200,7 +218,7 @@ void compute_E(size_t nt, double* coeffs_E_1, double* coeffs_E_2, double* coeffs
 void compute_B(size_t nt, double* coeffs_E_2, double* coeffs_B_3, const dergeraet::dim_1_half::config_t<double>& conf,
 				size_t stride_t)
 {
-	// Given nt > 0 computes the coefficients of B_3(n_t).
+	// Given nt > 0 computes the coefficients of B_3(n_t). E_1(nt-1), E_2(nt-1) and B_3(nt-1) is known.
 
 	if(nt == 0)
 	{
@@ -213,8 +231,7 @@ void compute_B(size_t nt, double* coeffs_E_2, double* coeffs_B_3, const dergerae
 	for(size_t i = 0; i< conf.Nx; i++)
 	{
 		double x = conf.x_min + i*conf.dx;
-		B_values[i] = dergeraet::dim_1_half::eval<double,order>(x, coeffs_B_3 + (nt-1)*stride_t, conf)
-					+ conf.dt*dergeraet::dim_1_half::eval<double,order,1>(x, coeffs_E_2 + (nt-1)*stride_t, conf);
+		B_values[i] = eval_B_3(nt-1,x,coeffs_B_3,conf,stride_t) - conf.dt*eval_E_2<1>(nt-1,x,coeffs_E_2,conf,stride_t);
 	}
 
 	dergeraet::dim_1_half::interpolate<double,order>(coeffs_B_3 + nt*stride_t, B_values.data(), conf);
@@ -239,6 +256,9 @@ int main()
     std::vector<double> B_3(conf.Nx, 0);
 
     // Init values of E and B.
+    std::ofstream E_1_str("E_1_0.txt");
+    std::ofstream E_2_str("E_2_0.txt");
+    std::ofstream B_3_str("B_3_0.txt");
     double elec_energy = 0;
     double magn_energy = 0;
     for(size_t i = 0; i < conf.Nx; i++)
@@ -254,6 +274,10 @@ int main()
 
     	elec_energy += E_1[i]*E_1[i] + E_2[i]*E_2[i];
     	magn_energy += B_3[i]*B_3[i];
+
+    	E_1_str << x << " " << E_1[i] << std::endl;
+    	E_2_str << x << " " << E_2[i] << std::endl;
+    	B_3_str << x << " " << B_3[i] << std::endl;
     }
     elec_energy *= conf.dx;
     magn_energy *= conf.dx;
@@ -266,34 +290,28 @@ int main()
     std::ofstream Magnetic_Energy_str("B_energy.txt");
     Electric_Energy_str << 0 << " " << elec_energy << std::endl;
     Magnetic_Energy_str << 0 << " " << magn_energy << std::endl;
-    std::cout << "E_energ: " << 0 << " " << elec_energy << std::endl;
-    std::cout << "B_energ: " << 0 << " " << magn_energy << std::endl;
+    std::cout << "E_energy: " << 0 << " " << elec_energy << std::endl;
+    std::cout << "B_energy: " << 0 << " " << magn_energy << std::endl;
     std::cout << "--------------------------------------" << std::endl;
     for(size_t nt = 1; nt <= conf.Nt; nt++)
     {
     	// Compute next J_Hf.
-    	//std::cout << "Start J_Hf." << std::endl;
     	backwards_iteration_J_Hf(nt, coeffs_E_1.get(), coeffs_E_2.get(), coeffs_B_3.get(), coeffs_J_Hf_1.get(),
     								coeffs_J_Hf_2.get(), conf, stride_t);
 
-    	// Compute next avrg_J_Hf.
-    	//std::cout << "Start avrg_J_Hf." << std::endl;
-//    	backwards_iteration_avrg_J_Hf(nt, coeffs_E_1.get(), coeffs_E_2.get(), coeffs_B_3.get(), avrg_J_Hf_1[nt-1], avrg_J_Hf_2[nt-1],
-//    									conf, stride_t);
-
     	// Compute next E.
-    	//std::cout << "Start E." << std::endl;
     	compute_E(nt, coeffs_E_1.get(), coeffs_E_2.get(), coeffs_B_3.get(), coeffs_J_Hf_1.get(), coeffs_J_Hf_2.get(), avrg_J_Hf_1.data(),
     				avrg_J_Hf_2.data(), conf, stride_t);
 
     	// Compute next B.
-    	//std::cout << "Start B." << std::endl;
     	compute_B(nt, coeffs_E_2.get(), coeffs_B_3.get(), conf, stride_t);
 
     	// Do output etc.
-    	//std::cout << "Start output." << std::endl;
     	size_t n_plot = 128;
     	double dx_plot = (conf.x_max-conf.x_min)/n_plot;
+        std::ofstream E_1_nt_str("E_1_" + std::to_string(nt*conf.dt) + ".txt");
+        std::ofstream E_2_nt_str("E_2_" + std::to_string(nt*conf.dt) + ".txt");
+        std::ofstream B_3_nt_str("B_3_" + std::to_string(nt*conf.dt) + ".txt");
         elec_energy = 0;
         magn_energy = 0;
     	for(size_t i = 0; i < n_plot; i++)
@@ -305,13 +323,17 @@ int main()
 
     		elec_energy += E1*E1 + E2*E2;
     		magn_energy += B3*B3;
+
+        	E_1_nt_str << x << " " << E1 << std::endl;
+        	E_2_nt_str << x << " " << E2 << std::endl;
+        	B_3_nt_str << x << " " << B3 << std::endl;
     	}
         elec_energy *= dx_plot;
         magn_energy *= dx_plot;
         Electric_Energy_str << nt*conf.dt << " " << elec_energy << std::endl;
         Magnetic_Energy_str << nt*conf.dt << " " << magn_energy << std::endl;
-        std::cout << "E_energ: " << nt*conf.dt << " " << elec_energy << std::endl;
-        std::cout << "B_energ: " << nt*conf.dt << " " << magn_energy << std::endl;
+        std::cout << "E_energy: " << nt*conf.dt << " " << elec_energy << std::endl;
+        std::cout << "B_energy: " << nt*conf.dt << " " << magn_energy << std::endl;
         std::cout << "--------------------------------------" << std::endl;
     }
 
