@@ -80,7 +80,7 @@ void test()
         double time_elapsed = timer.elapsed();
         total_time += time_elapsed;
 
-        if( n % 2 == 0 )
+        if( n % 1 == 0 )
         {
             real metrics[4] = { 0, 0, 0, 0 };
             sched.compute_metrics( n, 0, conf.Nx*conf.Nu );
@@ -112,7 +112,8 @@ void test()
                             <<    total_energy << "; "
                             << metrics[3]      << std::endl;
 
-            if(n % (100*16) == 0)
+            //if(n % (100*16) == 0)
+            if(n % (1) == 0)
             {
 				size_t Nx_plot = 256;
 				real dx_plot = conf.Lx / Nx_plot;
@@ -129,6 +130,20 @@ void test()
 					file_rho << x << " " << rho << std::endl;
 				}
 
+				// Compute j
+				std::ofstream file_j( "j_" + std::to_string(t) + ".txt" );
+				for(size_t i = 0; i < conf.Nx; i++)
+				{
+					double x = conf.x_min + i * conf.dx;
+					double charge_current = 0;
+					for(size_t j = 0; j < conf.Nu; j++)
+					{
+						double u = conf.u_min + j * conf.du;
+
+						charge_current += u*eval_f<real, order>(n, x, u, coeffs.get(), conf);
+					}
+					file_j << x << " " << charge_current << std::endl;
+				}
             }
         }
     }

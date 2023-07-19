@@ -286,6 +286,54 @@ int main()
     dergeraet::dim_1_half::interpolate<double,order>(coeffs_E_2.get(), E_2.data(), conf);
     dergeraet::dim_1_half::interpolate<double,order>(coeffs_B_3.get(), B_3.data(), conf);
 
+    // Testing: rho.
+    std::ofstream rho_0_str("rho_0.txt");
+    for(size_t i = 0; i < conf.Nx; i++)
+    {
+    	double x = conf.x_min + i * conf.dx;
+    	double rho = eval_E_1<1>(0, x, coeffs_E_1.get(), conf, stride_t)
+    				+ eval_E_2<1>(0, x, coeffs_E_2.get(), conf, stride_t);
+    	rho_0_str << x << " " << rho << std::endl;
+    }
+    // Plot interpolated E and B.
+    std::ofstream E_1_interpol_0_str("E_1_interpol_0.txt");
+    std::ofstream E_2_interpol_0_str("E_2_interpol_0.txt");
+    std::ofstream B_3_interpol_0_str("B_3_interpol_0.txt");
+    for(size_t i = 0; i < conf.Nx; i++)
+    {
+    	double x = conf.x_min + i * conf.dx;
+    	E_1_interpol_0_str << x << " " << eval_E_1(0, x, coeffs_E_1.get(), conf, stride_t) << std::endl;
+    	E_2_interpol_0_str << x << " " << eval_E_2(0, x, coeffs_E_2.get(), conf, stride_t) << std::endl;
+    	B_3_interpol_0_str << x << " " << eval_B_3(0, x, coeffs_B_3.get(), conf, stride_t) << std::endl;
+    }
+    // Compute correct j_1:
+    std::ofstream j_1_correct_str_eval("j_1_correct_eval.txt");
+    std::ofstream j_1_correct_str_sin("j_1_correct_sin.txt");
+    for(size_t i = 0; i < conf.Nx; i++)
+    {
+    	double x = conf.x_min + i * conf.dx;
+    	double j_1_correct_eval = 0;
+    	double j_1_correct_sin = 0;
+    	for(size_t j = 0; j < conf.Nu; j++)
+    	{
+    		double u = conf.u_min + j*conf.du;
+        	for(size_t k = 0; k < conf.Nv; k++)
+        	{
+        		double v = conf.v_min + k*conf.dv;
+
+        		double x_shift = x-conf.dt*u;
+
+        		j_1_correct_sin += u*conf.f0(x_shift, u-conf.dt*0.02*std::sin(0.5*x_shift),v);
+        		j_1_correct_eval += u*conf.f0(x_shift, u-conf.dt*eval_E_1(0,x_shift,coeffs_E_1.get(),conf,stride_t),v);
+        	}
+    	}
+    	j_1_correct_sin *= conf.du*conf.dv;
+    	j_1_correct_eval *= conf.du*conf.dv;
+    	j_1_correct_str_eval << x << " " << j_1_correct_eval << std::endl;
+    	j_1_correct_str_sin << x << " " << j_1_correct_sin << std::endl;
+    }
+
+    // Init output strings.
     std::ofstream Electric_Energy_str("E_energy.txt");
     std::ofstream Magnetic_Energy_str("B_energy.txt");
     Electric_Energy_str << 0 << " " << elec_energy << std::endl;
@@ -293,6 +341,7 @@ int main()
     std::cout << "E_energy: " << 0 << " " << elec_energy << std::endl;
     std::cout << "B_energy: " << 0 << " " << magn_energy << std::endl;
     std::cout << "--------------------------------------" << std::endl;
+    // Start NuFI loop.
     for(size_t nt = 1; nt <= conf.Nt; nt++)
     {
     	// Compute next J_Hf.
@@ -312,6 +361,9 @@ int main()
         std::ofstream E_1_nt_str("E_1_" + std::to_string(nt*conf.dt) + ".txt");
         std::ofstream E_2_nt_str("E_2_" + std::to_string(nt*conf.dt) + ".txt");
         std::ofstream B_3_nt_str("B_3_" + std::to_string(nt*conf.dt) + ".txt");
+        std::ofstream rho_nt_str("rho_" + std::to_string(nt*conf.dt) + ".txt");
+        std::ofstream j_1_nt_str("j_1_" + std::to_string(nt*conf.dt) + ".txt");
+        std::ofstream j_2_nt_str("j_2_" + std::to_string(nt*conf.dt) + ".txt");
         elec_energy = 0;
         magn_energy = 0;
     	for(size_t i = 0; i < n_plot; i++)
@@ -320,13 +372,19 @@ int main()
     		double E1 = dergeraet::dim_1_half::eval<double,order>(x, coeffs_E_1.get() + nt*stride_t, conf);
     		double E2 = dergeraet::dim_1_half::eval<double,order>(x, coeffs_E_2.get() + nt*stride_t, conf);
     		double B3 = dergeraet::dim_1_half::eval<double,order>(x, coeffs_B_3.get() + nt*stride_t, conf);
-
+    		double rho = eval_E_1<1>(nt, x, coeffs_E_1.get(), conf, stride_t)
+    	    				+ eval_E_2<1>(nt, x, coeffs_E_2.get(), conf, stride_t);
+    		double j1 = dergeraet::dim_1_half::eval<double,order>(x, coeffs_J_Hf_1.get() + (nt-1)*stride_t, conf);
+    		double j2 = dergeraet::dim_1_half::eval<double,order>(x, coeffs_J_Hf_2.get() + (nt-1)*stride_t, conf);
     		elec_energy += E1*E1 + E2*E2;
     		magn_energy += B3*B3;
 
         	E_1_nt_str << x << " " << E1 << std::endl;
         	E_2_nt_str << x << " " << E2 << std::endl;
         	B_3_nt_str << x << " " << B3 << std::endl;
+        	rho_nt_str << x << " " << rho << std::endl;
+        	j_1_nt_str << x << " " << j1 << std::endl;
+        	j_2_nt_str << x << " " << j2 << std::endl;
     	}
         elec_energy *= dx_plot;
         magn_energy *= dx_plot;
