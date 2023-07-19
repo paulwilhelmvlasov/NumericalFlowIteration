@@ -103,8 +103,6 @@ void backwards_iteration_J_Hf(size_t nt, double* coeffs_E_1, double* coeffs_E_2,
 	std::vector<double> j_hf_1(conf.Nx,0);
 	std::vector<double> j_hf_2(conf.Nx,0);
 
-	//std::ofstream j_str("j_backwards_fct" + std::to_string(nt*conf.dt) + ".txt");
-
 	#pragma omp parallel for
 	for(size_t i = 0; i < conf.Nx; i++)
 	{
@@ -137,8 +135,6 @@ void backwards_iteration_J_Hf(size_t nt, double* coeffs_E_1, double* coeffs_E_2,
 
 		j_hf_1[i] *= conf.du*conf.dv;
 		j_hf_2[i] *= conf.du*conf.dv;
-
-	//	j_str << x << " " << j_hf_1[i] << std::endl;
 	}
 
 	dergeraet::dim_1_half::interpolate<double,order>(coeffs_J_Hf_1 + (nt-1)*stride_t, j_hf_1.data(), conf);
@@ -270,13 +266,13 @@ int main()
     for(size_t i = 0; i < conf.Nx; i++)
     {
     	//  Weibel instability:
-    	double alpha = 1e-2;
-    	double beta = 1e-2;
-    	double k = 0.5;//1.25;
+    	double alpha = 1e-4;
+    	double beta = 1e-4;
+    	double k = 1.25;
     	double x = conf.x_min + i*conf.dx;
     	E_1[i] = alpha/k*std::sin(k*x);
     	E_2[i] = 0;
-    	B_3[i] = 0;//beta*std::cos(k*x);
+    	B_3[i] = beta*std::cos(k*x);
 
     	elec_energy += E_1[i]*E_1[i] + E_2[i]*E_2[i];
     	magn_energy += B_3[i]*B_3[i];
