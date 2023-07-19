@@ -103,6 +103,8 @@ void backwards_iteration_J_Hf(size_t nt, double* coeffs_E_1, double* coeffs_E_2,
 	std::vector<double> j_hf_1(conf.Nx,0);
 	std::vector<double> j_hf_2(conf.Nx,0);
 
+	//std::ofstream j_str("j_backwards_fct" + std::to_string(nt*conf.dt) + ".txt");
+
 	#pragma omp parallel for
 	for(size_t i = 0; i < conf.Nx; i++)
 	{
@@ -110,30 +112,33 @@ void backwards_iteration_J_Hf(size_t nt, double* coeffs_E_1, double* coeffs_E_2,
 		for(size_t j = 0; j < conf.Nu; j++)
 		{
 			double u = conf.u_min + j*conf.du;
+			double u_shifted = u;
 			for(size_t k = 0; k < conf.Nv; k++)
 			{
 				double v = conf.v_min + k*conf.dv;
+				double v_shifted = v;
 
-				//x -= 0.5*conf.dt*u;
-				x -= conf.dt*u;
+				double x_shifted = x - conf.dt*u;
 
-				double B = -conf.dt*( eval_B_3(nt-1, x, coeffs_B_3, conf, stride_t)
-							- conf.dt*eval_E_2<1>(nt-1, x, coeffs_E_2, conf, stride_t) );
+				double B = -conf.dt*( eval_B_3(nt-1, x_shifted, coeffs_B_3, conf, stride_t)
+							- conf.dt*eval_E_2<1>(nt-1, x_shifted, coeffs_E_2, conf, stride_t) );
 
-				exp_jb_times_v(B, u, v);
+				exp_jb_times_v(B, u_shifted, v_shifted);
 
-				u -= conf.dt*eval_E_1(nt-1,x,coeffs_E_1,conf,stride_t);
-				v -= conf.dt*eval_E_2(nt-1,x,coeffs_E_2,conf,stride_t);
+				u_shifted = u - conf.dt*eval_E_1(nt-1,x_shifted,coeffs_E_1,conf,stride_t);
+				v_shifted = v - conf.dt*eval_E_2(nt-1,x_shifted,coeffs_E_2,conf,stride_t);
 
-				double f = eval_f(nt-1, x, u, v, coeffs_E_1, coeffs_E_2, coeffs_B_3, conf, stride_t);
+				double f = eval_f(nt-1, x_shifted, u_shifted, v_shifted, coeffs_E_1, coeffs_E_2, coeffs_B_3, conf, stride_t);
 
-				j_hf_1[i] += (conf.u_min+j*conf.du)*f;
-				j_hf_2[i] += (conf.v_min+k*conf.dv)*f;
+				j_hf_1[i] += u*f;
+				j_hf_2[i] += v*f;
 			}
 		}
 
 		j_hf_1[i] *= conf.du*conf.dv;
 		j_hf_2[i] *= conf.du*conf.dv;
+
+	//	j_str << x << " " << j_hf_1[i] << std::endl;
 	}
 
 	dergeraet::dim_1_half::interpolate<double,order>(coeffs_J_Hf_1 + (nt-1)*stride_t, j_hf_1.data(), conf);
@@ -241,6 +246,7 @@ void compute_B(size_t nt, double* coeffs_E_2, double* coeffs_B_3, const dergerae
 int main()
 {
 	dergeraet::dim_1_half::config_t<double> conf;
+	//conf.Nt = 1;
 
     const size_t stride_t = conf.Nx + order - 1;
     std::unique_ptr<double[]> coeffs_E_1 { new double[ (conf.Nt+1)*stride_t ] {} };
@@ -309,11 +315,13 @@ int main()
     // Compute correct j_1:
     std::ofstream j_1_correct_str_eval("j_1_correct_eval.txt");
     std::ofstream j_1_correct_str_sin("j_1_correct_sin.txt");
+    std::ofstream j_1_correct_str_eval_f("j_1_correct_eval_f.txt");
     for(size_t i = 0; i < conf.Nx; i++)
     {
     	double x = conf.x_min + i * conf.dx;
     	double j_1_correct_eval = 0;
     	double j_1_correct_sin = 0;
+    	double j_1_correct_eval_f = 0;
     	for(size_t j = 0; j < conf.Nu; j++)
     	{
     		double u = conf.u_min + j*conf.du;
@@ -324,12 +332,16 @@ int main()
         		double x_shift = x-conf.dt*u;
 
         		j_1_correct_sin += u*conf.f0(x_shift, u-conf.dt*0.02*std::sin(0.5*x_shift),v);
-        		j_1_correct_eval += u*conf.f0(x_shift, u-conf.dt*eval_E_1(0,x_shift,coeffs_E_1.get(),conf,stride_t),v);
+        		j_1_correct_eval += u*conf.f0(x_shift, u-conf.dt*eval_E_1(0,x_shift,coeffs_E_1.get(),conf,stride_t),v-conf.dt*eval_E_2(0,x_shift,coeffs_E_2.get(),conf,stride_t));
+        		j_1_correct_eval_f += u*eval_f(0, x_shift, u-conf.dt*eval_E_1(0,x_shift,coeffs_E_1.get(),conf,stride_t),v-conf.dt*eval_E_2(0,x_shift,coeffs_E_2.get(),conf,stride_t),
+        							coeffs_E_1.get(), coeffs_E_2.get(), coeffs_B_3.get(), conf, stride_t);
         	}
     	}
     	j_1_correct_sin *= conf.du*conf.dv;
     	j_1_correct_eval *= conf.du*conf.dv;
+    	j_1_correct_eval_f *= conf.du*conf.dv;
     	j_1_correct_str_eval << x << " " << j_1_correct_eval << std::endl;
+    	j_1_correct_str_eval_f << x << " " << j_1_correct_eval_f << std::endl;
     	j_1_correct_str_sin << x << " " << j_1_correct_sin << std::endl;
     }
 
