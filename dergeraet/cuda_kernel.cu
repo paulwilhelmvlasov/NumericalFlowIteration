@@ -268,8 +268,8 @@ void cuda_eval_j_hf( size_t nt, const real *coeffs_E_1, const real *coeffs_E_2,
     const real weight = conf.du*conf.dv;
 
     if ( q < q_end ){
-    	atomicAdd( my_j_hf_1, -weight*u*f );
-    	atomicAdd( my_j_hf_2, -weight*v*f );
+    	atomicAdd( my_j_hf_1, weight*u*f );
+    	atomicAdd( my_j_hf_2, weight*v*f );
     }
 }
 

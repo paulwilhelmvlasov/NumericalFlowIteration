@@ -50,7 +50,7 @@ void init_E_B(double* coeffs_E_1, double* coeffs_E_2, double* coeffs_B_3, const 
     	B_3[i] = beta*std::cos(k*x);
     	*/
     	// Weak Landau Damping:
-    	double alpha = 1e-4;
+    	double alpha = 1e-2;
     	double k = 0.5;
     	double x = conf.x_min + i*conf.dx;
     	E_1[i] = alpha/k*std::sin(k*x);
@@ -322,6 +322,17 @@ void test()
         													conf, 128, false);
         }
         output(metrics, E_energy, B_energy, statistics_file, nt*conf.dt, time_elapsed);
+        std::ofstream j_1_str("j_1"+std::to_string(nt*conf.dt)+".txt");
+        std::ofstream j_2_str("j_2"+std::to_string(nt*conf.dt)+".txt");
+        for(size_t i = 0; i < conf.Nx; i++)
+        {
+        	double x = conf.x_min + i*conf.dx;
+        	double j_1 = eval<double,order>(x, coeffs_J_Hf_1.get() + (nt-1)*stride_t, conf);
+        	double j_2 = eval<double,order>(x, coeffs_J_Hf_2.get() + (nt-1)*stride_t, conf);
+
+        	j_1_str << x << " " << j_1 << std::endl;
+        	j_2_str << x << " " << j_2 << std::endl;
+        }
     }
 }
 
