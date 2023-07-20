@@ -1,6 +1,6 @@
 noinst_PROGRAMS = test_poisson test_maxwell_periodic test_gmres test_fields \
 					test_dergeraet test_nufi_cpu test_nufi_cpu_2d test_vlasov_maxwell \
-					test_vlasov_maxwell_lie_splitting 
+					test_vlasov_maxwell_lie_splitting cuda_vlasov_maxwell_lie
 #test_dergeraet_2d test_dergeraet_3d
 
 test_poisson_SOURCES = test_poisson.cpp
@@ -18,6 +18,10 @@ test_vlasov_maxwell_LDADD  += $(CUDA_LDFLAGS) $(BLAS_LIBS) -lfftw3 -lfftw3f
 test_vlasov_maxwell_lie_splitting_SOURCES = test_vlasov_maxwell_lie_splitting.cpp
 test_vlasov_maxwell_lie_splitting_LDADD   = $(top_builddir)/dergeraet/libdergeraet.a
 test_vlasov_maxwell_lie_splitting_LDADD  += $(CUDA_LDFLAGS) $(BLAS_LIBS) -lfftw3 -lfftw3f
+
+cuda_vlasov_maxwell_lie_SOURCES = cuda_vlasov_maxwell_lie.cpp
+cuda_vlasov_maxwell_lie_LDADD   = $(top_builddir)/dergeraet/libdergeraet.a
+cuda_vlasov_maxwell_lie_LDADD  += $(CUDA_LDFLAGS) $(BLAS_LIBS) -lfftw3 -lfftw3f
 
 test_gmres_SOURCES = test_gmres.cpp
 test_gmres_LDADD   = $(top_builddir)/dergeraet/libdergeraet.a

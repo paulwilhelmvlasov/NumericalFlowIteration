@@ -134,7 +134,7 @@ config_t<real>::config_t() noexcept
     //x_max = 2*M_PI/0.5; // Weak Landau Damping!
 
     dt = 1./32.;
-    Nt = 50/dt;
+    Nt = 500/dt;
 
     Lx = x_max - x_min; Lx_inv = 1/Lx;
     dx = Lx/Nx; dx_inv = 1/dx;

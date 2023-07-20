@@ -78,7 +78,8 @@ double eval_f(size_t nt, double x, double u, double v, double* coeffs_E_1, doubl
 	for(;nt > 0; nt--)
 	{
 		x -= conf.dt*u;
-		B = -conf.dt*(eval_B_3(nt-1, x, coeffs_B_3, conf, stride_t) - conf.dt*eval_E_2<1>(nt-1, x, coeffs_E_2, conf, stride_t));
+		B = -conf.dt*(eval_B_3(nt-1, x, coeffs_B_3, conf, stride_t)
+			- conf.dt*eval_E_2<1>(nt-1, x, coeffs_E_2, conf, stride_t));
 
 		exp_jb_times_v(B, u, v);
 

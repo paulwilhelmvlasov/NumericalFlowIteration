@@ -73,6 +73,44 @@ extern template class cuda_kernel<float,8>;
 }
 }
 
+namespace dim_1_half
+{
+
+template <typename real, size_t order>
+class cuda_kernel_vm
+{
+public:
+	cuda_kernel_vm( const config_t<real> &conf, int dev = cuda::get_device() );
+
+	cuda_kernel_vm( const cuda_kernel_vm  &rhs ) = delete;
+	cuda_kernel_vm(       cuda_kernel_vm &&rhs ) = default;
+    cuda_kernel_vm& operator=( const cuda_kernel_vm  &rhs ) = delete;
+    cuda_kernel_vm& operator=(       cuda_kernel_vm &&rhs ) = default;
+
+    void compute_j_hf( size_t nt,  size_t q_min, size_t q_max );
+    void download_j_hf( real *j_1, real *j_2 );
+    void upload_coeffs( size_t nt, const real *coeffs_E_1, const real *coeffs_E_2,
+    					const real *coeffs_B_3);
+    void compute_metrics( size_t n, size_t q_min, size_t q_max );
+    void download_metrics( real *metrics );
+
+private:
+    config_t<real> conf; int device_number;
+    cuda::autoptr cuda_coeffs_E_1, cuda_coeffs_E_2, cuda_coeffs_B_3, cuda_j_1,
+						cuda_j_2, cuda_metrics; // Pointers on device.
+    std::unique_ptr<real[]> tmp_j_1, tmp_j_2;  //Pointers to host.
+};
+
+extern template class cuda_kernel_vm<double,3>;
+extern template class cuda_kernel_vm<double,4>;
+extern template class cuda_kernel_vm<double,5>;
+extern template class cuda_kernel_vm<double,6>;
+extern template class cuda_kernel_vm<double,7>;
+extern template class cuda_kernel_vm<double,8>;
+
+}
+
+
 namespace dim2
 {
 
