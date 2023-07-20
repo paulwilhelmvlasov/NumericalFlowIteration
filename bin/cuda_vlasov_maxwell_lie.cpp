@@ -40,6 +40,7 @@ void init_E_B(double* coeffs_E_1, double* coeffs_E_2, double* coeffs_B_3, const 
     for(size_t i = 0; i < conf.Nx; i++)
     {
     	//  Weibel instability:
+    	/*
     	double alpha = 1e-4;
     	double beta = 1e-4;
     	double k = 1.25;
@@ -47,6 +48,15 @@ void init_E_B(double* coeffs_E_1, double* coeffs_E_2, double* coeffs_B_3, const 
     	E_1[i] = alpha/k*std::sin(k*x);
     	E_2[i] = 0;
     	B_3[i] = beta*std::cos(k*x);
+    	*/
+    	// Weak Landau Damping:
+    	double alpha = 1e-4;
+    	double k = 0.5;
+    	double x = conf.x_min + i*conf.dx;
+    	E_1[i] = alpha/k*std::sin(k*x);
+    	E_2[i] = 0;
+    	B_3[i] = 0;
+
     }
 
     // Interpolate E_0 and B_0.
@@ -67,15 +77,15 @@ double compute_electric_energy(size_t nt, const double* coeffs_E_1,
 
     const size_t stride_t = conf.Nx + order - 1;
 
-	double dx_plot = conf.Lx/n_plot;
+	double dx_plot = (conf.x_max-conf.x_min)/n_plot;
 	double E_energy = 0;
 	if(plot){
 		std::ofstream E_1_str("E_1_" + std::to_string(nt*conf.dt) + ".txt");
 		std::ofstream E_2_str("E_2_" + std::to_string(nt*conf.dt) + ".txt");
 
-		for(size_t i = 0; i <= n_plot; i++)
+		for(size_t i = 0; i < n_plot; i++)
 		{
-			double x = conf.x_min + i*dx_plot;
+			double x = conf.x_min + (i+0.5)*dx_plot;
 			double E1 = eval<double,order>(x, coeffs_E_1 + nt*stride_t, conf);
 			double E2 = eval<double,order>(x, coeffs_E_2 + nt*stride_t, conf);
 
@@ -85,9 +95,9 @@ double compute_electric_energy(size_t nt, const double* coeffs_E_1,
 			E_2_str << x << " " << E2 << std::endl;
 		}
 	}else{
-		for(size_t i = 0; i <= n_plot; i++)
+		for(size_t i = 0; i < n_plot; i++)
 		{
-			double x = conf.x_min + i*dx_plot;
+			double x = conf.x_min + (i+0.5)*dx_plot;
 			double E1 = eval<double,order>(x, coeffs_E_1 + nt*stride_t, conf);
 			double E2 = eval<double,order>(x, coeffs_E_2 + nt*stride_t, conf);
 
@@ -111,14 +121,14 @@ double compute_magnetic_energy(size_t nt, const double* coeffs_B_3,
 
     const size_t stride_t = conf.Nx + order - 1;
 
-	double dx_plot = conf.Lx/n_plot;
+    double dx_plot = (conf.x_max-conf.x_min)/n_plot;
 	double B_energy = 0;
 	if(plot){
 		std::ofstream B_3_str("B_3_" + std::to_string(nt*conf.dt) + ".txt");
 
-		for(size_t i = 0; i <= n_plot; i++)
+		for(size_t i = 0; i < n_plot; i++)
 		{
-			double x = conf.x_min + i*dx_plot;
+			double x = conf.x_min + (i+0.5)*dx_plot;
 			double B3 = eval<double,order>(x, coeffs_B_3 + nt*stride_t, conf);
 
 			B_energy += B3*B3;
@@ -235,9 +245,8 @@ void test()
 	dergeraet::stopwatch<double> timer_init;
     config_t<double> conf;
 
-    const size_t stride_x = 1;
     const size_t stride_t = conf.Nx + order - 1;
-    const size_t N = conf.Nx*conf.Nu*conf.Nu;
+    const size_t N = conf.Nx*conf.Nu*conf.Nv;
 
     std::unique_ptr<double[]> coeffs_E_1 { new double[ (conf.Nt+1)*stride_t ] {} };
     std::unique_ptr<double[]> coeffs_E_2 { new double[ (conf.Nt+1)*stride_t ] {} };
@@ -257,6 +266,7 @@ void test()
     std::cout << std::scientific;
 
     init_E_B<order>(coeffs_E_1.get(), coeffs_E_2.get(), coeffs_B_3.get(), conf);
+    ck_vm.upload_coeffs(0, coeffs_E_1.get(), coeffs_E_2.get(), coeffs_B_3.get());
     double init_time = timer_init.elapsed();
 
     double E_energy = compute_electric_energy<order>(0, coeffs_E_1.get(),
@@ -294,6 +304,10 @@ void test()
     	// Do output.
         double time_elapsed = timer.elapsed();
         total_time += time_elapsed;
+        metrics[0] = 0;
+        metrics[1] = 0;
+        metrics[2] = 0;
+        metrics[3] = 0;
         ck_vm.compute_metrics(nt, 0, N);
         ck_vm.download_metrics(metrics);
         if(nt % 16 == 0){

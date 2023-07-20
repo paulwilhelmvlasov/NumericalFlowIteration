@@ -220,8 +220,7 @@ __host__ __device__
 real eval_f_vm_lie(size_t nt, real x, real u, real v, const real *coeffs_E_1,
 		const real *coeffs_E_2, const real *coeffs_B_3, const config_t<real> conf)
 {
-    const size_t stride_x = 1;
-    const size_t stride_t = stride_x*(conf.Nx + order - 1);
+    const size_t stride_t = conf.Nx + order - 1;
 
     real B = 0;
 
@@ -238,7 +237,6 @@ real eval_f_vm_lie(size_t nt, real x, real u, real v, const real *coeffs_E_1,
 	}
 
 	return conf.f0(x, u, v);
-
 }
 
 template <typename real, size_t order>
@@ -248,19 +246,17 @@ void cuda_eval_j_hf( size_t nt, const real *coeffs_E_1, const real *coeffs_E_2,
 					real *j_hf_2, size_t q_begin, size_t q_end )
 {
     // Number of my quadrature node.
-    const size_t q = q_begin +
-                     size_t(blockDim.x)*size_t(blockIdx.x) + size_t(threadIdx.x);
-    size_t tmp = q;
-    const size_t ix = tmp / (conf.Nu*conf.Nv);
-    tmp = tmp % (conf.Nu*conf.Nv);
-    const size_t iu = tmp % conf.Nu;
-    const size_t iv = tmp / conf.Nu;
+    const size_t q = q_begin + size_t(blockDim.x)*size_t(blockIdx.x) + size_t(threadIdx.x);
+
+    const size_t ix = q % conf.Nx;
+    const size_t iu = size_t(q/conf.Nx) % conf.Nu;
+    const size_t iv = q / (conf.Nx*conf.Nu);
 
     const real   x = conf.x_min + ix*conf.dx;
     const real   u = conf.u_min + (iu+0.5)*conf.du;
     const real   v = conf.v_min + (iv+0.5)*conf.dv;
     real *my_j_hf_1 = j_hf_1 + ix;
-    real *my_j_hf_2 = j_hf_1 + ix;
+    real *my_j_hf_2 = j_hf_2 + ix;
 
     // Care: We use the formula with x_shift = x - dt*u instead
     // of x_shift = x - 0.5*dt*u, i.e., explicit approximation of
@@ -279,7 +275,7 @@ void cuda_eval_j_hf( size_t nt, const real *coeffs_E_1, const real *coeffs_E_2,
 
 template <typename real, size_t order>
 __global__
-void cuda_eval_metrics( size_t n, const real *coeffs_E_1, const real *coeffs_E_2,
+void cuda_eval_metrics( size_t nt, const real *coeffs_E_1, const real *coeffs_E_2,
 						const real *coeffs_B_3, const config_t<real> conf,
 						real *metrics, size_t q_begin, size_t q_end )
 {
@@ -287,26 +283,24 @@ void cuda_eval_metrics( size_t n, const real *coeffs_E_1, const real *coeffs_E_2
     const size_t q = q_begin +
                      size_t(blockDim.x)*size_t(blockIdx.x) + size_t(threadIdx.x);
 
-    size_t tmp = q;
-    const size_t ix = tmp / (conf.Nu*conf.Nv);
-    tmp = tmp % (conf.Nu*conf.Nv);
-    const size_t iu = tmp % conf.Nu;
-    const size_t iv = tmp / conf.Nu;
+    const size_t ix = q % conf.Nx;
+    const size_t iu = size_t(q/conf.Nx) % conf.Nu;
+    const size_t iv = q / (conf.Nx*conf.Nu);
 
-    const real x = conf.x_min + ix*conf.dx;
-    const real u = conf.u_min + iu*conf.du + conf.du/2;
+    const real x = conf.x_min + (ix+0.5)*conf.dx;
+    const real u = conf.u_min + (iu+0.5)*conf.du;
     const real v = conf.v_min + (iv+0.5)*conf.dv;
 
-    const real f = eval_f_vm_lie<real,order>( n, x, u, v, coeffs_E_1, coeffs_E_2,
+    const real f = eval_f_vm_lie<real,order>( nt, x, u, v, coeffs_E_1, coeffs_E_2,
 											coeffs_B_3, conf );
-    const real weight = conf.du*conf.dx;
+    const real weight = conf.dx*conf.du*conf.dv;
 
     if ( q < q_end )
     {
         atomicAdd( metrics + 0, weight*f );
-        atomicAdd( metrics + 1, weight*f*f );
-        atomicAdd( metrics + 2, weight*(u*u*f/2) );
-        atomicAdd( metrics + 3, (f>0) ? -weight*f*log(f) : 0 );
+        atomicAdd( metrics + 1, weight*f*f ); // This ...
+        atomicAdd( metrics + 2, weight*((u*u+v*v)*f/2) ); // This...
+        atomicAdd( metrics + 3, (f>0) ? -weight*f*log(f) : 0 ); // ...and this is wrong...
     }
 }
 
@@ -372,7 +366,7 @@ void cuda_kernel_vm<real,order>::download_j_hf( real *j_1, real *j_2 )
     {
     	// To paralellize on several GPU's, we have to
     	// spread j on several GPU's and later add up.
-    	// Thus is not a "=" but a "+=".
+    	// Thus this is not a "=" but a "+=".
         j_1[ i ] += tmp_j_1[ i ];
     	j_2[ i ] += tmp_j_2[ i ];
     }
