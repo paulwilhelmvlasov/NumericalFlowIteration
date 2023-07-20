@@ -40,7 +40,7 @@ void init_E_B(double* coeffs_E_1, double* coeffs_E_2, double* coeffs_B_3, const 
     for(size_t i = 0; i < conf.Nx; i++)
     {
     	//  Weibel instability:
-    	/*
+
     	double alpha = 1e-4;
     	double beta = 1e-4;
     	double k = 1.25;
@@ -48,15 +48,16 @@ void init_E_B(double* coeffs_E_1, double* coeffs_E_2, double* coeffs_B_3, const 
     	E_1[i] = alpha/k*std::sin(k*x);
     	E_2[i] = 0;
     	B_3[i] = beta*std::cos(k*x);
-    	*/
+
     	// Weak Landau Damping:
+    	/*
     	double alpha = 1e-2;
     	double k = 0.5;
     	double x = conf.x_min + i*conf.dx;
     	E_1[i] = alpha/k*std::sin(k*x);
     	E_2[i] = 0;
     	B_3[i] = 0;
-
+		*/
     }
 
     // Interpolate E_0 and B_0.
@@ -322,6 +323,7 @@ void test()
         													conf, 128, false);
         }
         output(metrics, E_energy, B_energy, statistics_file, nt*conf.dt, time_elapsed);
+        /*
         std::ofstream j_1_str("j_1"+std::to_string(nt*conf.dt)+".txt");
         std::ofstream j_2_str("j_2"+std::to_string(nt*conf.dt)+".txt");
         for(size_t i = 0; i < conf.Nx; i++)
@@ -333,6 +335,7 @@ void test()
         	j_1_str << x << " " << j_1 << std::endl;
         	j_2_str << x << " " << j_2 << std::endl;
         }
+        */
     }
 }
 
