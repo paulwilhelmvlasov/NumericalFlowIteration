@@ -20,6 +20,7 @@
 
 #include <iostream>
 #include <fstream>
+#include <numeric>
 #include <vector>
 
 #include <dergeraet/fields.hpp>
@@ -84,6 +85,8 @@ double compute_electric_energy(size_t nt, const double* coeffs_E_1,
 		std::ofstream E_1_str("E_1_" + std::to_string(nt*conf.dt) + ".txt");
 		std::ofstream E_2_str("E_2_" + std::to_string(nt*conf.dt) + ".txt");
 
+		E_1_str << conf.x_min << " " << eval<double,order>(conf.x_min, coeffs_E_1 + nt*stride_t, conf) << std::endl;
+		E_2_str << conf.x_min << " " << eval<double,order>(conf.x_min, coeffs_E_2 + nt*stride_t, conf) << std::endl;
 		for(size_t i = 0; i < n_plot; i++)
 		{
 			double x = conf.x_min + (i+0.5)*dx_plot;
@@ -95,6 +98,8 @@ double compute_electric_energy(size_t nt, const double* coeffs_E_1,
 			E_1_str << x << " " << E1 << std::endl;
 			E_2_str << x << " " << E2 << std::endl;
 		}
+		E_1_str << conf.x_max << " " << eval<double,order>(conf.x_max, coeffs_E_1 + nt*stride_t, conf) << std::endl;
+		E_2_str << conf.x_max << " " << eval<double,order>(conf.x_max, coeffs_E_2 + nt*stride_t, conf) << std::endl;
 	}else{
 		for(size_t i = 0; i < n_plot; i++)
 		{
@@ -123,10 +128,11 @@ double compute_magnetic_energy(size_t nt, const double* coeffs_B_3,
     const size_t stride_t = conf.Nx + order - 1;
 
     double dx_plot = (conf.x_max-conf.x_min)/n_plot;
-	double B_energy = 0;
+    double B_energy = 0;
 	if(plot){
 		std::ofstream B_3_str("B_3_" + std::to_string(nt*conf.dt) + ".txt");
 
+		B_3_str << conf.x_min << " " << eval<double,order>(conf.x_min, coeffs_B_3 + nt*stride_t, conf) << std::endl;
 		for(size_t i = 0; i < n_plot; i++)
 		{
 			double x = conf.x_min + (i+0.5)*dx_plot;
@@ -136,10 +142,11 @@ double compute_magnetic_energy(size_t nt, const double* coeffs_B_3,
 
 			B_3_str << x << " " << B3 << std::endl;
 		}
+		B_3_str << conf.x_max << " " << eval<double,order>(conf.x_max, coeffs_B_3 + nt*stride_t, conf) << std::endl;
 	}else{
-		for(size_t i = 0; i <= n_plot; i++)
+		for(size_t i = 0; i < n_plot; i++)
 		{
-			double x = conf.x_min + i*dx_plot;
+			double x = conf.x_min + (i+0.5)*dx_plot;
 			double B3 = eval<double,order>(x, coeffs_B_3 + nt*stride_t, conf);
 
 			B_energy += B3*B3;
@@ -303,39 +310,38 @@ void test()
     	ck_vm.upload_coeffs(nt, coeffs_E_1.get(), coeffs_E_2.get(), coeffs_B_3.get());
 
     	// Do output.
+    	// This should be completly outsourced to the output function!
         double time_elapsed = timer.elapsed();
         total_time += time_elapsed;
-        metrics[0] = 0;
-        metrics[1] = 0;
-        metrics[2] = 0;
-        metrics[3] = 0;
-        ck_vm.compute_metrics(nt, 0, N);
-        ck_vm.download_metrics(metrics);
-        if(nt % 16 == 0){
-            E_energy = compute_electric_energy<order>(nt, coeffs_E_1.get(),
-            							coeffs_E_2.get(), conf, 128, true);
-            B_energy = compute_magnetic_energy<order>(nt, coeffs_B_3.get(),
-        													conf, 128, true);
-        }else{
-            E_energy = compute_electric_energy<order>(nt, coeffs_E_1.get(),
-            							coeffs_E_2.get(), conf, 128, false);
-            B_energy = compute_magnetic_energy<order>(nt, coeffs_B_3.get(),
-        													conf, 128, false);
-        }
-        output(metrics, E_energy, B_energy, statistics_file, nt*conf.dt, time_elapsed);
-        /*
-        std::ofstream j_1_str("j_1"+std::to_string(nt*conf.dt)+".txt");
-        std::ofstream j_2_str("j_2"+std::to_string(nt*conf.dt)+".txt");
-        for(size_t i = 0; i < conf.Nx; i++)
+        if(nt % 4 == 0)
         {
-        	double x = conf.x_min + i*conf.dx;
-        	double j_1 = eval<double,order>(x, coeffs_J_Hf_1.get() + (nt-1)*stride_t, conf);
-        	double j_2 = eval<double,order>(x, coeffs_J_Hf_2.get() + (nt-1)*stride_t, conf);
-
-        	j_1_str << x << " " << j_1 << std::endl;
-        	j_2_str << x << " " << j_2 << std::endl;
+			dergeraet::stopwatch<double> timer_metrics;
+			metrics[0] = 0;
+			metrics[1] = 0;
+			metrics[2] = 0;
+			metrics[3] = 0;
+			ck_vm.compute_metrics(nt, 0, N);
+			ck_vm.download_metrics(metrics);
+			if(nt % 16 == 0){
+				E_energy = compute_electric_energy<order>(nt, coeffs_E_1.get(),
+											coeffs_E_2.get(), conf, 128, true);
+				B_energy = compute_magnetic_energy<order>(nt, coeffs_B_3.get(),
+																conf, 128, true);
+			}else{
+				E_energy = compute_electric_energy<order>(nt, coeffs_E_1.get(),
+											coeffs_E_2.get(), conf, 128, false);
+				B_energy = compute_magnetic_energy<order>(nt, coeffs_B_3.get(),
+																conf, 128, false);
+			}
+			output(metrics, E_energy, B_energy, statistics_file, nt*conf.dt, time_elapsed);
+			double time_with_metrics = time_elapsed + timer_metrics.elapsed();
+			std::cout << "Time for time step with metrics: " << time_with_metrics << std::endl;
+        }else{
+            for ( size_t i = 0; i < 80; ++i )
+                std::cout << '=';
+            std::cout << std::endl;
+            std::cout << "t = " << nt*conf.dt << ". Compute time = " << time_elapsed << ".\n";
         }
-        */
     }
 }
 
