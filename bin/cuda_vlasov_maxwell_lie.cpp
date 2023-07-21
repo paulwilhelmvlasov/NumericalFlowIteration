@@ -40,12 +40,12 @@ void init_E_B(double* coeffs_E_1, double* coeffs_E_2, double* coeffs_B_3, const 
 
     for(size_t i = 0; i < conf.Nx; i++)
     {
+    	double x = conf.x_min + i*conf.dx;
     	//  Weibel instability:
 
     	double alpha = 1e-4;
     	double beta = 1e-4;
     	double k = 1.25;
-    	double x = conf.x_min + i*conf.dx;
     	E_1[i] = alpha/k*std::sin(k*x);
     	E_2[i] = 0;
     	B_3[i] = beta*std::cos(k*x);
@@ -54,11 +54,19 @@ void init_E_B(double* coeffs_E_1, double* coeffs_E_2, double* coeffs_B_3, const 
     	/*
     	double alpha = 1e-2;
     	double k = 0.5;
-    	double x = conf.x_min + i*conf.dx;
     	E_1[i] = alpha/k*std::sin(k*x);
     	E_2[i] = 0;
     	B_3[i] = 0;
 		*/
+    	// Two stream instability:
+    	/*
+    	double alpha = 1e-3;
+    	double beta = 2*1e-3;
+    	double k = 1;
+    	E_1[i] = 0;
+    	E_2[i] = 0;
+    	B_3[i] = alpha/k*std::sin(k*x);
+    	*/
     }
 
     // Interpolate E_0 and B_0.
@@ -313,7 +321,7 @@ void test()
     	// This should be completly outsourced to the output function!
         double time_elapsed = timer.elapsed();
         total_time += time_elapsed;
-        if(nt % 4 == 0)
+        if(nt % 2 == 0)
         {
 			dergeraet::stopwatch<double> timer_metrics;
 			metrics[0] = 0;
