@@ -41,6 +41,14 @@ void init_E_B(double* coeffs_E_1, double* coeffs_E_2, double* coeffs_B_3, const 
     for(size_t i = 0; i < conf.Nx; i++)
     {
     	double x = conf.x_min + i*conf.dx;
+    	// Weak Landau Damping:
+/*
+    	double alpha = 1e-2;
+    	double k = 0.5;
+    	E_1[i] = alpha/k*std::sin(k*x);
+    	E_2[i] = 0;
+    	B_3[i] = 0;
+*/
     	//  Weibel instability:
 /*
     	double alpha = 1e-4;
@@ -50,14 +58,6 @@ void init_E_B(double* coeffs_E_1, double* coeffs_E_2, double* coeffs_B_3, const 
     	E_2[i] = 0;
     	B_3[i] = beta*std::cos(k*x);
 */
-    	// Weak Landau Damping:
-    	/*
-    	double alpha = 1e-2;
-    	double k = 0.5;
-    	E_1[i] = alpha/k*std::sin(k*x);
-    	E_2[i] = 0;
-    	B_3[i] = 0;
-		*/
     	// Two stream instability:
 
     	double alpha = 1e-3;
@@ -66,7 +66,6 @@ void init_E_B(double* coeffs_E_1, double* coeffs_E_2, double* coeffs_B_3, const 
     	E_1[i] = 0;
     	E_2[i] = 0;
     	B_3[i] = alpha/k*std::sin(k*x);
-
     }
 
     // Interpolate E_0 and B_0.
