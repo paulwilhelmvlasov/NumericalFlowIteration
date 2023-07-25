@@ -237,14 +237,19 @@ inline
 void memcpy_to_host( void *dest, const void *src, size_t num )
 {
     cudaError_t code = cudaMemcpy( dest, src, num, cudaMemcpyDeviceToHost );
-    if ( code != cudaSuccess ) throw exception { code, "dergeraet::cuda::memcpy_to_host(): " };
+    if ( code != cudaSuccess ) throw exception { code, "dergeraet::cuda::memcpy_to_host(): (num = "
+    		+ std::to_string(num) + "."};
 }
 
 inline
 void memcpy_to_device( void *dest, const void *src, size_t num )
 {
     cudaError_t code = cudaMemcpy( dest, src, num, cudaMemcpyHostToDevice );
-    if ( code != cudaSuccess ) throw exception { code, "dergeraet::cuda::memcpy_to_device(): " };
+    if ( code != cudaSuccess )
+    {
+    	throw exception { code, "dergeraet::cuda::memcpy_to_device(): (num = "
+    		+ std::to_string(num) + "."};
+    }
 }
 
 inline

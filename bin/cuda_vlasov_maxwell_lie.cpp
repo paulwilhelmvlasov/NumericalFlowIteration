@@ -42,14 +42,14 @@ void init_E_B(double* coeffs_E_1, double* coeffs_E_2, double* coeffs_B_3, const 
     {
     	double x = conf.x_min + i*conf.dx;
     	//  Weibel instability:
-
+/*
     	double alpha = 1e-4;
     	double beta = 1e-4;
     	double k = 1.25;
     	E_1[i] = alpha/k*std::sin(k*x);
     	E_2[i] = 0;
     	B_3[i] = beta*std::cos(k*x);
-
+*/
     	// Weak Landau Damping:
     	/*
     	double alpha = 1e-2;
@@ -59,14 +59,14 @@ void init_E_B(double* coeffs_E_1, double* coeffs_E_2, double* coeffs_B_3, const 
     	B_3[i] = 0;
 		*/
     	// Two stream instability:
-    	/*
+
     	double alpha = 1e-3;
     	double beta = 2*1e-3;
     	double k = 1;
     	E_1[i] = 0;
     	E_2[i] = 0;
     	B_3[i] = alpha/k*std::sin(k*x);
-    	*/
+
     }
 
     // Interpolate E_0 and B_0.
@@ -298,27 +298,35 @@ void test()
     double total_time = 0;
     for(size_t nt = 1; nt <= conf.Nt; nt++)
     {
+    	//std::cout << "Start loop." << std::endl;
     	dergeraet::stopwatch<double> timer;
     	// Compute next J_Hf.
     	std::vector<double> j_hf_1(conf.Nx,0);
     	std::vector<double> j_hf_2(conf.Nx,0);
     	ck_vm.compute_j_hf(nt, 0, N);
+    	//std::cout << "Compute j_hf done." << std::endl;
     	ck_vm.download_j_hf(j_hf_1.data(), j_hf_2.data());
+    	//std::cout << "Download j_hf done." << std::endl;
     	interpolate<double,order>(coeffs_J_Hf_1.get() + (nt-1)*stride_t, j_hf_1.data(), conf);
     	interpolate<double,order>(coeffs_J_Hf_2.get() + (nt-1)*stride_t, j_hf_2.data(), conf);
+    	//std::cout << "Interpolation done." << std::endl;
 
     	// Compute next E.
+    	//std::cout << "Compute E." << std::endl;
     	compute_E<order>(nt, coeffs_E_1.get(), coeffs_E_2.get(), coeffs_B_3.get(),
     				coeffs_J_Hf_1.get(), coeffs_J_Hf_2.get(), conf);
 
     	// Compute next B.
+    	//std::cout << "Compute B." << std::endl;
     	compute_B<order>(nt, coeffs_E_2.get(), coeffs_B_3.get(), conf);
 
     	// Upload E and B coefficients to GPU.
+    	//std::cout << "Upload coeffs." << std::endl;
     	ck_vm.upload_coeffs(nt, coeffs_E_1.get(), coeffs_E_2.get(), coeffs_B_3.get());
 
     	// Do output.
     	// This should be completly outsourced to the output function!
+    	//std::cout << "Do outputs." << std::endl;
         double time_elapsed = timer.elapsed();
         total_time += time_elapsed;
         if(nt % 2 == 0)
@@ -342,8 +350,23 @@ void test()
 																conf, 128, false);
 			}
 			output(metrics, E_energy, B_energy, statistics_file, nt*conf.dt, time_elapsed);
+
+	        // Output j. (Testing only)
+		    std::ofstream j_1_str("j_1_" + std::to_string(nt*conf.dt) + ".txt");
+		    std::ofstream j_2_str("j_2_" + std::to_string(nt*conf.dt) + ".txt");
+		    for(size_t i = 0; i <= 64; i++)
+		    {
+		    	double x = conf.x_min + i*conf.Lx/64;
+		    	double j1 = eval<double,order>(x, coeffs_J_Hf_1.get() + (nt-1)*stride_t, conf);
+		    	double j2 = eval<double,order>(x, coeffs_J_Hf_2.get() + (nt-1)*stride_t, conf);
+
+		    	j_1_str << x << " " << j1 << std::endl;
+		    	j_2_str << x << " " << j2 << std::endl;
+		    }
+
 			double time_with_metrics = time_elapsed + timer_metrics.elapsed();
 			std::cout << "Time for time step with metrics: " << time_with_metrics << std::endl;
+
         }else{
             for ( size_t i = 0; i < 80; ++i )
                 std::cout << '=';

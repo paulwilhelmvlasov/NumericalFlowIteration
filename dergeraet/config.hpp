@@ -65,7 +65,7 @@ config_t<real>::config_t() noexcept
     x_min = 0;
     x_max = 4*M_PI;;
     
-    dt = 1./32.; Nt = 50/dt;
+    dt = 1./16.; Nt = 50/dt;
 
     Lx = x_max - x_min; Lx_inv = 1/Lx;
     dx = Lx/Nx; dx_inv = 1/dx;
@@ -123,16 +123,16 @@ template <typename real>
 config_t<real>::config_t() noexcept
 {
     Nx = 32;
-    Nu = 128;
+    Nu = 64;
     Nv = Nu;
     u_min = -10;
     u_max =  10;
     v_min = -10;
     v_max =  10;
     x_min = 0;
-    x_max = 2*M_PI/1.25; // Weibel instability!
+    //x_max = 2*M_PI/1.25; // Weibel instability!
     //x_max = 2*M_PI/0.5; // Weak Landau Damping!
-    //x_max = 2*M_PI; // Two stream instability!
+    x_max = 2*M_PI; // Two stream instability!
 
     dt = 1.0/32.;
     Nt = 100.0/dt;
@@ -160,7 +160,7 @@ real config_t<real>::f0( real x, real u, real v ) noexcept
     return fac * ( 1. + alpha*cos(k*x) ) * exp( -(u*u+v*v)/2. );
 */
 //  Weibel instability:
-
+/*
     constexpr real alpha = 1e-4;
     constexpr real k = 1.25;
     constexpr real beta = 1e-4;
@@ -168,14 +168,14 @@ real config_t<real>::f0( real x, real u, real v ) noexcept
     constexpr real Tr = 12;
     real fac = 1.0 / (M_PI * vth * std::sqrt(Tr));
     return fac * ( 1. + alpha*cos(k*x) ) * exp( -0.5*(u*u+v*v/Tr)/vth );
-
+*/
     // Two stream instability:
-    /*
+
     constexpr real beta = 2*1e-3;
     constexpr real beta_inv = 1.0/beta;
     constexpr real fac = 1.0/(2*M_PI*beta);
     return fac * exp(-v*v*beta_inv) * (exp(-(u-0.2)*(u-0.2)*beta_inv) + exp(-(u+0.2)*(u+0.2)*beta_inv));
-    */
+
 }
 
 }
@@ -222,7 +222,7 @@ config_t<real>::config_t() noexcept
     x_max = y_max = 4.0 * M_PI;
 
 
-    dt = 1.0/16.0; Nt = 50/dt;
+    dt = 1.0/2.0; Nt = 50/dt;
 
     Lx = x_max - x_min; Lx_inv = 1/Lx;
     Ly = y_max - y_min; Ly_inv = 1/Ly;

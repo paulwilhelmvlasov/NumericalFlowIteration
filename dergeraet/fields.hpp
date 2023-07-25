@@ -206,7 +206,7 @@ namespace dim_1_half
 {
 template <typename real, size_t order, size_t dx = 0>
 __host__ __device__
-real eval( real x, const real *coeffs, const config_t<real> &config ) noexcept
+real eval( real x, const real *coeffs, const config_t<real> &config) noexcept
 {
     using std::floor;
 
@@ -227,6 +227,13 @@ real eval( real x, const real *coeffs, const config_t<real> &config ) noexcept
     // Scale according to derivative.
     real factor = 1;
     for ( size_t i = 0; i < dx; ++i ) factor *= config.dx_inv;
+
+/*
+    if(ii >= config.Nx)
+    {
+    	return 0;
+    }
+*/
 
     return factor*splines1d::eval<real,order,dx>( x, coeffs + ii );
 }
