@@ -25,6 +25,7 @@
 #include <random>
 #include <math.h>
 
+#include <armadillo>
 
 #include <dergeraet/config.hpp>
 #include <dergeraet/random.hpp>
@@ -179,13 +180,13 @@ void test_dirichlet()
    
     
    //assign rho and two interpolated boundary values to this array tmp_values.
-    rho_ext.get()[0]=exp(conf.x_min)+5;//rho.get()[0];
+    rho_ext.get()[0]=rho.get()[0];
     
     for(size_t i = 0; i<order-3;i++){
-        rho_ext.get()[conf.Nx+order-3-i] = exp(conf.x_max)+5;//rho.get()[conf.Nx-1];
+        rho_ext.get()[conf.Nx+order-3-i] = rho.get()[conf.Nx-1];
     }
     for(size_t i = 1; i<conf.Nx+1;i++){
-        rho_ext.get()[i] = exp(conf.x_min+(i-1)*(conf.x_max-conf.x_min)/conf.Nx)+5;//rho.get()[i-1];
+        rho_ext.get()[i] = rho.get()[i-1];
         
     }
     std::ofstream f_file("f.txt");
@@ -277,6 +278,81 @@ void test_dirichlet()
 int main()
 {
     //dergeraet::dim1::periodic::test<double,4>();
-    dergeraet::dim1::periodic::test_dirichlet<double,4>();
+    //dergeraet::dim1::periodic::test_dirichlet<double,4>();
+
+	const double a = 0;
+	const double b = 2*M_PI;
+	const size_t Nx = 5;
+	const double dx = (b-a)/Nx;
+	const size_t order = 4;
+	const size_t l = Nx -1;
+	const size_t n = l + order;
+	std::vector<double> N_vec(order);
+	dergeraet::splines1d::N<double,order>(0, N_vec.data());
+
+	dergeraet::dim1::config_t<double> conf;
+	conf.Nx = Nx;
+	conf.x_min = a;
+	conf.x_max = b;
+	conf.dx = dx;
+	conf.dx_inv = 1.0/dx;
+	conf.Lx = (b-a);
+	conf.Lx_inv = 1.0/conf.Lx;
+
+	arma::vec rhs(n, arma::fill::zeros);
+
+
+	for(int i = 0; i <= l+1; i++)
+	{
+		double x = a + i*dx;
+		rhs(i+1) = std::sin(x);
+
+		std::cout << x << " " << rhs(i+1) << std::endl;
+	}
+	rhs(0) = rhs(1);
+	std::cout << a-dx << " " << rhs(0) << std::endl;
+	rhs(n-1) = rhs(n-2);
+	std::cout << b+dx << " " << rhs(n-1) << std::endl;
+
+
+	arma::mat A(n, n, arma::fill::zeros);
+
+    for ( size_t i = 0; i < n; ++i )
+    {
+        if ( i == 0 )
+        {
+            for ( size_t ii = 0; ii < order-1; ++ii ){
+            	A(i, i+ii) = N_vec[ii+1];
+            }
+        }
+        else if(i<l+3){
+            for ( size_t ii = 0; ii < order-1; ++ii )
+            	A(i, i + ii -1) = N_vec[ii];
+        }
+        else
+        {
+            for ( size_t ii = 0; ii < order-2; ++ii )
+            {
+            	A(i,i+ii-1) = N_vec[ii];
+            }
+        }
+    }
+
+    std::cout << A << std::endl;
+
+    arma::vec coeffs(n);
+    arma::solve(coeffs, A, rhs);
+
+
+	for(int i = 0; i < n; i++)
+	{
+		double x = a + (i-1)*dx;
+		double approx_result = dergeraet::dim1::dirichlet::eval<double, order>(x, coeffs.memptr(), conf);
+		double exact = rhs(i);
+		std::cout << x << " " << approx_result << " " << exact << " " << std::abs(approx_result - exact) << std::endl;
+	}
+
+	std::cout << rhs << std::endl;
+	std::cout << coeffs << std::endl;
 }
 

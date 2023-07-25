@@ -199,6 +199,7 @@ void interpolate( real *coeffs, const real *values, const config_t<real> &config
         coeffs[ i ] = tmp[ i % config.Nx ];
 }
 }
+
 namespace dirichlet{
     
     template <typename real, size_t order, size_t dx = 0>
@@ -207,16 +208,17 @@ real eval( real x, const real *coeffs, const config_t<real> &config ) noexcept
 {
     using std::floor;
 
+
     // Shift to a box that starts at 0.
     x -= config.x_min;
-
+    /*
     // Get "periodic position" in box at origin.
     x = x - config.Lx * floor( x*config.Lx_inv ); 
-
+     */
     // Knot number
     real x_knot = floor( x*config.dx_inv ); 
 
-    size_t ii = static_cast<size_t>(x_knot);
+    int ii = static_cast<int>(x_knot); // FALSCH
 
     // Convert x to reference coordinates.
     x = x*config.dx_inv - x_knot;
