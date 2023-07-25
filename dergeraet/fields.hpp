@@ -219,6 +219,7 @@ real eval( real x, const real *coeffs, const config_t<real> &config ) noexcept
     real x_knot = floor( x*config.dx_inv ); 
 
     int ii = static_cast<int>(x_knot); // FALSCH
+    // size_t ii + (order-2)/2 = static_cast<size_t>(x_knot); // Funktioniert nur fuer k>1 gerade.
 
     // Convert x to reference coordinates.
     x = x*config.dx_inv - x_knot;

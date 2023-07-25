@@ -282,7 +282,7 @@ int main()
 
 	const double a = 0;
 	const double b = 2*M_PI;
-	const size_t Nx = 5;
+	const size_t Nx = 128;
 	const double dx = (b-a)/Nx;
 	const size_t order = 4;
 	const size_t l = Nx -1;
@@ -354,5 +354,14 @@ int main()
 
 	std::cout << rhs << std::endl;
 	std::cout << coeffs << std::endl;
+
+	std::cout << std::floor(-1) << std::endl;
+	std::cout << std::floor(-1.01) << std::endl;
+	std::cout << std::floor(-0.99) << std::endl;
+
+	double x_knot = std::floor((a-dx)*conf.dx_inv);
+
+	std::cout << x_knot << std::endl;
+	std::cout << static_cast<int>(x_knot) << std::endl;
 }
 
