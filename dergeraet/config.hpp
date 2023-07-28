@@ -46,7 +46,7 @@ struct config_t
     // Grid-sizes and their reciprocals.
     real dx, dx_inv, Lx, Lx_inv;
     real du;
-
+    size_t l;
     config_t() noexcept;
     // Maybe we could subs this with a function pointer?
     // Or write a class (interface) which can offers an
@@ -63,10 +63,10 @@ config_t<real>::config_t() noexcept
     u_min = -10;
     u_max =  10;
     x_min = 0;
-    x_max = 4*M_PI;;
-    
+    x_max = 10;//4*M_PI;;
+    l = Nx -1;
     dt = 1./16.; Nt = 100.5/dt;
-
+    
     Lx = x_max - x_min; Lx_inv = 1/Lx;
     dx = Lx/Nx; dx_inv = 1/dx;
     du = (u_max - u_min)/Nu;
@@ -98,7 +98,8 @@ struct config_t
     size_t Nu, Nv;  // Number of quadrature points in velocity space.
     size_t Nt;      // Number of time-steps.
     real   dt;      // Time-step size.
-
+    size_t lx;
+    size_t ly;
     // Dimensions of physical domain.
     real x_min, x_max;
     real y_min, y_max;
@@ -127,6 +128,8 @@ config_t<real>::config_t() noexcept
     x_min = y_min = 0;
 //    x_max = y_max = 10*M_PI;
     x_max = y_max = 4.0 * M_PI;
+    lx = Nx-1;
+    ly = Ny -1;
 
 
     dt = 1.0/16.0; Nt = 50/dt;

@@ -234,12 +234,13 @@ real eval( real x, const real *coeffs, const config_t<real> &config ) noexcept
 template <typename real, size_t order>
 void interpolate( real *coeffs, const real *values, const config_t<real> &config )
 {
-    std::cout<<"In Interpolate"<<std::endl;
-    std::unique_ptr<real[]> tmp { new real[ config.Nx+order-2 ] };
+    //std::cout<<"In Interpolate"<<std::endl;
+    std::unique_ptr<real[]> tmp { new real[ config.l +order ] };
+    
 
     //std::unique_ptr<real[]> tmp_values { new real[ config.Nx+order-1 ] };
 
-    for ( size_t i = 0; i < config.Nx+order-2; ++i ){
+    for ( size_t i = 0; i < config.l + order; ++i ){
         tmp[ i ] = coeffs[ i ];
         
     }
@@ -248,23 +249,21 @@ void interpolate( real *coeffs, const real *values, const config_t<real> &config
 
     struct mat_t
     {
+
         const config_t<real> &config;
         real  N[ order ];
 
         mat_t( const config_t<real> &conf ): config { conf }
         {
-            //std::cout<<"calling N"<<std::endl;
-            splines1d::N<real,order>(0,N);
-            
-                
-            
+            splines1d::N<real,order>(0,N); 
         }
 
         void operator()( const real *in, real *out ) const
         {                       
-            int k = 2;
-            //#pragma omp parallel for 
-            for ( size_t i = 0; i < config.Nx+order-2; ++i )
+        
+        size_t n = config.l + order;
+            #pragma omp parallel for 
+            for ( size_t i = 0; i < n; ++i )
             {
                 real result = 0;
                 if ( i == 0 )
@@ -273,19 +272,19 @@ void interpolate( real *coeffs, const real *values, const config_t<real> &config
                         result += N[ii+1] * in[ i + ii ];
                     }
                 }
-                else if(i<config.Nx+1){
-                    for ( size_t ii = 0; ii < order; ++ii )
+                else if(i<config.l+order-1){
+                    for ( size_t ii = 0; ii < order-1; ++ii )
                         result += N[ii] * in[ i + ii -1];
                 }
                 else 
                 {
-                    for ( size_t ii = 0; ii < order-k; ++ii )
+                    for ( size_t ii = 0; ii < order-2; ++ii )
                     {
                         result += N[ii]*in[ i+ii -1];
                         //std::cout<<"i:"<<i<<"out of "<<config.Nx+order-3<<"N[ "<<ii<<"]:"<<N[ii]<<std::endl;
 
                     }
-                    k = k+1;
+                    
 
 
                 }
@@ -301,36 +300,27 @@ void interpolate( real *coeffs, const real *values, const config_t<real> &config
 
     struct transposed_mat_t
     {
+        
         const config_t<real> &config;
         real  N[ order ];
-        real N_deriv[order];
+        
 
         transposed_mat_t( const config_t<real> &conf ): config { conf }
         {
             splines1d::N<real,order>(0,N);
-            splines1d::N<real,order,1>(0,N_deriv);
-            for(int i = 0; i<order;i++){
-                std::cout<<"n-deriv:"<<N_deriv[i]<<"\t";
-            }
+            //splines1d::N<real,order,1>(0,N_deriv);
+          
         }
 
         void operator()( const real *in, real *out ) const
         {
-            for ( size_t i = 0; i < config.Nx+order-2; ++i )
+            //size_t l = config.Nx -2;
+            size_t n = config.l + order;
+            for ( size_t i = 0; i < n; ++i )
                 out[ i ] = 0;
 
-            // for ( size_t i = 0; i < config.Nx+order-2; ++i )
-            //     std::cout<<"in["<<i<<"] : "<<in[i]<<"\t";
-
-            // for ( size_t i = 0; i < config.Nx+order-1; ++i )
-            // {
-               
-            //     for ( size_t ii = 0; ii < order; ++ii )
-            //         out[ i + ii ]  += N[ii] * in[ i ];
-            // }
-            int k = 2;
-            //#pragma omp parallel for 
-            for ( size_t i = 0; i < config.Nx+order-2; ++i )
+            #pragma omp parallel for 
+            for ( size_t i = 0; i < n; ++i )
             {
                 real result = 0;
                 if ( i == 0 )
@@ -338,39 +328,35 @@ void interpolate( real *coeffs, const real *values, const config_t<real> &config
                     for ( size_t ii = 0; ii < order-1; ++ii )
                         result += N[ii+1] * in[ i + ii ];
                 }
-                else if(i<config.Nx+1){
-                    for ( size_t ii = 0; ii < order; ++ii )
+                else if(i<config.l + order -1){
+                    for ( size_t ii = 0; ii < order-1; ++ii )
                         result += N[ii] * in[ i + ii -1];
                 }
                 else 
                 {
-                    for ( size_t ii = 0; ii < order-k; ++ii )
+                    for ( size_t ii = 0; ii < order-2; ++ii )
                     {
                         result += N[ii]*in[ i+ii -1];
                     }
-                    k = k+1;
+                    
 
 
                 }
                 out[ i ] = result;
 
             } 
-            
-            // for ( size_t i = 0; i < config.Nx+order-2; ++i )
-            //     std::cout<<"out["<<i<<"] : "<<out[i]<<"\t";  
-            // std::cout<<"\n"<<std::endl;
         }
         
     };
 
     mat_t M { config }; transposed_mat_t Mt { config };
     lsmr_options<real> opt; opt.silent = true;
-    lsmr( config.Nx+order-2, config.Nx+order-2, M, Mt, values, tmp.get(), opt );
+    lsmr( config.l+order, config.l+order, M, Mt, values, tmp.get(), opt );
 
     if ( opt.iter == opt.max_iter )
         std::cerr << "Warning. LSMR did not converge.\n";
 
-    for ( size_t i = 0; i < config.Nx + order - 2; ++i )
+    for ( size_t i = 0; i < config.l+order; ++i )
         coeffs[ i ] = tmp[ i ];
 }
 }
@@ -552,15 +538,15 @@ real eval( real x, real y, const real *coeffs, const config_t<real> &config )
     real x_knot = floor( x*config.dx_inv ); 
     real y_knot = floor( y*config.dy_inv ); 
 
-    size_t ii = static_cast<size_t>(x_knot);
-    size_t jj = static_cast<size_t>(y_knot);
+    int ii = static_cast<int>(x_knot);
+    int jj = static_cast<int>(y_knot);
 
     // Convert x to reference coordinates.
     x = x*config.dx_inv - x_knot;
     y = y*config.dy_inv - y_knot;
 
     const size_t stride_x = 1;
-    const size_t stride_y = config.Nx + order - 2;//would have to be a guess what this is
+    const size_t stride_y = config.Nx + order - 1;//would have to be a guess what this is
      
     // Scale according to derivative.
     real factor = 1;
@@ -573,36 +559,45 @@ real eval( real x, real y, const real *coeffs, const config_t<real> &config )
 
 template <typename real, size_t order>
 void interpolate( real *coeffs, const real *values, const config_t<real> &config )
-{
-    std::unique_ptr<real[]> tmp { new real[ (config.Nx+order-2) * (config.Ny+order-2) ] };
+{           
+
+    std::unique_ptr<real[]> tmp { new real[ (config.lx + order) * (config.ly + order) ] };
 
     size_t stride_x = 1;
-    size_t stride_y =  config.Nx + order - 2; //why are you defined like this
+    size_t stride_y =  config.lx + order; //why are you defined like this
 
-    for ( size_t j = 0; j < config.Ny+order-2; ++j )
-    for ( size_t i = 0; i < config.Nx+order-2; ++i )
+    for ( size_t j = 0; j < config.ly + order; ++j )
+    for ( size_t i = 0; i < config.lx + order; ++i )
     {
         //tmp [ j*config.Nx + i ] = coeffs[ j*stride_y + i*stride_x ];
-        tmp [ j*(config.Nx+order-2) + i ] = 0;
+        tmp [ j*(config.lx + order) + i ] = 0;
     }
 
     struct mat_t
     {
         const config_t<real> &config;
         real  N[ order ];
+        const size_t nx = config.lx + order;
+        const size_t ny = config.ly + order;
 
         mat_t( const config_t<real> &conf ): config { conf }
         {
             splines1d::N<real,order>(0,N);
         }
 
+        
+
         void operator()( const real *in, real *out ) const
         {
+       
+            for ( size_t l = 0; l < nx*ny; ++l )
+                out[ l ] = 0;
+
             #pragma omp parallel for 
-            for ( size_t l = 0; l < (config.Nx+order-2)*(config.Ny+order-2); ++l )
+            for ( size_t l = 0; l < nx*ny; ++l )
             {
-                size_t j =  l / (config.Nx+order-2);
-                size_t i =  l % (config.Nx+order-2);
+                size_t j =  l / nx;
+                size_t i =  l % nx;
                 real result = 0;
                 //fallunterscheidungen: in 1d: gucken ob i am Rand ist, falls ja erstes element von N[ii] überspringen
                 //das jetzt analog für 2D-Fall. als grundlage dient formel vom 2D periodic case
@@ -610,80 +605,80 @@ void interpolate( real *coeffs, const real *values, const config_t<real> &config
                 {   
                     for ( size_t jj = 0; jj < order-1; ++jj ){
                     for ( size_t ii = 0; ii < order-1; ++ii ){
-                        result += N[ii+1] * N[jj+1]* in[jj*(config.Nx+order-2) + ii ]; //i and j are 0 anyways
+                        result += N[ii+1] * N[jj+1]* in[jj*nx + ii ]; //i and j are 0 anyways
                     }
                     }
                 }
-                else if((i == config.Nx +1) && (j == 0)){ 
+                else if((i == nx-1) && (j == 0)){ 
                 
                     for ( size_t jj = 0; jj < order-1; ++jj ){  
                     for ( size_t ii = 0; ii < order-2; ++ii )
                     {
-                        result += N[ii]*N[jj+1]*in[jj*(config.Nx+order-2) + i + ii -1];
+                        result += N[ii]*N[jj+1]*in[jj*nx + i + ii -1];
                     }
                 }
                 }
-                else if((i == 0) && (j == config.Ny +1)){ 
+                else if((i == 0) && (j == ny-1)){ 
                 
                 for ( size_t jj = 0; jj < order-2; ++jj ){  
                 for ( size_t ii = 0; ii < order-1; ++ii )
                     {
-                        result += N[ii+1]*N[jj]*in[(j+jj-1)*(config.Nx+order-2) + ii ];
+                        result += N[ii+1]*N[jj]*in[(j+jj-1)*nx + ii ];
                     }
                     }
                 }
-                else if((i == config.Nx +1) && (j == config.Ny +1)){ 
+                else if((i == nx - 1) && (j == ny - 1)){ 
                 
                 for ( size_t jj = 0; jj < order-2; ++jj ){  
                 for ( size_t ii = 0; ii < order-2; ++ii )
                     {
-                        result += N[ii]*N[jj]*in[(j+jj-1)*(config.Nx+order-2) + i + ii -1];
+                        result += N[ii]*N[jj]*in[(j+jj-1)*nx + i + ii -1];
                     }
                     }
                 }
                 else if(i == 0){ 
                 
-                for ( size_t jj = 0; jj < order; ++jj ){  
+                for ( size_t jj = 0; jj < order-1; ++jj ){  
                 for ( size_t ii = 0; ii < order-1; ++ii )
                     {
-                        result += N[ii+1]*N[jj]*in[(j+jj)*(config.Nx+order-2) + ii];
+                        result += N[ii+1]*N[jj]*in[(j+jj-1)*nx + ii];
                     }
                     }
                 }
                 else if(j == 0){ 
                 
                 for ( size_t jj = 0; jj < order-1; ++jj ){  
-                for ( size_t ii = 0; ii < order; ++ii )
+                for ( size_t ii = 0; ii < order-1; ++ii )
                     {
-                        result += N[ii]*N[jj+1]*in[(jj)*(config.Nx+order-2) + i + ii];
+                        result += N[ii]*N[jj+1]*in[(jj)*nx + i + ii-1];
                     }
                     }
                 }
-                else if(i == config.Nx+1){ 
+                else if(i == nx-1){ 
                 
-                for ( size_t jj = 0; jj < order; ++jj ){  
+                for ( size_t jj = 0; jj < order-1; ++jj ){  
                 for ( size_t ii = 0; ii < order-2; ++ii )
                     {
-                        result += N[ii]*N[jj]*in[(j+jj)*(config.Nx+order-2) + i + ii -1 ];
+                        result += N[ii]*N[jj]*in[(j+jj-1)*nx + i + ii -1 ];
                     }
                     }
                 }
-                else if(j == config.Ny+1){ 
+                else if(j == ny-1){ 
                 
                 for ( size_t jj = 0; jj < order-2; ++jj ){  
-                for ( size_t ii = 0; ii < order; ++ii )
+                for ( size_t ii = 0; ii < order-1; ++ii )
                     {
-                        result += N[ii]*N[jj]*in[(j+jj - 1)*(config.Nx+order-2) + i + ii ];
+                        result += N[ii]*N[jj]*in[(j+jj - 1)*nx + i + ii -1 ];
                     }
                     }
                 }
                 else{
                 
                     
-                    for ( size_t jj = 0; jj < order; ++jj )
-                    for ( size_t ii = 0; ii < order; ++ii )
+                    for ( size_t jj = 0; jj < order-1; ++jj )
+                    for ( size_t ii = 0; ii < order-1; ++ii )
                     {
-                        result += N[jj]*N[ii]*in[ (j+jj)*(config.Nx + order -2)  + ii + i ];
+                        result += N[jj]*N[ii]*in[ (j+jj-1)*nx  + ii + i-1];
                     }
                     
                 }               
@@ -691,12 +686,16 @@ void interpolate( real *coeffs, const real *values, const config_t<real> &config
                 out[ l ] = result;
                 
             }
+ 
         }
     };
 
     struct transposed_mat_t
     {
         const config_t<real> &config;
+        const size_t nx = config.lx + order;
+        const size_t ny = config.ly + order;
+        
         real  N[ order ];
 
         transposed_mat_t( const config_t<real> &conf ): config { conf }
@@ -706,14 +705,14 @@ void interpolate( real *coeffs, const real *values, const config_t<real> &config
 
         void operator()( const real *in, real *out ) const
         { //copy paste from above as it should be symmetric
-            for ( size_t l = 0; l < (config.Nx+order-2)*(config.Ny+order-2); ++l )
+            for ( size_t l = 0; l < nx*ny; ++l )
                 out[ l ] = 0;
 
             #pragma omp parallel for 
-            for ( size_t l = 0; l < (config.Nx+order-2)*(config.Ny+order-2); ++l )
+            for ( size_t l = 0; l < nx*ny; ++l )
             {
-                size_t j =  l / (config.Nx+order-2);
-                size_t i =  l % (config.Nx+order-2);
+                size_t j =  l / nx;
+                size_t i =  l % nx;
                 real result = 0;
                 //fallunterscheidungen: in 1d: gucken ob i am Rand ist, falls ja erstes element von N[ii] überspringen
                 //das jetzt analog für 2D-Fall. als grundlage dient formel vom 2D periodic case
@@ -721,80 +720,80 @@ void interpolate( real *coeffs, const real *values, const config_t<real> &config
                 {   
                     for ( size_t jj = 0; jj < order-1; ++jj ){
                     for ( size_t ii = 0; ii < order-1; ++ii ){
-                        result += N[ii+1] * N[jj+1]* in[jj*(config.Nx+order-2) + ii ]; //i and j are 0 anyways
+                        result += N[ii+1] * N[jj+1]* in[jj*nx + ii ]; //i and j are 0 anyways
                     }
                     }
                 }
-                else if((i == config.Nx +1) && (j == 0)){ 
+                else if((i == nx-1) && (j == 0)){ 
                 
                     for ( size_t jj = 0; jj < order-1; ++jj ){  
                     for ( size_t ii = 0; ii < order-2; ++ii )
                     {
-                        result += N[ii]*N[jj+1]*in[jj*(config.Nx+order-2) + i + ii -1];
+                        result += N[ii]*N[jj+1]*in[jj*nx + i + ii -1];
                     }
                 }
                 }
-                else if((i == 0) && (j == config.Ny +1)){ 
+                else if((i == 0) && (j == ny-1)){ 
                 
                 for ( size_t jj = 0; jj < order-2; ++jj ){  
                 for ( size_t ii = 0; ii < order-1; ++ii )
                     {
-                        result += N[ii+1]*N[jj]*in[(j+jj-1)*(config.Nx+order-2) + ii ];
+                        result += N[ii+1]*N[jj]*in[(j+jj-1)*nx + ii ];
                     }
                     }
                 }
-                else if((i == config.Nx +1) && (j == config.Ny +1)){ 
+                else if((i == nx - 1) && (j == ny - 1)){ 
                 
                 for ( size_t jj = 0; jj < order-2; ++jj ){  
                 for ( size_t ii = 0; ii < order-2; ++ii )
                     {
-                        result += N[ii]*N[jj]*in[(j+jj-1)*(config.Nx+order-2) + i + ii -1];
+                        result += N[ii]*N[jj]*in[(j+jj-1)*nx + i + ii -1];
                     }
                     }
                 }
                 else if(i == 0){ 
                 
-                for ( size_t jj = 0; jj < order; ++jj ){  
+                for ( size_t jj = 0; jj < order-1; ++jj ){  
                 for ( size_t ii = 0; ii < order-1; ++ii )
                     {
-                        result += N[ii+1]*N[jj]*in[(j+jj)*(config.Nx+order-2) + ii];
+                        result += N[ii+1]*N[jj]*in[(j+jj-1)*nx + ii];
                     }
                     }
                 }
                 else if(j == 0){ 
                 
                 for ( size_t jj = 0; jj < order-1; ++jj ){  
-                for ( size_t ii = 0; ii < order; ++ii )
+                for ( size_t ii = 0; ii < order-1; ++ii )
                     {
-                        result += N[ii]*N[jj+1]*in[(jj)*(config.Nx+order-2) + i + ii];
+                        result += N[ii]*N[jj+1]*in[(jj)*nx + i + ii-1];
                     }
                     }
                 }
-                else if(i == config.Nx+1){ 
+                else if(i == nx-1){ 
                 
-                for ( size_t jj = 0; jj < order; ++jj ){  
+                for ( size_t jj = 0; jj < order-1; ++jj ){  
                 for ( size_t ii = 0; ii < order-2; ++ii )
                     {
-                        result += N[ii]*N[jj]*in[(j+jj)*(config.Nx+order-2) + i + ii -1 ];
+                        result += N[ii]*N[jj]*in[(j+jj-1)*nx + i + ii -1 ];
                     }
                     }
                 }
-                else if(j == config.Ny+1){ 
+                else if(j == ny-1){ 
                 
                 for ( size_t jj = 0; jj < order-2; ++jj ){  
-                for ( size_t ii = 0; ii < order; ++ii )
+                for ( size_t ii = 0; ii < order-1; ++ii )
                     {
-                        result += N[ii]*N[jj]*in[(j+jj - 1)*(config.Nx+order-2) + i + ii ];
+                        result += N[ii]*N[jj]*in[(j+jj - 1)*nx + i + ii -1];
                     }
                     }
                 }
                 else{
                 
                     
-                    for ( size_t jj = 0; jj < order; ++jj )
-                    for ( size_t ii = 0; ii < order; ++ii )
+                    for ( size_t jj = 0; jj < order-1; ++jj )
+                    for ( size_t ii = 0; ii < order-1; ++ii )
                     {
-                        result += N[jj]*N[ii]*in[ (j+jj)*(config.Nx + order -2) + ii + i ];
+                        result += N[jj]*N[ii]*in[ (j+jj-1)*nx  + ii + i-1 ];
                     }
                     
                 }               
@@ -806,19 +805,20 @@ void interpolate( real *coeffs, const real *values, const config_t<real> &config
     };
 
                mat_t M  { config };
+
     transposed_mat_t Mt { config };
 
+
     lsmr_options<real> opt; opt.silent = true;
-    lsmr( (config.Nx+order-2)*(config.Ny+order-2), (config.Nx+order-2)*(config.Ny+order-2), M, Mt, values, tmp.get(), opt );
+    lsmr( (config.lx+order)*(config.ly+order), (config.lx+order)*(config.ly+order), M, Mt, values, tmp.get(), opt );
 
     if ( opt.iter == opt.max_iter )
         std::cerr << "Warning. LSMR did not converge. Residual = " << opt.residual << std::endl;
 
-    for ( size_t j = 0; j < config.Ny + order - 2; ++j )
-    for ( size_t i = 0; i < config.Nx + order - 2; ++i )
+    for ( size_t j = 0; j < config.ly + order; ++j )
+    for ( size_t i = 0; i < config.lx + order; ++i )
     {
-        coeffs[ j*stride_y + i*stride_x ] = tmp[ (j%(config.Ny+order-2))*(config.Nx+order-2) +
-                                                 (i%(config.Nx+order-2)) ];
+        coeffs[ j*stride_y + i*stride_x ] = tmp[ j*(config.lx + order) + i ];
     }
 }
 
