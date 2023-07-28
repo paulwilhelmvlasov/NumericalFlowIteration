@@ -138,10 +138,10 @@ void test()
     std::ofstream Emax_file( "Emax.txt" );
     double total_time = 0;
     double total_time_with_plotting = 0;
-    for ( size_t n = 0; n <1;n++)//} conf.Nt; ++n )
+    for ( size_t n = 0; n < conf.Nt; ++n )
     {
     	dergeraet::stopwatch<double> timer;
-        /*
+        
     	// Compute rho:
 		#pragma omp parallel for
     	for(size_t l = 0; l<conf.Nx*conf.Ny; l++)
@@ -151,12 +151,12 @@ void test()
     	}
 
         poiss.solve( rho.get() );
-        */
-        for(size_t j= 0; j<conf.Ny; j++){
-            for(size_t i = 0; i<conf.Nx;i++){
-                rho.get()[j*conf.Nx+i] = (i+j)*conf.dx*conf.dy;
-            }
-        }
+        
+        // for(size_t j= 0; j<conf.Ny; j++){
+        //     for(size_t i = 0; i<conf.Nx;i++){
+        //         rho.get()[j*conf.Nx+i] = (i+j)*conf.dx*conf.dy;
+        //     }
+        // }
 
 
         for(size_t j= 0; j<conf.Ny; j++){
