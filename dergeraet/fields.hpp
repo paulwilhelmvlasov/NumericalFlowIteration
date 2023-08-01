@@ -577,8 +577,8 @@ void interpolate( real *coeffs, const real *values, const config_t<real> &config
     {
         const config_t<real> &config;
         real  N[ order ];
-        const size_t nx = config.lx + order;
-        const size_t ny = config.ly + order;
+        const size_t nx = config.lx + order;//Nx_b, müssen noch umbenannt werden 
+        const size_t ny = config.ly + order;//Ny_b
 
         mat_t( const config_t<real> &conf ): config { conf }
         {

@@ -158,29 +158,47 @@ void test()
         //     }
         // }
 
-
+        //transfer all values from rho to rho_ext.
         for(size_t j= 0; j<conf.Ny; j++){
             for(size_t i = 0; i<conf.Nx;i++){
-                rho_ext.get()[(j+1)*(conf.lx+order)+(i+1)]= rho.get()[j*conf.Nx+i];
+                rho_ext.get()[(j+1)*(conf.lx+order)+i+1]=rho.get()[j*conf.Nx+i];
+                //rho_ext.get()[(j+1)*(conf.lx+order)+(i+1)]= rho.get()[j*conf.Nx+i];
             }    
         }
-        //bottom boundary
+        //The following loops set the values of the right and bottom corner, as they are not accounted for in the Dirichlet case
+        //the result is rho, but with a ring of 0´s around it, and the bottom and right rows/columns appearing twice.
+
+
+        //sets the bottom boundary, which corresponds to Dirichlet boundary values. so far,
+        //the Dirichlet value is not actively set. therefore, the same value as in the previous row are chosen.
+
         for(size_t i = 0; i<conf.Nx-1;i++){
-                rho_ext.get()[(conf.lx+order-2)*(conf.lx+order)+i+1]= rho.get()[(conf.Ny-1)*conf.Nx+i+1];
-            }   
-            //right boundary
+                 rho_ext.get()[(conf.lx+order-2)*(conf.lx+order)+i+1]= rho.get()[(conf.Ny-1)*conf.Nx+i];
+             } 
+
+        //sets the right boundary, which corresponds to Dirichlet boundary values. so far,
+        //the Dirichlet value is not actively set. therefore, the same value as in the previous column are chosen.
         for(size_t j = 0; j<conf.Ny;j++){
-            rho_ext.get()[(j+1)*(conf.lx+order)+conf.lx+order-2]= rho.get()[j*conf.Nx+conf.Nx-1];
+             rho_ext.get()[(j+1)*(conf.lx+order)+conf.lx+order-2]= rho.get()[j*conf.Nx+conf.Nx-1];
         } 
-        //bottom right corner
-        rho_ext.get()[(conf.lx+order-2)*(conf.lx+order)+conf.lx+order-3] = rho.get()[(conf.Ny-1)*conf.Nx+conf.Nx-1];
-        rho_ext.get()[(conf.lx+order-2)*(conf.lx+order)+conf.lx+order-2] = rho.get()[(conf.Ny-1)*conf.Nx+conf.Nx-1];
+        //the only thing missing is the bottom right corner: (the other corners are already accounted for)
+        rho_ext.get()[(conf.lx+order-2)*(conf.lx+order)+conf.lx+order-3] = rho.get()[(conf.Ny-1)*conf.Nx+conf.Nx-1]; //value before bottom right corner (also missing).
+        rho_ext.get()[(conf.lx+order-2)*(conf.lx+order)+conf.lx+order-2] = rho.get()[(conf.Ny-1)*conf.Nx+conf.Nx-1];//value of bottom right corner
 
-        //last boundary
-        for(size_t i = 0; i<conf.Nx-1;i++){
-        rho_ext.get()[i] = rho_ext.get()[conf.lx+order-2+i];
-        }
 
+
+    
+        if(n==1){
+         std::ofstream outfile("rho.txt");
+          for(size_t j= 0; j<conf.Ny; j++){
+            for(size_t i = 0; i<conf.Nx;i++){
+                outfile<<std::setprecision(3)<<rho.get()[j*(conf.Nx)+i]<<"\t";
+                
+            }
+                outfile<<"\n";
+            }
+            outfile.close();
+        
 
         std::ofstream outputfile("rho_ext.txt");
           for(size_t j= 0; j<conf.ly+order; j++){
@@ -190,7 +208,17 @@ void test()
             }
             outputfile<<"\n";
         }
+
         outputfile.close();
+        }
+        
+        // //last boundary
+        // for(size_t i = 0; i<conf.Nx-1;i++){
+        // rho_ext.get()[i] = rho_ext.get()[conf.lx+order-2+i];
+        // }
+
+
+        
 
         
 
