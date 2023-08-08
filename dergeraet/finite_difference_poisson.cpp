@@ -374,7 +374,7 @@ void poisson_fd_dirichlet<double>::solve( double *data, double eps, size_t max_i
 		std::cout << "Careful: Only implemented for uniform grid!";
 	}
 
-	cg_fd_dirichlet(data, param.dx, param.Nx+1, eps, max_iter );
+	cg_fd_dirichlet(data, param.dx, param.Nx, eps, max_iter ); //changes here: param.Nx+1 -> param.Nx
 }
 
 
@@ -550,7 +550,7 @@ void poisson_fd_dirichlet<double>::cg_fd_dirichlet(double *x, double h, size_t n
 	std::cout << "N = " << N << std::endl;
 	std::cout << "m = " << m << std::endl;
 	arma::vec r = b - h_inv_quad*(A*phi);
-
+	
     double res_norm = arma::norm(r, 2);
 
     size_t k = 0;

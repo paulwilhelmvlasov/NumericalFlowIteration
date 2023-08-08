@@ -33,6 +33,7 @@
 #include <dergeraet/rho.hpp>
 #include <dergeraet/stopwatch.hpp>
 #include <dergeraet/cuda_scheduler.hpp>
+#include <dergeraet/finite_difference_poisson.hpp>
 
 namespace dergeraet
 {
@@ -126,18 +127,37 @@ void test()
     std::unique_ptr<real[]> coeffs { new real[ conf.Nt*stride_t ] {} };
     std::unique_ptr<real,decltype(std::free)*> rho { reinterpret_cast<real*>(std::aligned_alloc(64,
     													sizeof(real)*conf.Nx*conf.Ny)), std::free };
+    std::unique_ptr<real,decltype(std::free)*> rho_dir { reinterpret_cast<real*>(std::aligned_alloc(64,
+    													sizeof(real)*(conf.Nx+1)*(conf.Ny+1))), std::free };
     std::unique_ptr<real,decltype(std::free)*> rho_ext { reinterpret_cast<real*>(std::aligned_alloc(64,
     													sizeof(real)*(conf.lx+order)*(conf.ly+order))), std::free };
-    std::cout<<"test"<<std::endl;
 
     if ( rho == nullptr ) throw std::bad_alloc {};
+    if ( rho_dir == nullptr ) throw std::bad_alloc {};
     if ( rho_ext == nullptr ) throw std::bad_alloc {};
 
     poisson<real> poiss( conf ); // FD Poisson
-
+    poisson_fd_dirichlet<real> poiss_dir( conf);
     std::ofstream Emax_file( "Emax.txt" );
     double total_time = 0;
     double total_time_with_plotting = 0;
+
+    //set the dirichlet boundary values for rho_dir. (first and last row and column)
+    for(size_t i = 0; i<conf.Nx+1;i++){
+        rho_dir.get()[i] = 1;
+        rho_dir.get()[conf.Nx*(conf.Ny+1)+i] = 1;
+    }
+    for(size_t j = 0; j<conf.Ny+1 ; j++){
+    rho_dir.get()[j*(conf.Nx+1)] = 1;
+    rho_dir.get()[j*(conf.Nx+1)+conf.Nx]=1;
+    }
+
+
+    
+
+
+
+
     for ( size_t n = 0; n < conf.Nt; ++n )
     {
     	dergeraet::stopwatch<double> timer;
@@ -150,45 +170,52 @@ void test()
             
     	}
 
+        // Compute rho_dir:
+        #pragma omp parallel for
+    	for(size_t j= 1; j<conf.Ny; j++){
+            for(size_t i = 1; i<conf.Nx;i++){
+    		rho_dir.get()[j*(conf.Nx+1)+i] = eval_rho<real,order>(n, j*(conf.Nx+1)+i, coeffs.get(), conf);
+            
+    	    }
+        }
+       
+
+
         poiss.solve( rho.get() );
-        
-        // for(size_t j= 0; j<conf.Ny; j++){
-        //     for(size_t i = 0; i<conf.Nx;i++){
-        //         rho.get()[j*conf.Nx+i] = (i+j)*conf.dx*conf.dy;
-        //     }
-        // }
+        poiss_dir.solve(rho_dir.get());
 
         //transfer all values from rho to rho_ext.
-        for(size_t j= 0; j<conf.Ny; j++){
-            for(size_t i = 0; i<conf.Nx;i++){
-                rho_ext.get()[(j+1)*(conf.lx+order)+i+1]=rho.get()[j*conf.Nx+i];
-                //rho_ext.get()[(j+1)*(conf.lx+order)+(i+1)]= rho.get()[j*conf.Nx+i];
+        for(size_t j= 0; j<conf.Ny+1; j++){
+            for(size_t i = 0; i<conf.Nx+1;i++){
+                rho_ext.get()[(j+1)*(conf.lx+order)+i+1]=rho_dir.get()[j*(conf.Nx+1)+i];
             }    
         }
-        //The following loops set the values of the right and bottom corner, as they are not accounted for in the Dirichlet case
-        //the result is rho, but with a ring of 0´s around it, and the bottom and right rows/columns appearing twice.
+        // //The following loops set the values of the right and bottom corner, as they are not accounted for in the Dirichlet case
+        // //the result is rho, but with a ring of 0´s around it, and the bottom and right rows/columns appearing twice.
 
 
-        //sets the bottom boundary, which corresponds to Dirichlet boundary values. so far,
-        //the Dirichlet value is not actively set. therefore, the same value as in the previous row are chosen.
+        // //sets the bottom boundary, which corresponds to Dirichlet boundary values. so far,
+        // //the Dirichlet value is not actively set. therefore, the same value as in the previous row are chosen.
 
-        for(size_t i = 0; i<conf.Nx-1;i++){
-                 rho_ext.get()[(conf.lx+order-2)*(conf.lx+order)+i+1]= rho.get()[(conf.Ny-1)*conf.Nx+i];
-             } 
+        // for(size_t i = 0; i<conf.Nx;i++){
+        //          rho_ext.get()[(conf.lx+order-2)*(conf.lx+order)+i+1]= rho.get()[(conf.Ny-1)*conf.Nx+i];
+        //      } 
 
-        //sets the right boundary, which corresponds to Dirichlet boundary values. so far,
-        //the Dirichlet value is not actively set. therefore, the same value as in the previous column are chosen.
-        for(size_t j = 0; j<conf.Ny;j++){
-             rho_ext.get()[(j+1)*(conf.lx+order)+conf.lx+order-2]= rho.get()[j*conf.Nx+conf.Nx-1];
-        } 
-        //the only thing missing is the bottom right corner: (the other corners are already accounted for)
-        rho_ext.get()[(conf.lx+order-2)*(conf.lx+order)+conf.lx+order-3] = rho.get()[(conf.Ny-1)*conf.Nx+conf.Nx-1]; //value before bottom right corner (also missing).
-        rho_ext.get()[(conf.lx+order-2)*(conf.lx+order)+conf.lx+order-2] = rho.get()[(conf.Ny-1)*conf.Nx+conf.Nx-1];//value of bottom right corner
-
+        // //sets the right boundary, which corresponds to Dirichlet boundary values. so far,
+        // //the Dirichlet value is not actively set. therefore, the same value as in the previous column are chosen.
+        // for(size_t j = 0; j<conf.Ny;j++){
+        //      rho_ext.get()[(j+1)*(conf.lx+order)+conf.lx+order-2]= rho.get()[j*conf.Nx+conf.Nx-1];
+        // } 
+        // //the only thing missing is the bottom right corner: (the other corners are already accounted for)
+        // rho_ext.get()[(conf.lx+order-2)*(conf.lx+order)+conf.lx+order-2] = rho.get()[(conf.Ny-1)*conf.Nx+conf.Nx-1];//value of bottom right corner
 
 
-    
-        if(n==1){
+
+        
+
+
+        // FOR DEBUGGING: 
+      
          std::ofstream outfile("rho.txt");
           for(size_t j= 0; j<conf.Ny; j++){
             for(size_t i = 0; i<conf.Nx;i++){
@@ -210,36 +237,43 @@ void test()
         }
 
         outputfile.close();
-        }
-        
-        // //last boundary
-        // for(size_t i = 0; i<conf.Nx-1;i++){
-        // rho_ext.get()[i] = rho_ext.get()[conf.lx+order-2+i];
-        // }
-
-
-        
-
-        
+         std::ofstream dirfile("rho_dir.txt");
+          for(size_t j= 0; j<conf.Ny+1; j++){
+            for(size_t i = 0; i<conf.Nx+1;i++){
+                dirfile<<std::setprecision(3)<<rho_dir.get()[j*(conf.Nx+1)+i]<<"\t";
+                
+            }
+                dirfile<<"\n";
+            }
+            dirfile.close();
 
         dim2::dirichlet::interpolate<real,order>( coeffs.get() + n*stride_t, rho_ext.get(), conf );
             
 
         double timer_elapsed = timer.elapsed();
         total_time += timer_elapsed;
+        double result = 0;
         dergeraet::stopwatch<double> timer_plots;
         std::ofstream outputtfile("result.txt");
-        for ( size_t i = 0; i < conf.Nx; ++i ){
-        for ( size_t j = 0; j < conf.Ny; ++j )
+        std::ofstream errorfile("error.txt");
+        for ( size_t i = 0; i < conf.Nx+1; ++i ){
+        for ( size_t j = 0; j < conf.Ny+1; ++j )
         {
+            //real x = conf.x_min + (i-1)*conf.dx
             real x = conf.x_min + i*conf.dx;
             real y = conf.y_min + j*conf.dy;
             
-    	    outputtfile<<dergeraet::dim2::dirichlet::eval<real,order,0,0>(x,y,coeffs.get()+n*stride_t,conf)<<"\t";
+            result = dergeraet::dim2::dirichlet::eval<real,order,0,0>(x,y,coeffs.get()+n*stride_t,conf);
+    	    outputtfile<<result<<"\t";
+            errorfile<<result- rho_dir.get()[j*(conf.Nx+1)+i]<<"\t";
+            if((result-rho_dir.get()[j*(conf.Nx+1)+i])>1e-6){
+                std::cout<<"n: "<<n<<", i:"<<i<<", j: "<<j<<std::endl;
+            }
 					 
             
         }
         outputtfile<<"\n";
+        errorfile<<"\n";
         }
         outputtfile.close();
 
