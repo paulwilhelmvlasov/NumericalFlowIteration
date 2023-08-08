@@ -355,9 +355,16 @@ void test()
         sched. compute_rho( n, my_begin, my_end );
         sched.download_rho( rho_dir.get() );
 
-
         mpi::allreduce_add( MPI_IN_PLACE, rho_dir.get(), (conf.Nx+1)*(conf.Ny+1), MPI_COMM_WORLD );
-        
+
+        for(size_t i = 0; i<conf.Nx+1;i++){
+            rho_dir.get()[i] = 0;
+            rho_dir.get()[conf.Nx*(conf.Ny+1)+i] = 0;
+        }
+        for(size_t j = 0; j<conf.Ny+1 ; j++){
+            rho_dir.get()[j*(conf.Nx+1)] = 0;
+            rho_dir.get()[j*(conf.Nx+1)+conf.Nx]=0;
+        }
         real electric_energy =1; // auf jeden fall so nicht richtig, aber poiss_dir.solve() ist vom typ void
         poiss_dir.solve( rho_dir.get() );
         for(size_t j= 0; j<conf.Ny+1; j++){
@@ -367,6 +374,25 @@ void test()
         }
         dim2::dirichlet::interpolate<real,order>( coeffs.get() + n*stride_t, rho_ext.get(), conf );
         sched.upload_phi( n, coeffs.get() );
+        // FOR DEBUGGING: 
+        std::ofstream outputfile("rho_ext.txt");
+          for(size_t j= 0; j<conf.ly+order; j++){
+            for(size_t i = 0; i<conf.lx+order;i++){
+                outputfile<<std::setprecision(3)<<rho_ext.get()[j*(conf.lx+order)+i]<<"\t";
+                
+            }
+            outputfile<<"\n";
+        }
+        outputfile.close();
+         std::ofstream dirfile("rho_dir.txt");
+          for(size_t j= 0; j<conf.Ny+1; j++){
+            for(size_t i = 0; i<conf.Nx+1;i++){
+                dirfile<<std::setprecision(3)<<rho_dir.get()[j*(conf.Nx+1)+i]<<"\t";
+                
+            }
+                dirfile<<"\n";
+            }
+            dirfile.close();
 
 	if(rank == 0)
         {
@@ -396,11 +422,11 @@ void test()
 					{
 						real x = conf.x_min + i*dx_plot;
 						real y = conf.y_min + j*dy_plot;
-						real Ex = -dim2::eval<real,order,1,0>( x, y,
+						real Ex = -dim2::dirichlet::eval<real,order,1,0>( x, y,
 									coeffs.get() + n*stride_t, conf );
-						real Ey = -dim2::eval<real,order,0,1>( x, y,
+						real Ey = -dim2::dirichlet::eval<real,order,0,1>( x, y,
 									coeffs.get() + n*stride_t, conf );
-						real phi = -dim2::eval<real,order,0,0>( x, y,
+						real phi = -dim2::dirichlet::eval<real,order,0,0>( x, y,
 									coeffs.get() + n*stride_t, conf );
 
 						file_E << x << " " << y << " " << Ex << " " << Ey << std::endl;
