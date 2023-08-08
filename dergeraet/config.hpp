@@ -125,17 +125,24 @@ config_t<real>::config_t() noexcept
     Nx = 32;
     Nu = 64;
     Nv = Nu;
-    u_min = -0.4;
-    u_max =  0.4;
-    v_min = -0.2;
-    v_max =  0.2;
+/*
+    u_min = -0.4; // Two Stream
+    u_max =  0.4; // Two Stream
+    v_min = -0.2; // Two Stream
+    v_max =  0.2; // Two Stream
+*/
+    u_min = -1.5; // Weibel instability
+    u_max =  1.5; // Weibel instability
+    v_min = -3; // Weibel instability
+    v_max =  3; // Weibel instability
+
     x_min = 0;
-    //x_max = 2*M_PI/1.25; // Weibel instability!
+    x_max = 2*M_PI/1.25; // Weibel instability!
     //x_max = 2*M_PI/0.5; // Weak Landau Damping!
-    x_max = 2*M_PI; // Two stream instability!
+    //x_max = 2*M_PI; // Two stream instability!
 
     dt = 1.0/32.;
-    Nt = 100.0/dt;
+    Nt = 500.0/dt;
 
     Lx = x_max - x_min; Lx_inv = 1/Lx;
     dx = Lx/Nx; dx_inv = 1/dx;
@@ -160,7 +167,7 @@ real config_t<real>::f0( real x, real u, real v ) noexcept
     return fac * ( 1. + alpha*cos(k*x) ) * exp( -(u*u+v*v)/2. );
 */
 //  Weibel instability:
-/*
+
     constexpr real alpha = 1e-4;
     constexpr real k = 1.25;
     constexpr real beta = 1e-4;
@@ -168,15 +175,15 @@ real config_t<real>::f0( real x, real u, real v ) noexcept
     constexpr real Tr = 12;
     real fac = 1.0 / (M_PI * vth * std::sqrt(Tr));
     return fac * ( 1. + alpha*cos(k*x) ) * exp( -0.5*(u*u+v*v/Tr)/vth );
-*/
-    // Two stream instability:
 
+    // Two stream instability:
+/*
     constexpr real beta = 2*1e-3;
     constexpr real beta_inv = 500;
     constexpr real fac = 250.0/M_PI;
     return fac * exp(-v*v*beta_inv) * ( exp(-(u-0.2)*(u-0.2)*beta_inv)
     		 	 	 	 	 	 	   + exp(-(u+0.2)*(u+0.2)*beta_inv) );
-
+*/
 }
 
 }

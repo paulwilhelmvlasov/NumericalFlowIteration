@@ -50,22 +50,23 @@ void init_E_B(double* coeffs_E_1, double* coeffs_E_2, double* coeffs_B_3, const 
     	B_3[i] = 0;
 */
     	//  Weibel instability:
-/*
+
     	double alpha = 1e-4;
     	double beta = 1e-4;
     	double k = 1.25;
     	E_1[i] = alpha/k*std::sin(k*x);
     	E_2[i] = 0;
     	B_3[i] = beta*std::cos(k*x);
-*/
-    	// Two stream instability:
 
+    	// Two stream instability:
+/*
     	double alpha = 1e-3;
     	double beta = 2*1e-3;
     	double k = 1;
     	E_1[i] = 0;
     	E_2[i] = 0;
     	B_3[i] = alpha/k*std::sin(k*x);
+*/
     }
 
     // Interpolate E_0 and B_0.
