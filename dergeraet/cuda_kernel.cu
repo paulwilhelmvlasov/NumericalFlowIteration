@@ -455,7 +455,7 @@ conf { p_conf }, device_number { dev }
     cuda_coeffs .reset( cuda::malloc(  coeff_size), dev );
     cuda_rho    .reset( cuda::malloc(    rho_size), dev );
     cuda_metrics.reset( cuda::malloc(metrics_size), dev );
-    tmp_rho.reset( new real[ conf.Nx*conf.Ny ] );
+    tmp_rho.reset( new real[ rho_size  ] );
 }
 
 template <typename real, size_t order>

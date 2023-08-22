@@ -275,7 +275,7 @@ void test()
     size_t world_size = iworld_size;
     size_t rank       = irank; 
 
-    size_t Nquad = (conf.lx+order) * (conf.ly+order) * conf.Nu * conf.Nv; // ???
+    size_t Nquad = (conf.Nx+1) * (conf.Ny+1) * conf.Nu * conf.Nv; // ???
     size_t chunk_size = Nquad / world_size;
     size_t remainder  = Nquad % world_size;
     std::vector<size_t> rank_boundaries( world_size + 1 );
@@ -351,10 +351,14 @@ void test()
         stopwatch<double> timer;
 
         // The actual NuFI loop.
+	std::cout << "Cuda-memset" << std::endl;
         std::memset( rho_dir.get(), 0, sizeof(real)*(conf.Nx+1)*(conf.Ny+1) );
+	std::cout << "Compute  rho" << std::endl;
         sched. compute_rho( n, my_begin, my_end );
+	std::cout << "Download rho" << std::endl;
         sched.download_rho( rho_dir.get() );
 
+	std::cout << "We got this far"  << std::endl;
         mpi::allreduce_add( MPI_IN_PLACE, rho_dir.get(), (conf.Nx+1)*(conf.Ny+1), MPI_COMM_WORLD );
 
         for(size_t i = 0; i<conf.Nx+1;i++){
@@ -372,6 +376,7 @@ void test()
                 rho_ext.get()[(j+1)*(conf.lx+order)+i+1]=rho_dir.get()[j*(conf.Nx+1)+i];
             }    
         }
+	std::cout << "And here?" << std::endl;
         dim2::dirichlet::interpolate<real,order>( coeffs.get() + n*stride_t, rho_ext.get(), conf );
         sched.upload_phi( n, coeffs.get() );
         // FOR DEBUGGING: 

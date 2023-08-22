@@ -327,7 +327,7 @@ void poisson_fd_dirichlet<double>::cg_fd_dirichlet(double *x, double h, size_t n
     	{
     		break;
     	}else{
-    		std::cout << "Iteration = " << k << ". Residual = " << res_norm << std::endl;
+//    		std::cout << "Iteration = " << k << ". Residual = " << res_norm << std::endl;
     	}
 
     	// beta_k = r_{k+1}*r_{k+1}/(r_k*r_k)
