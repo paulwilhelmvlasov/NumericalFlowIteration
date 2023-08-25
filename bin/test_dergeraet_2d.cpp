@@ -351,14 +351,14 @@ void test()
         stopwatch<double> timer;
 
         // The actual NuFI loop.
-	std::cout << "Cuda-memset" << std::endl;
+	//std::cout << "Cuda-memset" << std::endl;
         std::memset( rho_dir.get(), 0, sizeof(real)*(conf.Nx+1)*(conf.Ny+1) );
-	std::cout << "Compute  rho" << std::endl;
+	//std::cout << "Compute  rho" << std::endl;
         sched. compute_rho( n, my_begin, my_end );
-	std::cout << "Download rho" << std::endl;
+	//std::cout << "Download rho" << std::endl;
         sched.download_rho( rho_dir.get() );
 
-	std::cout << "We got this far"  << std::endl;
+	//std::cout << "We got this far"  << std::endl;
         mpi::allreduce_add( MPI_IN_PLACE, rho_dir.get(), (conf.Nx+1)*(conf.Ny+1), MPI_COMM_WORLD );
 
         for(size_t i = 0; i<conf.Nx+1;i++){
@@ -369,6 +369,14 @@ void test()
             rho_dir.get()[j*(conf.Nx+1)] = 0;
             rho_dir.get()[j*(conf.Nx+1)+conf.Nx]=0;
         }
+        for(size_t i = 0; i<conf.lx+order;i++){
+            rho_ext.get()[i] = 0;
+            rho_ext.get()[(conf.lx+order-1)*(conf.ly+order)+i] = 0;
+        }
+        for(size_t j = 0; j<conf.ly+order ; j++){
+            rho_ext.get()[j*(conf.lx+order)] = 0;
+            rho_ext.get()[j*(conf.lx+order)+conf.lx+order-1]=0;
+        }
         real electric_energy =1; // auf jeden fall so nicht richtig, aber poiss_dir.solve() ist vom typ void
         poiss_dir.solve( rho_dir.get() );
         for(size_t j= 0; j<conf.Ny+1; j++){
@@ -376,10 +384,11 @@ void test()
                 rho_ext.get()[(j+1)*(conf.lx+order)+i+1]=rho_dir.get()[j*(conf.Nx+1)+i];
             }    
         }
-	std::cout << "And here?" << std::endl;
+	//std::cout << "And here?" << std::endl;
         dim2::dirichlet::interpolate<real,order>( coeffs.get() + n*stride_t, rho_ext.get(), conf );
         sched.upload_phi( n, coeffs.get() );
         // FOR DEBUGGING: 
+        if(n== 0){
         std::ofstream outputfile("rho_ext.txt");
           for(size_t j= 0; j<conf.ly+order; j++){
             for(size_t i = 0; i<conf.lx+order;i++){
@@ -398,6 +407,7 @@ void test()
                 dirfile<<"\n";
             }
             dirfile.close();
+        }
 
 	if(rank == 0)
         {
@@ -419,6 +429,7 @@ void test()
 				real dx_plot = conf.Lx / Nx_plot;
 				real dy_plot = dx_plot;
                                 real t = n * conf.dt;
+                                std::cout<<"n: "<<n<<" ,t: "<<t<<std::endl;
 				std::ofstream file_E( "E_" + std::to_string(t) + ".txt" );
 				std::ofstream file_phi( "phi_" + std::to_string(t) + ".txt" );
 				for(size_t i = 0; i <= Nx_plot; i++)
