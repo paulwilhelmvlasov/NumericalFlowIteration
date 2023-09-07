@@ -169,7 +169,7 @@ void test()
         	do_stats(n,rank,my_begin,my_end,conf,sched,electric_energy,statistics_file);
 
         	// Give out electric field:
-        	if((rank == 0) && (n % (5*16) == 0))
+        	if((rank == 0) && (n % (5*10) == 0))
         	{
 				size_t Nx_plot = 128;
 				size_t Ny_plot = Nx_plot;

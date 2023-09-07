@@ -186,16 +186,16 @@ struct config_t
 template <typename real>
 config_t<real>::config_t() noexcept
 {
-    Nx = Ny = 32;
-    Nu = Nv = 128;
-    u_min = v_min = -10;
-    u_max = v_max =  10;
+    Nx = Ny = 256;
+    Nu = Nv = 256;
+    u_min = v_min = -8;
+    u_max = v_max =  8;
     x_min = y_min = 0;
 //    x_max = y_max = 10*M_PI;
     x_max = y_max = 4.0 * M_PI;
 
 
-    dt = 1.0/16.0; Nt = 50/dt;
+    dt = 1.0/10.0; Nt = 50.0/dt;
 
     Lx = x_max - x_min; Lx_inv = 1/Lx;
     Ly = y_max - y_min; Ly_inv = 1/Ly;
@@ -264,15 +264,16 @@ struct config_t
 template <typename real>
 config_t<real>::config_t() noexcept
 {
-    Nx = Ny = Nz = 16;
-    Nu = Nv = Nw = 64;
+    Nx = Ny = Nz = 32;
+    Nu = Nv = Nw = 32;
 
-    u_min = v_min = w_min = -10;
-    u_max = v_max = w_max =  10;
+    u_min = v_min = w_min = -9;
+    u_max = v_max = w_max =  0;
     x_min = y_min = z_min = 0;
-    x_max = y_max = z_max = 10*M_PI;
+    x_max = y_max = z_max = 20*M_PI/3.0; // Bump On Tail instability
+	//10*M_PI;
 
-    dt = 1./16.; Nt = 30/dt;
+    dt = 1./10.; Nt = 50/dt;
 
     Lx = x_max - x_min; Lx_inv = 1/Lx;
     Ly = y_max - y_min; Ly_inv = 1/Ly;
@@ -301,10 +302,16 @@ real config_t<real>::f0( real x, real y, real z, real u, real v, real w ) noexce
     // return c * ( 1. + alpha*cos(k*x) + alpha*cos(k*y) + alpha*cos(k*z)) * exp( -(u*u+v*v+w*w)/2 );
 
     // Two Stream instability:
+    /*
     constexpr real c     = 0.03174681796712048489288165246732; // Two Stream instability
     constexpr real v0 = 2.4;
     return c * (  (exp(-(v-v0)*(v-v0)/2.0) + exp(-(v+v0)*(v+v0)/2.0)) ) * exp(-(u*u+w*w)/2)
              * ( 1 + alpha * (cos(k*x) + cos(k*y) + cos(k*z)) );
+    */
+    // Bump On Tail
+    constexpr real c = 0.06349363593424096978576330493464;
+    return c * (0.9*exp(-0.5*u*u) + 0.2*exp(-2*(u-4.5)*(u-4.5)) ) 
+             * exp(-0.5 * (v*v + w*w) ) * (1 + 0.03*(cos(0.3*x) + cos(0.3*y) + cos(0.3)*z) );
 }
 
 }

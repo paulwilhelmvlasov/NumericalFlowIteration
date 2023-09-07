@@ -169,8 +169,8 @@ void test()
         	std::cout << n * conf.dt << " " << compute_time_step << std::endl;
         }
 
-        // After this, we can do shit to output statistics, etc.
-        if(n % 1 == 0 && false)
+        // After this, we can output statistics, etc.
+        if(n % 1 == 0 )
         {
         	do_stats(n,rank,my_begin,my_end,conf,sched,electric_energy,statistics_file);
         }
@@ -228,6 +228,6 @@ void do_stats( size_t n, size_t rank, size_t my_begin, size_t my_end,
 int main( int argc, char *argv[] )
 {
     dergeraet::mpi::programme prog(&argc,&argv);
-    dergeraet::dim3::test<float,4>();
+    dergeraet::dim3::test<double,4>();
 }
 
