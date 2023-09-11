@@ -149,10 +149,12 @@ real config_t<real>::f0( real x, real y, real u, real v ) noexcept
     using std::sin;
     using std::cos;
     using std::exp;
-
-    return 1.0 / (2.0 * M_PI) * exp(-0.5 * (u*u + v*v))
-            * (1 + 0.5 * (cos(0.5*x) + cos(0.5*y)) );
-
+    // if(x== x_min || x = x_max){
+    //     return 0;
+    // }
+    // else{
+    return 1.0 / (2.0 * M_PI) * exp(-0.5 * (u*u + v*v)); //* (1 + 0.5 * (cos(0.5*x) + cos(0.5*y)) );
+    //}
 //    constexpr real alpha = 1e-3;
 //    constexpr real v0 = 2.4;
 //    constexpr real pi    = real(M_PI);

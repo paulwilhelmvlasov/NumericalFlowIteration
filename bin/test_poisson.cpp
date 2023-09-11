@@ -107,10 +107,12 @@ template <typename real>
 void test()
 {
 	config_t<double> conf;
-	poisson_fd_dirichlet<double> poiss(conf);
 	size_t n = 5;
 	conf.Nx = n;
 	conf.Ny = n;
+	poisson_fd_dirichlet<double> poiss(conf);
+	
+	
 	double h = 1.0/n;
 	double *data = new double[(n+1)*(n+1)];
 
@@ -217,9 +219,9 @@ void test()
 				//double phi_exact = 1; //phi(x,y,z);
 				double phi_exact = phi(x,y,z);
 				double dist = phi_num - phi_exact;
-				std::cout << "phi[" << i << "," << j << "," << k << "] = "
-								<< phi_num << " " << phi_exact
-								<< " " << std::abs(dist) << std::endl;
+				//std::cout << "phi[" << i << "," << j << "," << k << "] = "
+				//				<< phi_num << " " << phi_exact
+				//				<< " " << std::abs(dist) << std::endl;
 				err += (dist)*(dist);
 				l2_norm_phi += phi_exact*phi_exact;
 			}
@@ -326,6 +328,6 @@ void test()
 int main()
 {
     std::cout << "Testing FD-Dirichlet-3d.\n";
-    dergeraet::dim3::fd_dirichlet::test<double>();
+    dergeraet::dim2::fd_dirichlet::test<double>();
 }
 

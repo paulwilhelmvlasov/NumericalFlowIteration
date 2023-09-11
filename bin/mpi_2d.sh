@@ -17,11 +17,14 @@
 ### beginning of executable commands
 module unload intel
 module unload intelmpi
-module load gcc/11
-module load cuda/11.6
-module load openmpi/4.1.1
+module load CUDA
+module load GCC/11
+module load intel-compilers/2021.2.0
+module load OpenMPI/4.1.1
+
+module load Automake/1.16
 
 export PSM2_CUDA=1
 
-$MPIEXEC $FLAGS_MPI_BATCH ./test_dergeraet_2d
+$MPIEXEC $FLAGS_MPI_BATCH ../bin/test_dergeraet_2d
 

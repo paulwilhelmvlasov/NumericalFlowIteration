@@ -377,17 +377,7 @@ void test()
             rho_ext.get()[j*(conf.lx+order)] = 0;
             rho_ext.get()[j*(conf.lx+order)+conf.lx+order-1]=0;
         }
-        real electric_energy =1; // auf jeden fall so nicht richtig, aber poiss_dir.solve() ist vom typ void
-        poiss_dir.solve( rho_dir.get() );
-        for(size_t j= 0; j<conf.Ny+1; j++){
-            for(size_t i = 0; i<conf.Nx+1;i++){
-                rho_ext.get()[(j+1)*(conf.lx+order)+i+1]=rho_dir.get()[j*(conf.Nx+1)+i];
-            }    
-        }
-	//std::cout << "And here?" << std::endl;
-        dim2::dirichlet::interpolate<real,order>( coeffs.get() + n*stride_t, rho_ext.get(), conf );
-        sched.upload_phi( n, coeffs.get() );
-        // FOR DEBUGGING: 
+
         if(n== 0){
         std::ofstream outputfile("rho_ext.txt");
           for(size_t j= 0; j<conf.ly+order; j++){
@@ -408,6 +398,18 @@ void test()
             }
             dirfile.close();
         }
+        real electric_energy =1; // auf jeden fall so nicht richtig, aber poiss_dir.solve() ist vom typ void
+        poiss_dir.solve( rho_dir.get() );
+        for(size_t j= 0; j<conf.Ny+1; j++){
+            for(size_t i = 0; i<conf.Nx+1;i++){
+                rho_ext.get()[(j+1)*(conf.lx+order)+i+1]=rho_dir.get()[j*(conf.Nx+1)+i];
+            }    
+        }
+	//std::cout << "And here?" << std::endl;
+        dim2::dirichlet::interpolate<real,order>( coeffs.get() + n*stride_t, rho_ext.get(), conf );
+        sched.upload_phi( n, coeffs.get() );
+        // FOR DEBUGGING: 
+        
 
 	if(rank == 0)
         {
@@ -431,6 +433,7 @@ void test()
                                 real t = n * conf.dt;
                                 std::cout<<"n: "<<n<<" ,t: "<<t<<std::endl;
 				std::ofstream file_E( "E_" + std::to_string(t) + ".txt" );
+                std::ofstream file_rho( "rho_" + std::to_string(t) + ".txt" );
 				std::ofstream file_phi( "phi_" + std::to_string(t) + ".txt" );
 				for(size_t i = 0; i <= Nx_plot; i++)
 				{
@@ -444,12 +447,32 @@ void test()
 									coeffs.get() + n*stride_t, conf );
 						real phi = -dim2::dirichlet::eval<real,order,0,0>( x, y,
 									coeffs.get() + n*stride_t, conf );
+                        real rho = -dim2::eval_rho<real,order>(n, (i*Ny_plot)+j,
+									coeffs.get() + n*stride_t, conf );
 
 						file_E << x << " " << y << " " << Ex << " " << Ey << std::endl;
 						file_phi << x << " " << y << " " << phi << std::endl;
+                        //file_rho << x << " " << y << " " << rho << std::endl;
 					}
 					file_phi << std::endl;
+                   // file_rho << std::endl;
 				}
+
+        	
+            for(size_t l = 0; l<conf.Nx*conf.Ny; l++)
+				{
+                        real x = conf.x_min + (l % conf.Nx)*conf.dx;
+						real y = conf.y_min +  (l / conf.Nx)*conf.dy;
+                        real rho = eval_rho<real,order>(n, l,
+									coeffs.get() + n*stride_t, conf );
+
+						
+                        file_rho << x << " " << y << " " << rho << std::endl;
+				}
+				
+                    
+				
+                
         	}
         }
     }

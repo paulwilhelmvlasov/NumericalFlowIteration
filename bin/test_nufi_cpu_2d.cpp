@@ -116,7 +116,6 @@ void test()
 {
     using std::abs;
     using std::max;
-    std::cout<<"test"<<std::endl;
 
     config_t<real> conf;
     conf.Nt = 70;
@@ -144,14 +143,9 @@ void test()
         rho_dir.get()[conf.Nx*(conf.Ny+1)+i] = 0;
     }
     for(size_t j = 0; j<conf.Ny+1 ; j++){
-    rho_dir.get()[j*(conf.Nx+1)] = 0;
+    rho_dir.get()[j*(conf.Nx+1)] = 1;
     rho_dir.get()[j*(conf.Nx+1)+conf.Nx]=0;
     }
-
-
-    
-
-
 
 
     for ( size_t n = 0; n < conf.Nt; ++n )
@@ -176,26 +170,25 @@ void test()
             }    
         }
         
-        // FOR DEBUGGING: 
-        std::ofstream outputfile("rho_ext.txt");
-          for(size_t j= 0; j<conf.ly+order; j++){
-            for(size_t i = 0; i<conf.lx+order;i++){
-                outputfile<<std::setprecision(3)<<rho_ext.get()[j*(conf.lx+order)+i]<<"\t";
+        // // FOR DEBUGGING: 
+        // std::ofstream outputfile("rho_ext.txt");
+        //   for(size_t j= 0; j<conf.ly+order; j++){
+        //     for(size_t i = 0; i<conf.lx+order;i++){
+        //         outputfile<<std::setprecision(3)<<rho_ext.get()[j*(conf.lx+order)+i]<<"\t";
                 
-            }
-            outputfile<<"\n";
-        }
-        outputfile.close();
-         std::ofstream dirfile("rho_dir.txt");
-          for(size_t j= 0; j<conf.Ny+1; j++){
-            for(size_t i = 0; i<conf.Nx+1;i++){
-                dirfile<<std::setprecision(3)<<rho_dir.get()[j*(conf.Nx+1)+i]<<"\t";
+        //     }
+        //     outputfile<<"\n";
+        // }
+        // outputfile.close();
+        //  std::ofstream dirfile("rho_dir.txt");
+        //   for(size_t j= 0; j<conf.Ny+1; j++){
+        //     for(size_t i = 0; i<conf.Nx+1;i++){
+        //         dirfile<<std::setprecision(3)<<rho_dir.get()[j*(conf.Nx+1)+i]<<"\t";
                 
-            }
-                dirfile<<"\n";
-            }
-            dirfile.close();
-
+        //     }
+        //         dirfile<<"\n";
+        //     }
+        //     dirfile.close();
 
         dim2::dirichlet::interpolate<real,order>( coeffs.get() + n*stride_t, rho_ext.get(), conf );
             
@@ -203,29 +196,85 @@ void test()
         total_time += timer_elapsed;
         double result = 0;
         dergeraet::stopwatch<double> timer_plots;
-        std::ofstream outputtfile("result.txt"); //prints out the interpolation results
-        std::ofstream errorfile("error.txt");   //prints out the numerical error between rho_dir and interpolated result (should be 0)
-        for ( size_t i = 0; i < conf.Nx+1; ++i ){
-        for ( size_t j = 0; j < conf.Ny+1; ++j )
-        {
-            //real x = conf.x_min + (i-1)*conf.dx
-            real x = conf.x_min + i*conf.dx;
-            real y = conf.y_min + j*conf.dy;
+        // std::ofstream outputtfile("result.txt"); //prints out the interpolation results
+        // std::ofstream errorfile("error.txt");   //prints out the numerical error between rho_dir and interpolated result (should be 0)
+        // for ( size_t i = 0; i < conf.Nx+1; ++i ){
+        // for ( size_t j = 0; j < conf.Ny+1; ++j )
+        // {
+        //     //real x = conf.x_min + (i-1)*conf.dx
+        //     real x = conf.x_min + i*conf.dx;
+        //     real y = conf.y_min + j*conf.dy;
             
-            result = dergeraet::dim2::dirichlet::eval<real,order,0,0>(x,y,coeffs.get()+n*stride_t,conf);
-    	    outputtfile<<result<<"\t";
-            errorfile<<result- rho_dir.get()[j*(conf.Nx+1)+i]<<"\t";
-            if((result-rho_dir.get()[j*(conf.Nx+1)+i])>1e-6){
-                std::cout<<"n: "<<n<<", i:"<<i<<", j: "<<j<<std::endl;
-            }
+        //     result = dergeraet::dim2::dirichlet::eval<real,order,0,0>(x,y,coeffs.get()+n*stride_t,conf);
+    	//     outputtfile<<result<<"\t";
+        //     errorfile<<result- rho_dir.get()[j*(conf.Nx+1)+i]<<"\t";
+        //     if((result-rho_dir.get()[j*(conf.Nx+1)+i])>1e-6){
+        //         std::cout<<"n: "<<n<<", i:"<<i<<", j: "<<j<<std::endl;
+        //     }
 					 
             
-        }
-        outputtfile<<"\n";
-        errorfile<<"\n";
-        }
-        outputtfile.close();
+        // }
+        // outputtfile<<"\n";
+        // errorfile<<"\n";
+        // }
+        // outputtfile.close();
+        //if(n % 2 == 0)
+        //{
+        	//do_stats(n,rank,my_begin,my_end,conf,sched,electric_energy,statistics_file);
 
+        	// Give out electric field:
+        	//if( (n % (5*16) == 0))
+        	//{
+				size_t Nx_plot = 128;
+				size_t Ny_plot = Nx_plot;
+				real dx_plot = conf.Lx / Nx_plot;
+				real dy_plot = dx_plot;
+                                real t = n * conf.dt;
+                                std::cout<<"n: "<<n<<" ,t: "<<t<<std::endl;
+                                //std::cout<<"string t: "<<std::t_string(t)<<std::endl;
+				std::ofstream file_E( "E_" + std::to_string(t) + ".txt" );
+                std::ofstream file_rho( "rho_" + std::to_string(t) + ".txt" );
+				std::ofstream file_phi( "phi_" + std::to_string(t) + ".txt" );
+				for(size_t i = 0; i <= Nx_plot; i++)
+				{
+					for(size_t j = 0; j <= Ny_plot; j++)
+					{
+						real x = conf.x_min + i*dx_plot;
+						real y = conf.y_min + j*dy_plot;
+						real Ex = -dim2::dirichlet::eval<real,order,1,0>( x, y,
+									coeffs.get() + n*stride_t, conf );
+						real Ey = -dim2::dirichlet::eval<real,order,0,1>( x, y,
+									coeffs.get() + n*stride_t, conf );
+						real phi = -dim2::dirichlet::eval<real,order,0,0>( x, y,
+									coeffs.get() + n*stride_t, conf );
+                        real rho = -dim2::eval_rho<real,order>(n, (i*Ny_plot)+j,
+									coeffs.get() + n*stride_t, conf );
+
+						file_E << x << " " << y << " " << Ex << " " << Ey << std::endl;
+						file_phi << x << " " << y << " " << phi << std::endl;
+                        //file_rho << x << " " << y << " " << rho << std::endl;
+					}
+					//file_phi << std::endl;
+                   // file_rho << std::endl;
+				}
+
+        	
+            for(size_t l = 0; l<conf.Nx*conf.Ny; l++)
+				{
+                        real x = conf.x_min + (l % conf.Nx)*conf.dx;
+						real y = conf.y_min +  (l / conf.Nx)*conf.dy;
+                        real rho = eval_rho<real,order>(n, l,
+									coeffs.get() + n*stride_t, conf );
+
+						
+                        file_rho << x << " " << y << " " << rho << std::endl;
+				}
+				
+                    
+				
+                
+        	//}
+        //}
         std::cout << "n = " << n << " t = " << n*conf.dt << " Comp-time: " << timer_elapsed << std::endl;
 
     }

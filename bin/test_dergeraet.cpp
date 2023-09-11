@@ -149,11 +149,12 @@ void test_dirichlet()
     config_t<real> conf;
     const size_t stride_x = 1;
     const size_t stride_t = conf.Nx + order - 2; // conf.Nx = l+2, therefore: conf.Nx +order-2 = order+l
-
+    
+    const size_t n_total = conf.l + order;
     std::unique_ptr<real[]> coeffs { new real[ conf.Nt*stride_t ] {} };
     std::unique_ptr<real,decltype(std::free)*> rho { reinterpret_cast<real*>(std::aligned_alloc(64,sizeof(real)*conf.Nx)), std::free };
     if ( rho == nullptr ) throw std::bad_alloc {};
-    std::unique_ptr<real,decltype(std::free)*> rho_ext { reinterpret_cast<real*>(std::aligned_alloc(64,sizeof(real)*(conf.Nx+order-2))), std::free };//rename, this is the rhs of the interpolation task, but with 2 additional entries.
+    std::unique_ptr<real,decltype(std::free)*> rho_ext { reinterpret_cast<real*>(std::aligned_alloc(64,sizeof(real)*n_total)), std::free };//rename, this is the rhs of the interpolation task, but with 2 additional entries.
 
     poisson<real> poiss( conf );
 
@@ -179,26 +180,35 @@ void test_dirichlet()
     real electric_energy = poiss.solve( rho.get() );
    
     
-   //assign rho and two interpolated boundary values to this array tmp_values.
-    rho_ext.get()[0]=rho.get()[0];
     
+    // this is the value to the left of a.
+    rho_ext.get()[0]=rho.get()[0];
+
+    // this is the value to the right of b.
     for(size_t i = 0; i<order-3;i++){
-        rho_ext.get()[conf.Nx+order-3-i] = rho.get()[conf.Nx-1];
+        rho_ext.get()[n_total-1-i] = rho.get()[conf.Nx-1];
     }
+    //these are all values in [a,b)
     for(size_t i = 1; i<conf.Nx+1;i++){
         rho_ext.get()[i] = rho.get()[i-1];
         
     }
+    //this is the value for b. so far, its the last value of the rho array.
+    rho_ext.get()[n_total-2] = rho.get()[conf.Nx-1];
+
+std::cout<<"test1"<<std::endl;
+
     std::ofstream f_file("f.txt");
-    for(int i = 0; i<conf.Nx+order-2; i++){
+    for(int i = 0; i<n_total; i++){
         
-        f_file << rho_ext.get()[i]<<"\n";
+        std::cout << rho_ext.get()[i]<<"\n";
     }
     f_file.close();
+    std::cout<<"test2"<<std::endl;
     dim1::dirichlet::interpolate<real,order>( coeffs.get() + n*stride_t,rho_ext.get(), conf );
     if(n==0){
         std::ofstream coeff_file ("coeffs.txt");
-        for(int j = 0; j<conf.Nx+order-2; j++){
+        for(int j = 0; j<n_total; j++){
             coeff_file<<coeffs[j+n*stride_t]<<"\n";
         }
         coeff_file.close();
@@ -257,10 +267,14 @@ void test_dirichlet()
                     //outputfile<<x<<"\t"<< -dim1::eval<real,order,1>( x, coeffs.get() + n*stride_t, conf )<<"\n";
 					file_E << x << " " << E << std::endl;
 					file_rho << x << " " << rho << std::endl;
-                    outputfile<<x<<"\t"<< dim1::dirichlet::eval<real,order,0>( x, coeffs.get() + n*stride_t, conf )<<"\n";
+                    //outputfile<<x<<"\t"<< dim1::dirichlet::eval<real,order,0>( x, coeffs.get() + n*stride_t, conf )<<"\n";
 
 					
 				}
+                for(int i = 0; i<conf.l + order  ; i++){
+                    real x = conf.x_min + (i-1)*conf.dx;
+                    outputfile<<i<<"\t"<<x<<"\t"<<rho_ext.get()[i]<<"\t"<<dim1::dirichlet::eval<real,order,0>( x, coeffs.get() + n*stride_t, conf )<<"\n";
+                                    }
 
 
             }
@@ -278,12 +292,12 @@ void test_dirichlet()
 int main()
 {
     //dergeraet::dim1::periodic::test<double,4>();
-    //dergeraet::dim1::periodic::test_dirichlet<double,4>();
+    dergeraet::dim1::periodic::test_dirichlet<double,4>();
 
 	const double a = 0;
 	const double b = 2*M_PI;
-	const size_t Nx = 128;
-	const double dx = (b-a)/Nx;
+	const size_t Nx = 8;
+	const double dx = (b-a)/(Nx);
 	const size_t order = 4;
 	const size_t l = Nx -1;
 	const size_t n = l + order;
