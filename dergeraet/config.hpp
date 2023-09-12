@@ -186,8 +186,8 @@ struct config_t
 template <typename real>
 config_t<real>::config_t() noexcept
 {
-    Nx = Ny = 1024;
-    Nu = Nv = 1024;
+    Nx = Ny = 64;
+    Nu = Nv = 128;
     u_min = v_min = -8;
     u_max = v_max =  8;
     x_min = y_min = 0;
