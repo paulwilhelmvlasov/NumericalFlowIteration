@@ -35,6 +35,7 @@ class cuda_kernel
 {
 public:
     cuda_kernel( const config_t<real> &conf, int dev = cuda::get_device() );
+    cuda_kernel( const config_t<real> &conf, const config_t<real> &conf_metrics, int dev = cuda::get_device() );
 
     cuda_kernel( const cuda_kernel  &rhs ) = delete;
     cuda_kernel(       cuda_kernel &&rhs ) = default;
@@ -50,7 +51,8 @@ public:
 private:
     config_t<real> conf; int device_number;
     cuda::autoptr cuda_coeffs, cuda_rho, cuda_metrics;
-    std::unique_ptr<real[]> tmp_rho; 
+    std::unique_ptr<real[]> tmp_rho;
+    config_t<real> conf_metrics;
 };
 
 extern template class cuda_kernel<double,3>;

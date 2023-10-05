@@ -49,13 +49,21 @@ void test()
     const size_t stride_x = 1;
     const size_t stride_t = conf.Nx + order - 1;
 
+    config_t<real> conf_metrics;
+    // To compute metrics use higher amount of quadrature points:
+    conf_metrics.Nx = 2048;
+    conf_metrics.Nu = 2048;
+    conf_metrics.dx = (conf_metrics.x_max - conf_metrics.x_min) / conf_metrics.Nx;
+    conf_metrics.du = (conf_metrics.u_max - conf_metrics.u_min) / conf_metrics.Nu;
+
+
     std::unique_ptr<real[]> coeffs { new real[ conf.Nt*stride_t ] {} };
     std::unique_ptr<real,decltype(std::free)*> rho { reinterpret_cast<real*>(std::aligned_alloc(64,sizeof(real)*conf.Nx)), std::free };
     if ( rho == nullptr ) throw std::bad_alloc {};
 
     poisson<real> poiss( conf );
 
-    cuda_scheduler<real,order> sched { conf };
+    cuda_scheduler<real,order> sched { conf, conf_metrics };
 
     std::ofstream statistics_file( "statistics.csv" );
     statistics_file << R"("Time"; "L1-Norm"; "L2-Norm"; "Electric Energy"; "Kinetic Energy"; "Total Energy"; "Entropy")";
@@ -65,7 +73,8 @@ void test()
           std::cout << std::scientific;
 
     double total_time = 0;
-    for ( size_t n = 0; n < conf.Nt; ++n )
+    std::ofstream file_lp_norm( "lp.txt" );
+    for ( size_t n = 0; n <= conf.Nt; ++n )
     {
         dergeraet::stopwatch<double> timer;
         std::memset( rho.get(), 0, conf.Nx*sizeof(real) );
@@ -79,10 +88,10 @@ void test()
         double time_elapsed = timer.elapsed();
         total_time += time_elapsed;
 
-        if( n % 2 == 0 )
+        if( n % 16 == 0 )
         {
             real metrics[4] = { 0, 0, 0, 0 };
-            sched.compute_metrics( n, 0, conf.Nx*conf.Nu );
+            sched.compute_metrics( n, 0, conf_metrics.Nx*conf_metrics.Nu );
             sched.download_metrics( metrics );
 
             real kinetic_energy = metrics[2];
@@ -111,9 +120,9 @@ void test()
                             <<    total_energy << "; "
                             << metrics[3]      << std::endl;
 
-            if(n % (10*32) == 0)
+            if(n % (10*16) == 0)
             {
-				size_t Nx_plot = 512;
+				size_t Nx_plot = 256;
 				real dx_plot = conf.Lx / Nx_plot;
 				real t = n * conf.dt;
 				std::ofstream file_E( "E_" + std::to_string(t) + ".txt" );
@@ -131,6 +140,8 @@ void test()
 				size_t Nv_plot = Nx_plot;
 				real dv_plot = (conf.u_max - conf.u_min)/Nv_plot;
 
+				real l1_norm_f = 0;
+				real l2_norm_f = 0;
 				std::ofstream file_f( "f_" + std::to_string(t) + ".txt" );
 				for(size_t i = 0; i<=Nx_plot; i++)
 				{
@@ -140,11 +151,20 @@ void test()
 						real v = conf.u_min + j*dv_plot;
 						real f = eval_f<real, order>(n, x, v, coeffs.get(), conf);
 						
+						l1_norm_f += f;
+						l2_norm_f += f*f;
+
 						file_f << x << " " << v << " " << f << std::endl;
 					}
 					file_f << std::endl;
 				}
 
+				l1_norm_f *= dx_plot*dv_plot;
+				l2_norm_f = std::sqrt(l2_norm_f);
+				l2_norm_f *= dx_plot*dv_plot;
+
+				std::cout << t << " L1_norm and L2_norm = " << l1_norm_f << " " << l2_norm_f << std::endl;
+				file_lp_norm << t << " " << l1_norm_f << " " << l2_norm_f << std::endl;
             }
         }
     }

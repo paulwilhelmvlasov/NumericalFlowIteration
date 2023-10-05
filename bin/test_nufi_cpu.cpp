@@ -31,13 +31,13 @@
 #include <dergeraet/poisson.hpp>
 #include <dergeraet/rho.hpp>
 #include <dergeraet/stopwatch.hpp>
+#include <dergeraet/cuda_scheduler.hpp>
 
 namespace dergeraet
 {
 
-namespace dim2
+namespace dim1
 {
-
 
 template <typename real, size_t order>
 void test()
@@ -46,71 +46,64 @@ void test()
     using std::max;
 
     config_t<real> conf;
-    size_t stride_t = (conf.Nx + order - 1) *
-                      (conf.Ny + order - 1);
-
+    const size_t stride_t = conf.Nx + order - 1;
 
     std::unique_ptr<real[]> coeffs { new real[ conf.Nt*stride_t ] {} };
-    std::unique_ptr<real,decltype(std::free)*> rho { reinterpret_cast<real*>(std::aligned_alloc(64,
-    													sizeof(real)*conf.Nx*conf.Ny)), std::free };
+    std::unique_ptr<real,decltype(std::free)*> rho { reinterpret_cast<real*>(std::aligned_alloc(64,sizeof(real)*conf.Nx)), std::free };
     if ( rho == nullptr ) throw std::bad_alloc {};
 
     poisson<real> poiss( conf );
 
-    //std::ofstream E_energy_file( "E_energy.txt" );
+    //std::ofstream Emax_file( "Emax.txt" );
     double total_time = 0;
+    double total_time_with_plotting = 0;
     for ( size_t n = 0; n < conf.Nt; ++n )
     {
     	dergeraet::stopwatch<double> timer;
 
     	// Compute rho:
 		#pragma omp parallel for
-    	for(size_t l = 0; l<conf.Nx*conf.Ny; l++)
+    	for(size_t i = 0; i<conf.Nx; i++)
     	{
-    		rho.get()[l] = eval_rho<real,order>(n, l, coeffs.get(), conf);
+    		rho.get()[i] = eval_rho<real,order>(n, i, coeffs.get(), conf);
     	}
 
-        real E_energy = poiss.solve( rho.get() );
-        interpolate<real,order>( coeffs.get() + n*stride_t, rho.get(), conf );
+        poiss.solve( rho.get() );
+        dim1::interpolate<real,order>( coeffs.get() + n*stride_t, rho.get(), conf );
 
         double timer_elapsed = timer.elapsed();
         total_time += timer_elapsed;
-/*
-        if(n % 8 == 0)
-        {
-        	real t = n*conf.dt;
-        	std::ofstream file_phi( "phi_" + std::to_string(t) + ".txt" );
-			std::ofstream file_E( "E_" + std::to_string(t) + ".txt" );
-        	for ( size_t i = 0; i < conf.Nx; ++i )
-        	{
-				for ( size_t j = 0; j < conf.Ny; ++j )
-				{
-					real x = conf.x_min + i*conf.dx;
-					real y = conf.y_min + j*conf.dy;
-					real phi = eval<real,order>(x,y,coeffs.get()+n*stride_t,conf);
-					real Ex = -eval<real,order,1,0>(x,y,coeffs.get()+n*stride_t,conf);
-					real Ey = -eval<real,order,0,1>(x,y,coeffs.get()+n*stride_t,conf);
+        dergeraet::stopwatch<double> timer_plots;
 
-					file_phi << x << " " << y << " " << phi << std::endl;
-					file_E << x << " " << y << " " << Ex << " " << Ey << std::endl;
-				}
-				file_phi << std::endl;
-        	}
+        /*
+        real Emax = 0;
+	    real E_l2 = 0;
+        for ( size_t i = 0; i < conf.Nx; ++i )
+        {
+            real x = conf.x_min + i*conf.dx;
+            real E_abs = abs( dim1::eval<real,order,1>(x,coeffs.get()+n*stride_t,conf));
+            Emax = max( Emax, E_abs );
+	        E_l2 += E_abs*E_abs;
         }
-*/
+	    E_l2 *=  conf.dx;
+		*/
 	    double t = n*conf.dt;
-//	    E_energy_file << std::setw(15) << t << std::setw(15) << std::setprecision(5) << std::scientific << E_energy << std::endl;
-        std::cout << "n = " << n << " t = " << n*conf.dt << " Comp-time: " << timer_elapsed << ". Total time s.f.: " << total_time << std::endl;
+        //Emax_file << std::setw(15) << t << std::setw(15) << std::setprecision(5) << std::scientific << Emax << std::endl;
+        std::cout << std::setw(15) << t << " Comp-time: " << timer_elapsed << " Total time: " << total_time << std::endl;
 
     }
     std::cout << "Total time: " << total_time << std::endl;
+    std::cout << "Total time with plotting: " << total_time_with_plotting << std::endl;
 }
+
+
 }
+
 }
 
 
 int main()
 {
-	dergeraet::dim2::test<double,4>();
+	dergeraet::dim1::test<double,4>();
 }
 

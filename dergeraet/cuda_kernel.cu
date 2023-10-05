@@ -51,21 +51,22 @@ void cuda_eval_rho( size_t n, const real *coeffs, const config_t<real> conf, rea
 
 template <typename real, size_t order>
 __global__
-void cuda_eval_metrics( size_t n, const real *coeffs, const config_t<real> conf, real *metrics,
-                        size_t q_begin, size_t q_end )
+void cuda_eval_metrics( size_t n, const real *coeffs, const config_t<real> conf,
+						const config_t<real> conf_metrics, real *metrics, size_t q_begin,
+						size_t q_end )
 {
     // Number of my quadrature node.
     const size_t q = q_begin +
                      size_t(blockDim.x)*size_t(blockIdx.x) + size_t(threadIdx.x);
 
-    const size_t ix = q / conf.Nu;
-    const size_t iu = q % conf.Nu;
+    const size_t ix = q / conf_metrics.Nu;
+    const size_t iu = q % conf_metrics.Nu;
     
-    const real x = conf.x_min + ix*conf.dx; 
-    const real u = conf.u_min + iu*conf.du + conf.du/2;
+    const real x = conf_metrics.x_min + ix*conf_metrics.dx;
+    const real u = conf_metrics.u_min + iu*conf_metrics.du + conf_metrics.du/2;
 
     const real f = eval_f<real,order>( n, x, u, coeffs, conf );
-    const real weight = conf.du*conf.dx;
+    const real weight = conf_metrics.du*conf_metrics.dx;
 
     if ( q < q_end )
     {
@@ -90,6 +91,22 @@ conf { p_conf }, device_number { dev }
     cuda_metrics.reset( cuda::malloc(metrics_size), dev );
     tmp_rho.reset( new real[ conf.Nx ] );
 }
+
+template <typename real, size_t order>
+cuda_kernel<real,order>::cuda_kernel( const config_t<real> &p_conf, const config_t<real> &conf_metrics, int dev ):
+conf { p_conf }, conf_metrics{ conf_metrics }, device_number { dev }
+{
+    size_t  coeff_size  = sizeof(real)*(conf.Nt+1)*(conf.Nx+order-1);
+    size_t     rho_size = sizeof(real)*conf.Nx;
+    size_t metrics_size = sizeof(real)*4;
+
+    cuda::set_device( device_number );
+    cuda_coeffs .reset( cuda::malloc(  coeff_size), dev );
+    cuda_rho    .reset( cuda::malloc(    rho_size), dev );
+    cuda_metrics.reset( cuda::malloc(metrics_size), dev );
+    tmp_rho.reset( new real[ conf.Nx ] );
+}
+
 
 template <typename real, size_t order>
 void cuda_kernel<real,order>::compute_rho( size_t n, size_t q_begin, size_t q_end )
@@ -151,7 +168,8 @@ void cuda_kernel<real,order>::compute_metrics( size_t n, size_t q_begin, size_t 
 
     cuda::set_device(device_number);
     cuda::memset( cu_metrics, 0, 4*sizeof(real) );
-    cuda_eval_metrics<real,order><<<Nblocks,block_size>>>( n, cu_coeffs, conf, cu_metrics, q_begin, q_end );
+//    cuda_eval_metrics<real,order><<<Nblocks,block_size>>>( n, cu_coeffs, conf, cu_metrics, q_begin, q_end );
+    cuda_eval_metrics<real,order><<<Nblocks,block_size>>>( n, cu_coeffs, conf, conf_metrics, cu_metrics, q_begin, q_end );
 }
 
 template <typename real, size_t order>

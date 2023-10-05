@@ -35,7 +35,7 @@
 namespace dergeraet
 {
 
-namespace dim2
+namespace dim3
 {
 
 
@@ -47,17 +47,17 @@ void test()
 
     config_t<real> conf;
     size_t stride_t = (conf.Nx + order - 1) *
-                      (conf.Ny + order - 1);
+                      (conf.Ny + order - 1) *
+					  (conf.Nz + order - 1);
 
 
     std::unique_ptr<real[]> coeffs { new real[ conf.Nt*stride_t ] {} };
     std::unique_ptr<real,decltype(std::free)*> rho { reinterpret_cast<real*>(std::aligned_alloc(64,
-    													sizeof(real)*conf.Nx*conf.Ny)), std::free };
+    													sizeof(real)*conf.Nx*conf.Ny*conf.Nz)), std::free };
     if ( rho == nullptr ) throw std::bad_alloc {};
 
     poisson<real> poiss( conf );
 
-    //std::ofstream E_energy_file( "E_energy.txt" );
     double total_time = 0;
     for ( size_t n = 0; n < conf.Nt; ++n )
     {
@@ -65,7 +65,7 @@ void test()
 
     	// Compute rho:
 		#pragma omp parallel for
-    	for(size_t l = 0; l<conf.Nx*conf.Ny; l++)
+    	for(size_t l = 0; l<conf.Nx*conf.Ny*conf.Nz; l++)
     	{
     		rho.get()[l] = eval_rho<real,order>(n, l, coeffs.get(), conf);
     	}
@@ -75,31 +75,7 @@ void test()
 
         double timer_elapsed = timer.elapsed();
         total_time += timer_elapsed;
-/*
-        if(n % 8 == 0)
-        {
-        	real t = n*conf.dt;
-        	std::ofstream file_phi( "phi_" + std::to_string(t) + ".txt" );
-			std::ofstream file_E( "E_" + std::to_string(t) + ".txt" );
-        	for ( size_t i = 0; i < conf.Nx; ++i )
-        	{
-				for ( size_t j = 0; j < conf.Ny; ++j )
-				{
-					real x = conf.x_min + i*conf.dx;
-					real y = conf.y_min + j*conf.dy;
-					real phi = eval<real,order>(x,y,coeffs.get()+n*stride_t,conf);
-					real Ex = -eval<real,order,1,0>(x,y,coeffs.get()+n*stride_t,conf);
-					real Ey = -eval<real,order,0,1>(x,y,coeffs.get()+n*stride_t,conf);
-
-					file_phi << x << " " << y << " " << phi << std::endl;
-					file_E << x << " " << y << " " << Ex << " " << Ey << std::endl;
-				}
-				file_phi << std::endl;
-        	}
-        }
-*/
 	    double t = n*conf.dt;
-//	    E_energy_file << std::setw(15) << t << std::setw(15) << std::setprecision(5) << std::scientific << E_energy << std::endl;
         std::cout << "n = " << n << " t = " << n*conf.dt << " Comp-time: " << timer_elapsed << ". Total time s.f.: " << total_time << std::endl;
 
     }
@@ -111,6 +87,6 @@ void test()
 
 int main()
 {
-	dergeraet::dim2::test<double,4>();
+	dergeraet::dim3::test<double,4>();
 }
 
