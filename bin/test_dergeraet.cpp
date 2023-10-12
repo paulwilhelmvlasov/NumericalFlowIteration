@@ -49,13 +49,21 @@ void test()
     const size_t stride_x = 1;
     const size_t stride_t = conf.Nx + order - 1;
 
+    config_t<real> conf_metrics;
+    // To compute metrics use higher amount of quadrature points:
+    conf_metrics.Nx = 128;//1024;
+    conf_metrics.Nu = 128;//1024;
+    conf_metrics.dx = (conf_metrics.x_max - conf_metrics.x_min) / conf_metrics.Nx;
+    conf_metrics.du = (conf_metrics.u_max - conf_metrics.u_min) / conf_metrics.Nu;
+
+
     std::unique_ptr<real[]> coeffs { new real[ conf.Nt*stride_t ] {} };
     std::unique_ptr<real,decltype(std::free)*> rho { reinterpret_cast<real*>(std::aligned_alloc(64,sizeof(real)*conf.Nx)), std::free };
     if ( rho == nullptr ) throw std::bad_alloc {};
 
     poisson<real> poiss( conf );
 
-    cuda_scheduler<real,order> sched { conf };
+    cuda_scheduler<real,order> sched { conf, conf_metrics };
 
     std::ofstream statistics_file( "statistics.csv" );
     statistics_file << R"("Time"; "L1-Norm"; "L2-Norm"; "Electric Energy"; "Kinetic Energy"; "Total Energy"; "Entropy")";
@@ -65,7 +73,7 @@ void test()
           std::cout << std::scientific;
 
     double total_time = 0;
-    for ( size_t n = 0; n < conf.Nt; ++n )
+    for ( size_t n = 0; n <= conf.Nt; ++n )
     {
         dergeraet::stopwatch<double> timer;
         std::memset( rho.get(), 0, conf.Nx*sizeof(real) );
@@ -79,10 +87,13 @@ void test()
         double time_elapsed = timer.elapsed();
         total_time += time_elapsed;
 
-        if( n % 2 == 0 )
+        std::cout << std::setw(15) << n << " Comp-time: " << time_elapsed << " Total time: " << total_time << std::endl;
+
+        /*
+        if( n % 16 == 0 )
         {
             real metrics[4] = { 0, 0, 0, 0 };
-            sched.compute_metrics( n, 0, conf.Nx*conf.Nu );
+            sched.compute_metrics( n, 0, conf_metrics.Nx*conf_metrics.Nu );
             sched.download_metrics( metrics );
 
             real kinetic_energy = metrics[2];
@@ -103,7 +114,7 @@ void test()
 
             std::cout << std::endl;
 
-            statistics_file << conf.dt*n       << "; "
+            statistics_file << std::setprecision(16) << conf.dt*n       << "; "
                             << metrics[0]      << "; "
                             << metrics[1]      << "; "
                             << electric_energy << "; "
@@ -111,9 +122,9 @@ void test()
                             <<    total_energy << "; "
                             << metrics[3]      << std::endl;
 
-            if(n % (10*32) == 0)
+            if(n % (10*16) == 0)
             {
-				size_t Nx_plot = 512;
+				size_t Nx_plot = 256;
 				real dx_plot = conf.Lx / Nx_plot;
 				real t = n * conf.dt;
 				std::ofstream file_E( "E_" + std::to_string(t) + ".txt" );
@@ -144,12 +155,89 @@ void test()
 					}
 					file_f << std::endl;
 				}
-
             }
         }
+        */
     }
     
     std::cout << "Elapsed time = " << total_time << std::endl;
+
+
+    // Debugging/Testing:
+    /*
+    std::cout << "Let's try something out: " << std::endl;
+	size_t Nx_plot = 256;
+	real dx_plot = conf.Lx / Nx_plot;
+    std::vector<real> exact_rho(Nx_plot);
+    real rho_max = 0;
+    real rho_l2 = 0;
+	for(size_t i = 0; i < Nx_plot; i++)
+	{
+		real x = conf.x_min + i*dx_plot;
+		exact_rho[i] = -dim1::eval<real,order,2>( x, coeffs.get() + conf.Nt*stride_t, conf );
+		rho_max = max(abs(exact_rho[i]),rho_max);
+		rho_l2 = exact_rho[i]*exact_rho[i];
+	}
+
+	rho_l2 = sqrt(rho_l2)*dx_plot;
+	std::cout << "rho_exact: L2-norm =" << rho_l2 << " Max-norm = " << rho_max << std::endl;
+
+	size_t Nv_plot = 128;
+	real dv_plot = (conf.u_max - conf.u_min)/Nv_plot;
+	std::vector<real> num_rho_midpoint(Nx_plot, 0);
+	std::vector<real> num_rho_simpson(Nx_plot, 0);
+
+
+	real max_error_mp = 0;
+	real max_error_simpson = 0;
+	real l2_error_mp = 0;
+	real l2_error_simpson = 0;
+	#pragma omp parallel for
+	for(size_t i = 0; i < Nx_plot; i++)
+	{
+		real x = conf.x_min + i*dx_plot;
+
+		// Compute rho with mid-point rule:
+		for(size_t j = 0; j < Nv_plot; j++)
+		{
+			real v = conf.u_min + j*dv_plot;
+			num_rho_midpoint[i] += eval_ftilda<real,order>( conf.Nt, x, v, coeffs.get(), conf );
+		}
+		num_rho_midpoint[i] = 1 - dv_plot*num_rho_midpoint[i];
+
+		// Compute rho with simpson-rule:
+		for(size_t j = 0; j < Nv_plot; j++)
+		{
+		    real left = conf.u_min + j*dv_plot;
+			real mid = left + 0.5*dv_plot;
+			real right = left + dv_plot;
+		    real f_left = eval_ftilda<real,order>( conf.Nt, x, left, coeffs.get(), conf );
+		    real f_mid = eval_ftilda<real,order>( conf.Nt, x, mid, coeffs.get(), conf );
+		    real f_right = eval_ftilda<real,order>( conf.Nt, x, right, coeffs.get(), conf );
+
+		    num_rho_simpson[i] += 1.0/6.0*f_left + 4.0/6.0*f_mid + 1.0/6.0*f_right;
+		}
+		num_rho_simpson[i] = 1 - dv_plot*num_rho_simpson[i];
+
+		real dist_mp = abs(num_rho_midpoint[i] - exact_rho[i]);
+		real dist_simpson = abs(num_rho_simpson[i] - exact_rho[i]);
+
+		max_error_mp = max(dist_mp, max_error_mp);
+		max_error_simpson = max(dist_simpson, max_error_simpson);
+
+		l2_error_mp += dist_mp*dist_mp;
+		l2_error_simpson += dist_simpson*dist_simpson;
+	}
+
+	l2_error_mp = sqrt(l2_error_mp)*dx_plot;
+	l2_error_simpson = sqrt(l2_error_simpson)*dx_plot;
+
+	std::cout << "MP: Max-error = " << max_error_mp << " L2-error = " << l2_error_mp << std::endl;
+	std::cout << "Simpson: Max-error = " << max_error_simpson << " L2-error = " << l2_error_simpson << std::endl;
+
+	std::cout << "MP: Rel-Max-error = " << max_error_mp/rho_max << " Rel-L2-error = " << l2_error_mp/rho_l2 << std::endl;
+	std::cout << "Simpson: Rel-Max-error = " << max_error_simpson/rho_max << " Rel-L2-error = " << l2_error_simpson/rho_l2 << std::endl;
+     */
 }
 
 }

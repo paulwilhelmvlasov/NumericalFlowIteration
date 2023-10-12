@@ -61,6 +61,29 @@ public:
             throw cuda::exception( cudaErrorUnknown, "cuda_scheduler: Failed to create kernels." );
     }
 
+    cuda_scheduler( const config_t<real> &p_conf, const config_t<real> &conf_metrics ):
+    conf { p_conf }, conf_metrics{ conf_metrics }
+    {
+        size_t n_dev = cuda::device_count();
+        kernels.reserve(n_dev);
+
+        for ( size_t i = 0; i < n_dev; i++ )
+        {
+            try
+            {
+                kernels.emplace_back( cuda_kernel<real,order>(conf, conf_metrics,i) );
+            }
+            catch ( cuda::exception &ex )
+            {
+                // Do not use this device.
+            }
+        }
+
+        if ( kernels.size() == 0 )
+            throw cuda::exception( cudaErrorUnknown, "cuda_scheduler: Failed to create kernels." );
+    }
+
+
     void compute_rho( size_t n, size_t q_begin, size_t q_end )
     {
         if ( q_begin == q_end ) return;
@@ -134,6 +157,7 @@ public:
 
 private:
     config_t<real> conf;
+    config_t<real> conf_metrics;
 
     std::vector< cuda_kernel<real,order> > kernels;
 };

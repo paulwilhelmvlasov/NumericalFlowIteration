@@ -26,76 +26,6 @@
 namespace dergeraet
 {
 
-namespace dim2
-{
-namespace benchmarks
-{
-    namespace weak_landau_damping
-    {
-        // Parameters taken from "Collela et. al - PIC 4th-order".
-        const double kx = 0.5;
-        const double ky = 0.5;
-
-        const double alpha = 0.05;
-
-        const double x_min = 0;
-        const double y_min = 0;
-        const double x_max = 2 * M_PI / kx;
-        const double y_max = 2 * M_PI / ky;
-
-        const double c = 1.0 / (2.0 * M_PI);
-
-        inline double f0(double x, double y, double u, double v)
-        {
-            return c * std::exp(-0.5 * (u*u + v*v)) * (1 + alpha * std::cos(kx*x)*std::cos(ky*y));
-        }
-    }
-
-    namespace two_stream_instability
-    {
-        // Parameters taken from "Collela et. al - PIC 4th-order".
-        const double kx = 0.5;
-        const double ky = 0.5;
-
-        const double alpha = 0.05;
-
-        const double x_min = 0;
-        const double y_min = 0;
-        const double x_max = 2 * M_PI / kx;
-        const double y_max = 2 * M_PI / ky;
-
-        const double c = 1.0 / (12.0 * M_PI);
-
-        inline double f0(double x, double y, double u, double v)
-        {
-            return c * std::exp(-0.5 * (u*u + v*v)) * (1 + 5*u*u) * (1 + alpha * std::cos(kx*x));
-        }
-    }
-
-    namespace fjalkow_two_beam_instability
-    {
-        // Parameters taken from "Cottet - Semi-Lagrangian pm for high-dim".
-        const double kx = 0.3;
-        const double ky = 0.3;
-
-        const double alpha = 0.05;
-
-        const double x_min = - M_PI / kx;
-        const double y_min = - M_PI / kx;
-        const double x_max = M_PI / kx;
-        const double y_max = M_PI / ky;
-
-        const double c = 7.0 / (4.0 * M_PI);
-
-        inline double f0(double x, double y, double u, double v)
-        {
-            return c * std::exp(-0.125*u*u - 0.5*v*v) * (std::sin(u / 3.0)*std::sin(u / 3.0)) * (1 + alpha * std::cos(kx*x));
-        }
-    }
-}
-
-}
-
 namespace dim1
 {
 
@@ -124,14 +54,14 @@ struct config_t
 template <typename real>
 config_t<real>::config_t() noexcept
 {
-    Nx = 64;
-    Nu = 256;
+    Nx = 2048;
+    Nu = 2048;
     u_min = -10;
     u_max =  10;
     x_min = 0;
     x_max = 4*M_PI;;
     
-    dt = 1./32.; Nt = 100.5/dt;
+    dt = 1./16.; Nt = 50/dt;
 
     Lx = x_max - x_min; Lx_inv = 1/Lx;
     dx = Lx/Nx; dx_inv = 1/dx;
@@ -186,8 +116,9 @@ struct config_t
 template <typename real>
 config_t<real>::config_t() noexcept
 {
-    Nx = Ny = 64;
-    Nu = Nv = 128;
+    Nx = Ny = 32;
+    Nu = Nv = 32;
+
     u_min = v_min = -8;
     u_max = v_max =  8;
     x_min = y_min = 0;
@@ -195,7 +126,7 @@ config_t<real>::config_t() noexcept
     x_max = y_max = 4.0 * M_PI;
 
 
-    dt = 1.0/32.0; Nt = 50.0/dt;
+    dt = 1.0/16.0; Nt = 50.0/dt;
 
     Lx = x_max - x_min; Lx_inv = 1/Lx;
     Ly = y_max - y_min; Ly_inv = 1/Ly;
@@ -265,7 +196,7 @@ template <typename real>
 config_t<real>::config_t() noexcept
 {
     Nx = Ny = Nz = 16;
-    Nu = Nv = Nw = 64;
+    Nu = Nv = Nw = 16;
 
     u_min = v_min = w_min = -9;
     u_max = v_max = w_max =  0;
