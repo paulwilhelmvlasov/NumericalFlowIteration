@@ -151,7 +151,7 @@ void test_dirichlet()
     const size_t stride_t = conf.Nx + order - 2; // conf.Nx = l+2, therefore: conf.Nx +order-2 = order+l
     
     const size_t n_total = conf.l + order;
-    std::unique_ptr<real[]> coeffs { new real[ conf.Nt*stride_t ] {} };
+    std::unique_ptr<real[]> coeffs { new real[ (conf.Nt+1)*stride_t ] {} };
     std::unique_ptr<real,decltype(std::free)*> rho { reinterpret_cast<real*>(std::aligned_alloc(64,sizeof(real)*conf.Nx)), std::free };
     if ( rho == nullptr ) throw std::bad_alloc {};
     std::unique_ptr<real,decltype(std::free)*> rho_ext { reinterpret_cast<real*>(std::aligned_alloc(64,sizeof(real)*n_total)), std::free };//rename, this is the rhs of the interpolation task, but with 2 additional entries.
@@ -169,18 +169,17 @@ void test_dirichlet()
     std::cout<<conf.Nt<<std::endl;
     double total_time = 0;
   
-    for ( size_t n = 0; n < 1;n++)//conf.Nt; n++ )
+    for ( size_t n = 0; n <= conf.Nt; n++ )
     {
     
     dergeraet::stopwatch<double> timer;
     std::memset( rho.get(), 0, conf.Nx*sizeof(real) );
-    sched.compute_rho ( n, 0, conf.Nx*conf.Nu );
+    sched.compute_rho ( n, 0, conf.Nx*conf.Nu ); // Auf Dirichlet kernel umstellen.
     sched.download_rho( rho.get() );
 
-    real electric_energy = poiss.solve( rho.get() );
+    real electric_energy = poiss.solve( rho.get() ); // Auf Dirichlet Poisson umstellen.
+    // phi am Rand auf 0 setzen. (rho_ext auf 0 setzen)
    
-    
-    
     // this is the value to the left of a.
     rho_ext.get()[0]=rho.get()[0];
 
@@ -251,7 +250,7 @@ std::cout<<"test1"<<std::endl;
 
             if(n %(100*16) == 0)
             {
-				size_t Nx_plot = 10000;
+				size_t Nx_plot = 128;
 				real dx_plot = conf.Lx / Nx_plot;
 				real t = n * conf.dt;
 				std::ofstream file_E( "E_" + std::to_string(t) + ".txt" );
@@ -264,9 +263,11 @@ std::cout<<"test1"<<std::endl;
 					real x = conf.x_min + i*dx_plot;
 					real E = -dim1::dirichlet::eval<real,order,1>( x, coeffs.get() + n*stride_t, conf ); //maybe have to change stride?
 					real rho = -dim1::dirichlet::eval<real,order,2>( x, coeffs.get() + n*stride_t, conf );
+					real phi = dim1::dirichlet::eval<real,order>( x, coeffs.get() + n*stride_t, conf );
                     //outputfile<<x<<"\t"<< -dim1::eval<real,order,1>( x, coeffs.get() + n*stride_t, conf )<<"\n";
 					file_E << x << " " << E << std::endl;
 					file_rho << x << " " << rho << std::endl;
+					// file_phi ....
                     //outputfile<<x<<"\t"<< dim1::dirichlet::eval<real,order,0>( x, coeffs.get() + n*stride_t, conf )<<"\n";
 
 					
