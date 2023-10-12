@@ -156,11 +156,12 @@ void test()
         interpolate<real,order>( coeffs.get() + n*stride_t, rho.get(), conf );
         sched.upload_phi( n, coeffs.get() );
 
-	if(rank == 0)
+        if(rank == 0)
         {
                 compute_time_step = timer.elapsed();
                 compute_time_total += compute_time_step;
-        	std::cout << n * conf.dt << " " << compute_time_step << std::endl;
+        	//std::cout << n * conf.dt << " " << compute_time_step << std::endl;
+        	std::cout << std::setw(15) << n << " Comp-time: " << compute_time_step << " Total time: " << compute_time_total << std::endl;
         }
 
         // Output statistics.

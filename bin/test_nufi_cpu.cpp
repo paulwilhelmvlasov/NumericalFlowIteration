@@ -54,10 +54,10 @@ void test()
 
     poisson<real> poiss( conf );
 
-    //std::ofstream Emax_file( "Emax.txt" );
+    std::ofstream stats_file( "stats.txt" );
     double total_time = 0;
     double total_time_with_plotting = 0;
-    for ( size_t n = 0; n < conf.Nt; ++n )
+    for ( size_t n = 0; n <= conf.Nt; ++n )
     {
     	dergeraet::stopwatch<double> timer;
 
@@ -66,6 +66,7 @@ void test()
     	for(size_t i = 0; i<conf.Nx; i++)
     	{
     		rho.get()[i] = eval_rho<real,order>(n, i, coeffs.get(), conf);
+    		//rho.get()[i] = eval_rho_simpson<real,order>(n, i, coeffs.get(), conf);
     	}
 
         poiss.solve( rho.get() );
@@ -75,25 +76,52 @@ void test()
         total_time += timer_elapsed;
         dergeraet::stopwatch<double> timer_plots;
 
-        /*
-        real Emax = 0;
-	    real E_l2 = 0;
-        for ( size_t i = 0; i < conf.Nx; ++i )
+
+		real t = n*conf.dt;
+        // Plotting:
+        if(n % 2 == 0)
         {
-            real x = conf.x_min + i*conf.dx;
-            real E_abs = abs( dim1::eval<real,order,1>(x,coeffs.get()+n*stride_t,conf));
-            Emax = max( Emax, E_abs );
-	        E_l2 += E_abs*E_abs;
+			size_t plot_x = 256;
+			//size_t plot_v = plot_x;
+			real dx_plot = conf.Lx/plot_x;
+			real Emax = 0;
+			real E_l2 = 0;
+
+			if(n % (10*16) == 0)
+			{
+				std::ofstream file_E( "E_" + std::to_string(t) + ".txt" );
+				for ( size_t i = 0; i < plot_x; ++i )
+				{
+					real x = conf.x_min + i*dx_plot;
+					real E = -dim1::eval<real,order,1>(x,coeffs.get()+n*stride_t,conf);
+					Emax = max( Emax, abs(E) );
+					E_l2 += E*E;
+
+					file_E << x << " " << E << std::endl;
+
+				}
+				E_l2 *=  conf.dx;
+				double t = n*conf.dt;
+				stats_file << std::setw(20) << t << std::setw(20) << std::setprecision(8) << std::scientific << Emax
+							<< std::setw(20) << std::setprecision(8) << std::scientific << E_l2 << std::endl;
+			} else {
+				for ( size_t i = 0; i < plot_x; ++i )
+				{
+					real x = conf.x_min + i*dx_plot;
+					real E = -dim1::eval<real,order,1>(x,coeffs.get()+n*stride_t,conf);
+					Emax = max( Emax, abs(E) );
+					E_l2 += E*E;
+				}
+				E_l2 *=  conf.dx;
+				double t = n*conf.dt;
+				stats_file << std::setw(20) << t << std::setw(20) << std::setprecision(8) << std::scientific << Emax
+							<< std::setw(20) << std::setprecision(8) << std::scientific << E_l2 << std::endl;
+			}
         }
-	    E_l2 *=  conf.dx;
-		*/
-	    double t = n*conf.dt;
-        //Emax_file << std::setw(15) << t << std::setw(15) << std::setprecision(5) << std::scientific << Emax << std::endl;
         std::cout << std::setw(15) << t << " Comp-time: " << timer_elapsed << " Total time: " << total_time << std::endl;
 
     }
     std::cout << "Total time: " << total_time << std::endl;
-    std::cout << "Total time with plotting: " << total_time_with_plotting << std::endl;
 }
 
 

@@ -109,6 +109,42 @@ real eval_rho( size_t n, size_t i, const real *coeffs, const config_t<real> &con
     return rho;
 }
 
+template <typename real, size_t order>
+real eval_rho_simpson( size_t n, size_t i, const real *coeffs, const config_t<real> &conf )
+{
+    const real x = conf.x_min + i*conf.dx;
+    const real du = (conf.u_max-conf.u_min) / conf.Nu;
+    const real u_min = conf.u_min + 0.5*du;
+
+    real rho = 0;
+
+    real c_left = 1.0 /6.0;
+    real c_mid = 4.0 / 6.0;
+    real c_right = 1.0 /6.0;
+
+    real left = u_min;
+	real mid = left + 0.5*du;
+	real right = left + du;
+    real f_left = eval_ftilda<real,order>( n, x, left, coeffs, conf );
+    real f_mid = eval_ftilda<real,order>( n, x, mid, coeffs, conf );
+    real f_right = eval_ftilda<real,order>( n, x, right, coeffs, conf );
+    rho += c_left*f_left + c_mid*f_mid + c_right*f_right;
+    for ( size_t ii = 1; ii < conf.Nu; ++ii )
+    {
+    	left = u_min + ii*du;
+    	mid = left + 0.5*du;
+		right = left + du;
+
+	    real f_left = f_right;
+	    real f_mid = eval_ftilda<real,order>( n, x, mid, coeffs, conf );
+	    real f_right = eval_ftilda<real,order>( n, x, right, coeffs, conf );
+
+		rho += c_left*f_left + c_mid*f_mid + c_right*f_right;
+    }
+
+    return 1 - du*rho;
+}
+
 }
 
 
