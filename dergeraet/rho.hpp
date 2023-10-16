@@ -243,7 +243,9 @@ real eval_ftilda( size_t n, real x, real y, real u, real v,
 
         c  = coeffs + n*stride_t;
         if(x <= conf.x_min){
+            return 0;
         if (y <= conf.y_min) {
+            
         	Ex = -eval<real,order,1,0>(conf.x_min,conf.y_min,c,conf);
             Ey = -eval<real,order,0,1>(conf.x_min,conf.y_min,c,conf);
         } else if (y >= conf.x_max) {
@@ -255,6 +257,7 @@ real eval_ftilda( size_t n, real x, real y, real u, real v,
         }
         }
         else if( x>=conf.x_max){
+            return 0;
         if (y <= conf.y_min) {
         	Ex = -eval<real,order,1,0>(conf.x_max,conf.y_min,c,conf);
             Ey = -eval<real,order,0,1>(conf.x_max,conf.y_min,c,conf);
@@ -268,9 +271,11 @@ real eval_ftilda( size_t n, real x, real y, real u, real v,
         }
         else{
         if (y <= conf.y_min) {
+            return 0;
         	Ex = -eval<real,order,1,0>(x,conf.y_min,c,conf);
             Ey = -eval<real,order,0,1>(x,conf.y_min,c,conf);
         } else if (y >= conf.x_max) {
+            return 0;
         	Ex = -eval<real,order,1,0>(x,conf.y_max,c,conf);
             Ey = -eval<real,order,0,1>(x,conf.y_max,c,conf);
         } else {
@@ -329,6 +334,7 @@ real eval_f( size_t n, real x, real y, real u, real v,
 
         c  = coeffs + n*stride_t;
         if(x <= conf.x_min){
+            return 0;
         if (y <= conf.y_min) {
         	Ex = -eval<real,order,1,0>(conf.x_min,conf.y_min,c,conf);
             Ey = -eval<real,order,0,1>(conf.x_min,conf.y_min,c,conf);
@@ -341,6 +347,7 @@ real eval_f( size_t n, real x, real y, real u, real v,
         }
         }
         else if( x>=conf.x_max){
+            return 0;
         if (y <= conf.y_min) {
         	Ex = -eval<real,order,1,0>(conf.x_max,conf.y_min,c,conf);
             Ey = -eval<real,order,0,1>(conf.x_max,conf.y_min,c,conf);
@@ -354,9 +361,11 @@ real eval_f( size_t n, real x, real y, real u, real v,
         }
         else{
         if (y <= conf.y_min) {
+            return 0;
         	Ex = -eval<real,order,1,0>(x,conf.y_min,c,conf);
             Ey = -eval<real,order,0,1>(x,conf.y_min,c,conf);
         } else if (y >= conf.x_max) {
+            return 0;
         	Ex = -eval<real,order,1,0>(x,conf.y_max,c,conf);
             Ey = -eval<real,order,0,1>(x,conf.y_max,c,conf);
         } else {
@@ -406,7 +415,7 @@ real eval_rho( size_t n, size_t l, const real *coeffs, const config_t<real> &con
 
         rho += eval_ftilda<real,order>( n, x, y, u, v, coeffs, conf );
     }
-    rho = 1 - du*dv*rho;
+    rho =  - du*dv*rho;
 
     return rho;
 }
