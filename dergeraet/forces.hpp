@@ -35,7 +35,7 @@ namespace dim1
 
 {
 
-namespace fd_dirichlet
+namespace dirichlet
 {
 
 // This is supposed to be a CPU-implementation.

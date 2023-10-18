@@ -33,6 +33,9 @@ namespace dergeraet
 namespace dim1
 {
 
+namespace dirichlet
+{
+
 poisson_fd_dirichlet<double>::poisson_fd_dirichlet()
 { }
 
@@ -169,7 +172,7 @@ void poisson_fd_dirichlet<double>::solve( double *data, double eps, size_t max_i
 	cg_fd_dirichlet(data, param.dx, param.Nx+1, eps, max_iter );
 }
 
-
+}
 }
 
 namespace dim2

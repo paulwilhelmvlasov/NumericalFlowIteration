@@ -27,7 +27,7 @@ namespace dergeraet
 namespace dim1
 {
 
-namespace fd_dirichlet
+namespace dirichlet
 {
 
 template <typename real, size_t order>

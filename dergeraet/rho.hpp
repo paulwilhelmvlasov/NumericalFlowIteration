@@ -28,7 +28,7 @@ namespace dergeraet
 namespace dim1
 {
 
-namespace fd_dirichlet
+namespace dirichlet
 {
 template <typename real, size_t order>
 __host__ __device__
@@ -36,6 +36,9 @@ real eval_ftilda( size_t n, real x, real u,
                   const real *coeffs, const config_t<real> &conf )
 {
     if ( n == 0 ) return config_t<real>::f0(x,u);
+    SurfaceState state = config_t<real>::surface_state(x);
+    if (state != DOMAIN) return config_t<real>::call_surface_model(state, x, u);
+
 
     const size_t stride_x = 1;
     const size_t stride_t = stride_x*(conf.Nx + order - 1);
@@ -49,27 +52,17 @@ real eval_ftilda( size_t n, real x, real u,
     {
         x  = x - conf.dt*u;
         c  = coeffs + n*stride_t;
-        if (x <= conf.x_min) {
-        	Ex = -eval<real,order,1>(conf.x_min,c,conf);
-        } else if (x >= conf.x_max) {
-        	Ex = -eval<real,order,1>(conf.x_max,c,conf);
-        } else {
-            Ex = -eval<real,order,1>(x,c,conf);
-        }
+        Ex = -eval<real,order,1>(x,c,conf);
         u  = u + conf.dt*Ex;
-        return config_t<real>::f0(x,u);
+        state = config_t<real>::surface_state(x);
+        if (state != DOMAIN) return config_t<real>::call_surface_model(state, x,  u);
+
     }
 
     // The final half-step.
     x -= conf.dt*u;
     c  = coeffs + n*stride_t;
-    if (x <= conf.x_min) {
-    	Ex = -eval<real,order,1>(conf.x_min,c,conf);
-    } else if (x >= conf.x_max) {
-    	Ex = -eval<real,order,1>(conf.x_max,c,conf);
-    } else {
-        Ex = -eval<real,order,1>(x,c,conf);
-    }
+    Ex = -eval<real,order,1>(x,c,conf);
     u += 0.5*conf.dt*Ex;
 
     return config_t<real>::f0(x,u);
@@ -81,6 +74,8 @@ real eval_f( size_t n, real x, real u,
              const real *coeffs, const config_t<real> &conf )
 {
     if ( n == 0 ) return config_t<real>::f0(x,u);
+    SurfaceState state = config_t<real>::surface_state(x);
+    if (state != DOMAIN) return config_t<real>::call_surface_model(state,x,u);
 
     const size_t stride_x = 1;
     const size_t stride_t = stride_x*(conf.Nx + order - 1);
@@ -99,6 +94,9 @@ real eval_f( size_t n, real x, real u,
         c  = coeffs + n*stride_t;
         Ex = -eval<real,order,1>( x, c, conf );
         u += conf.dt*Ex;
+        state = config_t<real>::surface_state(x);
+        if (state != DOMAIN) return config_t<real>::call_surface_model(state, x, u);
+
     }
 
     // Final half-step.

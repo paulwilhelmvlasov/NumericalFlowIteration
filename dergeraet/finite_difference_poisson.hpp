@@ -30,6 +30,9 @@ namespace dergeraet
 
 namespace dim1
 {
+
+namespace dirichlet
+{
 	template <typename real> class poisson_fd_dirichlet;
 
 	// Defintion for real = double.
@@ -60,7 +63,7 @@ namespace dim1
 	};
 
 }
-
+}
 namespace dim2
 {
 	arma::mat init_matrix_fd_poisson_2d_dirichlet_uniform(size_t n);

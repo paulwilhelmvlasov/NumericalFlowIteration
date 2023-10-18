@@ -28,7 +28,7 @@ namespace dergeraet
 
 namespace dim1
 {
-
+enum SurfaceState { DOMAIN, OUTSIDE_DOMAIN };
 template <typename real>
 struct config_t
 {
@@ -53,6 +53,7 @@ struct config_t
     // operator() overload, i.e., can be called like a
     // function.
     __host__ __device__ static real f0( real x, real u ) noexcept;
+
 };
 
 template <typename real>
@@ -76,15 +77,19 @@ template <typename real>
 __host__ __device__
 real config_t<real>::f0( real x, real u ) noexcept
 {
-    using std::sin;
-    using std::cos;
-    using std::exp;
-
-    constexpr real alpha = 0.01;
-    constexpr real k     = 0.5;
-    return 0.39894228040143267793994 * ( 1. + alpha*cos(k*x) ) * exp( -u*u/2. ) * u*u;
+            using std::sin;
+            using std::cos;
+            using std::exp;
+            constexpr real alpha = 0.01;
+            constexpr real k     = 0.5;   
+            return 0.39894228040143267793994 * ( 1. + alpha*cos(k*x) ) * exp( -u*u/2. ) * u*u;
+    
 //    return 0.39894228040143267793994 * ( 1. + alpha*cos(k*x) ) * exp( -u*u/2 );
 }
+
+
+
+
 
 namespace dirichlet
 {
@@ -92,13 +97,16 @@ namespace dirichlet
 template <typename real>
 struct config_t
 {
+    static constexpr real x_min = -1, x_max = 1;
+    
+
     size_t Nx;  // Number of grid points in physical space.
     size_t Nu;  // Number of quadrature points in velocity space.
     size_t Nt;  // Number of time-steps.
     real   dt;  // Time-step size.
 
     // Dimensions of physical domain.
-    real x_min, x_max;
+    //real x_min, x_max;
 
     // Integration limits for velocity space.
     real u_min, u_max;
@@ -113,6 +121,8 @@ struct config_t
     // operator() overload, i.e., can be called like a
     // function.
     __host__ __device__ static real f0( real x, real u ) noexcept;
+    __host__ __device__ static SurfaceState surface_state( real x) noexcept;
+    __host__ __device__ static real call_surface_model( SurfaceState state, real x, real u) noexcept;
 };
 
 template <typename real>
@@ -122,8 +132,6 @@ config_t<real>::config_t() noexcept
     Nu = 128;
     u_min = -1;
     u_max =  1;
-    x_min = -1;
-    x_max = 1;
     l = Nx -1;
     dt = 1./8.; Nt = 5/dt;
 
@@ -136,13 +144,53 @@ template <typename real>
 __host__ __device__
 real config_t<real>::f0( real x, real u ) noexcept
 {
-    if(x*x + u*u >= 1 )
+    
+
+    //
+    SurfaceState state = surface_state(x);
+    return call_surface_model(state, x, u);
+}
+template <typename real>
+__host__ __device__
+SurfaceState config_t<real>::surface_state( real x) noexcept
+{
+    // Check if the particle is outside the domain
+    if (x < 0 || x > x_max)
     {
-    	return 0;
+        return OUTSIDE_DOMAIN;
     }
 
-    constexpr real c = 1.0/M_PI;
-    return c * 1.0/std::sqrt( 1 - x*x - u*u );;
+    
+        return DOMAIN;
+    
+}
+template <typename real>
+__host__ __device__
+real config_t<real>::call_surface_model( SurfaceState state, real x, real u) noexcept
+{
+    switch (state)
+    {
+        case DOMAIN:
+            // using std::sin;
+            // using std::cos;
+            // using std::exp;
+            // constexpr real alpha = 0.01;
+            // constexpr real k     = 0.5;   
+            // return 0.39894228040143267793994 * ( 1. + alpha*cos(k*x) ) * exp( -u*u/2. ) * u*u;
+            if(x*x + u*u >= 1 )
+            {
+    	        return 0;
+            }
+            constexpr real c = 1.0/M_PI;
+            return c * 1.0/std::sqrt( 1 - x*x - u*u );;
+            break;
+        case OUTSIDE_DOMAIN:
+            return 0.0;
+            break;
+        default:
+            return 0.0;
+            break;
+    }
 }
 
 }

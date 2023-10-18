@@ -187,6 +187,170 @@ template class cuda_kernel<float,7>;
 template class cuda_kernel<float,8>;
 
 }
+
+namespace dirichlet
+{
+
+template <typename real, size_t order>
+__global__
+void cuda_eval_rho( size_t n, const real *coeffs, const config_t<real> conf, real *rho,
+                    size_t q_begin, size_t q_end )
+{
+    // Number of my quadrature node.
+    const size_t q = q_begin +
+                     size_t(blockDim.x)*size_t(blockIdx.x) + size_t(threadIdx.x);
+
+    const size_t ix = q / conf.Nu;
+    const size_t iu = q % conf.Nu;
+    
+    const real   x = conf.x_min + ix*conf.dx; 
+    const real   u = conf.u_min + iu*conf.du + conf.du/2;
+    real *my_rho = rho + ix;
+
+    const real f = eval_ftilda<real,order>( n, x, u, coeffs, conf );
+    const real weight = conf.du;
+
+    if ( q < q_end ) atomicAdd( my_rho, -weight*f );  
+}
+
+template <typename real, size_t order>
+__global__
+void cuda_eval_metrics( size_t n, const real *coeffs, const config_t<real> conf, real *metrics,
+                        size_t q_begin, size_t q_end )
+{
+    // Number of my quadrature node.
+    const size_t q = q_begin +
+                     size_t(blockDim.x)*size_t(blockIdx.x) + size_t(threadIdx.x);
+
+    const size_t ix = q / conf.Nu;
+    const size_t iu = q % conf.Nu;
+    
+    const real x = conf.x_min + ix*conf.dx; 
+    const real u = conf.u_min + iu*conf.du + conf.du/2;
+
+    const real f = eval_f<real,order>( n, x, u, coeffs, conf );
+    const real weight = conf.du*conf.dx;
+
+    if ( q < q_end )
+    {
+        atomicAdd( metrics + 0, weight*f );
+        atomicAdd( metrics + 1, weight*f*f );
+        atomicAdd( metrics + 2, weight*(u*u*f/2) );
+        atomicAdd( metrics + 3, (f>0) ? -weight*f*log(f) : 0 );
+    }
+}
+
+template <typename real, size_t order>
+cuda_kernel<real,order>::cuda_kernel( const config_t<real> &p_conf, int dev ):
+conf { p_conf }, device_number { dev } 
+{
+    size_t  coeff_size  = sizeof(real)*(conf.Nt+1)*(conf.l+order);
+    size_t     rho_size = sizeof(real)*(conf.Nx+1);
+    size_t metrics_size = sizeof(real)*4;
+    
+    cuda::set_device( device_number );
+    cuda_coeffs .reset( cuda::malloc(  coeff_size), dev );
+    cuda_rho    .reset( cuda::malloc(    rho_size), dev );
+    cuda_metrics.reset( cuda::malloc(metrics_size), dev );
+    tmp_rho.reset( new real[ conf.Nx +1] );
+}
+
+template <typename real, size_t order>
+void cuda_kernel<real,order>::compute_rho( size_t n, size_t q_begin, size_t q_end )
+{
+    if ( n > conf.Nt )
+        throw std::range_error { "Time-step out of range." };
+
+    if ( q_begin == q_end ) return;
+
+    real *cu_coeffs = reinterpret_cast<real*>( cuda_coeffs.get() );
+    real *cu_rho    = reinterpret_cast<real*>( cuda_rho   .get() );
+
+    size_t N          = q_end - q_begin;
+    size_t block_size = 64;
+    size_t Nblocks    = 1 + ( (N-1) / (block_size) );
+
+    size_t rho_size = (conf.Nx+1)*sizeof(real);
+
+    cuda::set_device( device_number );
+    cuda::memset( cu_rho, 0, rho_size );
+    cuda_eval_rho<real,order><<<Nblocks,block_size>>>( n, cu_coeffs, conf, cu_rho, q_begin, q_end );
+}
+
+template <typename real, size_t order>
+void cuda_kernel<real,order>::download_rho( real *rho )
+{
+    real *cu_rho    = reinterpret_cast<real*>( cuda_rho.get() );
+    size_t N        = conf.Nx+1;
+
+    cuda::set_device(device_number);
+    cuda::memcpy_to_host( tmp_rho.get(), cu_rho, sizeof(real)*N );
+
+    for ( size_t i = 0; i < N; ++i )
+        rho[ i ] += tmp_rho[ i ];
+}
+
+template <typename real, size_t order>
+void cuda_kernel<real,order>::upload_phi( size_t n, const real *coeffs )
+{
+    size_t stride_n = (conf.l + order );
+    real *cu_coeffs = reinterpret_cast<real*>( cuda_coeffs.get() );
+
+    cuda::set_device(device_number);
+    cuda::memcpy_to_device( cu_coeffs + n*stride_n,
+                               coeffs + n*stride_n, sizeof(real)*stride_n );
+}
+
+template <typename real, size_t order>
+void cuda_kernel<real,order>::compute_metrics( size_t n, size_t q_begin, size_t q_end )
+{
+    if ( q_begin == q_end ) return;
+
+    real *cu_coeffs  = reinterpret_cast<real*>( cuda_coeffs .get() );
+    real *cu_metrics = reinterpret_cast<real*>( cuda_metrics.get() );
+
+    size_t N = q_end - q_begin;
+    size_t block_size = 64;
+    size_t Nblocks = 1 + (N-1) / block_size;
+
+    cuda::set_device(device_number);
+    cuda::memset( cu_metrics, 0, 4*sizeof(real) );
+    cuda_eval_metrics<real,order><<<Nblocks,block_size>>>( n, cu_coeffs, conf, cu_metrics, q_begin, q_end );
+}
+
+template <typename real, size_t order>
+void cuda_kernel<real,order>::download_metrics( real *metrics )
+{
+    real *cu_metrics = reinterpret_cast<real*>( cuda_metrics.get() );
+    real tmp_metrics[ 4 ];
+
+    cuda::set_device(device_number);
+    cuda::memcpy_to_host( tmp_metrics, cu_metrics, 4*sizeof(real) );
+
+    metrics[ 0 ] += tmp_metrics[ 0 ];
+    metrics[ 1 ] += tmp_metrics[ 1 ];
+    metrics[ 2 ] += tmp_metrics[ 2 ];
+    metrics[ 3 ] += tmp_metrics[ 3 ];
+}
+
+template class cuda_kernel<double,3>;
+template class cuda_kernel<double,4>;
+template class cuda_kernel<double,5>;
+template class cuda_kernel<double,6>;
+template class cuda_kernel<double,7>;
+template class cuda_kernel<double,8>;
+
+template class cuda_kernel<float,3>;
+template class cuda_kernel<float,4>;
+template class cuda_kernel<float,5>;
+template class cuda_kernel<float,6>;
+template class cuda_kernel<float,7>;
+template class cuda_kernel<float,8>;
+
+}
+
+
+
 }
 
 namespace dim2

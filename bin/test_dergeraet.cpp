@@ -34,6 +34,7 @@
 #include <dergeraet/rho.hpp>
 #include <dergeraet/stopwatch.hpp>
 #include <dergeraet/cuda_scheduler.hpp>
+#include <dergeraet/finite_difference_poisson.hpp>
 
 namespace dergeraet
 {
@@ -138,10 +139,13 @@ void test()
 
     std::cout << "Elapsed time = " << total_time << std::endl;
 }
+}
+namespace dirichlet{
 
 template <typename real, size_t order>
-void test_dirichlet()
+void test()
 {
+    
     using std::abs;
     using std::max;
     using std::sqrt;
@@ -156,10 +160,11 @@ void test_dirichlet()
     if ( rho == nullptr ) throw std::bad_alloc {};
     std::unique_ptr<real,decltype(std::free)*> rho_ext { reinterpret_cast<real*>(std::aligned_alloc(64,sizeof(real)*n_total)), std::free };//rename, this is the rhs of the interpolation task, but with 2 additional entries.
 
-    poisson<real> poiss( conf );
+     
+    poisson_fd_dirichlet<double> poiss(conf);
 
     cuda_scheduler<real,order> sched { conf };
-
+    
     std::ofstream statistics_file( "statistics.csv" );
     statistics_file << R"("Time"; "L1-Norm"; "L2-Norm"; "Electric Energy"; "Kinetic Energy"; "Total Energy"; "Entropy")";
     statistics_file << std::endl;
@@ -173,19 +178,19 @@ void test_dirichlet()
     {
     
     dergeraet::stopwatch<double> timer;
-    std::memset( rho.get(), 0, conf.Nx*sizeof(real) );
-    sched.compute_rho ( n, 0, conf.Nx*conf.Nu ); // Auf Dirichlet kernel umstellen.
+    std::memset( rho.get(), 0, (conf.Nx+1)*sizeof(real) );
+    sched.compute_rho ( n, 0, (conf.Nx+1)*conf.Nu ); // Auf Dirichlet kernel umstellen.
     sched.download_rho( rho.get() );
 
-    real electric_energy = poiss.solve( rho.get() ); // Auf Dirichlet Poisson umstellen.
+    real electric_energy = 1;//poiss.solve( rho.get() ); // Auf Dirichlet Poisson umstellen.
     // phi am Rand auf 0 setzen. (rho_ext auf 0 setzen)
    
     // this is the value to the left of a.
-    rho_ext.get()[0]=rho.get()[0];
+    rho_ext.get()[0]=0;
 
     // this is the value to the right of b.
     for(size_t i = 0; i<order-3;i++){
-        rho_ext.get()[n_total-1-i] = rho.get()[conf.Nx-1];
+        rho_ext.get()[n_total-1-i] = 0;
     }
     //these are all values in [a,b)
     for(size_t i = 1; i<conf.Nx+1;i++){
@@ -195,23 +200,18 @@ void test_dirichlet()
     //this is the value for b. so far, its the last value of the rho array.
     rho_ext.get()[n_total-2] = rho.get()[conf.Nx-1];
 
-std::cout<<"test1"<<std::endl;
-
-    std::ofstream f_file("f.txt");
+    if(n== 0){
+        std::ofstream dirfile("rho_dir.txt");
+        for(size_t i = 0; i<conf.Nx+1;i++){
+            dirfile<<std::setprecision(3)<<rho.get()[i]<<"\n";         
+        }           
+        dirfile.close();
+    }
     for(int i = 0; i<n_total; i++){
         
         std::cout << rho_ext.get()[i]<<"\n";
     }
-    f_file.close();
-    std::cout<<"test2"<<std::endl;
     dim1::dirichlet::interpolate<real,order>( coeffs.get() + n*stride_t,rho_ext.get(), conf );
-    if(n==0){
-        std::ofstream coeff_file ("coeffs.txt");
-        for(int j = 0; j<n_total; j++){
-            coeff_file<<coeffs[j+n*stride_t]<<"\n";
-        }
-        coeff_file.close();
-    }
     sched.upload_phi( n, coeffs.get() );
     double time_elapsed = timer.elapsed();
     total_time += time_elapsed;
@@ -284,99 +284,99 @@ std::cout<<"test1"<<std::endl;
 
     std::cout << "Elapsed time = " << total_time << std::endl;
 }
+}
+}
 
-}
-}
 }
 
 
 int main()
 {
     //dergeraet::dim1::periodic::test<double,4>();
-    dergeraet::dim1::periodic::test_dirichlet<double,4>();
+    dergeraet::dim1::dirichlet::test<double,4>();
 
-	const double a = 0;
-	const double b = 2*M_PI;
-	const size_t Nx = 8;
-	const double dx = (b-a)/(Nx);
-	const size_t order = 4;
-	const size_t l = Nx -1;
-	const size_t n = l + order;
-	std::vector<double> N_vec(order);
-	dergeraet::splines1d::N<double,order>(0, N_vec.data());
+	// const double a = 0;
+	// const double b = 2*M_PI;
+	// const size_t Nx = 8;
+	// const double dx = (b-a)/(Nx);
+	// const size_t order = 4;
+	// const size_t l = Nx -1;
+	// const size_t n = l + order;
+	// std::vector<double> N_vec(order);
+	// dergeraet::splines1d::N<double,order>(0, N_vec.data());
 
-	dergeraet::dim1::config_t<double> conf;
-	conf.Nx = Nx;
-	conf.x_min = a;
-	conf.x_max = b;
-	conf.dx = dx;
-	conf.dx_inv = 1.0/dx;
-	conf.Lx = (b-a);
-	conf.Lx_inv = 1.0/conf.Lx;
+	// dergeraet::dim1::config_t<double> conf;
+	// conf.Nx = Nx;
+	// conf.x_min = a;
+	// conf.x_max = b;
+	// conf.dx = dx;
+	// conf.dx_inv = 1.0/dx;
+	// conf.Lx = (b-a);
+	// conf.Lx_inv = 1.0/conf.Lx;
 
-	arma::vec rhs(n, arma::fill::zeros);
-
-
-	for(int i = 0; i <= l+1; i++)
-	{
-		double x = a + i*dx;
-		rhs(i+1) = std::sin(x);
-
-		std::cout << x << " " << rhs(i+1) << std::endl;
-	}
-	rhs(0) = rhs(1);
-	std::cout << a-dx << " " << rhs(0) << std::endl;
-	rhs(n-1) = rhs(n-2);
-	std::cout << b+dx << " " << rhs(n-1) << std::endl;
+	// arma::vec rhs(n, arma::fill::zeros);
 
 
-	arma::mat A(n, n, arma::fill::zeros);
+	// for(int i = 0; i <= l+1; i++)
+	// {
+	// 	double x = a + i*dx;
+	// 	rhs(i+1) = std::sin(x);
 
-    for ( size_t i = 0; i < n; ++i )
-    {
-        if ( i == 0 )
-        {
-            for ( size_t ii = 0; ii < order-1; ++ii ){
-            	A(i, i+ii) = N_vec[ii+1];
-            }
-        }
-        else if(i<l+3){
-            for ( size_t ii = 0; ii < order-1; ++ii )
-            	A(i, i + ii -1) = N_vec[ii];
-        }
-        else
-        {
-            for ( size_t ii = 0; ii < order-2; ++ii )
-            {
-            	A(i,i+ii-1) = N_vec[ii];
-            }
-        }
-    }
-
-    std::cout << A << std::endl;
-
-    arma::vec coeffs(n);
-    arma::solve(coeffs, A, rhs);
+	// 	std::cout << x << " " << rhs(i+1) << std::endl;
+	// }
+	// rhs(0) = rhs(1);
+	// std::cout << a-dx << " " << rhs(0) << std::endl;
+	// rhs(n-1) = rhs(n-2);
+	// std::cout << b+dx << " " << rhs(n-1) << std::endl;
 
 
-	for(int i = 0; i < n; i++)
-	{
-		double x = a + (i-1)*dx;
-		double approx_result = dergeraet::dim1::dirichlet::eval<double, order>(x, coeffs.memptr(), conf);
-		double exact = rhs(i);
-		std::cout << x << " " << approx_result << " " << exact << " " << std::abs(approx_result - exact) << std::endl;
-	}
+	// arma::mat A(n, n, arma::fill::zeros);
 
-	std::cout << rhs << std::endl;
-	std::cout << coeffs << std::endl;
+    // for ( size_t i = 0; i < n; ++i )
+    // {
+    //     if ( i == 0 )
+    //     {
+    //         for ( size_t ii = 0; ii < order-1; ++ii ){
+    //         	A(i, i+ii) = N_vec[ii+1];
+    //         }
+    //     }
+    //     else if(i<l+3){
+    //         for ( size_t ii = 0; ii < order-1; ++ii )
+    //         	A(i, i + ii -1) = N_vec[ii];
+    //     }
+    //     else
+    //     {
+    //         for ( size_t ii = 0; ii < order-2; ++ii )
+    //         {
+    //         	A(i,i+ii-1) = N_vec[ii];
+    //         }
+    //     }
+    // }
 
-	std::cout << std::floor(-1) << std::endl;
-	std::cout << std::floor(-1.01) << std::endl;
-	std::cout << std::floor(-0.99) << std::endl;
+    // std::cout << A << std::endl;
 
-	double x_knot = std::floor((a-dx)*conf.dx_inv);
+    // arma::vec coeffs(n);
+    // arma::solve(coeffs, A, rhs);
 
-	std::cout << x_knot << std::endl;
-	std::cout << static_cast<int>(x_knot) << std::endl;
+
+	// for(int i = 0; i < n; i++)
+	// {
+	// 	double x = a + (i-1)*dx;
+	// 	//double approx_result = dergeraet::dim1::dirichlet::eval<double, order>(x, coeffs.memptr(), conf);
+	// 	double exact = rhs(i);
+	// 	//std::cout << x << " " << approx_result << " " << exact << " " << std::abs(approx_result - exact) << std::endl;
+	// }
+
+	// std::cout << rhs << std::endl;
+	// std::cout << coeffs << std::endl;
+
+	// std::cout << std::floor(-1) << std::endl;
+	// std::cout << std::floor(-1.01) << std::endl;
+	// std::cout << std::floor(-0.99) << std::endl;
+
+	// double x_knot = std::floor((a-dx)*conf.dx_inv);
+
+	// std::cout << x_knot << std::endl;
+	// std::cout << static_cast<int>(x_knot) << std::endl;
 }
 

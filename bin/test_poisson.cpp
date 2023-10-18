@@ -32,7 +32,7 @@ namespace dergeraet
 
 namespace dim1
 {
-namespace fd_dirichlet
+namespace dirichlet
 {
 template <typename real>
 real rho( real x )
