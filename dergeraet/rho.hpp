@@ -28,102 +28,6 @@ namespace dergeraet
 namespace dim1
 {
 
-namespace dirichlet
-{
-template <typename real, size_t order>
-__host__ __device__
-real eval_ftilda( size_t n, real x, real u,
-                  const real *coeffs, const config_t<real> &conf )
-{
-    if ( n == 0 ) return config_t<real>::f0(x,u);
-    SurfaceState state = config_t<real>::surface_state(x);
-    if (state != DOMAIN) return config_t<real>::call_surface_model(state, x, u);
-
-
-    const size_t stride_x = 1;
-    const size_t stride_t = stride_x*(conf.Nx + order - 1);
-
-    real Ex;
-    const real *c;
-
-    // We omit the initial half-step.
-
-    while ( --n )
-    {
-        x  = x - conf.dt*u;
-        c  = coeffs + n*stride_t;
-        Ex = -eval<real,order,1>(x,c,conf);
-        u  = u + conf.dt*Ex;
-        state = config_t<real>::surface_state(x);
-        if (state != DOMAIN) return config_t<real>::call_surface_model(state, x,  u);
-
-    }
-
-    // The final half-step.
-    x -= conf.dt*u;
-    c  = coeffs + n*stride_t;
-    Ex = -eval<real,order,1>(x,c,conf);
-    u += 0.5*conf.dt*Ex;
-
-    return config_t<real>::f0(x,u);
-}
-
-template <typename real, size_t order>
-__host__ __device__
-real eval_f( size_t n, real x, real u,
-             const real *coeffs, const config_t<real> &conf )
-{
-    if ( n == 0 ) return config_t<real>::f0(x,u);
-    SurfaceState state = config_t<real>::surface_state(x);
-    if (state != DOMAIN) return config_t<real>::call_surface_model(state,x,u);
-
-    const size_t stride_x = 1;
-    const size_t stride_t = stride_x*(conf.Nx + order - 1);
-
-    real Ex;
-    const real *c;
-
-    // Initial half-step.
-    c  = coeffs + n*stride_t;
-    Ex = -eval<real,order,1>( x, c, conf );
-    u += 0.5*conf.dt*Ex;
-
-    while ( --n )
-    {
-        x -= conf.dt*u;
-        c  = coeffs + n*stride_t;
-        Ex = -eval<real,order,1>( x, c, conf );
-        u += conf.dt*Ex;
-        state = config_t<real>::surface_state(x);
-        if (state != DOMAIN) return config_t<real>::call_surface_model(state, x, u);
-
-    }
-
-    // Final half-step.
-    x -= conf.dt*u;
-    c  = coeffs + n*stride_t;
-    Ex = -eval<real,order,1>( x, c, conf );
-    u += 0.5*conf.dt*Ex;
-
-    return config_t<real>::f0(x,u);
-}
-
-template <typename real, size_t order>
-real eval_rho( size_t n, size_t i, const real *coeffs, const config_t<real> &conf )
-{
-    const real x = conf.x_min + i*conf.dx;
-    const real du = (conf.u_max-conf.u_min) / conf.Nu;
-    const real u_min = conf.u_min + 0.5*du;
-
-    real rho = 0;
-    for ( size_t ii = 0; ii < conf.Nu; ++ii )
-        rho += eval_ftilda<real,order>( n, x, u_min + ii*du, coeffs, conf );
-    rho = 1 - du*rho;
-
-    return rho;
-}
-}
-
 namespace periodic
 {
 template <typename real, size_t order>
@@ -208,6 +112,101 @@ real eval_rho( size_t n, size_t i, const real *coeffs, const config_t<real> &con
     return rho;
 }
 
+}
+namespace dirichlet
+{
+template <typename real, size_t order>
+__host__ __device__
+real eval_ftilda( size_t n, real x, real u,
+                  const real *coeffs, const config_t<real> &conf )
+{
+    if ( n == 0 ) return config_t<real>::f0(x,u);
+    SurfaceState state = config_t<real>::surface_state(x);
+    if (state != DOMAIN) return config_t<real>::call_surface_model(state, x, u);
+
+
+    const size_t stride_x = 1;
+    const size_t stride_t = stride_x*(conf.Nx + order - 1);
+
+    real Ex;
+    const real *c;
+
+    // We omit the initial half-step.
+
+    while ( --n )
+    {
+        x  = x - conf.dt*u;
+        c  = coeffs + n*stride_t;
+        Ex = -eval<real,order,1>(x,c,conf);
+        u  = u + conf.dt*Ex;
+        state = config_t<real>::surface_state(x);
+        if (state != DOMAIN) return config_t<real>::call_surface_model(state, x,  u);
+
+    }
+
+    // The final half-step.
+    x -= conf.dt*u;
+    c  = coeffs + n*stride_t;
+    Ex = -eval<real,order,1>(x,c,conf);
+    u += 0.5*conf.dt*Ex;
+
+    return config_t<real>::f0(x,u);
+}
+
+template <typename real, size_t order>
+__host__ __device__
+real eval_f( size_t n, real x, real u,
+             const real *coeffs, const config_t<real> &conf )
+{
+    if ( n == 0 ) return config_t<real>::f0(x,u);
+    SurfaceState state = config_t<real>::surface_state(x);
+    if (state != DOMAIN) return config_t<real>::call_surface_model(state,x,u);
+
+    const size_t stride_x = 1;
+    const size_t stride_t = stride_x*(conf.Nx + order - 1); //maybe not correct?
+
+    real Ex;
+    const real *c;
+
+    // Initial half-step.
+    c  = coeffs + n*stride_t;
+    Ex = -eval<real,order,1>( x, c, conf );
+    u += 0.5*conf.dt*Ex;
+
+    while ( --n )
+    {
+        x -= conf.dt*u;
+        c  = coeffs + n*stride_t;
+        Ex = -eval<real,order,1>( x, c, conf );
+        u += conf.dt*Ex;
+        state = config_t<real>::surface_state(x);
+        if (state != DOMAIN) return config_t<real>::call_surface_model(state, x, u);
+
+    }
+
+    // Final half-step.
+    x -= conf.dt*u;
+    c  = coeffs + n*stride_t;
+    Ex = -eval<real,order,1>( x, c, conf );
+    u += 0.5*conf.dt*Ex;
+
+    return config_t<real>::f0(x,u);
+}
+
+template <typename real, size_t order>
+real eval_rho( size_t n, size_t i, const real *coeffs, const config_t<real> &conf )
+{
+    const real x = conf.x_min + i*conf.dx;
+    const real du = (conf.u_max-conf.u_min) / conf.Nu;
+    const real u_min = conf.u_min + 0.5*du;
+
+    real rho = 0;
+    for ( size_t ii = 0; ii < conf.Nu; ++ii )
+        rho += eval_ftilda<real,order>( n, x, u_min + ii*du, coeffs, conf );
+    rho = - du*rho; //removed the 1 (previously: 1 - du*rho)
+
+    return rho;
+}
 }
 }
 
