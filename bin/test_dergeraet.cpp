@@ -174,13 +174,22 @@ void test()
     std::cout<<conf.Nt<<std::endl;
     double total_time = 0;
   
-    for ( size_t n = 0; n <= conf.Nt; n++ )
+  //  for ( size_t n = 0; n <= conf.Nt; n++ )
+    for ( size_t n = 0; n <= 1; n++ )
     {
     
     dergeraet::stopwatch<double> timer;
-    std::memset( rho.get(), 0, (conf.Nx+1)*sizeof(real) );
-    sched.compute_rho ( n, 0, (conf.Nx+1)*conf.Nu ); // Auf Dirichlet kernel umstellen.
-    sched.download_rho( rho.get() );
+    std::memset( rho.get(), 0, conf.Nx*sizeof(real) );
+    //sched.compute_rho ( n, 0, conf.Nx*conf.Nu ); // Auf Dirichlet kernel umstellen.
+    //sched.download_rho( rho.get() );
+
+	// Compute rho:
+	#pragma omp parallel for
+	for(size_t i = 0; i<conf.Nx; i++)
+	{
+		rho.get()[i] = eval_rho<real,order>(n, i, coeffs.get(), conf);
+	}
+
 
     real electric_energy = 1;//poiss.solve( rho.get() ); // Auf Dirichlet Poisson umstellen.
     // phi am Rand auf 0 setzen. (rho_ext auf 0 setzen)
@@ -203,7 +212,7 @@ void test()
     if(n== 0){
         std::ofstream dirfile("rho_dir.txt");
         for(size_t i = 0; i<conf.Nx+1;i++){
-            dirfile<<std::setprecision(3)<<rho.get()[i]<<"\n";         
+            dirfile<< conf.x_min+i*conf.dx << " " <<std::setprecision(3)<<rho.get()[i]<<"\n";
         }           
         dirfile.close();
     }

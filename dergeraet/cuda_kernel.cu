@@ -245,14 +245,14 @@ cuda_kernel<real,order>::cuda_kernel( const config_t<real> &p_conf, int dev ):
 conf { p_conf }, device_number { dev } 
 {
     size_t  coeff_size  = sizeof(real)*(conf.Nt+1)*(conf.l+order);
-    size_t     rho_size = sizeof(real)*(conf.Nx+1);
+    size_t     rho_size = sizeof(real)*(conf.Nx);
     size_t metrics_size = sizeof(real)*4;
     
     cuda::set_device( device_number );
     cuda_coeffs .reset( cuda::malloc(  coeff_size), dev );
     cuda_rho    .reset( cuda::malloc(    rho_size), dev );
     cuda_metrics.reset( cuda::malloc(metrics_size), dev );
-    tmp_rho.reset( new real[ conf.Nx +1] );
+    tmp_rho.reset( new real[ conf.Nx] );
 }
 
 template <typename real, size_t order>
@@ -270,7 +270,7 @@ void cuda_kernel<real,order>::compute_rho( size_t n, size_t q_begin, size_t q_en
     size_t block_size = 64;
     size_t Nblocks    = 1 + ( (N-1) / (block_size) );
 
-    size_t rho_size = (conf.Nx+1)*sizeof(real);
+    size_t rho_size = (conf.Nx)*sizeof(real);
 
     cuda::set_device( device_number );
     cuda::memset( cu_rho, 0, rho_size );
@@ -281,7 +281,7 @@ template <typename real, size_t order>
 void cuda_kernel<real,order>::download_rho( real *rho )
 {
     real *cu_rho    = reinterpret_cast<real*>( cuda_rho.get() );
-    size_t N        = conf.Nx+1;
+    size_t N        = conf.Nx;
 
     cuda::set_device(device_number);
     cuda::memcpy_to_host( tmp_rho.get(), cu_rho, sizeof(real)*N );

@@ -27,9 +27,9 @@ test_nufi_cpu_2d_LDADD  += $(CUDA_LDFLAGS) $(BLAS_LIBS) -lfftw3 -lfftw3f
 
 test_dergeraet_2d_SOURCES = test_dergeraet_2d.cpp
 test_dergeraet_2d_LDADD   = $(top_builddir)/dergeraet/libdergeraet.a 
-test_dergeraet_2d_LDADD  += $(CUDA_LDFLAGS) $(BLAS_LIBS) -lfftw3 -lfftw3f -lmpi #-lmpi_cxx
+test_dergeraet_2d_LDADD  += $(CUDA_LDFLAGS) $(BLAS_LIBS) -lfftw3 -lfftw3f -lmpi -lmpi_cxx
 
 test_dergeraet_3d_SOURCES = test_dergeraet_3d.cpp
 test_dergeraet_3d_LDADD   = $(top_builddir)/dergeraet/libdergeraet.a 
-test_dergeraet_3d_LDADD  += $(CUDA_LDFLAGS) $(BLAS_LIBS) -lfftw3 -lfftw3f -lmpi #-lmpi_cxx
+test_dergeraet_3d_LDADD  += $(CUDA_LDFLAGS) $(BLAS_LIBS) -lfftw3 -lfftw3f -lmpi -lmpi_cxx
 

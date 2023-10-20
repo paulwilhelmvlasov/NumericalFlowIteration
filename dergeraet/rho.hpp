@@ -126,7 +126,8 @@ real eval_ftilda( size_t n, real x, real u,
 
 
     const size_t stride_x = 1;
-    const size_t stride_t = stride_x*(conf.Nx + order - 1);
+    //const size_t stride_t = stride_x*(conf.Nx + order - 1);
+    const size_t stride_t = stride_x*(conf.l + order);
 
     real Ex;
     const real *c;
@@ -163,7 +164,7 @@ real eval_f( size_t n, real x, real u,
     if (state != DOMAIN) return config_t<real>::call_surface_model(state,x,u);
 
     const size_t stride_x = 1;
-    const size_t stride_t = stride_x*(conf.Nx + order - 1); //maybe not correct?
+    const size_t stride_t = stride_x*(conf.l + order); //maybe not correct?
 
     real Ex;
     const real *c;
@@ -203,7 +204,7 @@ real eval_rho( size_t n, size_t i, const real *coeffs, const config_t<real> &con
     real rho = 0;
     for ( size_t ii = 0; ii < conf.Nu; ++ii )
         rho += eval_ftilda<real,order>( n, x, u_min + ii*du, coeffs, conf );
-    rho = - du*rho; //removed the 1 (previously: 1 - du*rho)
+    rho = 1 - du*rho; //removed the 1 (previously: 1 - du*rho)
 
     return rho;
 }

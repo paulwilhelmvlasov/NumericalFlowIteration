@@ -144,9 +144,6 @@ template <typename real>
 __host__ __device__
 real config_t<real>::f0( real x, real u ) noexcept
 {
-    
-
-    //
     SurfaceState state = surface_state(x);
     return call_surface_model(state, x, u);
 }
@@ -168,6 +165,13 @@ template <typename real>
 __host__ __device__
 real config_t<real>::call_surface_model( SurfaceState state, real x, real u) noexcept
 {
+    constexpr real c = 1.0/M_PI;
+    if(x*x + u*u >= 1 )
+    {
+        return 0;
+    }
+    return c * 1.0/std::sqrt( 1 - x*x - u*u );
+    /*
     switch (state)
     {
         case DOMAIN:
@@ -181,8 +185,7 @@ real config_t<real>::call_surface_model( SurfaceState state, real x, real u) noe
             {
     	        return 0;
             }
-            constexpr real c = 1.0/M_PI;
-            return c * 1.0/std::sqrt( 1 - x*x - u*u );;
+            return c * 1.0/std::sqrt( 1 - x*x - u*u );
             break;
         case OUTSIDE_DOMAIN:
             return 0.0;
@@ -191,6 +194,7 @@ real config_t<real>::call_surface_model( SurfaceState state, real x, real u) noe
             return 0.0;
             break;
     }
+    */
 }
 
 }
