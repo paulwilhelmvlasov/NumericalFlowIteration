@@ -1,4 +1,4 @@
-noinst_PROGRAMS = test_poisson test_gmres test_fields test_dergeraet test_nufi_cpu test_nufi_cpu_2d test_dergeraet_2d test_dergeraet_3d
+noinst_PROGRAMS = test_poisson test_gmres test_fields test_dergeraet test_vp_dirichlet_1d test_nufi_cpu test_nufi_cpu_2d test_dergeraet_2d test_dergeraet_3d
 					 
 
 test_poisson_SOURCES = test_poisson.cpp
@@ -16,6 +16,10 @@ test_fields_LDADD  += $(CUDA_LDFLAGS) $(BLAS_LIBS) -lfftw3 -lfftw3f
 test_dergeraet_SOURCES = test_dergeraet.cpp
 test_dergeraet_LDADD   = $(top_builddir)/dergeraet/libdergeraet.a 
 test_dergeraet_LDADD  += $(CUDA_LDFLAGS) $(BLAS_LIBS) -lfftw3 -lfftw3f
+
+test_vp_dirichlet_1d_SOURCES = test_vp_dirichlet_1d.cpp
+test_vp_dirichlet_1d_LDADD   = $(top_builddir)/dergeraet/libdergeraet.a 
+test_vp_dirichlet_1d_LDADD  += $(CUDA_LDFLAGS) $(BLAS_LIBS) -lfftw3 -lfftw3f
 
 test_nufi_cpu_SOURCES = test_nufi_cpu.cpp
 test_nufi_cpu_LDADD   = $(top_builddir)/dergeraet/libdergeraet.a 

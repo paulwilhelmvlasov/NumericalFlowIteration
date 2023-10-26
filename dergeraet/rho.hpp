@@ -204,7 +204,7 @@ real eval_rho( size_t n, size_t i, const real *coeffs, const config_t<real> &con
     real rho = 0;
     for ( size_t ii = 0; ii < conf.Nu; ++ii )
         rho += eval_ftilda<real,order>( n, x, u_min + ii*du, coeffs, conf );
-    rho = 1 - du*rho; //removed the 1 (previously: 1 - du*rho)
+    rho = - du*rho;
 
     return rho;
 }

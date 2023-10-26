@@ -98,7 +98,6 @@ template <typename real>
 struct config_t
 {
     static constexpr real x_min = -1, x_max = 1;
-    
 
     size_t Nx;  // Number of grid points in physical space.
     size_t Nu;  // Number of quadrature points in velocity space.
@@ -128,8 +127,8 @@ struct config_t
 template <typename real>
 config_t<real>::config_t() noexcept
 {
-    Nx = 64;
-    Nu = 128;
+    Nx = 1024;
+    Nu = 2048;
     u_min = -1;
     u_max =  1;
     l = Nx -1;
@@ -152,7 +151,7 @@ __host__ __device__
 SurfaceState config_t<real>::surface_state( real x) noexcept
 {
     // Check if the particle is outside the domain
-    if (x < 0 || x > x_max)
+    if (x < x_min || x > x_max)
     {
         return OUTSIDE_DOMAIN;
     }
