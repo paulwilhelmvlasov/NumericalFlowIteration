@@ -24,6 +24,7 @@
 #include <sstream>
 #include <random>
 #include <math.h>
+#include <vector>
 
 #include <armadillo>
 
@@ -54,8 +55,9 @@ void test()
 
     std::unique_ptr<real[]> coeffs { new real[ (conf.Nt+1)*stride_t ] {} };
     std::unique_ptr<real,decltype(std::free)*> rho { reinterpret_cast<real*>(std::aligned_alloc(64,sizeof(real)*conf.Nx)), std::free };
+    std::unique_ptr<real,decltype(std::free)*> rho_dir { reinterpret_cast<real*>(std::aligned_alloc(64,sizeof(real)*(conf.Nx+1))), std::free };
     if ( rho == nullptr ) throw std::bad_alloc {};
-    std::unique_ptr<real,decltype(std::free)*> rho_ext { reinterpret_cast<real*>(std::aligned_alloc(64,sizeof(real)*n_total)), std::free };//rename, this is the rhs of the interpolation task, but with 2 additional entries.
+    std::unique_ptr<real,decltype(std::free)*> phi_ext { reinterpret_cast<real*>(std::aligned_alloc(64,sizeof(real)*stride_t)), std::free };//rename, this is the rhs of the interpolation task, but with 2 additional entries.
 
 
     poisson_fd_dirichlet<double> poiss(conf);
@@ -78,32 +80,34 @@ void test()
     		rho.get()[i] = eval_rho<real,order>(n, i, coeffs.get(), conf);
     	}
 
+    	// Set rho_dir:
+    	rho_dir.get()[0] = 0; // Left phi value.
+    	for(size_t i = 1; i < conf.Nx; i++)
+    	{
+    		rho_dir.get()[i] = rho.get()[i];
+    	}
+    	rho_dir.get()[conf.Nx] = 0; // Left phi value.
+
+    	// Solve for phi:
+    	poiss.solve(rho_dir.get());
+
         // this is the value to the left of a.
-        rho_ext.get()[0]=0;
+        phi_ext.get()[0]=0;
 
         // this is the value to the right of b.
         for(size_t i = 0; i<order-3;i++){
-            rho_ext.get()[n_total-1-i] = 0;
+            phi_ext.get()[stride_t-1-i] = 0;
         }
-        //these are all values in [a,b)
+        //these are all values in [a,b]
         for(size_t i = 1; i<conf.Nx+1;i++){
-            rho_ext.get()[i] = rho.get()[i-1];
+            phi_ext.get()[i] = rho_dir.get()[i-1];
 
         }
-        //this is the value for b. so far, its the last value of the rho array.
-        rho_ext.get()[n_total-2] = rho.get()[conf.Nx-1];
 
-        dim1::dirichlet::interpolate<real,order>( coeffs.get() + n*stride_t,rho_ext.get(), conf );
+        dim1::dirichlet::interpolate<real,order>( coeffs.get() + n*stride_t,phi_ext.get(), conf );
         sched.upload_phi( n, coeffs.get() );
         double time_elapsed = timer.elapsed();
         total_time += time_elapsed;
-
-
-        std::ofstream rho_file("rho_ext_"+ std::to_string(n) + ".txt");
-        for(size_t i = 0; i < conf.l + order; i++)
-        {
-        	rho_file << i << " " << rho_ext.get()[i] << std::endl;
-        }
 
         std::ofstream f_quer("f_quer_"+ std::to_string(n) + ".txt");
         for(size_t j = 0; j <= conf.Nu; j++)
@@ -137,7 +141,7 @@ void test()
         std::ofstream phi_file("phi_"+ std::to_string(n) + ".txt");
 		for(size_t i = 0; i <= conf.Nx; i++)
 		{
-			real x = conf.x_min + i*conf.Nx;
+			real x = conf.x_min + i*conf.dx;
 			real E = -dim1::dirichlet::eval<real,order,1>( x, coeffs.get() + n*stride_t, conf );
 			real rho = -dim1::dirichlet::eval<real,order,2>( x, coeffs.get() + n*stride_t, conf );
 			real phi = dim1::dirichlet::eval<real,order>( x, coeffs.get() + n*stride_t, conf );
