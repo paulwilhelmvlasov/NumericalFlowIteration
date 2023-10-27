@@ -68,6 +68,7 @@ void simulation_to_write_potentials()
     write_potential << "Nz = " << std::to_string(conf.Nz) << std::endl;
     write_potential << "order = " << std::to_string(order) << std::endl;
     write_potential << std::endl;
+    write_potential << std::setprecision(16);
 
     double total_time = 0;
     for ( size_t n = 0; n <= conf.Nt; ++n )
@@ -89,6 +90,7 @@ void simulation_to_write_potentials()
 	    double t = n*conf.dt;
         std::cout << "n = " << n << " t = " << n*conf.dt << " Comp-time: " << timer_elapsed << ". Total time s.f.: " << total_time << std::endl;
 
+        //write_potential << "n = " << n << std::endl;
         for(size_t l = 0; l < stride_t; l++)
         {
         	write_potential << coeffs.get()[n*stride_t + l] << std::endl;
@@ -120,14 +122,26 @@ void compute_isolated_time_step(size_t n)
     poisson<real> poiss( conf );
 
     // Read the coefficients in:
+    char dump[256];
     std::ifstream read_potential("bump_on_tail_potential_periodic_3d.txt" );
+    std::cout << "Open file = " << read_potential.is_open() << std::endl;
+    std::ofstream write_debug_potential("debug.txt");
+    read_potential >> std::setprecision(16);
     for(size_t i = 0; i < 7; i++)
     {
-    	read_potential.ignore();
+    	read_potential.getline(dump, 256);
     }
-    for(size_t l = 0; l < (conf.Nt+1)*stride_t; l++)
+    for(size_t i = 0; i <= conf.Nt; i++)
     {
-    	read_potential >> coeffs.get()[l];
+		//read_potential.getline(dump, 256);
+    	write_debug_potential << "n = " << i << std::endl;
+
+    	for(size_t l = 0; l < stride_t; l++)
+    	{
+    		size_t index = i*stride_t + l;
+        	read_potential >> coeffs.get()[index];
+        	write_debug_potential << coeffs.get()[index] << std::endl;
+    	}
     }
 
     // Run requested time-step:
@@ -155,7 +169,7 @@ void compute_isolated_time_step(size_t n)
 int main()
 {
 	//dergeraet::dim3::simulation_to_write_potentials<double,4>();
-	dergeraet::dim3::compute_isolated_time_step<double,4>(50);
+	dergeraet::dim3::compute_isolated_time_step<double,4>(30);
 }
 
 
