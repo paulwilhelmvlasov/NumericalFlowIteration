@@ -166,7 +166,8 @@ void test()
         compute_time_total += compute_time_step;
 //        if(rank == 0)
 //        {
-        	std::cout << n * conf.dt << " " << compute_time_step << std::endl;
+        	std::cout << n * conf.dt << " " << compute_time_step << " " << compute_time_total << std::endl;
+		
         }
 
         // After this, we can output statistics, etc.

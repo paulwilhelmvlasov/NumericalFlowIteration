@@ -118,6 +118,7 @@ config_t<real>::config_t() noexcept
 {
     Nx = Ny = 32;
     Nu = Nv = 32;
+
     u_min = v_min = -8;
     u_max = v_max =  8;
     x_min = y_min = 0;
