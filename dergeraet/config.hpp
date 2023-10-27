@@ -194,8 +194,8 @@ struct config_t
 template <typename real>
 config_t<real>::config_t() noexcept
 {
-    Nx = Ny = Nz = 16;
-    Nu = Nv = Nw = 16;
+    Nx = Ny = Nz = 8;
+    Nu = Nv = Nw = 8;
 
     u_min = v_min = w_min = -9;
     u_max = v_max = w_max =  0;
@@ -203,7 +203,7 @@ config_t<real>::config_t() noexcept
     x_max = y_max = z_max = 20*M_PI/3.0; // Bump On Tail instability
 	//10*M_PI;
 
-    dt = 1./10.; Nt = 50/dt;
+    dt = 1./10.; Nt = 5/dt;
 
     Lx = x_max - x_min; Lx_inv = 1/Lx;
     Ly = y_max - y_min; Ly_inv = 1/Ly;
