@@ -22,6 +22,7 @@
 #include <iostream>
 #include <iomanip>
 #include <fstream>
+#include <random>
 #include <sstream>
 
 
@@ -38,6 +39,70 @@ namespace dergeraet
 namespace dim3
 {
 
+
+
+template <typename real, size_t order>
+void write_quasi_random_potentials()
+{
+    using std::abs;
+    using std::max;
+
+    config_t<real> conf;
+    size_t stride_t = (conf.Nx + order - 1) *
+                      (conf.Ny + order - 1) *
+					  (conf.Nz + order - 1);
+
+
+    std::unique_ptr<real[]> coeffs { new real[ (conf.Nt+1)*stride_t ] {} };
+    std::unique_ptr<real,decltype(std::free)*> rho { reinterpret_cast<real*>(std::aligned_alloc(64,
+    													sizeof(real)*conf.Nx*conf.Ny*conf.Nz)), std::free };
+    if ( rho == nullptr ) throw std::bad_alloc {};
+
+
+
+    std::ofstream write_potential("quasi_random_bop_potential_periodic_3d.txt" );
+
+    write_potential << "Nt = " << std::to_string(conf.Nt) << std::endl;
+    write_potential << "dt = " << std::to_string(conf.dt) << std::endl;
+    write_potential << "Nx = " << std::to_string(conf.Nx) << std::endl;
+    write_potential << "Ny = " << std::to_string(conf.Ny) << std::endl;
+    write_potential << "Nz = " << std::to_string(conf.Nz) << std::endl;
+    write_potential << "order = " << std::to_string(order) << std::endl;
+    write_potential << std::endl;
+    write_potential << std::setprecision(16);
+
+
+    std::random_device rd;  // Will be used to obtain a seed for the random number engine
+    std::mt19937 gen(rd()); // Standard mersenne_twister_engine seeded with rd()
+    std::uniform_real_distribution<> dis(-1e-4,1e-4);
+	real fac_x = 2*M_PI/conf.Lx;
+	real fac_y = 2*M_PI/conf.Ly;
+	real fac_z = 2*M_PI/conf.Lz;
+
+    for ( size_t n = 0; n <= conf.Nt; ++n )
+    {
+    	real eps = dis(gen);
+    	for(size_t i = 0; i < conf.Nx; i++)
+    	for(size_t j = 0; j < conf.Ny; j++)
+    	for(size_t k = 0; k < conf.Nz; k++)
+    	{
+    		real x = conf.x_min + i * conf.dx;
+    		real y = conf.y_min + j * conf.dy;
+    		real z = conf.z_min + k * conf.dz;
+
+    		size_t l = i + conf.Nx*(j + k*conf.Ny);
+
+    		rho.get()[l] = std::sin(x*fac_x) * std::sin(y*fac_y) * std::sin(z*fac_z) * eps;
+    	}
+
+        interpolate<real,order>( coeffs.get() + n*stride_t, rho.get(), conf );
+
+        for(size_t l = 0; l < stride_t; l++)
+        {
+        	write_potential << coeffs.get()[n*stride_t + l] << std::endl;
+        }
+    }
+}
 
 template <typename real, size_t order>
 void simulation_to_write_potentials()
@@ -58,7 +123,7 @@ void simulation_to_write_potentials()
 
     poisson<real> poiss( conf );
 
-
+	//std::ofstream write_potential("quasi_random_bop_potential_periodic_3d.txt" );
     std::ofstream write_potential("bump_on_tail_potential_periodic_3d.txt" );
 
     write_potential << "Nt = " << std::to_string(conf.Nt) << std::endl;
@@ -168,6 +233,7 @@ void compute_isolated_time_step(size_t n)
 
 int main()
 {
+//	dergeraet::dim3::write_quasi_random_potentials<double,4>();
 	//dergeraet::dim3::simulation_to_write_potentials<double,4>();
 	dergeraet::dim3::compute_isolated_time_step<double,4>(30);
 }
