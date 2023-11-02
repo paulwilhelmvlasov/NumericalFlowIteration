@@ -113,6 +113,7 @@ real eval_rho( size_t n, size_t i, const real *coeffs, const config_t<real> &con
 }
 
 }
+
 namespace dirichlet
 {
 template <typename real, size_t order>
@@ -141,7 +142,7 @@ real eval_ftilda( size_t n, real x, real u,
         Ex = -eval<real,order,1>(x,c,conf);
         u  = u + conf.dt*Ex;
         state = config_t<real>::surface_state(x);
-        if (state != 1) return config_t<real>::call_surface_model(state, x,  u);
+        if (state != 1) return config_t<real>::call_surface_model(state, x, u);
 
     }
 
@@ -204,11 +205,127 @@ real eval_rho( size_t n, size_t i, const real *coeffs, const config_t<real> &con
     real rho = 0;
     for ( size_t ii = 0; ii < conf.Nu; ++ii )
         rho += eval_ftilda<real,order>( n, x, u_min + ii*du, coeffs, conf );
+
     rho = - du*rho;
 
     return rho;
 }
 }
+
+namespace dirichlet
+{
+namespace ion_acoustic
+{
+
+template <typename real, size_t order>
+__host__ __device__
+real eval_ftilda( size_t n, real x, real u,
+                  const real *coeffs, const config_t<real> &conf, bool electron = true)
+{
+	if ( n == 0 ){
+		if(electron){
+			return config_t<real>::f0_electron(x,u);
+		} else {
+			return config_t<real>::f0_ion(x,u);
+		}
+	}
+
+    const size_t stride_x = 1;
+    const size_t stride_t = stride_x*(conf.l + order);
+
+    real Ex;
+    const real *c; // Wozu diese "lokale Kopie"?
+
+    // We omit the initial half-step.
+    while ( --n )
+    {
+        x  -= conf.dt*u;
+        c  = coeffs + n*stride_t;
+        Ex = -eval<real,order,1>(x,c,conf);
+        u  += (electron + (!electron)*(-1)) * conf.dt*Ex;
+    }
+
+    // The final half-step.
+    x -= conf.dt*u;
+    c  = coeffs + n*stride_t;
+    Ex = -eval<real,order,1>(x,c,conf);
+    u += (electron + (!electron)*(-1)) * 0.5*conf.dt*Ex;
+
+	if(electron){
+		return config_t<real>::f0_electron(x,u);
+	} else {
+		return config_t<real>::f0_ion(x,u);
+	}
+}
+
+template <typename real, size_t order>
+__host__ __device__
+real eval_f( size_t n, real x, real u,
+             const real *coeffs, const config_t<real> &conf, bool electron = true)
+{
+	if ( n == 0 ){
+		if(electron){
+			return config_t<real>::f0_electron(x,u);
+		} else {
+			return config_t<real>::f0_ion(x,u);
+		}
+	}
+
+    const size_t stride_x = 1;
+    const size_t stride_t = stride_x*(conf.l + order); //maybe not correct?
+
+    real Ex;
+    const real *c;
+
+    // Initial half-step.
+    c  = coeffs + n*stride_t;
+    Ex = -eval<real,order,1>( x, c, conf );
+    u += (electron + (!electron)*(-1)) * 0.5*conf.dt*Ex;
+
+    while ( --n )
+    {
+        x -= conf.dt*u;
+        c  = coeffs + n*stride_t;
+        Ex = -eval<real,order,1>( x, c, conf );
+        u += (electron + (!electron)*(-1)) * conf.dt*Ex;
+    }
+
+    // Final half-step.
+    x -= conf.dt*u;
+    c  = coeffs + n*stride_t;
+    Ex = -eval<real,order,1>( x, c, conf );
+    u += (electron + (!electron)*(-1)) * 0.5*conf.dt*Ex;
+
+	if ( n == 0 ){
+		if(electron){
+			return config_t<real>::f0_electron(x,u);
+		} else {
+			return config_t<real>::f0_ion(x,u);
+		}
+	}
+}
+
+template <typename real, size_t order>
+real eval_rho( size_t n, size_t i, const real *coeffs, const config_t<real> &conf )
+{
+    const real x = conf.x_min + i*conf.dx;
+    const real du = (conf.u_max-conf.u_min) / conf.Nu;
+    const real u_min = conf.u_min + 0.5*du;
+
+    real rho_electron = 0;
+    real rho_ion = 0;
+    for ( size_t ii = 0; ii < conf.Nu; ++ii )
+    {
+        rho_electron += eval_ftilda<real,order>( n, x, u_min + ii*du, coeffs, conf, true );
+    	rho_ion += eval_ftilda<real,order>( n, x, u_min + ii*du, coeffs, conf, false );
+    }
+
+    return du_ion*rho_ion - du_electron*rho_electron;
+}
+
+}
+}
+
 }
 
 
