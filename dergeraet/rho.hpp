@@ -165,7 +165,7 @@ real eval_f( size_t n, real x, real u,
     if (state != 1) return config_t<real>::call_surface_model(state,x,u);
 
     const size_t stride_x = 1;
-    const size_t stride_t = stride_x*(conf.l + order); //maybe not correct?
+    const size_t stride_t = stride_x*(conf.l + order);
 
     real Ex;
     const real *c;
@@ -272,7 +272,7 @@ real eval_f( size_t n, real x, real u,
 	}
 
     const size_t stride_x = 1;
-    const size_t stride_t = stride_x*(conf.l + order); //maybe not correct?
+    const size_t stride_t = stride_x*(conf.l + order);
 
     real Ex;
     const real *c;
