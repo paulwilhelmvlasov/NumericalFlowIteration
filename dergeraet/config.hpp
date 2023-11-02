@@ -28,7 +28,7 @@ namespace dergeraet
 
 namespace dim1
 {
-enum SurfaceState { DOMAIN, OUTSIDE_DOMAIN };
+
 template <typename real>
 struct config_t
 {
@@ -97,7 +97,7 @@ namespace dirichlet
 template <typename real>
 struct config_t
 {
-    static constexpr real x_min = -1, x_max = 1;
+    static constexpr real x_min = -1, x_max = 1, epsilon = 0.5;
 
     size_t Nx;  // Number of grid points in physical space.
     size_t Nu;  // Number of quadrature points in velocity space.
@@ -120,19 +120,20 @@ struct config_t
     // operator() overload, i.e., can be called like a
     // function.
     __host__ __device__ static real f0( real x, real u ) noexcept;
-    __host__ __device__ static SurfaceState surface_state( real x) noexcept;
-    __host__ __device__ static real call_surface_model( SurfaceState state, real x, real u) noexcept;
+    __host__ __device__ static bool surface_state( real x) noexcept;
+    __host__ __device__ static real call_surface_model( bool state, real x, real u) noexcept;
 };
 
 template <typename real>
 config_t<real>::config_t() noexcept
 {
     Nx = 1024;
-    Nu = 2048;
+    Nu = 1024;
     u_min = -1;
     u_max =  1;
     l = Nx -1;
     dt = 1./8.; Nt = 5/dt;
+    
 
     Lx = x_max - x_min; Lx_inv = 1/Lx;
     dx = Lx/Nx; dx_inv = 1/dx;
@@ -143,26 +144,26 @@ template <typename real>
 __host__ __device__
 real config_t<real>::f0( real x, real u ) noexcept
 {
-    SurfaceState state = surface_state(x);
+    bool state = surface_state(x);
     return call_surface_model(state, x, u);
 }
 template <typename real>
 __host__ __device__
-SurfaceState config_t<real>::surface_state( real x) noexcept
+bool config_t<real>::surface_state( real x) noexcept
 {
     // Check if the particle is outside the domain
     if (x < x_min || x > x_max)
     {
-        return OUTSIDE_DOMAIN;
+        return 0; // 0: outside domain, 1: inside domain
     }
 
     
-        return DOMAIN;
+        return 1;
     
 }
 template <typename real>
 __host__ __device__
-real config_t<real>::call_surface_model( SurfaceState state, real x, real u) noexcept
+real config_t<real>::call_surface_model( bool state, real x, real u) noexcept
 {
     constexpr real c = 1.0/M_PI;
     if(x*x + u*u >= 1 )
