@@ -225,13 +225,13 @@ struct config_t
 
 
     // Ion Acoustic specific parameters:
-    real lambda;
-    real m_e, m_i;
-    real q;
-    real c;
-    real n_c;
-    real T_e, T_i;
-    constexpr real K = 1.38*1e-23; // Boltzmann constant
+    static real lambda = 1;
+    static real m_e = 1, m_i = 1000;
+    static real q = 1;
+    static real c = 1;
+    static real n_c = 4*M_PI*m_e*c*c/(q*q*lambda*lambda);
+    static real T_e = 5000, T_i = 1;
+    static real K = 1.38*1e-23; // Boltzmann constant
 
     // Maybe we could subs this with a function pointer?
     // Or write a class (interface) which can offers an
@@ -246,17 +246,6 @@ struct config_t
 template <typename real>
 config_t<real>::config_t() noexcept
 {
-
-    // Ion Acoustic specific parameters:
-    lambda = 1; // To be set.
-    m_e = 1; // To be set.
-	m_i = 1000; // To be set.
-    q = 1; // To be set.
-    c = 1; // To be set.
-    n_c = 4*M_PI*m_e*c*c/(q*q*lambda*lambda);
-    T_e = 5000; // [eV]
-    T_i = 1;    // [eV]
-
 
     // General simulation parameters:
     Nx = 64;

@@ -320,7 +320,7 @@ real eval_rho( size_t n, size_t i, const real *coeffs, const config_t<real> &con
     	rho_ion += eval_ftilda<real,order>( n, x, u_min + ii*du, coeffs, conf, false );
     }
 
-    return du_ion*rho_ion - du_electron*rho_electron;
+    return conf.du_ion*rho_ion - conf.du_electron*rho_electron;
 }
 
 }
