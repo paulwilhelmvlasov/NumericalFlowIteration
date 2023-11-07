@@ -109,24 +109,6 @@ void test()
         double time_elapsed = timer.elapsed();
         total_time += time_elapsed;
 
-        std::ofstream f_file("f_"+ std::to_string(n) + ".txt");
-        double f_max = 0;
-        for(size_t i = 0; i <= conf.Nx; i++)
-        {
-            for(size_t j = 0; j <= conf.Nu; j++)
-            {
-            	double x = conf.x_min + i*conf.dx;
-            	double u = conf.u_min + j*conf.du;
-            	double f = eval_f<real,order>(n, x, u, coeffs.get(), conf);
-            	f_file << x << " " << u << " " << f << std::endl;
-
-            	f_max = std::max(f_max, f);
-            }
-            f_file << std::endl;
-        }
-
-        std::cout << f_max << std::endl;
-
         std::ofstream E_file("E_"+ std::to_string(n) + ".txt");
         std::ofstream rho_file_new("rho_new_"+ std::to_string(n) + ".txt");
         std::ofstream phi_file("phi_"+ std::to_string(n) + ".txt");
