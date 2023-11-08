@@ -185,16 +185,20 @@ void test()
 
 			std::ofstream E_file("E_"+ std::to_string(t) + ".txt");
 			std::ofstream rho_file_new("rho_new_"+ std::to_string(t) + ".txt");
+			std::ofstream rho_file_old("rho_old_"+ std::to_string(t) + ".txt");
 			std::ofstream phi_file("phi_"+ std::to_string(t) + ".txt");
 			for(size_t i = 0; i <= conf.Nx; i++)
 			{
 				real x = conf.x_min + i*conf.dx;
 				real E = -dim1::dirichlet::eval<real,order,1>( x, coeffs.get() + n*stride_t, conf );
-				real rho = -dim1::dirichlet::eval<real,order,2>( x, coeffs.get() + n*stride_t, conf );
+				real rho_value = -dim1::dirichlet::eval<real,order,2>( x, coeffs.get() + n*stride_t, conf );
 				real phi = dim1::dirichlet::eval<real,order>( x, coeffs.get() + n*stride_t, conf );
 
 				E_file << x << " " << E << std::endl;
-				rho_file_new << x << " " << rho << std::endl;
+				rho_file_new << x << " " << rho_value << std::endl;
+				if(i < conf.Nx){
+					rho_file_old << x << " " << rho.get()[i] << std::endl;
+				}
 				phi_file << x << " " << phi << std::endl;
 			}
         }

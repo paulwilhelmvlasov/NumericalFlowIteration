@@ -114,7 +114,7 @@ struct config_t
 
 
     // "Standard parameters"
-    static constexpr real x_min = -10*lambda, x_max = 30*lambda, epsilon = 0.5;
+    static constexpr real x_min = 0*lambda, x_max = 16*lambda, epsilon = 0.5;
 
 	size_t Nx;  // Number of grid points in physical space.
     size_t Nu;
