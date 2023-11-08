@@ -97,9 +97,25 @@ namespace dirichlet
 template <typename real>
 struct config_t
 {
-    static constexpr real x_min = -1, x_max = 1, epsilon = 0.5;
+    // Ion Acoustic specific parameters:
+    constexpr static real lambda = 1;
+    constexpr static real m_e = 1, m_i = 1000;
+    constexpr static real q = 1;
+    constexpr static real c = 1;
+    constexpr static real n_c = 4*M_PI*m_e*c*c/(q*q*lambda*lambda);
+    constexpr static real T_e = 5000, T_i = 1;
+    constexpr static real K = 1.38*1e-23; // Boltzmann constant
 
-    size_t Nx;  // Number of grid points in physical space.
+    __host__ __device__ static real initial_plasma_density( real x) noexcept;
+    __host__ __device__ static real boltzmann( real u, real T, real m) noexcept;
+    __host__ __device__ static real f0_electron( real x, real u ) noexcept;
+    __host__ __device__ static real f0_ion( real x, real u ) noexcept;
+
+
+    // "Standard parameters"
+    static constexpr real x_min = 0, x_max = 16*lambda, epsilon = 0.5;
+
+	size_t Nx;  // Number of grid points in physical space.
     size_t Nu;
     size_t Nu_electron, Nu_ion;  // Number of quadrature points in velocity space.
     size_t Nt;  // Number of time-steps.
@@ -121,19 +137,6 @@ struct config_t
     config_t() noexcept;
 
 
-    // Ion Acoustic specific parameters:
-    constexpr static real lambda = 1;
-    constexpr static real m_e = 1, m_i = 1000;
-    constexpr static real q = 1;
-    constexpr static real c = 1;
-    constexpr static real n_c = 4*M_PI*m_e*c*c/(q*q*lambda*lambda);
-    constexpr static real T_e = 5000, T_i = 1;
-    constexpr static real K = 1.38*1e-23; // Boltzmann constant
-
-    __host__ __device__ static real initial_plasma_density( real x) noexcept;
-    __host__ __device__ static real boltzmann( real u, real T, real m) noexcept;
-    __host__ __device__ static real f0_electron( real x, real u ) noexcept;
-    __host__ __device__ static real f0_ion( real x, real u ) noexcept;
 
 
     // Maybe we could subs this with a function pointer?
@@ -148,20 +151,20 @@ struct config_t
 template <typename real>
 config_t<real>::config_t() noexcept
 {
-    Nx = 1024;
-    Nu = 1024;
+    Nx = 16;
+    Nu = 16;
     u_min = -1;
     u_max =  1;
     l = Nx -1;
 //    dt = 1./8.; Nt = 5/dt;
 
-    Nu_electron = 64;
-    Nu_ion = 64;
+    Nu_electron = 16;
+    Nu_ion = 16;
 
     u_electron_min = -40*m_e*c;
-    u_electron_min =  40*m_e*c;
+    u_electron_max =  40*m_e*c;
     u_ion_min = -200*m_e*c;
-    u_ion_min =  200*m_e*c;
+    u_ion_max =  200*m_e*c;
 
     dt = lambda/c * 1e-3;
     Nt = 1000/dt;

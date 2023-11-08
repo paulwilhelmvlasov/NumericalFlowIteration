@@ -67,8 +67,8 @@ void test()
     std::cout<<conf.Nt<<std::endl;
     double total_time = 0;
 
+    conf.Nt = 1;
     for ( size_t n = 0; n <= conf.Nt; n++ )
-    //for ( size_t n = 0; n <= 1; n++ )
     {
         dergeraet::stopwatch<double> timer;
         std::memset( rho.get(), 0, conf.Nx*sizeof(real) );
@@ -109,20 +109,54 @@ void test()
         double time_elapsed = timer.elapsed();
         total_time += time_elapsed;
 
-        std::ofstream E_file("E_"+ std::to_string(n) + ".txt");
-        std::ofstream rho_file_new("rho_new_"+ std::to_string(n) + ".txt");
-        std::ofstream phi_file("phi_"+ std::to_string(n) + ".txt");
-		for(size_t i = 0; i <= conf.Nx; i++)
-		{
-			real x = conf.x_min + i*conf.dx;
-			real E = -dim1::dirichlet::eval<real,order,1>( x, coeffs.get() + n*stride_t, conf );
-			real rho = -dim1::dirichlet::eval<real,order,2>( x, coeffs.get() + n*stride_t, conf );
-			real phi = dim1::dirichlet::eval<real,order>( x, coeffs.get() + n*stride_t, conf );
+        std::cout << "Time for step: " << time_elapsed << " and total time s.f.: " << total_time << std::endl;
 
-			E_file << x << " " << E << std::endl;
-			rho_file_new << x << " " << rho << std::endl;
-			phi_file << x << " " << phi << std::endl;
-		}
+        // Output
+        if(n % 10 == 0)
+        {
+			std::ofstream f_electron_file("f_electron_"+ std::to_string(n) + ".txt");
+			for(size_t i = 0; i <= conf.Nx; i++)
+			{
+				for(size_t j = 0; j <= conf.Nu_electron; j++)
+				{
+					double x = conf.x_min + i*conf.dx;
+					double u = conf.u_electron_min + j*conf.du_electron;
+					double f = eval_f_ion_acoustic<real,order>(n, x, u, coeffs.get(), conf);
+					f_electron_file << x << " " << u << " " << f << std::endl;
+					std::cout << x << " " << u << " " << f << std::endl;
+				}
+			}
+
+			std::ofstream f_ion_file("f_ion_"+ std::to_string(n) + ".txt");
+			double f_max = 0;
+			for(size_t i = 0; i <= conf.Nx; i++)
+			{
+				for(size_t j = 0; j <= conf.Nu_ion; j++)
+				{
+					double x = conf.x_min + i*conf.dx;
+					double u = conf.u_ion_min + j*conf.du_ion;
+					double f = eval_f_ion_acoustic<real,order>(n, x, u, coeffs.get(), conf);
+					f_ion_file << x << " " << u << " " << f << std::endl;
+
+				}
+			}
+
+
+			std::ofstream E_file("E_"+ std::to_string(n) + ".txt");
+			std::ofstream rho_file_new("rho_new_"+ std::to_string(n) + ".txt");
+			std::ofstream phi_file("phi_"+ std::to_string(n) + ".txt");
+			for(size_t i = 0; i <= conf.Nx; i++)
+			{
+				real x = conf.x_min + i*conf.dx;
+				real E = -dim1::dirichlet::eval<real,order,1>( x, coeffs.get() + n*stride_t, conf );
+				real rho = -dim1::dirichlet::eval<real,order,2>( x, coeffs.get() + n*stride_t, conf );
+				real phi = dim1::dirichlet::eval<real,order>( x, coeffs.get() + n*stride_t, conf );
+
+				E_file << x << " " << E << std::endl;
+				rho_file_new << x << " " << rho << std::endl;
+				phi_file << x << " " << phi << std::endl;
+			}
+        }
 
     }
 
