@@ -86,7 +86,10 @@ real config_t<real>::f0( real x, real u ) noexcept
     
 //    return 0.39894228040143267793994 * ( 1. + alpha*cos(k*x) ) * exp( -u*u/2 );
 }
+}
 
+namespace dim1
+{
 
 namespace dirichlet
 {
@@ -97,7 +100,8 @@ struct config_t
     static constexpr real x_min = -1, x_max = 1, epsilon = 0.5;
 
     size_t Nx;  // Number of grid points in physical space.
-    size_t Nu;  // Number of quadrature points in velocity space.
+    size_t Nu;
+    size_t Nu_electron, Nu_ion;  // Number of quadrature points in velocity space.
     size_t Nt;  // Number of time-steps.
     real   dt;  // Time-step size.
 
@@ -106,12 +110,32 @@ struct config_t
 
     // Integration limits for velocity space.
     real u_min, u_max;
+    real u_electron_min, u_electron_max;
+    real u_ion_min, u_ion_max;
 
     // Grid-sizes and their reciprocals.
     real dx, dx_inv, Lx, Lx_inv;
-    real du;
+    real du, du_electron, du_ion;
     size_t l;
+
     config_t() noexcept;
+
+
+    // Ion Acoustic specific parameters:
+    constexpr static real lambda = 1;
+    constexpr static real m_e = 1, m_i = 1000;
+    constexpr static real q = 1;
+    constexpr static real c = 1;
+    constexpr static real n_c = 4*M_PI*m_e*c*c/(q*q*lambda*lambda);
+    constexpr static real T_e = 5000, T_i = 1;
+    constexpr static real K = 1.38*1e-23; // Boltzmann constant
+
+    __host__ __device__ static real initial_plasma_density( real x) noexcept;
+    __host__ __device__ static real boltzmann( real u, real T, real m) noexcept;
+    __host__ __device__ static real f0_electron( real x, real u ) noexcept;
+    __host__ __device__ static real f0_ion( real x, real u ) noexcept;
+
+
     // Maybe we could subs this with a function pointer?
     // Or write a class (interface) which can offers an
     // operator() overload, i.e., can be called like a
@@ -129,20 +153,76 @@ config_t<real>::config_t() noexcept
     u_min = -1;
     u_max =  1;
     l = Nx -1;
-    dt = 1./8.; Nt = 5/dt;
-    
+//    dt = 1./8.; Nt = 5/dt;
+
+    Nu_electron = 64;
+    Nu_ion = 64;
+
+    u_electron_min = -40*m_e*c;
+    u_electron_min =  40*m_e*c;
+    u_ion_min = -200*m_e*c;
+    u_ion_min =  200*m_e*c;
+
+    dt = lambda/c * 1e-3;
+    Nt = 1000/dt;
 
     Lx = x_max - x_min; Lx_inv = 1/Lx;
     dx = Lx/Nx; dx_inv = 1/dx;
     du = (u_max - u_min)/Nu;
+
+    du_electron = (u_electron_max - u_electron_min)/Nu_electron;
+    du_ion = (u_ion_max - u_ion_min)/Nu_ion;
 }
+
+template <typename real>
+__host__ __device__
+real config_t<real>::initial_plasma_density( real x) noexcept
+{
+	if(x < 3*lambda) {
+		return 0;
+	} else if(x < 4*lambda) {
+		return 2*n_c/lambda*x - 6*n_c;
+	} else if(x < 12*lambda) {
+		return 2*n_c;
+	} else if(x < 13*lambda){
+		return -2*n_c/lambda*x + 26*n_c;
+	} else {
+		return 0;
+	}
+}
+
+template <typename real>
+__host__ __device__
+real config_t<real>::boltzmann( real u, real T, real m) noexcept
+{
+	constexpr real fac = 0.1795871221251665616890819836276927552821859434348267246213320371; // (1/pi)^(3/2)
+
+	real vth = std::sqrt(2*K*T/m);
+
+	return fac/(vth*vth*vth) * std::exp(-u*u / (vth*vth));
+}
+
+
+template <typename real>
+__host__ __device__
+real config_t<real>::f0_electron( real x, real u ) noexcept
+{
+	return initial_plasma_density(x)*boltzmann(u,T_e,m_e);
+}
+
+template <typename real>
+__host__ __device__
+real config_t<real>::f0_ion( real x, real u ) noexcept
+{
+	return initial_plasma_density(x)*boltzmann(u,T_i,m_i);
+}
+
 
 template <typename real>
 __host__ __device__
 real config_t<real>::f0( real x, real u ) noexcept
 {
-    bool state = surface_state(x);
-    return call_surface_model(state, x, u);
+    return call_surface_model(surface_state(x), x, u);
 }
 template <typename real>
 __host__ __device__
@@ -194,123 +274,6 @@ real config_t<real>::call_surface_model( bool state, real x, real u) noexcept
     */
 }
 
-}
-
-
-namespace dirichlet
-{
-namespace ion_acoustic
-{
-
-template <typename real>
-struct config_t
-{
-    size_t Nx;  // Number of grid points in physical space.
-    size_t Nu_electron, Nu_ion;  // Number of quadrature points in velocity space.
-    size_t Nt;  // Number of time-steps.
-    real   dt;  // Time-step size.
-
-    // Dimensions of physical domain.
-    real x_min, x_max;
-
-    // Integration limits for velocity space.
-    real u_electron_min, u_electron_max;
-    real u_ion_min, u_ion_max;
-
-    // Grid-sizes and their reciprocals.
-    real dx, dx_inv, Lx, Lx_inv;
-    real du_electron, du_ion;
-    size_t l;
-    config_t() noexcept;
-
-
-    // Ion Acoustic specific parameters:
-    constexpr static real lambda = 1;
-    constexpr static real m_e = 1, m_i = 1000;
-    constexpr static real q = 1;
-    constexpr static real c = 1;
-    constexpr static real n_c = 4*M_PI*m_e*c*c/(q*q*lambda*lambda);
-    constexpr static real T_e = 5000, T_i = 1;
-    constexpr static real K = 1.38*1e-23; // Boltzmann constant
-
-    // Maybe we could subs this with a function pointer?
-    // Or write a class (interface) which can offers an
-    // operator() overload, i.e., can be called like a
-    // function.
-    __host__ __device__ static real initial_plasma_density( real x) noexcept;
-    __host__ __device__ static real boltzmann( real u, real T, real m) noexcept;
-    __host__ __device__ static real f0_electron( real x, real u ) noexcept;
-    __host__ __device__ static real f0_ion( real x, real u ) noexcept;
-};
-
-template <typename real>
-config_t<real>::config_t() noexcept
-{
-
-    // General simulation parameters:
-    Nx = 64;
-    Nu_electron = 64;
-    Nu_ion = 64;
-
-    u_electron_min = -40*m_e*c;
-    u_electron_min =  40*m_e*c;
-    u_ion_min = -200*m_e*c;
-    u_ion_min =  200*m_e*c;
-
-    l = Nx -1;
-    dt = lambda/c * 1e-3;
-    Nt = 1000/dt;
-
-    Lx = x_max - x_min; Lx_inv = 1/Lx;
-    dx = Lx/Nx; dx_inv = 1/dx;
-    du_electron = (u_electron_max - u_electron_min)/Nu_electron;
-    du_ion = (u_ion_max - u_ion_min)/Nu_ion;
-}
-
-template <typename real>
-__host__ __device__
-real config_t<real>::initial_plasma_density( real x) noexcept
-{
-	if(x < 3*lambda) {
-		return 0;
-	} else if(x < 4*lambda) {
-		return 2*n_c/lambda*x - 6*n_c;
-	} else if(x < 12*lambda) {
-		return 2*n_c;
-	} else if(x < 13*lambda){
-		return -2*n_c/lambda*x + 26*n_c;
-	} else {
-		return 0;
-	}
-}
-
-template <typename real>
-__host__ __device__
-real config_t<real>::boltzmann( real u, real T, real m) noexcept
-{
-	constexpr real fac = 0.1795871221251665616890819836276927552821859434348267246213320371; // (1/pi)^(3/2)
-
-	real vth = std::sqrt(2*K*T/m);
-
-	return fac/(vth*vth*vth) * std::exp(-u*u / (vth*vth));
-}
-
-
-template <typename real>
-__host__ __device__
-real config_t<real>::f0_electron( real x, real u ) noexcept
-{
-	return initial_plasma_density(x)*boltzmann(u,T_e,m_e);
-}
-
-template <typename real>
-__host__ __device__
-real config_t<real>::f0_ion( real x, real u ) noexcept
-{
-	return initial_plasma_density(x)*boltzmann(u,T_i,m_i);
-}
-
-}
 }
 
 }

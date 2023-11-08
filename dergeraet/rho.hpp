@@ -116,6 +116,7 @@ real eval_rho( size_t n, size_t i, const real *coeffs, const config_t<real> &con
 
 namespace dirichlet
 {
+
 template <typename real, size_t order>
 __host__ __device__
 real eval_ftilda( size_t n, real x, real u,
@@ -210,16 +211,11 @@ real eval_rho( size_t n, size_t i, const real *coeffs, const config_t<real> &con
 
     return rho;
 }
-}
 
-namespace dirichlet
-{
-namespace ion_acoustic
-{
 
 template <typename real, size_t order>
 __host__ __device__
-real eval_ftilda( size_t n, real x, real u,
+real eval_ftilda_ion_acoustic( size_t n, real x, real u,
                   const real *coeffs, const config_t<real> &conf, bool electron = true)
 {
 	if ( n == 0 ){
@@ -260,7 +256,7 @@ real eval_ftilda( size_t n, real x, real u,
 
 template <typename real, size_t order>
 __host__ __device__
-real eval_f( size_t n, real x, real u,
+real eval_f_ion_acoustic( size_t n, real x, real u,
              const real *coeffs, const config_t<real> &conf, bool electron = true)
 {
 	if ( n == 0 ){
@@ -306,7 +302,7 @@ real eval_f( size_t n, real x, real u,
 }
 
 template <typename real, size_t order>
-real eval_rho( size_t n, size_t i, const real *coeffs, const config_t<real> &conf )
+real eval_rho_ion_acoustic( size_t n, size_t i, const real *coeffs, const config_t<real> &conf )
 {
     const real x = conf.x_min + i*conf.dx;
     const real du = (conf.u_max-conf.u_min) / conf.Nu;
@@ -316,16 +312,14 @@ real eval_rho( size_t n, size_t i, const real *coeffs, const config_t<real> &con
     real rho_ion = 0;
     for ( size_t ii = 0; ii < conf.Nu; ++ii )
     {
-        rho_electron += eval_ftilda<real,order>( n, x, u_min + ii*du, coeffs, conf, true );
-    	rho_ion += eval_ftilda<real,order>( n, x, u_min + ii*du, coeffs, conf, false );
+        rho_electron += eval_ftilda_ion_acoustic<real,order>( n, x, u_min + ii*du, coeffs, conf, true );
+    	rho_ion += eval_ftilda_ion_acoustic<real,order>( n, x, u_min + ii*du, coeffs, conf, false );
     }
 
     return conf.du_ion*rho_ion - conf.du_electron*rho_electron;
 }
 
 }
-}
-
 }
 
 

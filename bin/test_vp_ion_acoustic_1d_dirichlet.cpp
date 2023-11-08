@@ -49,7 +49,7 @@ namespace dirichlet
 template <typename real, size_t order>
 void test()
 {
-	ion_acoustic::config_t<real> conf;
+	config_t<real> conf;
     const size_t stride_x = 1;
     const size_t stride_t = conf.Nx + order - 2; // conf.Nx = l+2, therefore: conf.Nx +order-2 = order+l
 
@@ -77,7 +77,7 @@ void test()
     	#pragma omp parallel for
     	for(size_t i = 0; i<conf.Nx; i++)
     	{
-    		rho.get()[i] = ion_acoustic::eval_rho<real,order>(n, i, coeffs.get(), conf);
+    		rho.get()[i] = eval_rho_ion_acoustic<real,order>(n, i, coeffs.get(), conf);
     	}
 
     	// Set rho_dir:
