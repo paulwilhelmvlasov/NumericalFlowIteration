@@ -56,19 +56,20 @@ private:
     std::unique_ptr<real[]> tmp_rho; 
 };
 
-extern template class cuda_kernel<double,3>;
+//extern template class cuda_kernel<double,3>;
 extern template class cuda_kernel<double,4>;
-extern template class cuda_kernel<double,5>;
-extern template class cuda_kernel<double,6>;
-extern template class cuda_kernel<double,7>;
-extern template class cuda_kernel<double,8>;
+//extern template class cuda_kernel<double,5>;
+//extern template class cuda_kernel<double,6>;
+//extern template class cuda_kernel<double,7>;
+//extern template class cuda_kernel<double,8>;
 
-extern template class cuda_kernel<float,3>;
+
+//extern template class cuda_kernel<float,3>;
 extern template class cuda_kernel<float,4>;
-extern template class cuda_kernel<float,5>;
-extern template class cuda_kernel<float,6>;
-extern template class cuda_kernel<float,7>;
-extern template class cuda_kernel<float,8>;
+//extern template class cuda_kernel<float,5>;
+//extern template class cuda_kernel<float,6>;
+//extern template class cuda_kernel<float,7>;
+//extern template class cuda_kernel<float,8>;
 
 }
 
@@ -98,19 +99,19 @@ private:
     std::unique_ptr<real[]> tmp_rho; 
 };
 
-extern template class cuda_kernel<double,3>;
+//extern template class cuda_kernel<double,3>;
 extern template class cuda_kernel<double,4>;
-extern template class cuda_kernel<double,5>;
-extern template class cuda_kernel<double,6>;
-extern template class cuda_kernel<double,7>;
-extern template class cuda_kernel<double,8>;
+//extern template class cuda_kernel<double,5>;
+//extern template class cuda_kernel<double,6>;
+//extern template class cuda_kernel<double,7>;
+//extern template class cuda_kernel<double,8>;
 
-extern template class cuda_kernel<float,3>;
+//extern template class cuda_kernel<float,3>;
 extern template class cuda_kernel<float,4>;
-extern template class cuda_kernel<float,5>;
-extern template class cuda_kernel<float,6>;
-extern template class cuda_kernel<float,7>;
-extern template class cuda_kernel<float,8>;
+//extern template class cuda_kernel<float,5>;
+//extern template class cuda_kernel<float,6>;
+//extern template class cuda_kernel<float,7>;
+//extern template class cuda_kernel<float,8>;
 
 }
 
@@ -144,19 +145,19 @@ private:
     std::unique_ptr<real[]> tmp_rho; 
 };
 
-extern template class cuda_kernel<double,3>;
+//extern template class cuda_kernel<double,3>;
 extern template class cuda_kernel<double,4>;
-extern template class cuda_kernel<double,5>;
-extern template class cuda_kernel<double,6>;
-extern template class cuda_kernel<double,7>;
-extern template class cuda_kernel<double,8>;
+//extern template class cuda_kernel<double,5>;
+//extern template class cuda_kernel<double,6>;
+//extern template class cuda_kernel<double,7>;
+//extern template class cuda_kernel<double,8>;
 
-extern template class cuda_kernel<float,3>;
+//extern template class cuda_kernel<float,3>;
 extern template class cuda_kernel<float,4>;
-extern template class cuda_kernel<float,5>;
-extern template class cuda_kernel<float,6>;
-extern template class cuda_kernel<float,7>;
-extern template class cuda_kernel<float,8>;
+//extern template class cuda_kernel<float,5>;
+//extern template class cuda_kernel<float,6>;
+//extern template class cuda_kernel<float,7>;
+//extern template class cuda_kernel<float,8>;
 }
 
 namespace dirichlet
@@ -184,19 +185,19 @@ private:
     std::unique_ptr<real[]> tmp_rho; 
 };
 
-extern template class cuda_kernel<double,3>;
+//extern template class cuda_kernel<double,3>;
 extern template class cuda_kernel<double,4>;
-extern template class cuda_kernel<double,5>;
-extern template class cuda_kernel<double,6>;
-extern template class cuda_kernel<double,7>;
-extern template class cuda_kernel<double,8>;
+//extern template class cuda_kernel<double,5>;
+//extern template class cuda_kernel<double,6>;
+//extern template class cuda_kernel<double,7>;
+//extern template class cuda_kernel<double,8>;
 
-extern template class cuda_kernel<float,3>;
+//extern template class cuda_kernel<float,3>;
 extern template class cuda_kernel<float,4>;
-extern template class cuda_kernel<float,5>;
-extern template class cuda_kernel<float,6>;
-extern template class cuda_kernel<float,7>;
-extern template class cuda_kernel<float,8>;
+//extern template class cuda_kernel<float,5>;
+//extern template class cuda_kernel<float,6>;
+//extern template class cuda_kernel<float,7>;
+//extern template class cuda_kernel<float,8>;
 
 
 }
@@ -230,19 +231,19 @@ private:
     std::unique_ptr<real[]> tmp_rho; 
 };
 
-extern template class cuda_kernel<double,3>;
+//extern template class cuda_kernel<double,3>;
 extern template class cuda_kernel<double,4>;
-extern template class cuda_kernel<double,5>;
-extern template class cuda_kernel<double,6>;
-extern template class cuda_kernel<double,7>;
-extern template class cuda_kernel<double,8>;
+//extern template class cuda_kernel<double,5>;
+//extern template class cuda_kernel<double,6>;
+//extern template class cuda_kernel<double,7>;
+//extern template class cuda_kernel<double,8>;
 
-extern template class cuda_kernel<float,3>;
+//extern template class cuda_kernel<float,3>;
 extern template class cuda_kernel<float,4>;
-extern template class cuda_kernel<float,5>;
-extern template class cuda_kernel<float,6>;
-extern template class cuda_kernel<float,7>;
-extern template class cuda_kernel<float,8>;
+//extern template class cuda_kernel<float,5>;
+//extern template class cuda_kernel<float,6>;
+//extern template class cuda_kernel<float,7>;
+//extern template class cuda_kernel<float,8>;
 
 }
 

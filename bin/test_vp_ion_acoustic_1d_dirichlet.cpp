@@ -50,6 +50,17 @@ template <typename real, size_t order>
 void test()
 {
 	config_t<real> conf;
+	conf.dt = conf.lambda/conf.c * 1e-3;
+	conf.Nt = 100/conf.dt;
+	conf.Nu_electron = 128;
+	conf.Nu_ion = conf.Nu_electron;
+    conf.u_electron_min = -400*conf.m_e*conf.c;
+    conf.u_electron_max =  400*conf.m_e*conf.c;
+    conf.u_ion_min = -0.5*conf.m_i*conf.c;
+    conf.u_ion_max =  0.5*conf.m_i*conf.c;
+    conf.du_electron = (conf.u_electron_max - conf.u_electron_min)/conf.Nu_electron;
+    conf.du_ion = (conf.u_ion_max - conf.u_ion_min)/conf.Nu_ion;
+
     const size_t stride_x = 1;
     const size_t stride_t = conf.Nx + order - 2; // conf.Nx = l+2, therefore: conf.Nx +order-2 = order+l
 
@@ -64,10 +75,20 @@ void test()
 
     //cuda_scheduler<real,order> sched { conf }; // Unused atm.!
 
-    std::cout<<conf.Nt<<std::endl;
+    std::cout << "u_electron_min = " <<  conf.u_electron_min << std::endl;
+    std::cout << "u_electron_max = " <<  conf.u_electron_max << std::endl;
+    std::cout << conf.Nu_electron <<std::endl;
+    std::cout << "u_ion_min = " <<  conf.u_ion_min << std::endl;
+    std::cout << "u_ion_max = " <<  conf.u_ion_max << std::endl;
+    std::cout << conf.Nu_ion <<std::endl;
+    std::cout << "x_min = " << conf.x_min << " x_max = " << conf.x_max << std::endl;
+    std::cout << conf.Nx <<std::endl;
+    std::cout << conf.dt << std::endl;
+    std::cout << conf.Nt <<std::endl;
+
     double total_time = 0;
 
-    conf.Nt = 1;
+
     for ( size_t n = 0; n <= conf.Nt; n++ )
     {
         dergeraet::stopwatch<double> timer;
@@ -109,12 +130,13 @@ void test()
         double time_elapsed = timer.elapsed();
         total_time += time_elapsed;
 
-        std::cout << "Time for step: " << time_elapsed << " and total time s.f.: " << total_time << std::endl;
+        std::cout << "Iteration " << n << " Time for step: " << time_elapsed << " and total time s.f.: " << total_time << std::endl;
 
         // Output
         if(n % 10 == 0)
         {
-			std::ofstream f_electron_file("f_electron_"+ std::to_string(n) + ".txt");
+        	real t = n*conf.dt;
+			std::ofstream f_electron_file("f_electron_"+ std::to_string(t) + ".txt");
 			for(size_t i = 0; i <= conf.Nx; i++)
 			{
 				for(size_t j = 0; j <= conf.Nu_electron; j++)
@@ -123,11 +145,21 @@ void test()
 					double u = conf.u_electron_min + j*conf.du_electron;
 					double f = eval_f_ion_acoustic<real,order>(n, x, u, coeffs.get(), conf);
 					f_electron_file << x << " " << u << " " << f << std::endl;
-					std::cout << x << " " << u << " " << f << std::endl;
 				}
+				f_electron_file << std::endl;
 			}
 
-			std::ofstream f_ion_file("f_ion_"+ std::to_string(n) + ".txt");
+			std::ofstream f_electron_quer_file("f_electron_quer"+ std::to_string(t) + ".txt");
+			for(size_t j = 0; j <= conf.Nu_electron; j++)
+			{
+				double x = 8;
+				double u = conf.u_electron_min + j*conf.du_electron;
+				double f = eval_f_ion_acoustic<real,order>(n, x, u, coeffs.get(), conf);
+				f_electron_quer_file << u << " " << f << std::endl;
+			}
+
+
+			std::ofstream f_ion_file("f_ion_"+ std::to_string(t) + ".txt");
 			double f_max = 0;
 			for(size_t i = 0; i <= conf.Nx; i++)
 			{
@@ -137,14 +169,23 @@ void test()
 					double u = conf.u_ion_min + j*conf.du_ion;
 					double f = eval_f_ion_acoustic<real,order>(n, x, u, coeffs.get(), conf);
 					f_ion_file << x << " " << u << " " << f << std::endl;
-
 				}
+				f_ion_file << std::endl;
+			}
+
+			std::ofstream f_ion_quer_file("f_ion_quer"+ std::to_string(t) + ".txt");
+			for(size_t j = 0; j <= conf.Nu_ion; j++)
+			{
+				double x = 8;
+				double u = conf.u_ion_min + j*conf.du_ion;
+				double f = eval_f_ion_acoustic<real,order>(n, x, u, coeffs.get(), conf);
+				f_ion_quer_file << u << " " << f << std::endl;
 			}
 
 
-			std::ofstream E_file("E_"+ std::to_string(n) + ".txt");
-			std::ofstream rho_file_new("rho_new_"+ std::to_string(n) + ".txt");
-			std::ofstream phi_file("phi_"+ std::to_string(n) + ".txt");
+			std::ofstream E_file("E_"+ std::to_string(t) + ".txt");
+			std::ofstream rho_file_new("rho_new_"+ std::to_string(t) + ".txt");
+			std::ofstream phi_file("phi_"+ std::to_string(t) + ".txt");
 			for(size_t i = 0; i <= conf.Nx; i++)
 			{
 				real x = conf.x_min + i*conf.dx;
