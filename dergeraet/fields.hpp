@@ -208,13 +208,15 @@ real eval( real x, const real *coeffs, const config_t<real> &config ) noexcept
 {
     using std::floor;
 
+    if(x < config.x_min){
+    	x = config.x_min;
+    }else if(x>config.x_max){
+    	x = config.x_max;
+    }
 
     // Shift to a box that starts at 0.
     x -= config.x_min;
-    /*
-    // Get "periodic position" in box at origin.
-    x = x - config.Lx * floor( x*config.Lx_inv ); 
-     */
+
     // Knot number
     real x_knot = floor( x*config.dx_inv ); 
 

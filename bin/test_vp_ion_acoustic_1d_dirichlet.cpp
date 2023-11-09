@@ -50,7 +50,7 @@ template <typename real, size_t order>
 void test()
 {
 	config_t<real> conf;
-	conf.dt = conf.lambda/conf.c * 1e-3;
+	conf.dt = conf.lambda/conf.c * 5 * 1e-3;
 	conf.Nt = 100/conf.dt;
 	//conf.Nt = 0;
 	conf.Nu_electron = 128;
@@ -100,7 +100,7 @@ void test()
         std::memset( rho.get(), 0, conf.Nx*sizeof(real) );
 
     	// Compute rho:
-    	#pragma omp parallel for
+    	//#pragma omp parallel for
     	for(size_t i = 0; i<conf.Nx; i++)
     	{
     		rho.get()[i] = eval_rho_ion<real,order>(n, i, coeffs.get(), conf)
@@ -141,74 +141,54 @@ void test()
         // Output
         if(n % 10 == 0)
         {
+        	real x_min_plot = -2;
+        	real x_max_plot = 18;
+        	size_t plot_x = 256;
+        	size_t plot_u = 256;
+        	real dx_plot = (x_max_plot - x_min_plot) / plot_x;
+        	real du_electron_plot = (conf.u_electron_max - conf.u_electron_min) / plot_u;
+        	real du_ion_plot = (conf.u_ion_max - conf.u_ion_min) / plot_u;
+
         	real t = n*conf.dt;
 			std::ofstream f_electron_file("f_electron_"+ std::to_string(t) + ".txt");
-			for(size_t i = 0; i <= conf.Nx; i++)
+			for(size_t i = 0; i <= plot_x; i++)
 			{
-				for(size_t j = 0; j <= conf.Nu_electron; j++)
+				for(size_t j = 0; j <= plot_u; j++)
 				{
-					double x = conf.x_min + i*conf.dx;
-					double u = conf.u_electron_min + j*conf.du_electron;
+					double x = x_min_plot + i*dx_plot;
+					double u = conf.u_electron_min + j*du_electron_plot;
 					double f = eval_f_ion_acoustic<real,order>(n, x, u, coeffs.get(), conf);
 					f_electron_file << x << " " << u << " " << f << std::endl;
 				}
 				f_electron_file << std::endl;
 			}
 
-			std::ofstream f_electron_quer_file("f_electron_quer"+ std::to_string(t) + ".txt");
-			for(size_t j = 0; j <= conf.Nu_electron; j++)
-			{
-				double x = 8;
-				double u = conf.u_electron_min + j*conf.du_electron;
-				double f = eval_f_ion_acoustic<real,order>(n, x, u, coeffs.get(), conf);
-				f_electron_quer_file << u << " " << f << std::endl;
-			}
-
-
 			std::ofstream f_ion_file("f_ion_"+ std::to_string(t) + ".txt");
-			double f_max = 0;
-			for(size_t i = 0; i <= conf.Nx; i++)
+			for(size_t i = 0; i <= plot_x; i++)
 			{
-				for(size_t j = 0; j <= conf.Nu_ion; j++)
+				for(size_t j = 0; j <= plot_u; j++)
 				{
-					double x = conf.x_min + i*conf.dx;
-					double u = conf.u_ion_min + j*conf.du_ion;
+					double x = x_min_plot + i*dx_plot;
+					double u = conf.u_ion_min + j*du_ion_plot;
 					double f = eval_f_ion_acoustic<real,order>(n, x, u, coeffs.get(), conf, false);
 					f_ion_file << x << " " << u << " " << f << std::endl;
 				}
 				f_ion_file << std::endl;
 			}
 
-			std::ofstream f_ion_quer_file("f_ion_quer"+ std::to_string(t) + ".txt");
-			for(size_t j = 0; j <= conf.Nu_ion; j++)
-			{
-				double x = 8;
-				double u = conf.u_ion_min + j*conf.du_ion;
-				double f = eval_f_ion_acoustic<real,order>(n, x, u, coeffs.get(), conf, false);
-				f_ion_quer_file << u << " " << f << std::endl;
-			}
-
-
 			std::ofstream E_file("E_"+ std::to_string(t) + ".txt");
-			std::ofstream rho_file_new("rho_new_"+ std::to_string(t) + ".txt");
-			std::ofstream rho_file_old("rho_old_"+ std::to_string(t) + ".txt");
 			std::ofstream rho_electron_file("rho_electron_"+ std::to_string(t) + ".txt");
 			std::ofstream rho_ion_file("rho_ion_"+ std::to_string(t) + ".txt");
 			std::ofstream phi_file("phi_"+ std::to_string(t) + ".txt");
-			for(size_t i = 0; i <= conf.Nx; i++)
+			for(size_t i = 0; i <= plot_x; i++)
 			{
-				real x = conf.x_min + i*conf.dx;
+				real x = x_min_plot + i*dx_plot;
 				real E = -dim1::dirichlet::eval<real,order,1>( x, coeffs.get() + n*stride_t, conf );
-				real rho_value = -dim1::dirichlet::eval<real,order,2>( x, coeffs.get() + n*stride_t, conf );
 				real phi = dim1::dirichlet::eval<real,order>( x, coeffs.get() + n*stride_t, conf );
-				real rho_electron = eval_rho_electron<real,order>(n, i, coeffs.get(), conf);
-				real rho_ion = eval_rho_ion<real,order>(n, i, coeffs.get(), conf);
+				real rho_electron = eval_rho_electron<real,order>(n, x, coeffs.get(), conf);
+				real rho_ion = eval_rho_ion<real,order>(n, x, coeffs.get(), conf);
 
 				E_file << x << " " << E << std::endl;
-				rho_file_new << x << " " << rho_value << std::endl;
-				if(i < conf.Nx){
-					rho_file_old << x << " " << rho.get()[i] << std::endl;
-				}
 				rho_electron_file << x << " " << rho_electron << std::endl;
 				rho_ion_file << x << " " << rho_ion << std::endl;
 				phi_file << x << " " << phi << std::endl;
