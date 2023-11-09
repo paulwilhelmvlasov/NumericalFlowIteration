@@ -320,6 +320,36 @@ real eval_rho_ion_acoustic( size_t n, size_t i, const real *coeffs, const config
     return conf.du_ion*rho_ion - conf.du_electron*rho_electron;
 }
 
+template <typename real, size_t order>
+real eval_rho_electron( size_t n, size_t i, const real *coeffs, const config_t<real> &conf )
+{
+    const real x = conf.x_min + i*conf.dx;
+    const real u_min_electron = conf.u_electron_min + 0.5*conf.du_electron;
+
+    real rho_electron = 0;
+    for ( size_t ii = 0; ii < conf.Nu_electron; ++ii )
+    {
+        rho_electron += eval_ftilda_ion_acoustic<real,order>( n, x, u_min_electron + ii*conf.du_electron, coeffs, conf, true );
+    }
+
+    return conf.du_electron*rho_electron;
+}
+
+template <typename real, size_t order>
+real eval_rho_ion( size_t n, size_t i, const real *coeffs, const config_t<real> &conf )
+{
+    const real x = conf.x_min + i*conf.dx;
+    const real u_min_ion = conf.u_ion_min + 0.5*conf.du_ion;
+
+    real rho_ion = 0;
+    for ( size_t ii = 0; ii < conf.Nu_ion; ++ii )
+    {
+    	rho_ion += eval_ftilda_ion_acoustic<real,order>( n, x, u_min_ion + ii*conf.du_ion, coeffs, conf, false );
+    }
+
+    return conf.du_ion*rho_ion;
+}
+
 }
 }
 

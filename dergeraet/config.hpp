@@ -196,11 +196,8 @@ template <typename real>
 __host__ __device__
 real config_t<real>::boltzmann( real u, real T, real m) noexcept
 {
-	constexpr real fac = 0.1795871221251665616890819836276927552821859434348267246213320371; // (1/pi)^(3/2)
-
-	real vth = std::sqrt(2*K*T/m);
-
-	return fac/(vth*vth*vth) * std::exp(-u*u / (vth*vth));
+	// See Sonnendruecker lecture notes.
+	return 1/std::sqrt(2*M_PI*T/m) * std::exp(-u*u /(2*T/m));
 }
 
 

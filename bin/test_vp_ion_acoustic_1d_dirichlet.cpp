@@ -52,12 +52,13 @@ void test()
 	config_t<real> conf;
 	conf.dt = conf.lambda/conf.c * 1e-3;
 	conf.Nt = 100/conf.dt;
+	//conf.Nt = 0;
 	conf.Nu_electron = 128;
 	conf.Nu_ion = conf.Nu_electron;
     conf.u_electron_min = -400*conf.m_e*conf.c;
     conf.u_electron_max =  400*conf.m_e*conf.c;
-    conf.u_ion_min = -0.5*conf.m_i*conf.c;
-    conf.u_ion_max =  0.5*conf.m_i*conf.c;
+    conf.u_ion_min = -0.0003*conf.m_i*conf.c;
+    conf.u_ion_max =  0.0003*conf.m_i*conf.c;
     conf.du_electron = (conf.u_electron_max - conf.u_electron_min)/conf.Nu_electron;
     conf.du_ion = (conf.u_ion_max - conf.u_ion_min)/conf.Nu_ion;
 
@@ -77,14 +78,18 @@ void test()
 
     std::cout << "u_electron_min = " <<  conf.u_electron_min << std::endl;
     std::cout << "u_electron_max = " <<  conf.u_electron_max << std::endl;
-    std::cout << conf.Nu_electron <<std::endl;
+    std::cout << "Nu_electron = " << conf.Nu_electron <<std::endl;
+    std::cout << "du_electron = " << conf.du_electron <<std::endl;
     std::cout << "u_ion_min = " <<  conf.u_ion_min << std::endl;
     std::cout << "u_ion_max = " <<  conf.u_ion_max << std::endl;
-    std::cout << conf.Nu_ion <<std::endl;
+    std::cout << "Nu_ion = " << conf.Nu_ion <<std::endl;
+    std::cout << "du_ion = " << conf.du_ion <<std::endl;
     std::cout << "x_min = " << conf.x_min << " x_max = " << conf.x_max << std::endl;
     std::cout << conf.Nx <<std::endl;
     std::cout << conf.dt << std::endl;
     std::cout << conf.Nt <<std::endl;
+
+    std::cout << "nc = " << conf.n_c << std::endl;
 
     double total_time = 0;
 
@@ -98,7 +103,8 @@ void test()
     	#pragma omp parallel for
     	for(size_t i = 0; i<conf.Nx; i++)
     	{
-    		rho.get()[i] = eval_rho_ion_acoustic<real,order>(n, i, coeffs.get(), conf);
+    		rho.get()[i] = eval_rho_ion<real,order>(n, i, coeffs.get(), conf)
+    					  - eval_rho_electron<real,order>(n, i, coeffs.get(), conf);
     	}
 
     	// Set rho_dir:
@@ -167,7 +173,7 @@ void test()
 				{
 					double x = conf.x_min + i*conf.dx;
 					double u = conf.u_ion_min + j*conf.du_ion;
-					double f = eval_f_ion_acoustic<real,order>(n, x, u, coeffs.get(), conf);
+					double f = eval_f_ion_acoustic<real,order>(n, x, u, coeffs.get(), conf, false);
 					f_ion_file << x << " " << u << " " << f << std::endl;
 				}
 				f_ion_file << std::endl;
@@ -178,7 +184,7 @@ void test()
 			{
 				double x = 8;
 				double u = conf.u_ion_min + j*conf.du_ion;
-				double f = eval_f_ion_acoustic<real,order>(n, x, u, coeffs.get(), conf);
+				double f = eval_f_ion_acoustic<real,order>(n, x, u, coeffs.get(), conf, false);
 				f_ion_quer_file << u << " " << f << std::endl;
 			}
 
@@ -186,6 +192,8 @@ void test()
 			std::ofstream E_file("E_"+ std::to_string(t) + ".txt");
 			std::ofstream rho_file_new("rho_new_"+ std::to_string(t) + ".txt");
 			std::ofstream rho_file_old("rho_old_"+ std::to_string(t) + ".txt");
+			std::ofstream rho_electron_file("rho_electron_"+ std::to_string(t) + ".txt");
+			std::ofstream rho_ion_file("rho_ion_"+ std::to_string(t) + ".txt");
 			std::ofstream phi_file("phi_"+ std::to_string(t) + ".txt");
 			for(size_t i = 0; i <= conf.Nx; i++)
 			{
@@ -193,12 +201,16 @@ void test()
 				real E = -dim1::dirichlet::eval<real,order,1>( x, coeffs.get() + n*stride_t, conf );
 				real rho_value = -dim1::dirichlet::eval<real,order,2>( x, coeffs.get() + n*stride_t, conf );
 				real phi = dim1::dirichlet::eval<real,order>( x, coeffs.get() + n*stride_t, conf );
+				real rho_electron = eval_rho_electron<real,order>(n, i, coeffs.get(), conf);
+				real rho_ion = eval_rho_ion<real,order>(n, i, coeffs.get(), conf);
 
 				E_file << x << " " << E << std::endl;
 				rho_file_new << x << " " << rho_value << std::endl;
 				if(i < conf.Nx){
 					rho_file_old << x << " " << rho.get()[i] << std::endl;
 				}
+				rho_electron_file << x << " " << rho_electron << std::endl;
+				rho_ion_file << x << " " << rho_ion << std::endl;
 				phi_file << x << " " << phi << std::endl;
 			}
         }
