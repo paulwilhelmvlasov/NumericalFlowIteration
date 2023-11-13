@@ -236,13 +236,17 @@ real eval_ftilda_ion_acoustic( size_t n, real x, real u,
     while ( --n )
     {
     	// Relativistic case:
-    	real gamma = conf.c / std::sqrt(std::abs(conf.c*conf.c - u*u));
-        x  -= gamma * conf.dt*u;
+    	//real gamma = conf.c / std::sqrt(std::abs(conf.c*conf.c - u*u));
+        //x  -= gamma * conf.dt * u;
         // Non-relativistic case:
-        //x  -= conf.dt*u;
+        x  -= conf.dt*u;
+
         c  = coeffs + n*stride_t;
         Ex = -eval<real,order,1>(x,c,conf);
         u  += (electron/conf.m_e + (!electron)*(-1)/conf.m_i) * conf.dt*Ex;
+
+        // Reflecting boundaries:
+        /*
         if(x < conf.x_min){
         	x = conf.x_min;
         	u = -u;
@@ -250,18 +254,22 @@ real eval_ftilda_ion_acoustic( size_t n, real x, real u,
         	x = conf.x_max;
         	u = -u;
         }
+        */
     }
 
     // The final half-step.
     // Relativistic case:
-	real gamma = conf.c / std::sqrt(std::abs(conf.c*conf.c - u*u));
-    x  -= gamma * conf.dt*u;
+	//real gamma = conf.c / std::sqrt(std::abs(conf.c*conf.c - u*u));
+    //x  -= gamma * conf.dt*u;
     // Non-relativistic case:
-    //x  -= conf.dt*u;
+    x  -= conf.dt*u;
+
     c  = coeffs + n*stride_t;
     Ex = -eval<real,order,1>(x,c,conf);
     u  += (electron/conf.m_e + (!electron)*(-1)/conf.m_i) * conf.dt*Ex;
 
+    // Reflecting boundaries:
+    /*
     if(x < conf.x_min){
     	x = conf.x_min;
     	u = -u;
@@ -269,6 +277,7 @@ real eval_ftilda_ion_acoustic( size_t n, real x, real u,
     	x = conf.x_max;
     	u = -u;
     }
+    */
 
 	if(electron){
 		return config_t<real>::f0_electron(x,u);
@@ -304,13 +313,16 @@ real eval_f_ion_acoustic( size_t n, real x, real u,
     while ( --n )
     {
     	// Relativistic case:
-    	real gamma = conf.c / std::sqrt(std::abs(conf.c*conf.c - u*u));
-        x  -= gamma * conf.dt*u;
+    	//real gamma = conf.c / std::sqrt(std::abs(conf.c*conf.c - u*u));
+        //x  -= gamma * conf.dt*u;
         // Non-relativistic case:
-        //x  -= conf.dt*u;
+        x  -= conf.dt*u;
         c  = coeffs + n*stride_t;
         Ex = -eval<real,order,1>(x,c,conf);
         u  += (electron/conf.m_e + (!electron)*(-1)/conf.m_i) * conf.dt*Ex;
+
+        // Reflecting boundaries:
+        /*
         if(x < conf.x_min){
         	x = conf.x_min;
         	u = -u;
@@ -318,18 +330,21 @@ real eval_f_ion_acoustic( size_t n, real x, real u,
         	x = conf.x_max;
         	u = -u;
         }
+        */
     }
 
     // The final half-step.
     // Relativistic case:
-	real gamma = conf.c / std::sqrt(std::abs(conf.c*conf.c - u*u));
-    x  -= gamma * conf.dt*u;
+	//real gamma = conf.c / std::sqrt(std::abs(conf.c*conf.c - u*u));
+    //x  -= gamma * conf.dt*u;
     // Non-relativistic case:
-    //x  -= conf.dt*u;
+    x  -= conf.dt*u;
     c  = coeffs + n*stride_t;
     Ex = -eval<real,order,1>(x,c,conf);
     u  += (electron/conf.m_e + (!electron)*(-1)/conf.m_i) * conf.dt*Ex;
 
+    // Reflecting boundaries:
+    /*
     if(x < conf.x_min){
     	x = conf.x_min;
     	u = -u;
@@ -337,6 +352,7 @@ real eval_f_ion_acoustic( size_t n, real x, real u,
     	x = conf.x_max;
     	u = -u;
     }
+    */
 
     if(electron){
 		return config_t<real>::f0_electron(x,u);
