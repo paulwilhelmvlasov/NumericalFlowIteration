@@ -210,8 +210,9 @@ void cuda_eval_rho_ion_acoustic( size_t n, const real *coeffs, const config_t<re
     const real f_ion = eval_ftilda_ion_acoustic<real,order>( n, x, u_min_ion, coeffs, conf, false );
 	const real f_electron = eval_ftilda_ion_acoustic<real,order>( n, x, u_min_electron, coeffs, conf, true );
     const real weight_ion = conf.du_ion;
-    const real weight_electron = conf.du_electron;    
-    if ( q < q_end ) atomicAdd( my_rho, weight_ion*f_ion - weight_electron*f_electron );  
+    const real weight_electron = conf.du_electron;
+
+    if ( q < q_end ) atomicAdd( my_rho, weight_ion*f_ion - weight_electron*f_electron );
 }
 template <typename real, size_t order>
 __global__

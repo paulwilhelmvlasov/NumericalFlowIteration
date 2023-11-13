@@ -97,7 +97,12 @@ void test()
     for ( size_t n = 0; n <= conf.Nt; n++ )
     {
         dergeraet::stopwatch<double> timer;
-        std::memset( rho.get(), 0, conf.Nx*sizeof(real) );
+
+        // Adaptive support measurement:
+        // conf.u_electron_min = ?;
+        // conf.u_electron_max =  ?;
+        // conf.du_electron = (conf.u_electron_max - conf.u_electron_min)/conf.Nu_electron;
+        // f(n,x,u) < tol
 
     	//Compute rho:
     	//#pragma omp parallel for
@@ -106,7 +111,7 @@ void test()
     	// 	rho.get()[i] = eval_rho_ion<real,order>(n, i, coeffs.get(), conf)
     	// 				  - eval_rho_electron<real,order>(n, i, coeffs.get(), conf);
     	// }
-		//  std::memset( rho.get(), 0, conf.Nx*sizeof(real) );
+		std::memset( rho.get(), 0, conf.Nx*sizeof(real) );
          sched.compute_rho ( n, 0, conf.Nx*conf.Nu );
          sched.download_rho( rho.get() );
 

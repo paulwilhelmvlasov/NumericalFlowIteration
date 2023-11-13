@@ -70,7 +70,7 @@ void test()
           std::cout << std::scientific;
 
     double total_time = 0;
-    for ( size_t n = 0; n < conf.Nt; ++n )
+    for ( size_t n = 0; n <= conf.Nt; ++n )
     {
         dergeraet::stopwatch<double> timer;
         std::memset( rho.get(), 0, conf.Nx*sizeof(real) );
@@ -84,7 +84,7 @@ void test()
         double time_elapsed = timer.elapsed();
         total_time += time_elapsed;
 
-        if( n % 2 == 0 )
+        if( n % 1 == 0 )
         {
             real metrics[4] = { 0, 0, 0, 0 };
             sched.compute_metrics( n, 0, conf.Nx*conf.Nu );
@@ -116,13 +116,21 @@ void test()
                             <<    total_energy << "; "
                             << metrics[3]      << std::endl;
 
-            if(n % (100*16) == 0)
+            if(n % 16 == 0)
             {
 				size_t Nx_plot = 256;
 				real dx_plot = conf.Lx / Nx_plot;
+				size_t Nv_plot = Nx_plot;
+				real dv_plot = (conf.u_max - conf.u_min) / Nv_plot;
 				real t = n * conf.dt;
 				std::ofstream file_E( "E_" + std::to_string(t) + ".txt" );
 				std::ofstream file_rho( "rho_" + std::to_string(t) + ".txt" );
+				std::ofstream file_rho_electron( "rho_electron_" + std::to_string(t) + ".txt" );
+				std::ofstream file_u( "u_" + std::to_string(t) + ".txt" );
+				std::ofstream file_p( "p_" + std::to_string(t) + ".txt" );
+				std::ofstream file_q( "q_" + std::to_string(t) + ".txt" );
+				std::ofstream file_R( "R_" + std::to_string(t) + ".txt" );
+				std::vector<real> f_cross(Nv_plot + 1);
 				for(size_t i = 0; i <= Nx_plot; i++)
 				{
 					real x = conf.x_min + i*dx_plot;
@@ -130,6 +138,38 @@ void test()
 					real rho = -dim1::periodic::eval<real,order,2>( x, coeffs.get() + n*stride_t, conf );
 					file_E << x << " " << E << std::endl;
 					file_rho << x << " " << rho << std::endl;
+					real u = 0;
+					real p = 0;
+					real q = 0;
+					real R = 0;
+					for(size_t j = 0; j <= Nv_plot; j++)
+					{
+						real v = conf.u_min + j*dv_plot;
+						real f = eval_f<real, order>(n, x, v, coeffs.get(), conf);
+						u += v*f;
+
+						f_cross[j] = f;
+					}
+					u *= 1/(1-rho)*dv_plot;
+					for(size_t j = 0; j <= Nv_plot; j++)
+					{
+						real v = conf.u_min + j*dv_plot;
+						real c = v-u;
+						real f = f_cross[j];
+
+						p += c*c*f;
+						q += c*c*c*f;
+						R += c*c*c*c*f;
+					}
+					p *= dv_plot;
+					q *= dv_plot;
+					R *= dv_plot;
+
+					file_rho_electron << x << " " << 1-rho << std::endl;
+					file_u << x << " " << u << std::endl;
+					file_p << x << " " << p << std::endl;
+					file_q << x << " " << q << std::endl;
+					file_R << x << " " << R << std::endl;
 				}
 
             }
@@ -301,91 +341,7 @@ void test()
 
 int main()
 {
-    //dergeraet::dim1::periodic::test<double,4>();
-    dergeraet::dim1::dirichlet::test<double,4>();
-
-	// const double a = 0;
-	// const double b = 2*M_PI;
-	// const size_t Nx = 8;
-	// const double dx = (b-a)/(Nx);
-	// const size_t order = 4;
-	// const size_t l = Nx -1;
-	// const size_t n = l + order;
-	// std::vector<double> N_vec(order);
-	// dergeraet::splines1d::N<double,order>(0, N_vec.data());
-
-	// dergeraet::dim1::config_t<double> conf;
-	// conf.Nx = Nx;
-	// conf.x_min = a;
-	// conf.x_max = b;
-	// conf.dx = dx;
-	// conf.dx_inv = 1.0/dx;
-	// conf.Lx = (b-a);
-	// conf.Lx_inv = 1.0/conf.Lx;
-
-	// arma::vec rhs(n, arma::fill::zeros);
-
-
-	// for(int i = 0; i <= l+1; i++)
-	// {
-	// 	double x = a + i*dx;
-	// 	rhs(i+1) = std::sin(x);
-
-	// 	std::cout << x << " " << rhs(i+1) << std::endl;
-	// }
-	// rhs(0) = rhs(1);
-	// std::cout << a-dx << " " << rhs(0) << std::endl;
-	// rhs(n-1) = rhs(n-2);
-	// std::cout << b+dx << " " << rhs(n-1) << std::endl;
-
-
-	// arma::mat A(n, n, arma::fill::zeros);
-
-    // for ( size_t i = 0; i < n; ++i )
-    // {
-    //     if ( i == 0 )
-    //     {
-    //         for ( size_t ii = 0; ii < order-1; ++ii ){
-    //         	A(i, i+ii) = N_vec[ii+1];
-    //         }
-    //     }
-    //     else if(i<l+3){
-    //         for ( size_t ii = 0; ii < order-1; ++ii )
-    //         	A(i, i + ii -1) = N_vec[ii];
-    //     }
-    //     else
-    //     {
-    //         for ( size_t ii = 0; ii < order-2; ++ii )
-    //         {
-    //         	A(i,i+ii-1) = N_vec[ii];
-    //         }
-    //     }
-    // }
-
-    // std::cout << A << std::endl;
-
-    // arma::vec coeffs(n);
-    // arma::solve(coeffs, A, rhs);
-
-
-	// for(int i = 0; i < n; i++)
-	// {
-	// 	double x = a + (i-1)*dx;
-	// 	//double approx_result = dergeraet::dim1::dirichlet::eval<double, order>(x, coeffs.memptr(), conf);
-	// 	double exact = rhs(i);
-	// 	//std::cout << x << " " << approx_result << " " << exact << " " << std::abs(approx_result - exact) << std::endl;
-	// }
-
-	// std::cout << rhs << std::endl;
-	// std::cout << coeffs << std::endl;
-
-	// std::cout << std::floor(-1) << std::endl;
-	// std::cout << std::floor(-1.01) << std::endl;
-	// std::cout << std::floor(-0.99) << std::endl;
-
-	// double x_knot = std::floor((a-dx)*conf.dx_inv);
-
-	// std::cout << x_knot << std::endl;
-	// std::cout << static_cast<int>(x_knot) << std::endl;
+    dergeraet::dim1::periodic::test<double,4>();
+    //dergeraet::dim1::dirichlet::test<double,4>();
 }
 
