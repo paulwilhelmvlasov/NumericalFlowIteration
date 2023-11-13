@@ -74,7 +74,7 @@ void test()
 
     poisson_fd_dirichlet<double> poiss(conf);
 	//cuda_scheduler<real,order> sched { conf };
-    //cuda_scheduler<real,order> sched { conf }; // Unused atm.!
+    cuda_scheduler<real,order> sched { conf }; // Unused atm.!
 
     std::cout << "u_electron_min = " <<  conf.u_electron_min << std::endl;
     std::cout << "u_electron_max = " <<  conf.u_electron_max << std::endl;
@@ -101,12 +101,12 @@ void test()
 
     	//Compute rho:
     	//#pragma omp parallel for
-    	for(size_t i = 0; i<conf.Nx; i++)
-    	{
-    		rho.get()[i] = eval_rho_ion<real,order>(n, i, coeffs.get(), conf)
-    					  - eval_rho_electron<real,order>(n, i, coeffs.get(), conf);
-    	}
-		 std::memset( rho.get(), 0, conf.Nx*sizeof(real) );
+    	//for(size_t i = 0; i<conf.Nx; i++)
+    	// {
+    	// 	rho.get()[i] = eval_rho_ion<real,order>(n, i, coeffs.get(), conf)
+    	// 				  - eval_rho_electron<real,order>(n, i, coeffs.get(), conf);
+    	// }
+		//  std::memset( rho.get(), 0, conf.Nx*sizeof(real) );
          sched.compute_rho ( n, 0, conf.Nx*conf.Nu );
          sched.download_rho( rho.get() );
 
@@ -136,24 +136,48 @@ void test()
         }
 
         dim1::dirichlet::interpolate<real,order>( coeffs.get() + n*stride_t,phi_ext.get(), conf );
-        //sched.upload_phi( n, coeffs.get() ); // Unused atm.!
+        sched.upload_phi( n, coeffs.get() ); // Unused atm.!
         double time_elapsed = timer.elapsed();
         total_time += time_elapsed;
 
         std::cout << "Iteration " << n << " Time for step: " << time_elapsed << " and total time s.f.: " << total_time << std::endl;
 
         // Output
-        if(n % 10 == 0)
-        {
+        
         	real x_min_plot = -2;
         	real x_max_plot = 18;
         	size_t plot_x = 256;
         	size_t plot_u = 256;
+			real temp_max_u = 0;
+			real f_max,x_max;
         	real dx_plot = (x_max_plot - x_min_plot) / plot_x;
         	real du_electron_plot = (conf.u_electron_max - conf.u_electron_min) / plot_u;
         	real du_ion_plot = (conf.u_ion_max - conf.u_ion_min) / plot_u;
 
         	real t = n*conf.dt;
+			
+			for(size_t i = 0; i <= plot_x; i++)
+			{
+				for(size_t j = 0; j <= plot_u; j++)
+				{
+					double x = x_min_plot + i*dx_plot;
+					double u = conf.u_electron_min + j*du_electron_plot;
+					double f = eval_f_ion_acoustic<real,order>(n, x, u, coeffs.get(), conf);
+					if((abs(f)>conf.tolerance) &&(abs(u)> temp_max_u)){
+						f_max = f;
+						x_max = x;
+						temp_max_u = abs(u);}
+				
+				}
+				
+			}
+			std::cout<<"abs u: "<<temp_max_u<<" ,x max: "<<x_max<<" ,f: "<<f_max<<std::endl;
+		conf.u_electron_max = abs(temp_max_u)+ 0.2*abs(temp_max_u);
+		conf.u_electron_min = -conf.u_electron_max;	
+		conf.du_electron = (conf.u_electron_max - conf.u_electron_min)/conf.Nu_electron;
+		temp_max_u = 0;
+		if(n % 10 == 0)
+        {
 			std::ofstream f_electron_file("f_electron_"+ std::to_string(t) + ".txt");
 			for(size_t i = 0; i <= plot_x; i++)
 			{
@@ -166,7 +190,7 @@ void test()
 				}
 				f_electron_file << std::endl;
 			}
-
+			
 			std::ofstream f_ion_file("f_ion_"+ std::to_string(t) + ".txt");
 			for(size_t i = 0; i <= plot_x; i++)
 			{
