@@ -73,7 +73,7 @@ void test()
 
 
     poisson_fd_dirichlet<double> poiss(conf);
-
+	//cuda_scheduler<real,order> sched { conf };
     //cuda_scheduler<real,order> sched { conf }; // Unused atm.!
 
     std::cout << "u_electron_min = " <<  conf.u_electron_min << std::endl;
@@ -99,13 +99,17 @@ void test()
         dergeraet::stopwatch<double> timer;
         std::memset( rho.get(), 0, conf.Nx*sizeof(real) );
 
-    	// Compute rho:
+    	//Compute rho:
     	//#pragma omp parallel for
     	for(size_t i = 0; i<conf.Nx; i++)
     	{
     		rho.get()[i] = eval_rho_ion<real,order>(n, i, coeffs.get(), conf)
     					  - eval_rho_electron<real,order>(n, i, coeffs.get(), conf);
     	}
+		 std::memset( rho.get(), 0, conf.Nx*sizeof(real) );
+         sched.compute_rho ( n, 0, conf.Nx*conf.Nu );
+         sched.download_rho( rho.get() );
+
 
     	// Set rho_dir:
     	rho_dir.get()[0] = 0; // Left phi value.

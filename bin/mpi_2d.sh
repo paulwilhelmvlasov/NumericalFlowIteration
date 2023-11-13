@@ -1,20 +1,21 @@
-#!/usr/local_rwth/bin/zsh
+#!/usr/bin/zsh
 
-# ask for eight tasks
-#SBATCH --ntasks=2
-#SBATCH --ntasks-per-node=1
-#SBATCH --gres=gpu:volta:2
+### Setup in this script:
+### - 2 nodes (c18g, default)
+### - 2 ranks per node
+### - 1 GPU per rank (= both GPUs from the node)
 
-# ask for less than 4 GB memory per task=MPI rank
-#SBATCH --mem-per-cpu=3900M   #M is the default and can therefore be omitted, but could also be K(ilo)|G(iga)|T(era)
+#SBATCH -J 2-2-1
+#SBATCH -o 2-2-1.%J.log
+#SBATCH --ntasks=4
+#SBATCH --ntasks-per-node=2
+#SBATCH --gres=gpu:2
 
-# name the job
-#SBATCH --job-name=dergeraet_2d
 
-# declare the merged STDOUT/STDERR file
-#SBATCH --output=output.%J.txt
 
-### beginning of executable commands
+#print some debug informations...
+echo; export; echo; nvidia-smi; echo
+
 module unload intel
 module unload intelmpi
 module load CUDA
@@ -26,5 +27,5 @@ module load Automake/1.16
 
 export PSM2_CUDA=1
 
-$MPIEXEC $FLAGS_MPI_BATCH ../bin/test_dergeraet_2d
+$MPIEXEC $FLAGS_MPI_BATCH ../bin/test_vp_ion_acoustic_1d_dirichlet
 
