@@ -207,11 +207,12 @@ void cuda_eval_rho_ion_acoustic( size_t n, const real *coeffs, const config_t<re
     const real   u_min_electron = conf.u_electron_min + iu*conf.du_electron + conf.du_electron/2;
     real *my_rho = rho + ix;
 
-    const real f = eval_ftilda_ion_acoustic<real,order>( n, x, u_min_ion, coeffs, conf, false )
-    -eval_ftilda_ion_acoustic<real,order>( n, x, u_min_electron, coeffs, conf, true );
-    const real weight = conf.du;
+    const real f_ion = eval_ftilda_ion_acoustic<real,order>( n, x, u_min_ion, coeffs, conf, false );
+	const real f_electron = eval_ftilda_ion_acoustic<real,order>( n, x, u_min_electron, coeffs, conf, true );
+    const real weight_ion = conf.du_ion;
+    const real weight_electron = conf.du_electron;
 
-    if ( q < q_end ) atomicAdd( my_rho, -weight*f );  
+    if ( q < q_end ) atomicAdd( my_rho, weight_ion*f_ion - weight_electron*f_electron );
 }
 template <typename real, size_t order>
 __global__
@@ -296,8 +297,8 @@ void cuda_kernel<real,order>::compute_rho( size_t n, size_t q_begin, size_t q_en
 
     cuda::set_device( device_number );
     cuda::memset( cu_rho, 0, rho_size );
-    cuda_eval_rho<real,order><<<Nblocks,block_size>>>( n, cu_coeffs, conf, cu_rho, q_begin, q_end );
-    //cuda_eval_rho_ion_acoustic<real,order><<<Nblocks,block_size>>>( n, cu_coeffs, conf, cu_rho, q_begin, q_end );
+    //cuda_eval_rho<real,order><<<Nblocks,block_size>>>( n, cu_coeffs, conf, cu_rho, q_begin, q_end );
+    cuda_eval_rho_ion_acoustic<real,order><<<Nblocks,block_size>>>( n, cu_coeffs, conf, cu_rho, q_begin, q_end );
 }
 
 template <typename real, size_t order>
