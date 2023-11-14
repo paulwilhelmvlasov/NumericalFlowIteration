@@ -105,15 +105,15 @@ void test()
         // f(n,x,u) < tol
 
     	//Compute rho:
-    	//#pragma omp parallel for
-    	//for(size_t i = 0; i<conf.Nx; i++)
-    	// {
-    	// 	rho.get()[i] = eval_rho_ion<real,order>(n, i, coeffs.get(), conf)
-    	// 				  - eval_rho_electron<real,order>(n, i, coeffs.get(), conf);
-    	// }
-		std::memset( rho.get(), 0, conf.Nx*sizeof(real) );
-         sched.compute_rho ( n, 0, conf.Nx*conf.Nu );
-         sched.download_rho( rho.get() );
+    	#pragma omp parallel for
+    	for(size_t i = 0; i<conf.Nx; i++)
+    	 {
+    	 	rho.get()[i] = eval_rho_ion<real,order>(n, i, coeffs.get(), conf)
+    	 				  - eval_rho_electron<real,order>(n, i, coeffs.get(), conf);
+    	 }
+		//std::memset( rho.get(), 0, conf.Nx*sizeof(real) );
+        //sched.compute_rho ( n, 0, conf.Nx*conf.Nu );
+        //sched.download_rho( rho.get() );
 
 
     	// Set rho_dir:
