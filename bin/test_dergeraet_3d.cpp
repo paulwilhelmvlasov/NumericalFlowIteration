@@ -27,9 +27,8 @@
 #include <dergeraet/random.hpp>
 #include <dergeraet/fields.hpp>
 #include <dergeraet/poisson.hpp>
-#include <dergeraet/rho.hpp>
 #include <dergeraet/stopwatch.hpp>
-#include <dergeraet/cuda_scheduler.hpp>
+#include <dergeraet/device_scheduler.hpp>
 #include <dergeraet/mpi.hpp>
 
 inline
@@ -53,7 +52,7 @@ namespace dim3
 
 template <typename real, size_t order>
 void do_matthias_shit( size_t n, size_t rank, size_t my_begin, size_t my_end,
-                       config_t<real> conf, cuda_scheduler<real,order> &sched, real electric_energy );
+                       config_t<real> conf, device_scheduler<real,order> &sched, real electric_energy );
 
 //template <typename real, size_t order>
 //void do_pauls_shit();
@@ -117,7 +116,8 @@ void test()
                       << "to:   "    << std::setw(5) << rank_boundaries[ i + 1 ] << std::endl;
     }
 
-    cuda_scheduler<real,order> sched { conf };
+    std::vector<sycl::device> devs = sycl::device::get_devices( sycl::info::device_type::cpu );
+    device_scheduler<real,order> sched { conf, devs };
 
     std::cout << "How much space does coeffs need: " << sizeof(real)*(conf.Nt+1)*stride_t << std::endl;
 
@@ -156,7 +156,7 @@ void test()
 
 template <typename real, size_t order>
 void do_matthias_shit( size_t n, size_t rank, size_t my_begin, size_t my_end,
-                       config_t<real> conf, cuda_scheduler<real,order> &sched, real electric_energy )
+                       config_t<real> conf, device_scheduler<real,order> &sched, real electric_energy )
 {
     real metrics[4] { 0, 0, 0, 0 };
     sched.compute_metrics( n, my_begin, my_end );

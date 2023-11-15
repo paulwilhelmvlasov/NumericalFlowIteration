@@ -28,9 +28,8 @@
 #include <dergeraet/random.hpp>
 #include <dergeraet/fields.hpp>
 #include <dergeraet/poisson.hpp>
-#include <dergeraet/rho.hpp>
 #include <dergeraet/stopwatch.hpp>
-#include <dergeraet/cuda_scheduler.hpp>
+#include <dergeraet/device_scheduler.hpp>
 
 namespace dergeraet
 {
@@ -54,8 +53,13 @@ void test()
     if ( rho == nullptr ) throw std::bad_alloc {};
 
     poisson<real> poiss( conf );
+    std::vector<sycl::device> devs = sycl::device::get_devices( sycl::info::device_type::cpu );
 
-    cuda_scheduler<real,order> sched { conf };
+    std::cout << "Found " << devs.size() << " devices:\n";
+    for ( size_t i = 0; i < devs.size(); ++i )
+        std::cout << devs[i].get_info<sycl::info::device::name>() << std::endl;
+
+    device_scheduler<real,order> sched { conf, devs };
 
     std::ofstream statistics_file( "statistics_1d.csv" );
     statistics_file << R"("Time"; "L1-Norm"; "L2-Norm"; "Electric Energy"; "Kinetic Energy"; "Total Energy"; "Entropy")";
@@ -77,8 +81,8 @@ void test()
 
         sched.upload_phi( n, coeffs.get() );
 
-	comp_time_step = timer.elapsed();
-	total_comp_time += comp_time_step;
+	    comp_time_step = timer.elapsed();
+	    total_comp_time += comp_time_step;
 
         real metrics[4] = { 0, 0, 0, 0 };
         sched.compute_metrics( n, 0, conf.Nx*conf.Nu );
@@ -158,6 +162,6 @@ void test()
 
 int main()
 {
-    dergeraet::dim1::test<float,4>();
+    dergeraet::dim1::test<double,4>();
 }
 

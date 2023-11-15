@@ -20,7 +20,6 @@
 #define DERGERAET_SPLINES_HPP
 
 #include <cstddef>
-#include <dergeraet/cuda_runtime.hpp>
 
 namespace dergeraet
 {
@@ -28,15 +27,14 @@ namespace dergeraet
 namespace splines1d
 {
 
-template <typename real>
-__host__ __device__
-constexpr real faculty( size_t n ) noexcept
-{
-   return  (n > 1) ? real(n)*faculty<real>(n-1) : real(1);
-}
+template <size_t n> constexpr size_t faculty() noexcept;
+
+template <>         constexpr size_t faculty<0>() noexcept { return 1; }
+template <>         constexpr size_t faculty<1>() noexcept { return 1; }
+template <size_t n> constexpr size_t faculty   () noexcept { return n*faculty<n-1>(); }
+
 
 template <typename real, size_t order, size_t derivative = 0>
-__host__ __device__
 void N( real x, real *result, size_t stride = 1 ) noexcept
 {
     static_assert( order > 0, "Splines must have order greater than zero." );
@@ -72,13 +70,12 @@ void N( real x, real *result, size_t stride = 1 ) noexcept
             v[i] = v[i] - v[i+1];
     }
 
-    constexpr real factor = real(1) / faculty<real>(order-derivative-1);
+    constexpr real factor = real(1) / real(faculty<order-derivative-1>());
     for ( size_t i = 0; i < order; ++i )
         result[i*stride] = v[i]*factor;
 }
 
 template <typename real, size_t order, size_t derivative = 0>
-__host__ __device__
 real eval( real x, const real *coefficients, size_t stride = 1 ) noexcept
 {
     static_assert( order > 0, "Splines must have order greater than zero." );
@@ -104,7 +101,7 @@ real eval( real x, const real *coefficients, size_t stride = 1 ) noexcept
         for ( size_t i = n-d; i-- > j; )
             c[d+i] = (x+n-d-1-i)*c[d+i] + (i-j+1-x)*c[d+i-1];
 
-    constexpr real factor = real(1) / faculty<real>(order-derivative-1);
+    constexpr real factor = real(1) / real(faculty<order-derivative-1>());
     return factor*c[n-1];
 }
 
@@ -114,7 +111,6 @@ namespace splines2d
 {
 
 template <typename real, size_t order, size_t dx = 0, size_t dy = 0>
-__host__ __device__
 real eval( real x, real y, const real *coefficients, size_t stride_y, size_t stride_x = 1 ) noexcept
 {
     static_assert( order > 0, "Splines must have order greater than zero." );
@@ -141,7 +137,6 @@ namespace splines3d
 {
 
 template <typename real, size_t order, size_t dx = 0, size_t dy = 0, size_t dz = 0>
-__host__ __device__
 real eval( real x, real y, real z, const real *coefficients, size_t stride_z, size_t stride_y, size_t stride_x = 1 ) noexcept
 {
     static_assert( order > 0, "Splines must have order greater than zero." );

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 Matthias Kirchhart and Paul Wilhelm
+ * Copyright (C) 2023 Matthias Kirchhart and Paul Wilhelm
  *
  * This file is part of Der Gerät, a solver for the Vlasov–Poisson equation.
  *
@@ -32,7 +32,7 @@ public:
 	real elapsed();
 
 private:
-	using clock = std::chrono::high_resolution_clock;
+	using clock = std::chrono::steady_clock;
 	clock::time_point t0 { clock::now() };
 };
 
