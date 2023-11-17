@@ -59,10 +59,10 @@ struct config_t
 template <typename real>
 config_t<real>::config_t() noexcept
 {
-    Nx = 128;
-    Nu = 512;
-    u_min = -10;
-    u_max =  10;
+    Nx = 64;
+    Nu = 256;
+    u_min = -6;
+    u_max =  6;
     x_min = 0;
     x_max = 4*M_PI;
     l = Nx - 1;
@@ -82,13 +82,13 @@ real config_t<real>::f0( real x, real u ) noexcept
             using std::exp;
             constexpr real alpha = 1e-2;//0.05;
             constexpr real k     = 0.5;
-            //return 0.39894228040143267793994 * ( 1. + alpha*cos(k*x) ) * exp( -u*u/2. ) * u*u;
+            return 0.39894228040143267793994 * ( 1. + alpha*cos(k*x) ) * exp( -u*u/2. ) * u*u;
 			//return 0.1329807601338108926466486866447939561586195437216448858886419432
 			//		* ( 1. + alpha*cos(k*x) ) * exp( -u*u/2. ) * u*u*u*u;
 
 
-			return 0.0037994502895374540756185339041369701759605583920469967396754840
-					* ( 1. + alpha*cos(k*x) ) * exp( -u*u/2. ) * u*u*u*u*u*u*u*u;
+			//return 0.0037994502895374540756185339041369701759605583920469967396754840
+			//		* ( 1. + alpha*cos(k*x) ) * exp( -u*u/2. ) * u*u*u*u*u*u*u*u;
 
 
     //return 0.39894228040143267793994 * ( 1. + alpha*cos(k*x) ) * exp( -u*u/2 );

@@ -116,7 +116,7 @@ void test()
                             <<    total_energy << "; "
                             << metrics[3]      << std::endl;
 
-            if(n % 16 == 0)
+            if(n % (10*16) == 0)
             {
 				size_t Nx_plot = 256;
 				real dx_plot = conf.Lx / Nx_plot;
@@ -130,6 +130,7 @@ void test()
 				std::ofstream file_p( "p_" + std::to_string(t) + ".txt" );
 				std::ofstream file_q( "q_" + std::to_string(t) + ".txt" );
 				std::ofstream file_R( "R_" + std::to_string(t) + ".txt" );
+				std::ofstream file_f( "f_" + std::to_string(t) + ".txt" );
 				std::vector<real> f_cross(Nv_plot + 1);
 				for(size_t i = 0; i <= Nx_plot; i++)
 				{
@@ -149,7 +150,10 @@ void test()
 						u += v*f;
 
 						f_cross[j] = f;
+
+						file_f << x << " " << v << " " << f << std::endl;
 					}
+					file_f << std::endl;
 					u *= 1/(1-rho)*dv_plot;
 					for(size_t j = 0; j <= Nv_plot; j++)
 					{

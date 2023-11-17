@@ -52,7 +52,7 @@ void test()
 	config_t<real> conf;
 	conf.dt = conf.lambda/conf.c * 5 * 1e-3;
 	conf.Nt = 100/conf.dt;
-	//conf.Nt = 0;
+	//conf.Nt = 12;
 	conf.Nu_electron = 128;
 	conf.Nu_ion = conf.Nu_electron;
     conf.u_electron_min = -400*conf.m_e*conf.c;
@@ -105,22 +105,25 @@ void test()
         // f(n,x,u) < tol
 
     	//Compute rho:
+        /*
     	#pragma omp parallel for
     	for(size_t i = 0; i<conf.Nx; i++)
     	 {
     	 	rho.get()[i] = eval_rho_ion<real,order>(n, i, coeffs.get(), conf)
     	 				  - eval_rho_electron<real,order>(n, i, coeffs.get(), conf);
     	 }
-		//std::memset( rho.get(), 0, conf.Nx*sizeof(real) );
-        //sched.compute_rho ( n, 0, conf.Nx*conf.Nu );
-        //sched.download_rho( rho.get() );
+         */
 
+		std::memset( rho.get(), 0, conf.Nx*sizeof(real) );
+        sched.compute_rho ( n, 0, conf.Nx*conf.Nu_electron );
+        sched.download_rho( rho.get() );
 
     	// Set rho_dir:
     	rho_dir.get()[0] = 0; // Left phi value.
     	for(size_t i = 1; i < conf.Nx; i++)
     	{
     		rho_dir.get()[i] = rho.get()[i];
+    		std::cout << rho.get()[i] << std::endl;
     	}
     	rho_dir.get()[conf.Nx] = 0; // Left phi value.
 
@@ -141,18 +144,19 @@ void test()
         }
 
         dim1::dirichlet::interpolate<real,order>( coeffs.get() + n*stride_t,phi_ext.get(), conf );
-        sched.upload_phi( n, coeffs.get() ); // Unused atm.!
+        sched.upload_phi( n, coeffs.get() );
         double time_elapsed = timer.elapsed();
         total_time += time_elapsed;
 
         std::cout << "Iteration " << n << " Time for step: " << time_elapsed << " and total time s.f.: " << total_time << std::endl;
 
         // Output
-        
+
         	real x_min_plot = -2;
         	real x_max_plot = 18;
         	size_t plot_x = 256;
         	size_t plot_u = 256;
+
 			real temp_max_u = 0;
 			real f_max,x_max;
         	real dx_plot = (x_max_plot - x_min_plot) / plot_x;
@@ -160,7 +164,7 @@ void test()
         	real du_ion_plot = (conf.u_ion_max - conf.u_ion_min) / plot_u;
 
         	real t = n*conf.dt;
-			
+			/*
 			for(size_t i = 0; i <= plot_x; i++)
 			{
 				for(size_t j = 0; j <= plot_u; j++)
@@ -181,6 +185,7 @@ void test()
 		conf.u_electron_min = -conf.u_electron_max;	
 		conf.du_electron = (conf.u_electron_max - conf.u_electron_min)/conf.Nu_electron;
 		temp_max_u = 0;
+		*/
 		if(n % 10 == 0)
         {
 			std::ofstream f_electron_file("f_electron_"+ std::to_string(t) + ".txt");

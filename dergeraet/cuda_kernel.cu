@@ -199,16 +199,16 @@ void cuda_eval_rho_ion_acoustic( size_t n, const real *coeffs, const config_t<re
     const size_t q = q_begin +
                      size_t(blockDim.x)*size_t(blockIdx.x) + size_t(threadIdx.x);
 
-    const size_t ix = q / conf.Nu;
-    const size_t iu = q % conf.Nu;
+    const size_t ix = q / conf.Nu_electron;
+    const size_t iu = q % conf.Nu_electron;
     
     const real   x = conf.x_min + ix*conf.dx; 
-    const real   u_min_ion = conf.u_ion_min + iu*conf.du_ion + conf.du_ion/2;
-    const real   u_min_electron = conf.u_electron_min + iu*conf.du_electron + conf.du_electron/2;
+    const real   u_ion = conf.u_ion_min + iu*conf.du_ion + conf.du_ion/2;
+    const real   u_electron = conf.u_electron_min + iu*conf.du_electron + conf.du_electron/2;
     real *my_rho = rho + ix;
 
-    const real f_ion = eval_ftilda_ion_acoustic<real,order>( n, x, u_min_ion, coeffs, conf, false );
-	const real f_electron = eval_ftilda_ion_acoustic<real,order>( n, x, u_min_electron, coeffs, conf, true );
+    const real f_ion = eval_ftilda_ion_acoustic<real,order>( n, x, u_ion, coeffs, conf, false );
+	const real f_electron = eval_ftilda_ion_acoustic<real,order>( n, x, u_electron, coeffs, conf, true );
     const real weight_ion = conf.du_ion;
     const real weight_electron = conf.du_electron;
 
