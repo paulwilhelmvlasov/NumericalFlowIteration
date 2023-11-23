@@ -105,14 +105,15 @@ template <typename real>
 struct config_t
 {
     // Ion Acoustic specific parameters:
-    constexpr static real lambda = 1;
-    constexpr static real m_e = 1, m_i = 1000;
-    constexpr static real q = 1;
-    constexpr static real c = 1;
+    constexpr static real lambda = 1e-5; // meter
+    constexpr static real m_e = 9.10938370151e-31, m_i = 1.660539066601e-27; // kg
+    //constexpr static real q = 1.6021766341e-19; // C
+    constexpr static real q = 1; // eV
+    constexpr static real c = 299792458; // m/s
     constexpr static real n_c = 4*M_PI*m_e*c*c/(q*q*lambda*lambda);
-    constexpr static real T_e = 5000, T_i = 1;
-    //constexpr static real K = 1.38*1e-23; // Boltzmann constant
-    constexpr static real K = 1; // Boltzmann constant
+    constexpr static real T_e = 5000, T_i = 1; // eV
+    //constexpr static real K = 1.38*1e-23; // Boltzmann constant in J/K
+    constexpr static real K = 8.617333262*1e-5; // Boltzmann constant in eV/K
 
     __host__ __device__ static real initial_plasma_density( real x) noexcept;
     __host__ __device__ static real boltzmann( real u, real T, real m) noexcept;
