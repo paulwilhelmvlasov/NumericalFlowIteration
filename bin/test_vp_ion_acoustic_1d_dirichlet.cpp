@@ -52,17 +52,18 @@ void test()
 	config_t<real> conf;
 	conf.dt = conf.lambda/conf.c * 5 * 1e-3;
 	real T = conf.lambda/conf.c;
-	conf.Nt = 100*T/conf.dt;
-
-	//conf.Nt = 12;
+	//conf.Nt = 100*T/conf.dt;
+	conf.Nt = 1;
 	conf.Nu_electron = 128;
 	conf.Nu_ion = conf.Nu_electron;
-    conf.u_electron_min = -2*1e7*conf.c;
-    conf.u_electron_max =  2*1e7*conf.c;
-    conf.u_ion_min = -1e4*conf.c;
-    conf.u_ion_max =  1e4*conf.c;
+	conf.u_electron_max =  1e-2*conf.c;
+	conf.u_electron_min = -conf.u_electron_max;
+    conf.u_ion_max =  2e-6*conf.c;
+    conf.u_ion_min = -conf.u_ion_max;
     conf.du_electron = (conf.u_electron_max - conf.u_electron_min)/conf.Nu_electron;
     conf.du_ion = (conf.u_ion_max - conf.u_ion_min)/conf.Nu_ion;
+
+    std::cout << "eps = " << std::numeric_limits<real>::epsilon();
 
 	std::cout << "dt = " << conf.dt << std::endl;
 	std::cout << "Nt = " << conf.Nt << std::endl;
@@ -97,6 +98,7 @@ void test()
 
     // Test
 	std::ofstream f_electron_file_0("f_electron_test.txt");
+	std::ofstream f_electron_file_1("f_electron_test_1.txt");
 	for(size_t i = 0; i <= 256; i++)
 	{
 		for(size_t j = 0; j <= 256; j++)
@@ -104,10 +106,12 @@ void test()
 			double x = conf.x_min + i*(conf.x_max-conf.x_min)/256;
 			double u = conf.u_electron_min + j*(conf.u_electron_max-conf.u_electron_min)/256;
 			double f = conf.f0_electron(x, u);
-					//eval_f_ion_acoustic<real,order>(n, x, u, coeffs.get(), conf);
+			double f_test = eval_f_ion_acoustic<real,order>(0, x, u, coeffs.get(), conf, true);
 			f_electron_file_0 << x << " " << u << " " << f << std::endl;
+			f_electron_file_1 << x << " " << u << " " << f_test << std::endl;
 		}
 		f_electron_file_0 << std::endl;
+		f_electron_file_1 << std::endl;
 	}
 
 
@@ -134,6 +138,7 @@ void test()
     	for(size_t i = 1; i < conf.Nx; i++)
     	{
     		rho_dir.get()[i] = rho.get()[i];
+    		//std::cout << i << " " << rho.get()[i] << std::endl;
     	}
     	rho_dir.get()[conf.Nx] = 0; // Left phi value.
 
@@ -164,18 +169,18 @@ void test()
 
         // Output
 
-        	real x_min_plot = -2;
-        	real x_max_plot = 18;
-        	size_t plot_x = 256;
-        	size_t plot_u = 256;
+        real x_min_plot = -2;
+        real x_max_plot = 18;
+        size_t plot_x = 256;
+        size_t plot_u = 256;
 
-			real temp_max_u = 0;
-			real f_max,x_max;
-        	real dx_plot = (x_max_plot - x_min_plot) / plot_x;
-        	real du_electron_plot = (conf.u_electron_max - conf.u_electron_min) / plot_u;
-        	real du_ion_plot = (conf.u_ion_max - conf.u_ion_min) / plot_u;
+		real temp_max_u = 0;
+		real f_max,x_max;
+        real dx_plot = (x_max_plot - x_min_plot) / plot_x;
+        real du_electron_plot = (conf.u_electron_max - conf.u_electron_min) / plot_u;
+        real du_ion_plot = (conf.u_ion_max - conf.u_ion_min) / plot_u;
 
-        	real t = n*conf.dt;
+        real t = n*conf.dt;
 
 		if(n % 10 == 0)
         {

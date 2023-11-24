@@ -105,8 +105,10 @@ template <typename real>
 struct config_t
 {
     // Ion Acoustic specific parameters:
-    constexpr static real lambda = 1e-5; // meter
-    constexpr static real m_e = 9.10938370151e-31, m_i = 1.660539066601e-27; // kg
+    constexpr static real lambda = 1e-5; // m
+    //constexpr static real m_e = 9.10938370151e-31, m_i = 1.660539066601e-27; // kg
+    constexpr static real m_e = 5.685630108757747e-12; // eV/c^2
+    constexpr static real m_i = 1.036426966215123e-08; // eV/c^2
     //constexpr static real q = 1.6021766341e-19; // C
     constexpr static real q = 1; // eV
     constexpr static real c = 299792458; // m/s
