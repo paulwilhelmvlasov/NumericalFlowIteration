@@ -51,19 +51,32 @@ void test()
 {
 	config_t<real> conf;
 	conf.dt = conf.lambda/conf.c * 5 * 1e-3;
-	std::cout << "dt = " << conf.dt << std::endl;
 	real T = conf.lambda/conf.c;
 	conf.Nt = 100*T/conf.dt;
-	std::cout << "Nt = " << conf.Nt << std::endl;
+
 	//conf.Nt = 12;
 	conf.Nu_electron = 128;
 	conf.Nu_ion = conf.Nu_electron;
-    conf.u_electron_min = -400*conf.m_e*conf.c;
-    conf.u_electron_max =  400*conf.m_e*conf.c;
-    conf.u_ion_min = -0.0003*conf.m_i*conf.c;
-    conf.u_ion_max =  0.0003*conf.m_i*conf.c;
+    conf.u_electron_min = -2*1e7*conf.c;
+    conf.u_electron_max =  2*1e7*conf.c;
+    conf.u_ion_min = -1e4*conf.c;
+    conf.u_ion_max =  1e4*conf.c;
     conf.du_electron = (conf.u_electron_max - conf.u_electron_min)/conf.Nu_electron;
     conf.du_ion = (conf.u_ion_max - conf.u_ion_min)/conf.Nu_ion;
+
+	std::cout << "dt = " << conf.dt << std::endl;
+	std::cout << "Nt = " << conf.Nt << std::endl;
+    std::cout << "u_electron_min = " <<  conf.u_electron_min << std::endl;
+    std::cout << "u_electron_max = " <<  conf.u_electron_max << std::endl;
+    std::cout << "Nu_electron = " << conf.Nu_electron <<std::endl;
+    std::cout << "du_electron = " << conf.du_electron <<std::endl;
+    std::cout << "u_ion_min = " <<  conf.u_ion_min << std::endl;
+    std::cout << "u_ion_max = " <<  conf.u_ion_max << std::endl;
+    std::cout << "Nu_ion = " << conf.Nu_ion <<std::endl;
+    std::cout << "du_ion = " << conf.du_ion <<std::endl;
+    std::cout << "x_min = " << conf.x_min << " x_max = " << conf.x_max << std::endl;
+    std::cout << "Nx = " << conf.Nx <<std::endl;
+    std::cout << "nc = " << conf.n_c << std::endl;
 
     const size_t stride_x = 1;
     const size_t stride_t = conf.Nx + order - 2; // conf.Nx = l+2, therefore: conf.Nx +order-2 = order+l
@@ -76,50 +89,45 @@ void test()
 
 
     poisson_fd_dirichlet<double> poiss(conf);
-	//cuda_scheduler<real,order> sched { conf };
-    cuda_scheduler<real,order> sched { conf }; // Unused atm.!
-
-    std::cout << "u_electron_min = " <<  conf.u_electron_min << std::endl;
-    std::cout << "u_electron_max = " <<  conf.u_electron_max << std::endl;
-    std::cout << "Nu_electron = " << conf.Nu_electron <<std::endl;
-    std::cout << "du_electron = " << conf.du_electron <<std::endl;
-    std::cout << "u_ion_min = " <<  conf.u_ion_min << std::endl;
-    std::cout << "u_ion_max = " <<  conf.u_ion_max << std::endl;
-    std::cout << "Nu_ion = " << conf.Nu_ion <<std::endl;
-    std::cout << "du_ion = " << conf.du_ion <<std::endl;
-    std::cout << "x_min = " << conf.x_min << " x_max = " << conf.x_max << std::endl;
-    std::cout << conf.Nx <<std::endl;
-
-    std::cout << conf.Nt <<std::endl;
-
-    std::cout << "nc = " << conf.n_c << std::endl;
+    cuda_scheduler<real,order> sched { conf };
 
     double total_time = 0;
+
+    bool gpu = false;
+
+    // Test
+	std::ofstream f_electron_file_0("f_electron_test.txt");
+	for(size_t i = 0; i <= 256; i++)
+	{
+		for(size_t j = 0; j <= 256; j++)
+		{
+			double x = conf.x_min + i*(conf.x_max-conf.x_min)/256;
+			double u = conf.u_electron_min + j*(conf.u_electron_max-conf.u_electron_min)/256;
+			double f = conf.f0_electron(x, u);
+					//eval_f_ion_acoustic<real,order>(n, x, u, coeffs.get(), conf);
+			f_electron_file_0 << x << " " << u << " " << f << std::endl;
+		}
+		f_electron_file_0 << std::endl;
+	}
 
 
     for ( size_t n = 0; n <= conf.Nt; n++ )
     {
         dergeraet::stopwatch<double> timer;
 
-        // Adaptive support measurement:
-        // conf.u_electron_min = ?;
-        // conf.u_electron_max =  ?;
-        // conf.du_electron = (conf.u_electron_max - conf.u_electron_min)/conf.Nu_electron;
-        // f(n,x,u) < tol
-
     	//Compute rho:
-        /*
-    	#pragma omp parallel for
-    	for(size_t i = 0; i<conf.Nx; i++)
-    	 {
-    	 	rho.get()[i] = eval_rho_ion<real,order>(n, i, coeffs.get(), conf)
-    	 				  - eval_rho_electron<real,order>(n, i, coeffs.get(), conf);
-    	 }
-         */
-
-		std::memset( rho.get(), 0, conf.Nx*sizeof(real) );
-        sched.compute_rho ( n, 0, conf.Nx*conf.Nu_electron );
-        sched.download_rho( rho.get() );
+        if(!gpu){
+			#pragma omp parallel for
+			for(size_t i = 0; i<conf.Nx; i++)
+			{
+				rho.get()[i] = eval_rho_ion<real,order>(n, i, coeffs.get(), conf)
+							  - eval_rho_electron<real,order>(n, i, coeffs.get(), conf);
+			}
+        } else {
+			std::memset( rho.get(), 0, conf.Nx*sizeof(real) );
+			sched.compute_rho ( n, 0, conf.Nx*conf.Nu_electron );
+			sched.download_rho( rho.get() );
+        }
 
     	// Set rho_dir:
     	rho_dir.get()[0] = 0; // Left phi value.
@@ -146,7 +154,9 @@ void test()
         }
 
         dim1::dirichlet::interpolate<real,order>( coeffs.get() + n*stride_t,phi_ext.get(), conf );
-        sched.upload_phi( n, coeffs.get() );
+        if(gpu){
+        	sched.upload_phi( n, coeffs.get() );
+        }
         double time_elapsed = timer.elapsed();
         total_time += time_elapsed;
 
@@ -166,28 +176,7 @@ void test()
         	real du_ion_plot = (conf.u_ion_max - conf.u_ion_min) / plot_u;
 
         	real t = n*conf.dt;
-			/*
-			for(size_t i = 0; i <= plot_x; i++)
-			{
-				for(size_t j = 0; j <= plot_u; j++)
-				{
-					double x = x_min_plot + i*dx_plot;
-					double u = conf.u_electron_min + j*du_electron_plot;
-					double f = eval_f_ion_acoustic<real,order>(n, x, u, coeffs.get(), conf);
-					if((abs(f)>conf.tolerance) &&(abs(u)> temp_max_u)){
-						f_max = f;
-						x_max = x;
-						temp_max_u = abs(u);}
-				
-				}
-				
-			}
-			std::cout<<"abs u: "<<temp_max_u<<" ,x max: "<<x_max<<" ,f: "<<f_max<<std::endl;
-		conf.u_electron_max = abs(temp_max_u)+ 0.2*abs(temp_max_u);
-		conf.u_electron_min = -conf.u_electron_max;	
-		conf.du_electron = (conf.u_electron_max - conf.u_electron_min)/conf.Nu_electron;
-		temp_max_u = 0;
-		*/
+
 		if(n % 10 == 0)
         {
 			std::ofstream f_electron_file("f_electron_"+ std::to_string(n) + ".txt");

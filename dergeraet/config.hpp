@@ -115,6 +115,9 @@ struct config_t
     //constexpr static real K = 1.38*1e-23; // Boltzmann constant in J/K
     constexpr static real K = 8.617333262*1e-5; // Boltzmann constant in eV/K
 
+    constexpr static bool relativistic = true;
+    constexpr static bool reflecting_boundaries = true;
+
     __host__ __device__ static real initial_plasma_density( real x) noexcept;
     __host__ __device__ static real boltzmann( real u, real T, real m) noexcept;
     __host__ __device__ static real f0_electron( real x, real u ) noexcept;
@@ -168,10 +171,10 @@ config_t<real>::config_t() noexcept
     Nu_electron = 128;
     Nu_ion = Nu_electron;
 
-    u_electron_min = -100*m_e*c;
-    u_electron_max =  100*m_e*c;
-    u_ion_min = -200*m_i*c;
-    u_ion_max =  200*m_i*c;
+    u_electron_min = -c;
+    u_electron_max =  c;
+    u_ion_min = -0.1*c;
+    u_ion_max =  0.1*c;
 
     dt = lambda/c * 1e-3;
     Nt = 100/dt;
@@ -206,7 +209,7 @@ __host__ __device__
 real config_t<real>::boltzmann( real u, real T, real m) noexcept
 {
 	// See Sonnendruecker lecture notes.
-	return 1/std::sqrt(2*M_PI*T/m) * std::exp(-u*u /(2*T/m));
+	return std::sqrt(m/(2*M_PI*K*T)) * std::exp(-m*u*u /(2*K*T));
 }
 
 
