@@ -117,10 +117,10 @@ template <typename real>
 config_t<real>::config_t() noexcept
 {
     Nx = Ny = 32;
-    Nu = Nv = 32;
+    Nu = Nv = 128;
 
-    u_min = v_min = -8;
-    u_max = v_max =  8;
+    u_min = v_min = -6;
+    u_max = v_max =  6;
     x_min = y_min = 0;
 //    x_max = y_max = 10*M_PI;
     x_max = y_max = 4.0 * M_PI;
@@ -242,7 +242,7 @@ real config_t<real>::f0( real x, real y, real z, real u, real v, real w ) noexce
     // Bump On Tail
     constexpr real c = 0.06349363593424096978576330493464;
     return c * (0.9*exp(-0.5*u*u) + 0.2*exp(-2*(u-4.5)*(u-4.5)) ) 
-             * exp(-0.5 * (v*v + w*w) ) * (1 + 0.03*(cos(0.3*x) + cos(0.3*y) + cos(0.3)*z) );
+             * exp(-0.5 * (v*v + w*w) ) * (1 + 0.03*(cos(0.3*x) + cos(0.3*y) + cos(0.3*z)) );
 }
 
 }
