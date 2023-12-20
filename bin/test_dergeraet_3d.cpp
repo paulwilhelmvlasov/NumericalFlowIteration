@@ -162,12 +162,9 @@ void test()
 
         if(rank == 0)
         {
-        compute_time_step = timer.elapsed();
-        compute_time_total += compute_time_step;
-//        if(rank == 0)
-//        {
-        	std::cout << n * conf.dt << " " << compute_time_step << " " << compute_time_total << std::endl;
-		
+			compute_time_step = timer.elapsed();
+			compute_time_total += compute_time_step;
+			std::cout << n * conf.dt << " " << compute_time_step << " " << compute_time_total << std::endl;
         }
 
         // After this, we can output statistics, etc.
