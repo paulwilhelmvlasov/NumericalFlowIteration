@@ -1,4 +1,4 @@
-noinst_PROGRAMS = test_poisson test_gmres test_fields test_dergeraet test_dergeraet_2d test_dergeraet_3d test_nufi_cpu test_nufi_cpu_2d test_nufi_cpu_3d
+noinst_PROGRAMS = test_poisson test_gmres test_fields test_dergeraet test_dergeraet_2d test_dergeraet_3d test_nufi_cpu test_nufi_cpu_2d test_nufi_cpu_3d test_nufi_cpu_3d_isolated
 
 test_poisson_SOURCES = test_poisson.cpp
 test_poisson_LDADD   = $(top_builddir)/dergeraet/libdergeraet.a
@@ -35,4 +35,9 @@ test_nufi_cpu_2d_LDADD  += $(CUDA_LDFLAGS) $(BLAS_LIBS) -lfftw3 -lfftw3f #-lmpi 
 test_nufi_cpu_3d_SOURCES = test_nufi_cpu_3d.cpp
 test_nufi_cpu_3d_LDADD   = $(top_builddir)/dergeraet/libdergeraet.a 
 test_nufi_cpu_3d_LDADD  += $(CUDA_LDFLAGS) $(BLAS_LIBS) -lfftw3 -lfftw3f #-lmpi -lmpi_cxx
+
+test_nufi_cpu_3d_isolated_SOURCES = test_nufi_cpu_3d_isolated.cpp
+test_nufi_cpu_3d_isolated_LDADD   = $(top_builddir)/dergeraet/libdergeraet.a 
+test_nufi_cpu_3d_isolated_LDADD  += $(CUDA_LDFLAGS) $(BLAS_LIBS) -lfftw3 -lfftw3f -lmpi -lmpi_cxx
+
 

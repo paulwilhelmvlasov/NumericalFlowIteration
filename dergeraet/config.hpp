@@ -54,8 +54,8 @@ struct config_t
 template <typename real>
 config_t<real>::config_t() noexcept
 {
-    Nx = 2048;
-    Nu = 2048;
+    Nx = 256;
+    Nu = 512;
     u_min = -10;
     u_max =  10;
     x_min = 0;
@@ -117,10 +117,10 @@ template <typename real>
 config_t<real>::config_t() noexcept
 {
     Nx = Ny = 32;
-    Nu = Nv = 32;
+    Nu = Nv = 128;
 
-    u_min = v_min = -8;
-    u_max = v_max =  8;
+    u_min = v_min = -6;
+    u_max = v_max =  6;
     x_min = y_min = 0;
 //    x_max = y_max = 10*M_PI;
     x_max = y_max = 4.0 * M_PI;
@@ -195,8 +195,8 @@ struct config_t
 template <typename real>
 config_t<real>::config_t() noexcept
 {
-    Nx = Ny = Nz = 16;
-    Nu = Nv = Nw = 16;
+    Nx = Ny = Nz = 8;
+    Nu = Nv = Nw = 8;
 
     u_min = v_min = w_min = -9;
     u_max = v_max = w_max =  0;
@@ -204,7 +204,7 @@ config_t<real>::config_t() noexcept
     x_max = y_max = z_max = 20*M_PI/3.0; // Bump On Tail instability
 	//10*M_PI;
 
-    dt = 1./10.; Nt = 50/dt;
+    dt = 1./10.; Nt = 5/dt;
 
     Lx = x_max - x_min; Lx_inv = 1/Lx;
     Ly = y_max - y_min; Ly_inv = 1/Ly;
@@ -242,7 +242,7 @@ real config_t<real>::f0( real x, real y, real z, real u, real v, real w ) noexce
     // Bump On Tail
     constexpr real c = 0.06349363593424096978576330493464;
     return c * (0.9*exp(-0.5*u*u) + 0.2*exp(-2*(u-4.5)*(u-4.5)) ) 
-             * exp(-0.5 * (v*v + w*w) ) * (1 + 0.03*(cos(0.3*x) + cos(0.3*y) + cos(0.3)*z) );
+             * exp(-0.5 * (v*v + w*w) ) * (1 + 0.03*(cos(0.3*x) + cos(0.3*y) + cos(0.3*z)) );
 }
 
 }

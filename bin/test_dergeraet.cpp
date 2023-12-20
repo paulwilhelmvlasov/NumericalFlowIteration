@@ -89,8 +89,8 @@ void test()
 
         std::cout << std::setw(15) << n << " Comp-time: " << time_elapsed << " Total time: " << total_time << std::endl;
 
-        /*
-        if( n % 16 == 0 )
+
+        if( n % 1 == 0 )
         {
             real metrics[4] = { 0, 0, 0, 0 };
             sched.compute_metrics( n, 0, conf_metrics.Nx*conf_metrics.Nu );
@@ -122,7 +122,7 @@ void test()
                             <<    total_energy << "; "
                             << metrics[3]      << std::endl;
 
-            if(n % (10*16) == 0)
+            if(n % (10*16) == 0 && false)
             {
 				size_t Nx_plot = 256;
 				real dx_plot = conf.Lx / Nx_plot;
@@ -157,7 +157,7 @@ void test()
 				}
             }
         }
-        */
+
     }
     
     std::cout << "Elapsed time = " << total_time << std::endl;

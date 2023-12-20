@@ -165,7 +165,7 @@ void test()
         }
 
         // Output statistics.
-        if(n % 2 == 0)
+        if(n % 1 == 0)
         {
         	do_stats(n,rank,my_begin,my_end,conf,sched,electric_energy,statistics_file);
 
