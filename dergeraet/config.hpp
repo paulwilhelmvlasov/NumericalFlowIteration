@@ -195,16 +195,17 @@ struct config_t
 template <typename real>
 config_t<real>::config_t() noexcept
 {
-    Nx = Ny = Nz = 8;
-    Nu = Nv = Nw = 8;
+    Nx = Ny = Nz = 16;
+    Nu = Nv = Nw = 16;
 
-    u_min = v_min = w_min = -9;
-    u_max = v_max = w_max =  0;
+    u_min = v_min = w_min = -5;
+    u_max = v_max = w_max =  5;
     x_min = y_min = z_min = 0;
-    x_max = y_max = z_max = 20*M_PI/3.0; // Bump On Tail instability
-	//10*M_PI;
+    //x_max = y_max = z_max = 20*M_PI/3.0; // Bump On Tail instability
+    //x_max = y_max = z_max = 10*M_PI; // Two Stream
+    x_max = y_max = z_max = 4*M_PI; // Linear Landau
 
-    dt = 1./10.; Nt = 5/dt;
+    dt = 1./16.; Nt = 50/dt;
 
     Lx = x_max - x_min; Lx_inv = 1/Lx;
     Ly = y_max - y_min; Ly_inv = 1/Ly;
@@ -225,24 +226,29 @@ real config_t<real>::f0( real x, real y, real z, real u, real v, real w ) noexce
     using std::cos;
     using std::exp;
 
-    constexpr real alpha = 0.001;
-    constexpr real k     = 0.2;
-
     // Weak Landau Damping:
-    // constexpr real c  = 0.06349363593424096978576330493464; // Weak Landau damping
-    // return c * ( 1. + alpha*cos(k*x) + alpha*cos(k*y) + alpha*cos(k*z)) * exp( -(u*u+v*v+w*w)/2 );
+    constexpr real alpha = 0.01;
+    constexpr real k     = 0.5;
+    constexpr real c  = 0.06349363593424096978576330493464; // Weak Landau damping
+    return c * ( 1. + alpha*cos(k*x) + alpha*cos(k*y) + alpha*cos(k*z)) * exp( -(u*u+v*v+w*w)/2 );
 
     // Two Stream instability:
     /*
+    constexpr real alpha = 1e-3;
+    constexpr real k     = 0.2;
     constexpr real c     = 0.03174681796712048489288165246732; // Two Stream instability
     constexpr real v0 = 2.4;
     return c * (  (exp(-(v-v0)*(v-v0)/2.0) + exp(-(v+v0)*(v+v0)/2.0)) ) * exp(-(u*u+w*w)/2)
              * ( 1 + alpha * (cos(k*x) + cos(k*y) + cos(k*z)) );
-    */
+	*/
     // Bump On Tail
+    /*
+    constexpr real alpha = 0.001;
+    constexpr real k     = 0.2;
     constexpr real c = 0.06349363593424096978576330493464;
     return c * (0.9*exp(-0.5*u*u) + 0.2*exp(-2*(u-4.5)*(u-4.5)) ) 
              * exp(-0.5 * (v*v + w*w) ) * (1 + 0.03*(cos(0.3*x) + cos(0.3*y) + cos(0.3*z)) );
+    */
 }
 
 }
