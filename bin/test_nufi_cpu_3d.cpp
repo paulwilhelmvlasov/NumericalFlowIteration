@@ -53,6 +53,10 @@ namespace dergeraet
 namespace dim3
 {
 
+template <typename real, size_t order>
+void do_stats( size_t n, size_t rank, size_t my_begin, size_t my_end,
+               config_t<real> conf, real electric_energy,
+			   const real *coeffs, std::ofstream& statistics_file );
 
 template <typename real, size_t order>
 void test()
@@ -127,6 +131,14 @@ void test()
     													sizeof(real)*conf.Nx*conf.Ny*conf.Nz)), std::free };
     if ( rho == nullptr ) throw std::bad_alloc {};
 
+    std::ofstream statistics_file( "statistics.csv" );
+    statistics_file << R"("Time"; "L1-Norm"; "L2-Norm"; "Electric Energy"; "Kinetic Energy"; "Total Energy"; "Entropy")";
+    statistics_file << std::endl;
+
+    statistics_file << std::scientific;
+          std::cout << std::scientific;
+
+
     poisson<real> poiss( conf );
 
     double total_time = 0;
@@ -135,7 +147,8 @@ void test()
     	dergeraet::stopwatch<double> timer;
 
         std::memset( rho.get(), 0, sizeof(real)*conf.Nx*conf.Ny*conf.Nz );
-    	// Compute rho:
+
+        // Compute rho:
 		#pragma omp parallel for
     	for(size_t l = my_begin; l < my_end; l++)
     	{
@@ -161,8 +174,9 @@ void test()
     	    const real w = conf.w_min + iw*conf.dw + conf.dw/2;
 
     	    const real weight = conf.du*conf.dv*conf.dw;
-    	    const real f = eval_ftilda<real,order>( n, x, y, z, u, v, w, coeffs.get(), conf );
+    	    const real f = eval_ftilda<real,order>( n, x, y, z, u, v, w,coeffs.get(),conf);
 
+			#pragma omp atomic
     		rho.get()[iz*conf.Nx*conf.Ny + iy*conf.Nx + ix ] -= weight*f;
     	}
 
@@ -171,20 +185,111 @@ void test()
         real E_energy = poiss.solve( rho.get() );
         interpolate<real,order>( coeffs.get() + n*stride_t, rho.get(), conf );
 
-        double timer_elapsed = timer.elapsed();
-        total_time += timer_elapsed;
-	    double t = n*conf.dt;
-        std::cout << "n = " << n << " t = " << n*conf.dt << " Comp-time: " << timer_elapsed << ". Total time s.f.: " << total_time << std::endl;
+        if(rank == 0)
+        {
+			double timer_elapsed = timer.elapsed();
+			total_time += timer_elapsed;
+			double t = n*conf.dt;
+			std::cout << "n = " << n << " t = " << n*conf.dt << " Comp-time: " << timer_elapsed << ". Total time s.f.: " << total_time << std::endl;
+        }
+        // After this, we can output statistics, etc.
+        if(n % 4 == 0 )
+        {
+        	do_stats<real,order>(n,rank,my_begin,my_end,conf,E_energy,coeffs.get(),statistics_file);
+        }
 
     }
     std::cout << "Total time: " << total_time << std::endl;
 }
-}
-}
 
-
-int main()
+template <typename real, size_t order>
+void do_stats( size_t n, size_t rank, size_t my_begin, size_t my_end,
+                       config_t<real> conf, real electric_energy,
+					   const real *coeffs, std::ofstream& statistics_file)
 {
+    real metrics[4] { 0, 0, 0, 0 };
+
+    // Do metrics computations.
+	const real weight = conf.du*conf.dv*conf.dw;
+	#pragma omp parallel for
+	for(size_t l = my_begin; l < my_end; l++)
+	{
+		// Note that l \in {0,...,N} with N = Nx*Ny*Nz*Nu*Nv*Nw.
+		// Thus one has to first convert l into the correct indices.
+		size_t tmp = l;
+		const size_t iz  = tmp / ( conf.Ny*conf.Nx*conf.Nw*conf.Nv*conf.Nu );
+					 tmp = tmp % ( conf.Ny*conf.Nx*conf.Nw*conf.Nv*conf.Nu );
+		const size_t iy  = tmp / ( conf.Nx*conf.Nw*conf.Nv*conf.Nu );
+					 tmp = tmp % ( conf.Nx*conf.Nw*conf.Nv*conf.Nu );
+		const size_t ix  = tmp / ( conf.Nw*conf.Nv*conf.Nu );
+					 tmp = tmp % ( conf.Nw*conf.Nv*conf.Nu );
+		const size_t iw  = tmp / ( conf.Nv*conf.Nu );
+					 tmp = tmp % ( conf.Nv*conf.Nu );
+		const size_t iv  = tmp / ( conf.Nu );
+		const size_t iu  = tmp % ( conf.Nu );
+
+		const real x = conf.x_min + ix*conf.dx;
+		const real y = conf.y_min + iy*conf.dy;
+		const real z = conf.z_min + iz*conf.dz;
+		const real u = conf.u_min + iu*conf.du + conf.du/2;
+		const real v = conf.v_min + iv*conf.dv + conf.dv/2;
+		const real w = conf.w_min + iw*conf.dw + conf.dw/2;
+
+		const real f = eval_ftilda<real,order>( n, x, y, z, u, v, w, coeffs, conf );
+
+		#pragma omp atomic
+		metrics[0] += f;
+		#pragma omp atomic
+		metrics[1] += f*f;
+		#pragma omp atomic
+		metrics[2] += (u*u+v*v+w*w)*f/2;
+		#pragma omp atomic
+		metrics[3] += (f>0) ? -f*log(f) : 0;
+	}
+
+    mpi::allreduce_add( MPI_IN_PLACE, metrics, 4, MPI_COMM_WORLD );
+
+    if(rank == 0)
+    {
+		metrics[0] *= weight;
+		metrics[1] *= weight;
+		metrics[2] *= weight;
+		metrics[3] *= weight;
+		metrics[1]  = std::sqrt(metrics[1]); // Take square-root for L²-norm
+
+		real kinetic_energy = metrics[2];
+		real total_energy   = kinetic_energy + electric_energy;
+
+        for ( size_t i = 0; i < 80; ++i )
+            std::cout << '=';
+        std::cout << std::endl;
+
+        std::cout << std::setprecision(7) << std::scientific;
+        std::cout << u8"t = " << n*conf.dt << '.' << std::endl;
+        std::cout << u8"L¹-norm:      " << std::setw(20) << metrics[0]   << std::endl;
+        std::cout << u8"L²-norm:      " << std::setw(20) << metrics[1]   << std::endl;
+        std::cout << u8"Total Energy: " << std::setw(20) << total_energy << std::endl;
+        std::cout << u8"Entropy:      " << std::setw(20) << metrics[3]   << std::endl;
+
+        std::cout << std::endl;
+
+        statistics_file << conf.dt*n       << "; "
+                        << metrics[0]      << "; "
+                        << metrics[1]      << "; "
+                        << electric_energy << "; "
+                        <<  kinetic_energy << "; "
+                        <<    total_energy << "; "
+                        << metrics[3]      << std::endl;
+    }
+}
+
+}
+}
+
+
+int main( int argc, char *argv[] )
+{
+    dergeraet::mpi::programme prog(&argc,&argv);
 	dergeraet::dim3::test<double,4>();
 }
 
