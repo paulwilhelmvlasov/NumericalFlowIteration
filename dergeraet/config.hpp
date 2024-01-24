@@ -127,14 +127,14 @@ struct config_t
 
 
     // "Standard parameters"
-    static constexpr real x_min = 0*lambda, x_max = 16*lambda, epsilon = 0.5;
+    static constexpr real x_min = 0*lambda, x_max = 16*lambda, eps = 0.5;
 
 	size_t Nx;  // Number of grid points in physical space.
     size_t Nu;
     size_t Nu_electron, Nu_ion;  // Number of quadrature points in velocity space.
     size_t Nt;  // Number of time-steps.
     real   dt;  // Time-step size.
-
+    bool gpu = true; //TODO: ZU PARAMETERN HINZUFÜGEN
     // Dimensions of physical domain.
     //real x_min, x_max;
     real tolerance;
@@ -219,9 +219,9 @@ template <typename real>
 __host__ __device__
 real config_t<real>::f0_electron( real x, real u ) noexcept
 {
-	return initial_plasma_density(x)*boltzmann(u,T_e,m_e);
-	// double u_s = 1e5; // ????
-	// return initial_plasma_density(x)*boltzmann(u-u_s,T_e,m_e);
+	//return initial_plasma_density(x)*boltzmann(u,T_e,m_e);
+	 double u_s = 0.039 * c; // ???? vs einsetzen für us
+	 return initial_plasma_density(x)*boltzmann(u-u_s,T_e,m_e);
 }
 
 template <typename real>

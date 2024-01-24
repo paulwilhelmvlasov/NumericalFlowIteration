@@ -50,14 +50,17 @@ template <typename real, size_t order>
 void test()
 {
 	config_t<real> conf;
-	conf.dt = conf.lambda/conf.c * 5 * 1e-3;
+	conf.dt = conf.lambda/conf.c * 2 * 1e-3;
 	real T = conf.lambda/conf.c;
 	//conf.Nt = 100*T/conf.dt;
-	conf.Nt = 1;
-	conf.Nu_electron = 128;
+	conf.Nt = 15000;
+	conf.Nu_electron = 512; //prev: 128, we go UP
 	conf.Nu_ion = conf.Nu_electron;
-	conf.u_electron_max =  1e-2*conf.c;
-	conf.u_electron_min = -conf.u_electron_max;
+	//conf.u_electron_max =  1e-2*conf.c;
+	//conf.u_electron_min = -conf.u_electron_max;
+	//Für u_s = 0.039c:
+	conf.u_electron_max = 1.32e7; // estimated value where u-u_s is larger than 10^-14 for the boltzmann function
+	conf.u_electron_min = 1e7;
     conf.u_ion_max =  2e-6*conf.c;
     conf.u_ion_min = -conf.u_ion_max;
     conf.du_electron = (conf.u_electron_max - conf.u_electron_min)/conf.Nu_electron;
@@ -94,8 +97,8 @@ void test()
 
     double total_time = 0;
 
-    bool gpu = false;
-
+    bool gpu = true;
+	std::ofstream time_file("total_time_with_saving.txt");
     // Test
 	std::ofstream f_electron_file_0("f_electron_test.txt");
 	std::ofstream f_electron_file_1("f_electron_test_1.txt");
@@ -140,7 +143,7 @@ void test()
     		rho_dir.get()[i] = rho.get()[i];
     		//std::cout << i << " " << rho.get()[i] << std::endl;
     	}
-    	rho_dir.get()[conf.Nx] = 0; // Left phi value.
+    	rho_dir.get()[conf.Nx] = 0; // Right phi value.
 
     	// Solve for phi:
     	poiss.solve(rho_dir.get());
@@ -164,17 +167,18 @@ void test()
         }
         double time_elapsed = timer.elapsed();
         total_time += time_elapsed;
-
+		time_file << n <<" "<< total_time << std::endl;
         std::cout << "Iteration " << n << " Time for step: " << time_elapsed << " and total time s.f.: " << total_time << std::endl;
 
         // Output
 
-        real x_min_plot = -2;
-        real x_max_plot = 18;
+        real x_min_plot = conf.x_min;
+        real x_max_plot = conf.x_max;
         size_t plot_x = 256;
         size_t plot_u = 256;
 
-		real temp_max_u = 0;
+		real temp_max_electron_u = 0;
+		real temp_max_ion_u = 0;
 		real f_max,x_max;
         real dx_plot = (x_max_plot - x_min_plot) / plot_x;
         real du_electron_plot = (conf.u_electron_max - conf.u_electron_min) / plot_u;
@@ -182,7 +186,7 @@ void test()
 
         real t = n*conf.dt;
 
-		if(n % 10 == 0)
+		if(n % 50 == 0)
         {
 			std::ofstream f_electron_file("f_electron_"+ std::to_string(n) + ".txt");
 			for(size_t i = 0; i <= plot_x; i++)
@@ -193,9 +197,21 @@ void test()
 					double u = conf.u_electron_min + j*du_electron_plot;
 					double f = eval_f_ion_acoustic<real,order>(n, x, u, coeffs.get(), conf);
 					f_electron_file << x << " " << u << " " << f << std::endl;
+					if((abs(f)>conf.tolerance) &&(abs(u)> temp_max_electron_u)){
+						f_max = f;
+						x_max = x;
+						temp_max_electron_u = abs(u);
+					}
+					
+
+
 				}
 				f_electron_file << std::endl;
 			}
+			conf.u_electron_max = abs(temp_max_electron_u)+ 0.2*abs(temp_max_electron_u);
+			conf.u_electron_min = -conf.u_electron_max;	
+			conf.du_electron = (conf.u_electron_max - conf.u_electron_min)/conf.Nu_electron;
+			temp_max_electron_u = 0;
 			
 			std::ofstream f_ion_file("f_ion_"+ std::to_string(n) + ".txt");
 			for(size_t i = 0; i <= plot_x; i++)
@@ -206,9 +222,21 @@ void test()
 					double u = conf.u_ion_min + j*du_ion_plot;
 					double f = eval_f_ion_acoustic<real,order>(n, x, u, coeffs.get(), conf, false);
 					f_ion_file << x << " " << u << " " << f << std::endl;
+					if((abs(f)>conf.tolerance) &&(abs(u)> temp_max_ion_u)){
+						temp_max_ion_u = abs(u);
+					}
+					
+
+
 				}
 				f_ion_file << std::endl;
 			}
+			conf.u_ion_max = abs(temp_max_ion_u)+ 0.2*abs(temp_max_ion_u);
+			conf.u_ion_min = -conf.u_ion_max;	
+			conf.du_ion = (conf.u_ion_max - conf.u_ion_min)/conf.Nu_ion;
+			temp_max_ion_u = 0;
+
+
 
 			std::ofstream E_file("E_"+ std::to_string(n) + ".txt");
 			std::ofstream rho_electron_file("rho_electron_"+ std::to_string(n) + ".txt");

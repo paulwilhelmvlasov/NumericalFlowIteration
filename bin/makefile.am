@@ -1,4 +1,4 @@
-noinst_PROGRAMS = test_poisson test_gmres test_fields test_dergeraet test_vp_dirichlet_1d test_vp_ion_acoustic_1d_dirichlet test_nufi_cpu test_nufi_cpu_2d test_dergeraet_2d test_dergeraet_3d
+noinst_PROGRAMS = test_poisson test_gmres test_fields test_dergeraet test_vp_dirichlet_1d test_vp_ion_acoustic_1d_dirichlet test_nufi_cpu test_nufi_cpu_2d test_dergeraet_2d test_dergeraet_3d test_vp_ion_acoustic_seperated
 					 
 
 test_poisson_SOURCES = test_poisson.cpp
@@ -35,9 +35,13 @@ test_nufi_cpu_2d_LDADD  += $(CUDA_LDFLAGS) $(BLAS_LIBS) -lfftw3 -lfftw3f
 
 test_dergeraet_2d_SOURCES = test_dergeraet_2d.cpp
 test_dergeraet_2d_LDADD   = $(top_builddir)/dergeraet/libdergeraet.a 
-test_dergeraet_2d_LDADD  += $(CUDA_LDFLAGS) $(BLAS_LIBS) -lfftw3 -lfftw3f -lmpi -lmpi_cxx
+test_dergeraet_2d_LDADD  += $(CUDA_LDFLAGS) $(BLAS_LIBS) -lfftw3 -lfftw3f -lmpi 
 
 test_dergeraet_3d_SOURCES = test_dergeraet_3d.cpp
 test_dergeraet_3d_LDADD   = $(top_builddir)/dergeraet/libdergeraet.a 
-test_dergeraet_3d_LDADD  += $(CUDA_LDFLAGS) $(BLAS_LIBS) -lfftw3 -lfftw3f -lmpi -lmpi_cxx
+test_dergeraet_3d_LDADD  += $(CUDA_LDFLAGS) $(BLAS_LIBS) -lfftw3 -lfftw3f -lmpi 
+
+test_vp_ion_acoustic_seperated_SOURCES = test_vp_ion_acoustic_seperated.cpp
+test_vp_ion_acoustic_seperated_LDADD   = $(top_builddir)/dergeraet/libdergeraet.a 
+test_vp_ion_acoustic_seperated_LDADD  += $(CUDA_LDFLAGS) $(BLAS_LIBS) -lfftw3 -lfftw3f
 
