@@ -57,7 +57,7 @@ void test()
     conf.dx = conf.Lx/conf.Nx;
     conf.dx_inv = 1/conf.dx;
 
-    conf.tol_cut_off_velocity_supp = 1e-8;
+    conf.tol_cut_off_velocity_supp = 1e-7;
     conf.tol_integral = 1e-5;
     conf.max_depth_integration = 5;
     conf.Nu = 16;

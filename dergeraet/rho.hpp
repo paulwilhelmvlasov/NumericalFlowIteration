@@ -250,10 +250,25 @@ real eval_rho_adaptive_trapezoidal_rule( size_t n, real x, const real *coeffs, c
 		real E_abs = std::abs(eval<real,order,1>( x, c, conf ));
 
 		while(f_left > conf.tol_cut_off_velocity_supp){
+			// Debug:
+			/*
+			if(is_electron){
+				std::cout << "Electron, u_min " << f_left << " " << u_min << std::endl;
+			}else{
+				std::cout << "Ion, u_min " << f_left << " " << u_min << std::endl;
+			}
+			*/
 			u_min -= 1.1 * conf.dt * E_abs;
 			f_left = eval_ftilda_ion_acoustic<real,order>( n, x, u_min, coeffs, conf, is_electron );
 		}
 		while(f_right > conf.tol_cut_off_velocity_supp){
+			/*
+			if(is_electron){
+				std::cout << "Electron, u_max " << f_right << " " << u_max << std::endl;
+			}else{
+				std::cout << "Ion, u_min " << f_right << " " << u_max << std::endl;
+			}
+			*/
 			u_max += 1.1 * conf.dt * E_abs;
 			f_right = eval_ftilda_ion_acoustic<real,order>( n, x, u_max, coeffs, conf, is_electron );
 		}
