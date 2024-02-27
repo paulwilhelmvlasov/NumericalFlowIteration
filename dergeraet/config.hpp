@@ -43,19 +43,30 @@ struct config_t
     // Integration limits for velocity space.
     real u_min, u_max;
 
+    // For periodic, electro-static ion-acoustic instability:
+    // Nu is used as minimum of subdivisions for numerical integration in velocity.
+    // Also u_min and u_max are used as initial guesses but will be adjusted locally
+    // throughout the simulation.
+    real tol_cut_off_velocity_supp;
+    real tol_integral;
+    size_t max_depth_integration;
+
     // Grid-sizes and their reciprocals.
     real dx, dx_inv, Lx, Lx_inv;
     real du;
 
     config_t() noexcept;
     __host__ __device__ static real f0( real x, real u ) noexcept;
+
+    __host__ __device__ static real f0_electron( real x, real u ) noexcept;
+    __host__ __device__ static real f0_ion( real x, real u ) noexcept;
 };
 
 template <typename real>
 config_t<real>::config_t() noexcept
 {
     Nx = 256;
-    Nu = 512;
+    //Nu = 512;
     u_min = -10;
     u_max =  10;
     x_min = 0;
@@ -66,6 +77,12 @@ config_t<real>::config_t() noexcept
     Lx = x_max - x_min; Lx_inv = 1/Lx;
     dx = Lx/Nx; dx_inv = 1/dx;
     du = (u_max - u_min)/Nu;
+
+    // For periodic, electro-static ion-acoustic instability:
+    tol_cut_off_velocity_supp = 1e-8;
+    tol_integral = 1e-5;
+    max_depth_integration = 20;
+    Nu = 16;
 }
 
 template <typename real>
@@ -79,7 +96,32 @@ real config_t<real>::f0( real x, real u ) noexcept
     constexpr real alpha = 0.01;
     constexpr real k     = 0.5;
     return 0.39894228040143267793994 * ( 1. + alpha*cos(k*x) ) * exp( -u*u/2. ) * u*u;
-//    return 0.39894228040143267793994 * ( 1. + alpha*cos(k*x) ) * exp( -u*u/2 );
+}
+
+template <typename real>
+__host__ __device__
+real config_t<real>::f0_electron( real x, real u ) noexcept
+{
+    using std::sin;
+    using std::cos;
+    using std::exp;
+
+    constexpr real alpha = 0.01;
+    constexpr real k     = 0.5;
+    return 0.39894228040143267793994 * ( 1. + alpha*cos(k*x) ) * exp( -u*u/2. ) * u*u; // Set this!!!
+}
+
+template <typename real>
+__host__ __device__
+real config_t<real>::f0_ion( real x, real u ) noexcept
+{
+    using std::sin;
+    using std::cos;
+    using std::exp;
+
+    constexpr real alpha = 0.01;
+    constexpr real k     = 0.5;
+    return 0.39894228040143267793994 * ( 1. + alpha*cos(k*x) ) * exp( -u*u/2. ) * u*u; // Set this!!!
 }
 
 }

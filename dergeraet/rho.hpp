@@ -109,6 +109,177 @@ real eval_rho( size_t n, size_t i, const real *coeffs, const config_t<real> &con
     return rho;
 }
 
+// How to properly search for integration boundaries?
+// Use this for ion-acoustic turbulence.
+template <typename real, size_t order>
+__host__ __device__
+real eval_f_ion_acoustic( size_t n, real x, real u,
+             const real *coeffs, const config_t<real> &conf, bool is_electron = true )
+{
+	// Careful: Electron and ions have different signs when iterating backwards!
+	int q = (-1)*(is_electron) + (!is_electron);
+
+    if ( n == 0 ){
+    	if(is_electron){
+    		return config_t<real>::f0_electron(x,u);
+    	}else{
+    		return config_t<real>::f0_ion(x,u);
+    	}
+    }
+
+    const size_t stride_x = 1;
+    const size_t stride_t = stride_x*(conf.Nx + order - 1);
+
+    real Ex;
+    const real *c;
+
+    // Initial half-step.
+    c  = coeffs + n*stride_t;
+    Ex = q*eval<real,order,1>( x, c, conf );
+    u += 0.5*conf.dt*Ex;
+
+    while ( --n )
+    {
+        x -= conf.dt*u;
+        c  = coeffs + n*stride_t;
+        Ex = q*eval<real,order,1>( x, c, conf );
+        u += conf.dt*Ex;
+    }
+
+    // Final half-step.
+    x -= conf.dt*u;
+    c  = coeffs + n*stride_t;
+    Ex = q*eval<real,order,1>( x, c, conf );
+    u += 0.5*conf.dt*Ex;
+
+	if(is_electron){
+		return config_t<real>::f0_electron(x,u);
+	}else{
+		return config_t<real>::f0_ion(x,u);
+	}
+}
+
+
+template <typename real, size_t order>
+__host__ __device__
+real eval_ftilda_ion_acoustic( size_t n, real x, real u,
+             const real *coeffs, const config_t<real> &conf, bool is_electron = true )
+{
+	// Careful: Electron and ions have different signs when iterating backwards!
+	int q = (-1)*(is_electron) + (!is_electron);
+
+    if ( n == 0 ){
+    	if(is_electron){
+    		return config_t<real>::f0_electron(x,u);
+    	}else{
+    		return config_t<real>::f0_ion(x,u);
+    	}
+    }
+
+    const size_t stride_x = 1;
+    const size_t stride_t = stride_x*(conf.Nx + order - 1);
+
+    real Ex;
+    const real *c;
+
+    // We omit the initial half-step.
+
+    while ( --n )
+    {
+        x  -= conf.dt*u;
+        c  = coeffs + n*stride_t;
+        Ex = q*eval<real,order,1>(x,c,conf);
+        u  = u + conf.dt*Ex;
+    }
+
+    // The final half-step.
+    x -= conf.dt*u;
+    c  = coeffs + n*stride_t;
+    Ex = q*eval<real,order,1>(x,c,conf);
+    u += 0.5*conf.dt*Ex;
+
+	if(is_electron){
+		return config_t<real>::f0_electron(x,u);
+	}else{
+		return config_t<real>::f0_ion(x,u);
+	}
+}
+
+
+template <typename real, size_t order>
+real eval_rho_adaptive_trapezoidal_rule( size_t n, real x, const real *coeffs, const config_t<real> &conf,
+											real& u_min, real& u_max, bool is_electron = true)
+{
+	// Check u_min and u_max for feasibility. If need be extend boundaries and re-check
+	// until value of f again under tolerance. Note that the support should at most extend by the (maximum)
+	// value of E at x in between this and the previous time-step.
+    const size_t stride_x = 1;
+    const size_t stride_t = stride_x*(conf.Nx + order - 1);
+	const real *c;
+    c  = coeffs + (n-1)*stride_t;
+	real f_left = eval_ftilda_ion_acoustic<real,order>( n, x, u_min, coeffs, conf, is_electron );
+	real f_right = eval_ftilda_ion_acoustic<real,order>( n, x, u_max, coeffs, conf, is_electron );
+	real E_abs = std::abs(eval<real,order,1>( x, c, conf ));
+
+	while(f_left > tol_cut_off_velocity_supp){
+		u_min -= 1.1 * conf.dt * E_abs;
+		f_left = eval_ftilda_ion_acoustic<real,order>( n, x, u_min, coeffs, conf, is_electron );
+	}
+	while(f_right > tol_cut_off_velocity_supp){
+		u_max += 1.1 * conf.dt * E_abs;
+		f_right = eval_ftilda_ion_acoustic<real,order>( n, x, u_max, coeffs, conf, is_electron );
+	}
+
+	// Compute integral.
+	real rho = 0;
+	real du = (u_max - u_min) / conf.Nu;
+	real u_left = u_min;
+	real u_right = u_min + du;
+	real fl = f_left;
+	real fr = eval_ftilda_ion_acoustic<real,order>( n, x, u_right, coeffs, conf, is_electron );
+	rho += sub_integral_eval_rho_adaptive_trapezoidal_rule( n, x, coeffs, conf, u_left, u_right, fl, fr, 1, is_electron);
+	for(size_t i  = 1; i < conf.Nu-1; i++){
+		u_left = u_min + i * du;
+		u_right = u_left + du;
+		fl = fr;
+		fr = eval_ftilda_ion_acoustic<real,order>( n, x, u_right, coeffs, conf, is_electron );
+		rho += sub_integral_eval_rho_adaptive_trapezoidal_rule( n, x, coeffs, conf, u_left, u_right, fl, fr, 1, is_electron);
+	}
+	fl = fr;
+	fr = f_right;
+	rho += sub_integral_eval_rho_adaptive_trapezoidal_rule( n, x, coeffs, conf, u_left, u_right, fl, fr, 1, is_electron);
+
+	return rho;
+}
+
+
+template <typename real, size_t order>
+real sub_integral_eval_rho_adaptive_trapezoidal_rule( size_t n, real x, const real *coeffs, const config_t<real> &conf, real u_left,
+				real u_right, real f_left, real f_right, size_t depth, bool is_electron = true)
+{
+	real u_middle = 0.5 * (u_min + u_max);
+	real f_middle = eval_ftilda_ion_acoustic<real,order>( n, x, u_middle, coeffs, conf, is_electron );
+	real du = u_right - u_left;
+
+	real QT = 0.5 * du * (f_left + f_right);
+	real QS = 1.0 / 3.0 * du * (f_left + 4 * f_middle + f_right);
+
+	if(QS < 1e-12){
+		// If QS=0, then also QT=0 as f>=0 everywhere. Thus we can return the value here.
+		return QS;
+	}
+
+	if(std::abs(QT - QS)/QS < conf.tol_integral || depth > conf.max_depth_integration){
+		// If relative integration error is lower than tolerance or maximum depth is reached return value
+		// computed using Simpson quadrature rule.
+		return QS;
+	} else{
+		// Else split integral once more.
+		return sub_integral_eval_rho_adaptive_trapezoidal_rule<real,order>( n, x, coeffs, conf, u_left, u_middle, f_left, f_middle, depth+1, is_electron)
+				+ sub_integral_eval_rho_adaptive_trapezoidal_rule<real,order>( n, x, coeffs, conf, u_middle, u_right, f_middle, f_right, depth+1, is_electron);
+	}
+}
+
 template <typename real, size_t order>
 real eval_rho_simpson( size_t n, size_t i, const real *coeffs, const config_t<real> &conf )
 {
