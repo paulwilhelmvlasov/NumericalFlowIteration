@@ -87,15 +87,11 @@ void test()
 		#pragma omp parallel for
     	for(size_t i = 0; i<conf.Nx; i++)
     	{
-    		/*
-    		rho.get()[i] = eval_rho_adaptive_trapezoidal_rule<real,order>(n, i, coeffs.get(), conf, velocity_support_ion_lower_bound[i],
+    		real x = conf.x_min + i*conf.dx;
+    		rho.get()[i] = eval_rho_adaptive_trapezoidal_rule<real,order>(n, x, coeffs.get(), conf, velocity_support_ion_lower_bound[i],
     								velocity_support_ion_upper_bound[i], false)
-    				      - eval_rho_adaptive_trapezoidal_rule<real,order>(n, i, coeffs.get(), conf, velocity_support_electron_lower_bound[i],
+    				      - eval_rho_adaptive_trapezoidal_rule<real,order>(n, x, coeffs.get(), conf, velocity_support_electron_lower_bound[i],
 									velocity_support_electron_upper_bound[i], true);
-									*/
-    		rho.get()[i] = 1 - eval_rho_adaptive_trapezoidal_rule<real,order>(n, i, coeffs.get(), conf, velocity_support_electron_lower_bound[i],
-									velocity_support_electron_upper_bound[i], true);
-
     	}
 
         poiss.solve( rho.get() );
