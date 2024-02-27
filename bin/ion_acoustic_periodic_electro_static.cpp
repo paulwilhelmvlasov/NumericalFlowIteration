@@ -59,7 +59,7 @@ void test()
 
     conf.tol_cut_off_velocity_supp = 1e-8;
     conf.tol_integral = 1e-5;
-    conf.max_depth_integration = 20;
+    conf.max_depth_integration = 5;
     conf.Nu = 16;
 
 
@@ -87,10 +87,15 @@ void test()
 		#pragma omp parallel for
     	for(size_t i = 0; i<conf.Nx; i++)
     	{
+    		/*
     		rho.get()[i] = eval_rho_adaptive_trapezoidal_rule<real,order>(n, i, coeffs.get(), conf, velocity_support_ion_lower_bound[i],
     								velocity_support_ion_upper_bound[i], false)
     				      - eval_rho_adaptive_trapezoidal_rule<real,order>(n, i, coeffs.get(), conf, velocity_support_electron_lower_bound[i],
 									velocity_support_electron_upper_bound[i], true);
+									*/
+    		rho.get()[i] = 1 - eval_rho_adaptive_trapezoidal_rule<real,order>(n, i, coeffs.get(), conf, velocity_support_electron_lower_bound[i],
+									velocity_support_electron_upper_bound[i], true);
+
     	}
 
         poiss.solve( rho.get() );
@@ -101,7 +106,7 @@ void test()
 
 		real t = n*conf.dt;
         // Plotting:
-        if(n % 2 == 0)
+        if(n % 1 == 0)
         {
 			size_t plot_x = 256;
 			size_t plot_v = plot_x;
@@ -109,7 +114,7 @@ void test()
 			real Emax = 0;
 			real E_l2 = 0;
 
-			if(n % (10*16) == 0)
+			if(n % (8) == 0)
 			{
 				std::ofstream file_E( "E_" + std::to_string(t) + ".txt" );
 				for ( size_t i = 0; i < plot_x; ++i )
@@ -137,9 +142,10 @@ void test()
 						real x = conf.x_min + i*dx_plot;
 						real v = v_min_electron + j*dv_electron;
 
-						real f = eval_f_ion_acoustic<real,order>(n,x,v,coeffs,conf,true);
+						real f = eval_f_ion_acoustic<real,order>(n,x,v,coeffs.get(),conf,true);
 						file_f_electron << x << " " << v << " " << f << std::endl;
 					}
+					file_f_electron << std::endl;
 				}
 
 				std::ofstream file_f_ion( "f_ion_" + std::to_string(t) + ".txt" );
@@ -150,9 +156,10 @@ void test()
 						real x = conf.x_min + i*dx_plot;
 						real v = v_min_ion + j*dv_ion;
 
-						real f = eval_f_ion_acoustic<real,order>(n,x,v,coeffs,conf,false);
-						file_f_electron << x << " " << v << " " << f << std::endl;
+						real f = eval_f_ion_acoustic<real,order>(n,x,v,coeffs.get(),conf,false);
+						file_f_ion << x << " " << v << " " << f << std::endl;
 					}
+					file_f_ion << std::endl;
 				}
 
 				E_l2 *=  conf.dx;

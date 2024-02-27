@@ -80,7 +80,7 @@ config_t<real>::config_t() noexcept
 
     // For periodic, electro-static ion-acoustic instability:
     tol_cut_off_velocity_supp = 1e-8;
-    tol_integral = 1e-5;
+    tol_integral = 1e-3;
     max_depth_integration = 20;
     Nu = 16;
 }
@@ -124,7 +124,7 @@ real config_t<real>::f0_ion( real x, real u ) noexcept
     constexpr real alpha = 0.01;
     constexpr real k     = 0.5;
     constexpr real Mr	 = 1000; // (approximate) mass ratio between electron and ions.
-    return 12.61566261010080024123574761182842 * ( 1. + alpha*cos(k*x) ) * exp( -Mr*u*u/2. );
+    return 12.61566261010080024123574761182842 * exp( -Mr*u*u/2. );
 }
 
 }
