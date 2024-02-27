@@ -108,7 +108,9 @@ real config_t<real>::f0_electron( real x, real u ) noexcept
 
     constexpr real alpha = 0.01;
     constexpr real k     = 0.5;
-    return 0.39894228040143267793994 * ( 1. + alpha*cos(k*x) ) * exp( -u*u/2. ) * u*u; // Set this!!!
+    constexpr real Mr	 = 1000; // (approximate) mass ratio between electron and ions.
+    constexpr real Ue 	 = -2;
+    return 0.39894228040143267793994 * ( 1. + alpha*cos(k*x) ) * exp( -(u-Ue)*(u-Ue)/2. );
 }
 
 template <typename real>
@@ -121,7 +123,8 @@ real config_t<real>::f0_ion( real x, real u ) noexcept
 
     constexpr real alpha = 0.01;
     constexpr real k     = 0.5;
-    return 0.39894228040143267793994 * ( 1. + alpha*cos(k*x) ) * exp( -u*u/2. ) * u*u; // Set this!!!
+    constexpr real Mr	 = 1000; // (approximate) mass ratio between electron and ions.
+    return 12.61566261010080024123574761182842 * ( 1. + alpha*cos(k*x) ) * exp( -Mr*u*u/2. );
 }
 
 }

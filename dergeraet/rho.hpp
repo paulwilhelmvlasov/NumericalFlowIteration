@@ -109,8 +109,7 @@ real eval_rho( size_t n, size_t i, const real *coeffs, const config_t<real> &con
     return rho;
 }
 
-// How to properly search for integration boundaries?
-// Use this for ion-acoustic turbulence.
+// Use this for ion-acoustic turbulence:
 template <typename real, size_t order>
 __host__ __device__
 real eval_f_ion_acoustic( size_t n, real x, real u,
@@ -216,18 +215,21 @@ real eval_rho_adaptive_trapezoidal_rule( size_t n, real x, const real *coeffs, c
     const size_t stride_x = 1;
     const size_t stride_t = stride_x*(conf.Nx + order - 1);
 	const real *c;
-    c  = coeffs + (n-1)*stride_t;
-	real f_left = eval_ftilda_ion_acoustic<real,order>( n, x, u_min, coeffs, conf, is_electron );
-	real f_right = eval_ftilda_ion_acoustic<real,order>( n, x, u_max, coeffs, conf, is_electron );
-	real E_abs = std::abs(eval<real,order,1>( x, c, conf ));
+	if(n>0){
+		// Don't test for initial time-step.
+		c  = coeffs + (n-1)*stride_t;
+		real f_left = eval_ftilda_ion_acoustic<real,order>( n, x, u_min, coeffs, conf, is_electron );
+		real f_right = eval_ftilda_ion_acoustic<real,order>( n, x, u_max, coeffs, conf, is_electron );
+		real E_abs = std::abs(eval<real,order,1>( x, c, conf ));
 
-	while(f_left > tol_cut_off_velocity_supp){
-		u_min -= 1.1 * conf.dt * E_abs;
-		f_left = eval_ftilda_ion_acoustic<real,order>( n, x, u_min, coeffs, conf, is_electron );
-	}
-	while(f_right > tol_cut_off_velocity_supp){
-		u_max += 1.1 * conf.dt * E_abs;
-		f_right = eval_ftilda_ion_acoustic<real,order>( n, x, u_max, coeffs, conf, is_electron );
+		while(f_left > tol_cut_off_velocity_supp){
+			u_min -= 1.1 * conf.dt * E_abs;
+			f_left = eval_ftilda_ion_acoustic<real,order>( n, x, u_min, coeffs, conf, is_electron );
+		}
+		while(f_right > tol_cut_off_velocity_supp){
+			u_max += 1.1 * conf.dt * E_abs;
+			f_right = eval_ftilda_ion_acoustic<real,order>( n, x, u_max, coeffs, conf, is_electron );
+		}
 	}
 
 	// Compute integral.
