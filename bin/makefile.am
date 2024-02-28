@@ -1,4 +1,7 @@
-noinst_PROGRAMS = test_poisson test_gmres test_fields test_dergeraet test_dergeraet_2d test_dergeraet_3d test_nufi_cpu test_nufi_cpu_2d test_nufi_cpu_3d test_nufi_cpu_3d_isolated ion_acoustic_periodic_electro_static
+noinst_PROGRAMS = test_poisson test_gmres test_fields test_dergeraet \
+					test_dergeraet_2d test_dergeraet_3d test_nufi_cpu \
+					 test_nufi_cpu_2d test_nufi_cpu_3d test_nufi_cpu_3d_isolated \
+					 ion_acoustic_periodic_electro_static particle_in_cell
 
 test_poisson_SOURCES = test_poisson.cpp
 test_poisson_LDADD   = $(top_builddir)/dergeraet/libdergeraet.a
@@ -43,4 +46,8 @@ test_nufi_cpu_3d_isolated_LDADD  += $(CUDA_LDFLAGS) $(BLAS_LIBS) -lfftw3 -lfftw3
 ion_acoustic_periodic_electro_static_SOURCES = ion_acoustic_periodic_electro_static.cpp
 ion_acoustic_periodic_electro_static_LDADD   = $(top_builddir)/dergeraet/libdergeraet.a 
 ion_acoustic_periodic_electro_static_LDADD  += $(CUDA_LDFLAGS) $(BLAS_LIBS) -lfftw3 -lfftw3f -lmpi -lmpi_cxx
+
+particle_in_cell_SOURCES = particle_in_cell.cpp
+particle_in_cell_LDADD   = $(top_builddir)/dergeraet/libdergeraet.a 
+particle_in_cell_LDADD  += $(CUDA_LDFLAGS) $(BLAS_LIBS) -lfftw3 -lfftw3f -lmpi -lmpi_cxx
 

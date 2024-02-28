@@ -213,7 +213,7 @@ real sub_integral_eval_rho_adaptive_trapezoidal_rule( size_t n, real x, const re
 	real du = u_right - u_left;
 
 	real QT = 0.5 * du * (f_left + f_right);
-	real QS = 1.0 / 3.0 * du * (f_left + 4 * f_middle + f_right);
+	real QS = 1.0 / 6.0 * du * (f_left + 4 * f_middle + f_right);
 
 	if(QS < 1e-10){
 		// If QS=0, then also QT=0 as f>=0 everywhere. Thus we can return the value here.

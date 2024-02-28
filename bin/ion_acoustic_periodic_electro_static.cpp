@@ -94,6 +94,15 @@ void test()
 									velocity_support_electron_upper_bound[i], true);
     	}
 
+    	/*
+        std::ofstream rho_str("rho" + std::to_string(n*conf.dt) + ".txt");
+        for(size_t i = 0; i < conf.Nx; i++)
+    	{
+        	real x = conf.x_min + i*conf.dx;
+    		rho_str << x << " " << rho.get()[i] << std::endl;
+    	}
+		*/
+
         poiss.solve( rho.get() );
         dim1::interpolate<real,order>( coeffs.get() + n*stride_t, rho.get(), conf );
 
@@ -121,8 +130,12 @@ void test()
 					E_l2 += E*E;
 
 					file_E << x << " " << E << std::endl;
-
 				}
+
+				E_l2 *=  dx_plot;
+				stats_file << std::setw(20) << t << std::setw(20) << std::setprecision(8) << std::scientific << Emax
+							<< std::setw(20) << std::setprecision(8) << std::scientific << E_l2 << std::endl;
+
 
 				real v_min_electron = -10;
 				real v_max_electron = 10;
@@ -158,10 +171,6 @@ void test()
 					file_f_ion << std::endl;
 				}
 
-				E_l2 *=  conf.dx;
-				double t = n*conf.dt;
-				stats_file << std::setw(20) << t << std::setw(20) << std::setprecision(8) << std::scientific << Emax
-							<< std::setw(20) << std::setprecision(8) << std::scientific << E_l2 << std::endl;
 			} else {
 				for ( size_t i = 0; i < plot_x; ++i )
 				{
@@ -170,8 +179,7 @@ void test()
 					Emax = max( Emax, abs(E) );
 					E_l2 += E*E;
 				}
-				E_l2 *=  conf.dx;
-				double t = n*conf.dt;
+				E_l2 *=  dx_plot;
 				stats_file << std::setw(20) << t << std::setw(20) << std::setprecision(8) << std::scientific << Emax
 							<< std::setw(20) << std::setprecision(8) << std::scientific << E_l2 << std::endl;
 			}
