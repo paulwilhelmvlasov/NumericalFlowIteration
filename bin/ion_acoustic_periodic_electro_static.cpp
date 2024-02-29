@@ -17,12 +17,14 @@
  * Der Gerät; see the file COPYING.  If not see http://www.gnu.org/licenses.
  */
 
+#include <algorithm>
 #include <cmath>
 #include <memory>
 #include <iostream>
 #include <iomanip>
 #include <fstream>
 #include <sstream>
+#include <vector>
 
 
 #include <dergeraet/config.hpp>
@@ -47,10 +49,10 @@ void test()
 
     // Set config:
     config_t<real> conf;
-    conf.Nx = 64;
+    conf.Nx = 256;
     conf.x_min = 0;
     conf.x_max = 4*M_PI;
-    conf.dt = 1./8.0;
+    conf.dt = 1./16.0;
     conf.Nt = 100.0 / conf.dt;
     conf.Lx = conf.x_max - conf.x_min;
     conf.Lx_inv = 1/conf.Lx;
@@ -58,9 +60,9 @@ void test()
     conf.dx_inv = 1/conf.dx;
 
     conf.tol_cut_off_velocity_supp = 1e-7;
-    conf.tol_integral = 1e-5;
-    conf.max_depth_integration = 5;
-    conf.Nu = 16;
+    conf.tol_integral = 1e-3;
+    conf.max_depth_integration = 1;//5;
+    conf.Nu = 512;
 
 
     const size_t stride_t = conf.Nx + order - 1;
@@ -71,19 +73,21 @@ void test()
 
     // Maybe it would be nice to compute these initial bounds automatically instead of setting
     // them manually. This would give some additional robustness to the approach.
-    std::vector<real> velocity_support_electron_lower_bound(conf.Nx, -8);
-    std::vector<real> velocity_support_electron_upper_bound(conf.Nx, 4);
-    std::vector<real> velocity_support_ion_lower_bound(conf.Nx, -0.2);
-    std::vector<real> velocity_support_ion_upper_bound(conf.Nx, 0.2);
+    std::vector<real> velocity_support_electron_lower_bound(conf.Nx, -10);
+    std::vector<real> velocity_support_electron_upper_bound(conf.Nx, 5);
+    std::vector<real> velocity_support_ion_lower_bound(conf.Nx, -5);
+    std::vector<real> velocity_support_ion_upper_bound(conf.Nx, 2);
 
     poisson<real> poiss( conf );
 
     std::ofstream stats_file( "stats.txt" );
+    std::ofstream coeffs_str( "coeffs_Nt_" + std::to_string(conf.Nt) + "_Nx_ " + std::to_string(conf.Nx) + "_stride_t_" + std::to_string(stride_t) + ".txt" );
     double total_time = 0;
     for ( size_t n = 0; n <= conf.Nt; ++n )
     {
     	dergeraet::stopwatch<double> timer;
     	// Compute rho:
+    	//if(n < 5*8){
 		#pragma omp parallel for
     	for(size_t i = 0; i<conf.Nx; i++)
     	{
@@ -93,6 +97,16 @@ void test()
     				      - eval_rho_adaptive_trapezoidal_rule<real,order>(n, x, coeffs.get(), conf, velocity_support_electron_lower_bound[i],
 									velocity_support_electron_upper_bound[i], true);
     	}
+    	/*}else{
+        	for(size_t i = 0; i<conf.Nx; i++)
+        	{
+        		real x = conf.x_min + i*conf.dx;
+        		rho.get()[i] = eval_rho_adaptive_trapezoidal_rule<real,order>(n, x, coeffs.get(), conf, velocity_support_ion_lower_bound[i],
+        								velocity_support_ion_upper_bound[i], false)
+        				      - eval_rho_adaptive_trapezoidal_rule<real,order>(n, x, coeffs.get(), conf, velocity_support_electron_lower_bound[i],
+    									velocity_support_electron_upper_bound[i], true);
+        	}
+    	}*/
 
     	/*
         std::ofstream rho_str("rho" + std::to_string(n*conf.dt) + ".txt");
@@ -103,6 +117,28 @@ void test()
     	}
 		*/
 
+    	// Let's try out setting the minimum and maximum velocity bound to their respective
+    	// min/max after each time-step to stop "folding" of the distribution function
+    	// from producing wholes in the integration domain which cannot be detected by the current
+    	// algorithm.
+        typename std::vector<real>::iterator result_el;
+        result_el = std::min_element(velocity_support_electron_lower_bound.begin(), velocity_support_electron_lower_bound.end());
+    	real electron_lower_bound = *result_el;
+    	std::fill(velocity_support_electron_lower_bound.begin(), velocity_support_electron_lower_bound.end(), electron_lower_bound);
+
+    	typename std::vector<real>::iterator result_eu = std::max_element(velocity_support_electron_upper_bound.begin(), velocity_support_electron_upper_bound.end());
+    	real electron_upper_bound = *result_eu;
+    	std::fill(velocity_support_electron_upper_bound.begin(), velocity_support_electron_upper_bound.end(), electron_upper_bound);
+
+    	typename std::vector<real>::iterator result_il = std::min_element(velocity_support_ion_lower_bound.begin(), velocity_support_ion_lower_bound.end());
+    	real ion_lower_bound = *result_il;
+    	std::fill(velocity_support_ion_lower_bound.begin(), velocity_support_ion_lower_bound.end(), ion_lower_bound);
+
+    	typename std::vector<real>::iterator result_iu = std::max_element(velocity_support_ion_upper_bound.begin(), velocity_support_ion_upper_bound.end());
+    	real ion_upper_bound = *result_iu;
+    	std::fill(velocity_support_ion_upper_bound.begin(), velocity_support_ion_upper_bound.end(), ion_upper_bound);
+
+    	// Solve Poisson's equation:
         poiss.solve( rho.get() );
         dim1::interpolate<real,order>( coeffs.get() + n*stride_t, rho.get(), conf );
 
@@ -119,8 +155,19 @@ void test()
 			real Emax = 0;
 			real E_l2 = 0;
 
-			if(n % (8) == 0)
+			if(n % (16) == 0)
 			{
+				/*
+				std::ofstream file_v_min_max( "v_min_max_" + std::to_string(t) + ".txt" );
+				for ( size_t i = 0; i < conf.Nx; ++i )
+				{
+					real x = conf.x_min + i*conf.dx;
+					file_v_min_max << x << " " << velocity_support_electron_lower_bound[i]
+										<< " " << velocity_support_electron_upper_bound[i]
+										<< " " << velocity_support_ion_lower_bound[i]
+										<< " " << velocity_support_ion_upper_bound[i] << std::endl;
+				}
+				*/
 				std::ofstream file_E( "E_" + std::to_string(t) + ".txt" );
 				for ( size_t i = 0; i < plot_x; ++i )
 				{
@@ -140,7 +187,7 @@ void test()
 				real v_min_electron = -10;
 				real v_max_electron = 10;
 				real dv_electron = (v_max_electron - v_min_electron) / plot_v;
-				real v_min_ion = -2;
+				real v_min_ion = -4;
 				real v_max_ion = 2;
 				real dv_ion = (v_max_ion - v_min_ion) / plot_v;
 				std::ofstream file_f_electron( "f_electron_" + std::to_string(t) + ".txt" );
@@ -186,6 +233,10 @@ void test()
         }
         std::cout << std::setw(15) << t << " Comp-time: " << timer_elapsed << " Total time: " << total_time << std::endl;
 
+		// Write coeffs to disc:
+        for(size_t i = 0; i < stride_t; i++){
+        	coeffs_str << coeffs.get()[n*stride_t + i] << std::endl;
+        }
     }
 }
 

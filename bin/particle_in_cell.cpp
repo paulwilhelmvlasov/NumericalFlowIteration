@@ -142,9 +142,9 @@ void ion_acoustic()
 	// This is an implementation of Wang et.al. 2nd-order PIC (see section 3.2).
 	// Set parameters.
     const double L  = 4*3.14159265358979323846;
-    const size_t Nx_f = 128;
+    const size_t Nx_f = 256;
     const size_t Nx_poisson = Nx_f/2;
-    const size_t Nv_f_electron = 256;
+    const size_t Nv_f_electron = 512;
     const size_t Nv_f_ion = Nv_f_electron;
     const size_t N_f_electron = Nx_f*Nv_f_electron;
     const size_t N_f_ion = Nx_f*Nv_f_ion;
@@ -158,7 +158,7 @@ void ion_acoustic()
     constexpr double Mr	 = 1000; // (approximate) mass ratio between electron and ions.
     constexpr double Ue 	 = -2;
 
-    // Compute derived quantities.
+    // Compute derivedx_plotd quantities.
     const double eps_x = L/Nx_f;
     const double eps_v_electron = (v_max_electron-v_min_electron)/Nv_f_electron;
     const double eps_v_ion = (v_max_ion-v_min_ion)/Nv_f_ion;
@@ -298,6 +298,12 @@ void ion_acoustic()
 			double E_l2 = 0;
 
 			if(nt % (16) == 0 && true) {
+				std::ofstream file_xv_electron( "xv_electron_" + std::to_string(t) + ".txt" );
+				file_xv_electron << xv_electron;
+				std::ofstream file_xv_ion( "xv_ion_" + std::to_string(t) + ".txt" );
+				file_xv_ion << xv_ion;
+
+
 				std::ofstream file_E( "E_" + std::to_string(t) + ".txt" );
 				for ( size_t i = 0; i < plot_x; ++i )
 				{
@@ -316,12 +322,14 @@ void ion_acoustic()
 				double v_min_plot_electron = -10;
 				double v_max_plot_electron = 10;
 				double dv_plot_electron = (v_max_plot_electron-v_min_plot_electron)/plot_v;
-				double v_min_plot_ion = -2;
+				double v_min_plot_ion = -5;
 				double v_max_plot_ion = 2;
 				double dv_plot_ion = (v_max_plot_ion-v_min_plot_ion)/plot_v;
 
-				/*
 				std::ofstream f_electron_str("f_electon_" + std::to_string(t) + ".txt");
+				arma::mat f_plot;
+				f_plot.set_size(plot_x+1,plot_v+1);
+				#pragma omp parallel for
 				for(size_t i = 0; i <= plot_x; i++)
 				{
 					for(size_t j = 0; j <= plot_v; j++)
@@ -330,13 +338,24 @@ void ion_acoustic()
 						double v = v_min_plot_electron +  j*dv_plot_electron;
 
 						double f = eval_f(x, v, xv_electron, Q_electron, eps_x, eps_v_electron);
+						f_plot(i,j) = f;
+					}
+				}
+				for(size_t i = 0; i <= plot_x; i++)
+				{
+					for(size_t j = 0; j <= plot_v; j++)
+					{
+						double x = i*dx_plot;
+						double v = v_min_plot_electron +  j*dv_plot_electron;
 
+						double f = f_plot(i,j);
 						f_electron_str << x << " " << v << " " << f << std::endl;
 					}
 					f_electron_str << std::endl;
 				}
 
 				std::ofstream f_ion_str("f_ion_" + std::to_string(t) + ".txt");
+				#pragma omp parallel for
 				for(size_t i = 0; i <= plot_x; i++)
 				{
 					for(size_t j = 0; j <= plot_v; j++)
@@ -345,12 +364,23 @@ void ion_acoustic()
 						double v = v_min_plot_ion +  j*dv_plot_ion;
 
 						double f = eval_f(x, v, xv_ion, Q_ion, eps_x, eps_v_ion);
+						f_plot(i,j) = f;
+					}
+				}
+				for(size_t i = 0; i <= plot_x; i++)
+				{
+					for(size_t j = 0; j <= plot_v; j++)
+					{
+						double x = i*dx_plot;
+						double v = v_min_plot_ion +  j*dv_plot_ion;
 
+						double f = f_plot(i,j);
 						f_ion_str << x << " " << v << " " << f << std::endl;
 					}
 					f_ion_str << std::endl;
 				}
-				*/
+
+
 			} else {
 				for ( size_t i = 0; i < plot_x; ++i )
 				{
