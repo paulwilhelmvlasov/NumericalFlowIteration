@@ -47,6 +47,7 @@ struct config_t
     // Nu is used as minimum of subdivisions for numerical integration in velocity.
     // Also u_min and u_max are used as initial guesses but will be adjusted locally
     // throughout the simulation.
+    real Mr;
     real tol_cut_off_velocity_supp;
     real tol_integral;
     size_t max_depth_integration;
@@ -79,6 +80,7 @@ config_t<real>::config_t() noexcept
     du = (u_max - u_min)/Nu;
 
     // For periodic, electro-static ion-acoustic instability:
+    Mr = 1000;
     tol_cut_off_velocity_supp = 1e-8;
     tol_integral = 1e-3;
     max_depth_integration = 20;

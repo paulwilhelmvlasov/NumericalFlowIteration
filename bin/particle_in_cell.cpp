@@ -142,9 +142,9 @@ void ion_acoustic()
 	// This is an implementation of Wang et.al. 2nd-order PIC (see section 3.2).
 	// Set parameters.
     const double L  = 4*3.14159265358979323846;
-    const size_t Nx_f = 256;
-    const size_t Nx_poisson = Nx_f/2;
-    const size_t Nv_f_electron = 512;
+    const size_t Nx_f = 128;
+    const size_t Nx_poisson = Nx_f;
+    const size_t Nv_f_electron = 256;
     const size_t Nv_f_ion = Nv_f_electron;
     const size_t N_f_electron = Nx_f*Nv_f_electron;
     const size_t N_f_ion = Nx_f*Nv_f_ion;
@@ -166,7 +166,7 @@ void ion_acoustic()
     const double delta_x_inv = 1/delta_x;
     const double L_inv  = 1/L;
 
-    const size_t Nt = 100 * 16;
+    const size_t Nt = 1000 * 16;
     const double dt = 1.0 / 16.0;
 
     // Init for FFT-Poisson solver:
@@ -278,7 +278,7 @@ void ion_acoustic()
     	for(size_t k = 0; k < N_f_ion; k++ )
     	{
     		double E = -dergeraet::dim1::eval<double,order,1>(xv_ion(k,0),coeffs.get()+nt*stride_t,conf);
-    		xv_ion(k, 1) += dt * E;
+    		xv_ion(k, 1) += dt * E / Mr; // Additional 1/Mr factor due to mass difference between ions and electrons!
     		xv_ion(k, 0) += dt * xv_ion(k,1);
     		xv_ion(k, 0) -= L*std::floor(xv_ion(k, 0)*L_inv);
     	}
@@ -297,7 +297,7 @@ void ion_acoustic()
 			double Emax = 0;
 			double E_l2 = 0;
 
-			if(nt % (16) == 0 && true) {
+			if(nt % (32) == 0) {
 				std::ofstream file_xv_electron( "xv_electron_" + std::to_string(t) + ".txt" );
 				file_xv_electron << xv_electron;
 				std::ofstream file_xv_ion( "xv_ion_" + std::to_string(t) + ".txt" );
@@ -326,6 +326,7 @@ void ion_acoustic()
 				double v_max_plot_ion = 2;
 				double dv_plot_ion = (v_max_plot_ion-v_min_plot_ion)/plot_v;
 
+				/*
 				std::ofstream f_electron_str("f_electon_" + std::to_string(t) + ".txt");
 				arma::mat f_plot;
 				f_plot.set_size(plot_x+1,plot_v+1);
@@ -379,7 +380,7 @@ void ion_acoustic()
 					}
 					f_ion_str << std::endl;
 				}
-
+				*/
 
 			} else {
 				for ( size_t i = 0; i < plot_x; ++i )
