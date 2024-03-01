@@ -142,9 +142,9 @@ void ion_acoustic()
 	// This is an implementation of Wang et.al. 2nd-order PIC (see section 3.2).
 	// Set parameters.
     const double L  = 4*3.14159265358979323846;
-    const size_t Nx_f = 128;
+    const size_t Nx_f = 256;
     const size_t Nx_poisson = Nx_f;
-    const size_t Nv_f_electron = 256;
+    const size_t Nv_f_electron = 1024;
     const size_t Nv_f_ion = Nv_f_electron;
     const size_t N_f_electron = Nx_f*Nv_f_electron;
     const size_t N_f_ion = Nx_f*Nv_f_ion;
@@ -222,7 +222,6 @@ void ion_acoustic()
     }
 
     // Time-loop using symplectic Euler.
-    std::ofstream E_l2_str("E_l2.txt");
     std::ofstream stats_file( "stats.txt" );
     double t_total = 0;
     for(size_t nt = 0; nt <= Nt; nt++)
@@ -297,7 +296,7 @@ void ion_acoustic()
 			double Emax = 0;
 			double E_l2 = 0;
 
-			if(nt % (32) == 0) {
+			if(nt % (10*16) == 0) {
 				std::ofstream file_xv_electron( "xv_electron_" + std::to_string(t) + ".txt" );
 				file_xv_electron << xv_electron;
 				std::ofstream file_xv_ion( "xv_ion_" + std::to_string(t) + ".txt" );

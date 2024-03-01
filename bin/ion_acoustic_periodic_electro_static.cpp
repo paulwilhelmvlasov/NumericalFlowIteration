@@ -49,11 +49,11 @@ void test()
 
     // Set config:
     config_t<real> conf;
-    conf.Nx = 256;
+    conf.Nx = 64;
     conf.x_min = 0;
     conf.x_max = 4*M_PI;
-    conf.dt = 1./16.0;
-    conf.Nt = 100.0 / conf.dt;
+    conf.dt = 1./8.0;
+    conf.Nt = 1000.0 / conf.dt;
     conf.Lx = conf.x_max - conf.x_min;
     conf.Lx_inv = 1/conf.Lx;
     conf.dx = conf.Lx/conf.Nx;
@@ -61,8 +61,8 @@ void test()
 
     conf.tol_cut_off_velocity_supp = 1e-7;
     conf.tol_integral = 1e-3;
-    conf.max_depth_integration = 1;//5;
-    conf.Nu = 512;
+    conf.max_depth_integration = 5;
+    conf.Nu = 64;
 
 
     const size_t stride_t = conf.Nx + order - 1;
@@ -190,6 +190,7 @@ void test()
 				real v_min_ion = -4;
 				real v_max_ion = 2;
 				real dv_ion = (v_max_ion - v_min_ion) / plot_v;
+				/*
 				std::ofstream file_f_electron( "f_electron_" + std::to_string(t) + ".txt" );
 				for ( size_t i = 0; i <= plot_x; ++i )
 				{
@@ -217,6 +218,7 @@ void test()
 					}
 					file_f_ion << std::endl;
 				}
+				*/
 
 			} else {
 				for ( size_t i = 0; i < plot_x; ++i )
