@@ -32,13 +32,18 @@ inline double f0_1d(double x, double v)
 inline double f0_1d_electron(double x, double v)
 {
     using std::cos;
+    using std::sin;
     using std::exp;
     constexpr double alpha = 0.01;
+    //constexpr double alpha = 0.5;
     constexpr double k     = 0.5;
     constexpr double Ue = -2;
-    constexpr double fac   = 0.39894228040143267793994;
+    constexpr double fac   = 0.39894228040143267793994; // sqrt(1/(2*pi))
 
-    return fac * ( 1. + alpha*std::cos(k*x) ) * std::exp( -(v-Ue)*(v-Ue)/2. );
+    //double pertubation = ( 1. + alpha*std::cos(k*x) );
+    double pertubation = ( 1. + alpha * (sin(x) + sin(0.5*x) + sin(0.1*x) + sin(0.15*x) + sin(0.2*x) + cos(0.25*x) + cos(0.3*x) + cos(0.35*x) ));
+
+    return fac * pertubation * exp( -(v-Ue)*(v-Ue)/2. );
 }
 
 
@@ -50,7 +55,7 @@ inline double f0_1d_ion(double x, double v)
     constexpr double k     = 0.5;
     constexpr double Mr = 1000;
     constexpr double Ue = -2;
-    constexpr double fac   = 12.61566261010080024123574761182842;
+    constexpr double fac   = 12.61566261010080024123574761182842; // sqrt(Mr/(2*pi))
 
     return fac * std::exp( -Mr*v*v/2. );
 }
@@ -141,10 +146,11 @@ void ion_acoustic()
 {
 	// This is an implementation of Wang et.al. 2nd-order PIC (see section 3.2).
 	// Set parameters.
-    const double L  = 4*3.14159265358979323846;
-    const size_t Nx_f = 256;
+    //const double L  = 4*3.14159265358979323846;
+	const double L  = 40*3.14159265358979323846;
+    const size_t Nx_f = 128;
     const size_t Nx_poisson = Nx_f;
-    const size_t Nv_f_electron = 1024;
+    const size_t Nv_f_electron = 256;
     const size_t Nv_f_ion = Nv_f_electron;
     const size_t N_f_electron = Nx_f*Nv_f_electron;
     const size_t N_f_ion = Nx_f*Nv_f_ion;
@@ -166,7 +172,7 @@ void ion_acoustic()
     const double delta_x_inv = 1/delta_x;
     const double L_inv  = 1/L;
 
-    const size_t Nt = 1000 * 16;
+    const size_t Nt = 2000 * 16;
     const double dt = 1.0 / 16.0;
 
     // Init for FFT-Poisson solver:
@@ -185,6 +191,9 @@ void ion_acoustic()
     std::unique_ptr<double[]> coeffs { new double[ (conf.Nt+1)*stride_t ] {} };
     std::unique_ptr<double,decltype(std::free)*> rho { reinterpret_cast<double*>(std::aligned_alloc(64,sizeof(double)*conf.Nx)), std::free };
     if ( rho == nullptr ) throw std::bad_alloc {};
+
+    std::vector<double> rho_electron(conf.Nx);
+    std::vector<double> rho_ion(conf.Nx);
 
     // Initiate particles.
     // Electrons:
@@ -234,29 +243,22 @@ void ion_acoustic()
     	{
     		double x = i*delta_x;
     		rho.get()[i] = 0;
-
+    		rho_ion[i] = 0;
+    		rho_electron[i] = 0;
     		for(size_t k = 0; k < N_f_ion; k++)
     		{
-    			rho.get()[i] += Q_ion(k) * shape_function_1d( x - xv_ion(k,0), delta_x);
+    			//rho.get()[i] += Q_ion(k) * shape_function_1d( x - xv_ion(k,0), delta_x);
+    			rho_ion[i] += Q_ion(k) * shape_function_1d( x - xv_ion(k,0), delta_x);
     		}
     		for(size_t k = 0; k < N_f_electron; k++)
     		{
-    			rho.get()[i] -= Q_electron(k) * shape_function_1d( x - xv_electron(k,0), delta_x);
+    			//rho.get()[i] -= Q_electron(k) * shape_function_1d( x - xv_electron(k,0), delta_x);
+    			rho_electron[i] += Q_electron(k) * shape_function_1d( x - xv_electron(k,0), delta_x);
     		}
-
+    		rho.get()[i] = rho_ion[i] - rho_electron[i];
     	}
         // This is a hack because for some reason just integrating along x=0 doesn't work...
         rho.get()[0] = 0.5*(rho.get()[1] + rho.get()[Nx_poisson-1]);
-
-        /*
-        std::ofstream rho_str("rho" + std::to_string(nt*dt) + ".txt");
-        for(size_t i = 0; i < Nx_poisson; i++)
-    	{
-    		double x = i*delta_x;
-
-    		rho_str << x << " " << rho.get()[i] << std::endl;
-    	}
-		*/
 
         // Solve for electric potential/field with FFT:
         double electric_energy = poiss.solve( rho.get() );
@@ -318,14 +320,23 @@ void ion_acoustic()
 				stats_file << std::setw(20) << t << std::setw(20) << std::setprecision(8) << std::scientific << Emax
 							<< std::setw(20) << std::setprecision(8) << std::scientific << E_l2 << std::endl;
 
+				std::ofstream file_rho_ion( "rho_ion_" + std::to_string(t) + ".txt" );
+				std::ofstream file_rho_electron( "rho_electron_" + std::to_string(t) + ".txt" );
+				for ( size_t i = 1; i < conf.Nx; ++i )
+				{
+					double x = conf.x_min + i*conf.dx;
+					file_rho_ion << std::setw(20) << x << std::setw(20) << std::setprecision(8) << std::scientific << rho_ion[i] << std::endl;
+					file_rho_electron << std::setw(20) <<  x << std::setw(20) << std::setprecision(8) << std::scientific << rho_electron[i] << std::endl;
+				}
+
+
 				double v_min_plot_electron = -10;
 				double v_max_plot_electron = 10;
 				double dv_plot_electron = (v_max_plot_electron-v_min_plot_electron)/plot_v;
-				double v_min_plot_ion = -5;
-				double v_max_plot_ion = 2;
+				double v_min_plot_ion = -0.4;
+				double v_max_plot_ion = 0.4;
 				double dv_plot_ion = (v_max_plot_ion-v_min_plot_ion)/plot_v;
 
-				/*
 				std::ofstream f_electron_str("f_electon_" + std::to_string(t) + ".txt");
 				arma::mat f_plot;
 				f_plot.set_size(plot_x+1,plot_v+1);
@@ -379,7 +390,6 @@ void ion_acoustic()
 					}
 					f_ion_str << std::endl;
 				}
-				*/
 
 			} else {
 				for ( size_t i = 0; i < plot_x; ++i )
