@@ -1,4 +1,4 @@
-// This code has been generated automatically with the Mathematica file C++CodeGenerator.nb
+// This code has been generated automatically using the Mathematica file C++CodeGenerator.nb
 // This file calculates moments from a distribution
 // Author: Anja Matena (anja.matena@rwth-aachen.de)
 template <typename real, size_t order>
