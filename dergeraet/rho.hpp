@@ -118,7 +118,7 @@ real eval_f_ion_acoustic( size_t n, real x, real u,
 	// Careful: Electron and ions have different signs when iterating backwards!
 	// Also ions have the additional 1/Mr factor encoding the mass difference between
 	// electrons and ions (approx. factor Mr = 1000).
-	double q = (-1)*(is_electron) + (!is_electron)/conf.Mr;
+	real q = (-1)*(is_electron) + (!is_electron)/conf.Mr;
 
     if ( n == 0 ){
     	if(is_electron){
@@ -169,7 +169,7 @@ real eval_ftilda_ion_acoustic( size_t n, real x, real u,
 	// Careful: Electron and ions have different signs when iterating backwards!
 	// Also ions have the additional 1/Mr factor encoding the mass difference between
 	// electrons and ions (approx. factor Mr = 1000).
-	double q = (-1)*(is_electron) + (!is_electron)/conf.Mr;
+	real q = (-1)*(is_electron) + (!is_electron)/conf.Mr;
 
     if ( n == 0 ){
     	if(is_electron){
