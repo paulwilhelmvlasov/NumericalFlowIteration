@@ -46,7 +46,7 @@ void read_coeffs(const config_t<real>& conf, std::vector<real>& coeffs_old, size
 {
     const size_t stride_t = conf.Nx + order - 1;
 	std::ifstream coeff_str(i_str);
-	for(size_t i = 0; i <= old_n*stride_t; i++){
+	for(size_t i = 0; i < old_n*stride_t; i++){
 		coeff_str >> coeffs_old[i];
 		//std::cout << i << " of " << old_n*stride_t << " coeff[i] = " << coeffs_old[i] << std::endl;
 	}
@@ -72,10 +72,9 @@ void ion_acoustic_restart(const config_t<real>& conf, const std::vector<real>& c
     // Also start writing the coefficients onto disc to continue writing
     // at the right position later on.
     std::ofstream coeffs_str( "restart_coeffs_Nt_" + std::to_string(conf.Nt) + "_Nx_ " + std::to_string(conf.Nx) + "_stride_t_" + std::to_string(stride_t) + ".txt" );
-    for(size_t i = 0; i <= old_n*stride_t; i++){
+    for(size_t i = 0; i < old_n*stride_t; i++){
     	coeffs.get()[i] = coeffs_old[i];
     	coeffs_str << coeffs.get()[i] << std::endl;
-		//std::cout << i << " of " << old_n*stride_t << " coeff[i] = " << coeffs.get()[i] << std::endl;
     }
 
     // Maybe it would be nice to compute these initial bounds automatically instead of setting
@@ -90,28 +89,23 @@ void ion_acoustic_restart(const config_t<real>& conf, const std::vector<real>& c
     bool write_stats = true;
     std::ofstream stats_file( "restart_stats.txt" );
     double total_time = 0;
-    for ( size_t n = old_n+1; n <= conf.Nt; ++n )
+    for ( size_t n = old_n-10; n <= conf.Nt; ++n )
     {
-    	std::cout << "Start " << n << std::endl;
     	dergeraet::stopwatch<double> timer;
     	// Compute rho:
-		//#pragma omp parallel for
+		#pragma omp parallel for
     	for(size_t i = 0; i<conf.Nx; i++)
     	{
     		// Careful: This seems to be buggy. Probably there is an issue with the way I read in and store the
     		// coefficients...
-    		std::cout << i;
     		real x = conf.x_min + i*conf.dx;
     		rho_ion[i] = eval_rho_adaptive_trapezoidal_rule<real,order>(n, x, coeffs.get(), conf, velocity_support_ion_lower_bound[i],
 					velocity_support_ion_upper_bound[i], false);
-    		std::cout << " ion";
     		rho_electron[i] = eval_rho_adaptive_trapezoidal_rule<real,order>(n, x, coeffs.get(), conf, velocity_support_electron_lower_bound[i],
 					velocity_support_electron_upper_bound[i], true);
-    		std::cout << " electron" << std::endl;
     		rho.get()[i] = rho_ion[i] - rho_electron[i];
     	}
 
-    	std::cout << "rho finished" << std::endl;
     	// Let's try out setting the minimum and maximum velocity bound to their respective
     	// min/max after each time-step to stop "folding" of the distribution function
     	// from producing wholes in the integration domain which cannot be detected by the current
@@ -135,8 +129,6 @@ void ion_acoustic_restart(const config_t<real>& conf, const std::vector<real>& c
 
     	// Solve Poisson's equation:
         poiss.solve( rho.get() );
-
-        std::cout << "Poisson finished" << std::endl;
 
         double timer_elapsed = timer.elapsed();
         total_time += timer_elapsed;
@@ -171,18 +163,18 @@ void ion_acoustic_restart(const config_t<real>& conf, const std::vector<real>& c
 }
 
 template <typename real, size_t order>
-void test()
+void ion_acoustic()
 {
     using std::abs;
     using std::max;
 
     // Set config:
     config_t<real> conf;
-    conf.Nx = 32;
+    conf.Nx = 128;
     conf.x_min = 0;
     //conf.x_max = 4*M_PI;
     conf.x_max = 40*M_PI;
-    conf.dt = 1./8.0;
+    conf.dt = 1./4.0;
     conf.Nt = 2000.0 / conf.dt;
     conf.Lx = conf.x_max - conf.x_min;
     conf.Lx_inv = 1/conf.Lx;
@@ -191,8 +183,8 @@ void test()
 
     conf.tol_cut_off_velocity_supp = 1e-7;
     conf.tol_integral = 1e-5;
-    conf.max_depth_integration = 3;
-    conf.Nu = 32;
+    conf.max_depth_integration = 2;
+    conf.Nu = 256;
 
     const size_t stride_t = conf.Nx + order - 1;
 
@@ -205,7 +197,7 @@ void test()
     // Maybe it would be nice to compute these initial bounds automatically instead of setting
     // them manually. This would give some additional robustness to the approach.
     std::vector<real> velocity_support_electron_lower_bound(conf.Nx, -10);
-    std::vector<real> velocity_support_electron_upper_bound(conf.Nx, 8);
+    std::vector<real> velocity_support_electron_upper_bound(conf.Nx, 10);
     std::vector<real> velocity_support_ion_lower_bound(conf.Nx, -0.35);
     std::vector<real> velocity_support_ion_upper_bound(conf.Nx, 0.35);
 
@@ -267,7 +259,7 @@ void test()
 			real Emax = 0;
 			real E_l2 = 0;
 
-			if(n % (10*8) == 0)
+			if(n % (100*4) == 0)
 			{
 				/*
 				std::ofstream file_v_min_max( "v_min_max_" + std::to_string(t) + ".txt" );
@@ -306,8 +298,8 @@ void test()
 
 
 
-				real v_min_electron = -10;
-				real v_max_electron = 10;
+				real v_min_electron = -15;
+				real v_max_electron = 15;
 				real dv_electron = (v_max_electron - v_min_electron) / plot_v;
 				real v_min_ion = -0.4;
 				real v_max_ion = 0.4;
@@ -370,8 +362,9 @@ void test()
 
 int main()
 {
-	//dergeraet::dim1::test<double,4>();
+	dergeraet::dim1::ion_acoustic<double,4>();
 
+	/*
 	constexpr size_t order = 4;
 	dergeraet::dim1::config_t<double> conf;
     conf.Nx = 32;
@@ -396,5 +389,6 @@ int main()
 	std::vector<double> coeffs_old((old_n+1)*stride_t);
 	dergeraet::dim1::read_coeffs<double,order>(conf, coeffs_old, old_n, std::string("../coeffs_Nt_16000_Nx_ 32_stride_t_35.txt"));
 	dergeraet::dim1::ion_acoustic_restart<double,order>(conf, coeffs_old, old_n);
+	*/
 }
 
