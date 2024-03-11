@@ -34,14 +34,14 @@ inline double f0_1d_electron(double x, double v)
     using std::cos;
     using std::sin;
     using std::exp;
-    constexpr double alpha = 0.01;
-    //constexpr double alpha = 0.5;
+    //constexpr double alpha = 0.01;
+    constexpr double alpha = 0.5;
     constexpr double k     = 0.5;
     constexpr double Ue = -2;
     constexpr double fac   = 0.39894228040143267793994; // sqrt(1/(2*pi))
 
-    //double pertubation = ( 1. + alpha*std::cos(k*x) );
-    double pertubation = ( 1. + alpha * (sin(x) + sin(0.5*x) + sin(0.1*x) + sin(0.15*x) + sin(0.2*x) + cos(0.25*x) + cos(0.3*x) + cos(0.35*x) ));
+    double pertubation = ( 1. + alpha*std::cos(k*x) );
+    //double pertubation = ( 1. + alpha * (sin(x) + sin(0.5*x) + sin(0.1*x) + sin(0.15*x) + sin(0.2*x) + cos(0.25*x) + cos(0.3*x) + cos(0.35*x) ));
 
     return fac * pertubation * exp( -(v-Ue)*(v-Ue)/2. );
 }
@@ -146,11 +146,11 @@ void ion_acoustic()
 {
 	// This is an implementation of Wang et.al. 2nd-order PIC (see section 3.2).
 	// Set parameters.
-    //const double L  = 4*3.14159265358979323846;
-	const double L  = 40*3.14159265358979323846;
+    const double L  = 4*3.14159265358979323846;
+	//const double L  = 40*3.14159265358979323846;
     const size_t Nx_f = 256;
     const size_t Nx_poisson = Nx_f;
-    const size_t Nv_f_electron = 2048;
+    const size_t Nv_f_electron = 4096*4;
     const size_t Nv_f_ion = Nv_f_electron;
     const size_t N_f_electron = Nx_f*Nv_f_electron;
     const size_t N_f_ion = Nx_f*Nv_f_ion;
@@ -172,8 +172,9 @@ void ion_acoustic()
     const double delta_x_inv = 1/delta_x;
     const double L_inv  = 1/L;
 
-    const size_t Nt = 2000 * 16;
-    const double dt = 1.0 / 16.0;
+    const size_t Nt = 2000 * 8;
+    //const double dt = 1.0 / 16.0;
+    const double dt = 1.0 / 8.0;
 
     // Init for FFT-Poisson solver:
     dergeraet::dim1::config_t<double> conf;
@@ -298,7 +299,7 @@ void ion_acoustic()
 			double Emax = 0;
 			double E_l2 = 0;
 
-			if(nt % (100*16) == 0) {
+			if(nt % (100*8) == 0) {
 				std::ofstream file_xv_electron( "xv_electron_" + std::to_string(t) + ".txt" );
 				file_xv_electron << xv_electron;
 				std::ofstream file_xv_ion( "xv_ion_" + std::to_string(t) + ".txt" );
@@ -336,6 +337,7 @@ void ion_acoustic()
 				double v_max_plot_ion = 0.4;
 				double dv_plot_ion = (v_max_plot_ion-v_min_plot_ion)/plot_v;
 
+				/*
 				std::ofstream f_electron_str("f_electon_" + std::to_string(t) + ".txt");
 				arma::mat f_plot;
 				f_plot.set_size(plot_x+1,plot_v+1);
@@ -389,7 +391,7 @@ void ion_acoustic()
 					}
 					f_ion_str << std::endl;
 				}
-
+				*/
 			} else {
 				for ( size_t i = 0; i < plot_x; ++i )
 				{

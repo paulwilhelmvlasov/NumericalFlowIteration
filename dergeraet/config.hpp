@@ -108,13 +108,13 @@ real config_t<real>::f0_electron( real x, real u ) noexcept
     using std::cos;
     using std::exp;
 
-    constexpr real alpha = 0.01;
+    constexpr real alpha = 0.5;
     constexpr real k     = 0.5;
     constexpr real Mr	 = 1000; // (approximate) mass ratio between electron and ions.
     constexpr real Ue 	 = -2;
 
-    //real pertubation = 1. + alpha*cos(k*x);
-    real pertubation = 1. + alpha * (sin(x) + sin(0.5*x) + sin(0.1*x) + sin(0.15*x) + sin(0.2*x) + cos(0.25*x) + cos(0.3*x) + cos(0.35*x) );
+    real pertubation = 1. + alpha*cos(k*x);
+    //real pertubation = 1. + alpha * (sin(x) + sin(0.5*x) + sin(0.1*x) + sin(0.15*x) + sin(0.2*x) + cos(0.25*x) + cos(0.3*x) + cos(0.35*x) );
     return 0.39894228040143267793994 * pertubation * exp( -(u-Ue)*(u-Ue)/2. );
 }
 

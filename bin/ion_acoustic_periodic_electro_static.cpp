@@ -169,54 +169,76 @@ void ion_acoustic()
     using std::max;
 
     // Set config:
-    config_t<real> conf;
-    conf.Nx = 128;
-    conf.x_min = 0;
-    //conf.x_max = 4*M_PI;
-    conf.x_max = 40*M_PI;
-    conf.dt = 1./4.0;
-    conf.Nt = 2000.0 / conf.dt;
-    conf.Lx = conf.x_max - conf.x_min;
-    conf.Lx_inv = 1/conf.Lx;
-    conf.dx = conf.Lx/conf.Nx;
-    conf.dx_inv = 1/conf.dx;
+    // Use different Nu for electrons and ions as the dynamics of
+    // electrons tend to develop fast towards filamentation than for
+    // ions, i.e., one needs higher resolution for electrons than ions.
+    // However, be careful to keep Lx, Nx, dt, Nt, etc. the same for
+    // electrons and ions to not break the method.
+    config_t<real> conf_electron;
+    conf_electron.Nx = 256;
+    conf_electron.x_min = 0;
+    //conf_electron.x_max = 40*M_PI;
+    conf_electron.x_max = 4*M_PI;
+    conf_electron.dt = 1./4.0;
+    conf_electron.Nt = 2000.0 / conf_electron.dt;
+    conf_electron.Lx = conf_electron.x_max - conf_electron.x_min;
+    conf_electron.Lx_inv = 1/conf_electron.Lx;
+    conf_electron.dx = conf_electron.Lx/conf_electron.Nx;
+    conf_electron.dx_inv = 1/conf_electron.dx;
 
-    conf.tol_cut_off_velocity_supp = 1e-7;
-    conf.tol_integral = 1e-5;
-    conf.max_depth_integration = 2;
-    conf.Nu = 256;
+    conf_electron.tol_cut_off_velocity_supp = 1e-7;
+    conf_electron.tol_integral = 1e-5;
+    conf_electron.max_depth_integration = 3;
+    conf_electron.Nu = 512;
 
-    const size_t stride_t = conf.Nx + order - 1;
+    config_t<real> conf_ion;
+    conf_ion.Nx = conf_electron.Nx;
+    conf_ion.x_min = conf_electron.x_min;
+    conf_ion.x_max = conf_electron.x_max;
+    conf_ion.dt = conf_electron.dt;
+    conf_ion.Nt = conf_electron.Nt;
+    conf_ion.Lx = conf_electron.Lx;
+    conf_ion.Lx_inv = conf_electron.Lx_inv;
+    conf_ion.dx = conf_electron.dx;
+    conf_ion.dx_inv = conf_electron.dx_inv;
 
-    std::unique_ptr<real[]> coeffs { new real[ (conf.Nt+1)*stride_t ] {} };
-    std::unique_ptr<real,decltype(std::free)*> rho { reinterpret_cast<real*>(std::aligned_alloc(64,sizeof(real)*conf.Nx)), std::free };
+    conf_ion.tol_cut_off_velocity_supp = 1e-7;
+    conf_ion.tol_integral = 1e-5;
+    conf_ion.max_depth_integration = 3;
+    conf_ion.Nu = 64;
+
+    const size_t stride_t = conf_electron.Nx + order - 1;
+
+    std::unique_ptr<real[]> coeffs { new real[ (conf_electron.Nt+1)*stride_t ] {} };
+    std::unique_ptr<real,decltype(std::free)*> rho { reinterpret_cast<real*>(std::aligned_alloc(64,sizeof(real)*conf_electron.Nx)), std::free };
     if ( rho == nullptr ) throw std::bad_alloc {};
-    std::vector<real> rho_electron(conf.Nx);
-    std::vector<real> rho_ion(conf.Nx);
+    std::vector<real> rho_electron(conf_electron.Nx);
+    std::vector<real> rho_ion(conf_electron.Nx);
 
     // Maybe it would be nice to compute these initial bounds automatically instead of setting
     // them manually. This would give some additional robustness to the approach.
-    std::vector<real> velocity_support_electron_lower_bound(conf.Nx, -10);
-    std::vector<real> velocity_support_electron_upper_bound(conf.Nx, 10);
-    std::vector<real> velocity_support_ion_lower_bound(conf.Nx, -0.35);
-    std::vector<real> velocity_support_ion_upper_bound(conf.Nx, 0.35);
+    std::vector<real> velocity_support_electron_lower_bound(conf_electron.Nx, -10);
+    std::vector<real> velocity_support_electron_upper_bound(conf_electron.Nx, 10);
+    std::vector<real> velocity_support_ion_lower_bound(conf_electron.Nx, -0.35);
+    std::vector<real> velocity_support_ion_upper_bound(conf_electron.Nx, 0.35);
 
-    poisson<real> poiss( conf );
+    poisson<real> poiss( conf_electron );
 
     std::ofstream stats_file( "stats.txt" );
-    std::ofstream coeffs_str( "coeffs_Nt_" + std::to_string(conf.Nt) + "_Nx_ " + std::to_string(conf.Nx) + "_stride_t_" + std::to_string(stride_t) + ".txt" );
+    std::ofstream coeffs_str( "coeffs_Nt_" + std::to_string(conf_electron.Nt) + "_Nx_ "
+    						+ std::to_string(conf_electron.Nx) + "_stride_t_" + std::to_string(stride_t) + ".txt" );
     double total_time = 0;
-    for ( size_t n = 0; n <= conf.Nt; ++n )
+    for ( size_t n = 0; n <= conf_electron.Nt; ++n )
     {
     	dergeraet::stopwatch<double> timer;
     	// Compute rho:
 		#pragma omp parallel for
-    	for(size_t i = 0; i<conf.Nx; i++)
+    	for(size_t i = 0; i<conf_electron.Nx; i++)
     	{
-    		real x = conf.x_min + i*conf.dx;
-    		rho_ion[i] = eval_rho_adaptive_trapezoidal_rule<real,order>(n, x, coeffs.get(), conf, velocity_support_ion_lower_bound[i],
+    		real x = conf_electron.x_min + i*conf_electron.dx;
+    		rho_ion[i] = eval_rho_adaptive_trapezoidal_rule<real,order>(n, x, coeffs.get(), conf_ion, velocity_support_ion_lower_bound[i],
 					velocity_support_ion_upper_bound[i], false);
-    		rho_electron[i] = eval_rho_adaptive_trapezoidal_rule<real,order>(n, x, coeffs.get(), conf, velocity_support_electron_lower_bound[i],
+    		rho_electron[i] = eval_rho_adaptive_trapezoidal_rule<real,order>(n, x, coeffs.get(), conf_electron, velocity_support_electron_lower_bound[i],
 					velocity_support_electron_upper_bound[i], true);
     		rho.get()[i] = rho_ion[i] - rho_electron[i];
     	}
@@ -244,18 +266,18 @@ void ion_acoustic()
 
     	// Solve Poisson's equation:
         poiss.solve( rho.get() );
-        dim1::interpolate<real,order>( coeffs.get() + n*stride_t, rho.get(), conf );
+        dim1::interpolate<real,order>( coeffs.get() + n*stride_t, rho.get(), conf_electron );
 
         double timer_elapsed = timer.elapsed();
-        total_time += timer_elapsed;const size_t stride_t = conf.Nx + order - 1;
+        total_time += timer_elapsed;
 
-		real t = n*conf.dt;
+		real t = n*conf_electron.dt;
         // Plotting:
         if(n % 1 == 0)
         {
 			size_t plot_x = 256;
 			size_t plot_v = plot_x;
-			real dx_plot = conf.Lx/plot_x;
+			real dx_plot = conf_electron.Lx/plot_x;
 			real Emax = 0;
 			real E_l2 = 0;
 
@@ -275,8 +297,8 @@ void ion_acoustic()
 				std::ofstream file_E( "E_" + std::to_string(t) + ".txt" );
 				for ( size_t i = 0; i < plot_x; ++i )
 				{
-					real x = conf.x_min + i*dx_plot;
-					real E = -dim1::eval<real,order,1>(x,coeffs.get()+n*stride_t,conf);
+					real x = conf_electron.x_min + i*dx_plot;
+					real E = -dim1::eval<real,order,1>(x,coeffs.get()+n*stride_t,conf_electron);
 					Emax = max( Emax, abs(E) );
 					E_l2 += E*E;
 
@@ -289,9 +311,9 @@ void ion_acoustic()
 
 				std::ofstream file_rho_ion( "rho_ion_" + std::to_string(t) + ".txt" );
 				std::ofstream file_rho_electron( "rho_electron_" + std::to_string(t) + ".txt" );
-				for ( size_t i = 0; i < conf.Nx; ++i )
+				for ( size_t i = 0; i < conf_electron.Nx; ++i )
 				{
-					real x = conf.x_min + i*conf.dx;
+					real x = conf_electron.x_min + i*conf_electron.dx;
 					file_rho_ion << std::setw(20) << x << std::setw(20) << std::setprecision(8) << std::scientific << rho_ion[i] << std::endl;
 					file_rho_electron << std::setw(20) <<  x << std::setw(20) << std::setprecision(8) << std::scientific << rho_electron[i] << std::endl;
 				}
@@ -309,10 +331,10 @@ void ion_acoustic()
 				{
 					for ( size_t j = 0; j <= plot_v; ++j )
 					{
-						real x = conf.x_min + i*dx_plot;
+						real x = conf_electron.x_min + i*dx_plot;
 						real v = v_min_electron + j*dv_electron;
 
-						real f = eval_f_ion_acoustic<real,order>(n,x,v,coeffs.get(),conf,true);
+						real f = eval_f_ion_acoustic<real,order>(n,x,v,coeffs.get(),conf_electron,true);
 						file_f_electron << x << " " << v << " " << f << std::endl;
 					}
 					file_f_electron << std::endl;
@@ -323,10 +345,10 @@ void ion_acoustic()
 				{
 					for ( size_t j = 0; j <= plot_v; ++j )
 					{
-						real x = conf.x_min + i*dx_plot;
+						real x = conf_electron.x_min + i*dx_plot;
 						real v = v_min_ion + j*dv_ion;
 
-						real f = eval_f_ion_acoustic<real,order>(n,x,v,coeffs.get(),conf,false);
+						real f = eval_f_ion_acoustic<real,order>(n,x,v,coeffs.get(),conf_ion,false);
 						file_f_ion << x << " " << v << " " << f << std::endl;
 					}
 					file_f_ion << std::endl;
@@ -335,8 +357,8 @@ void ion_acoustic()
 			} else {
 				for ( size_t i = 0; i < plot_x; ++i )
 				{
-					real x = conf.x_min + i*dx_plot;
-					real E = -dim1::eval<real,order,1>(x,coeffs.get()+n*stride_t,conf);
+					real x = conf_electron.x_min + i*dx_plot;
+					real E = -dim1::eval<real,order,1>(x,coeffs.get()+n*stride_t,conf_electron);
 					Emax = max( Emax, abs(E) );
 					E_l2 += E*E;
 				}
