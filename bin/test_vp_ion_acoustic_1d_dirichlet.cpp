@@ -53,15 +53,15 @@ void test()
 	conf.dt = conf.lambda/conf.c * 2 * 1e-3;
 	real T = conf.lambda/conf.c;
 	//conf.Nt = 100*T/conf.dt;
-	conf.Nt = 15000;
-	conf.Nu_electron = 512; //prev: 128, we go UP
-	conf.Nu_ion = conf.Nu_electron;
+	conf.Nt = 10000;
+	conf.Nu_electron = 128; //prev: 128, we go UP
+	conf.Nu_ion = 64;
 	//conf.u_electron_max =  1e-2*conf.c;
 	//conf.u_electron_min = -conf.u_electron_max;
 	//Für u_s = 0.039c:
-	conf.u_electron_max = 1.32e7; // estimated value where u-u_s is larger than 10^-14 for the boltzmann function
-	conf.u_electron_min = 1e7;
-    conf.u_ion_max =  2e-6*conf.c;
+	conf.u_electron_max = 5*1e6;//1.32e7; // estimated value where u-u_s is larger than 10^-14 for the boltzmann function
+	conf.u_electron_min = -5*1e6;
+    conf.u_ion_max =  5e-6*conf.c;
     conf.u_ion_min = -conf.u_ion_max;
     conf.du_electron = (conf.u_electron_max - conf.u_electron_min)/conf.Nu_electron;
     conf.du_ion = (conf.u_ion_max - conf.u_ion_min)/conf.Nu_ion;
@@ -186,7 +186,7 @@ void test()
 
         real t = n*conf.dt;
 
-		if(n % 50 == 0)
+		if(n % 1000 == 0)
         {
 			std::ofstream f_electron_file("f_electron_"+ std::to_string(n) + ".txt");
 			for(size_t i = 0; i <= plot_x; i++)

@@ -220,7 +220,7 @@ __host__ __device__
 real config_t<real>::f0_electron( real x, real u ) noexcept
 {
 	//return initial_plasma_density(x)*boltzmann(u,T_e,m_e);
-	 double u_s = 0.039 * c; // ???? vs einsetzen für us
+	 double u_s = 0; //0.039 * c;
 	 return initial_plasma_density(x)*boltzmann(u-u_s,T_e,m_e);
 }
 
