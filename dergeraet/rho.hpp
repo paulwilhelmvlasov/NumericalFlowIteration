@@ -212,17 +212,95 @@ real eval_rho( size_t n, size_t i, const real *coeffs, const config_t<real> &con
     return rho;
 }
 
+template <typename real, size_t order>
+__host__ __device__
+void eval_flow_map_ion_acoustic( size_t n, real& x, real& u,
+                  const real *coeffs, const config_t<real> &conf,
+				  bool electron = true, bool reflecting_boundary = true,
+				  bool relativistic = false)
+{
+	if(n>0){
+	    const size_t stride_x = 1;
+	    const size_t stride_t = stride_x*(conf.l + order);
+
+	    real Ex;
+	    const real *c;
+
+	    // Initial half-step.
+	    c  = coeffs + n*stride_t;
+	    Ex = -eval<real,order,1>( x, c, conf );
+	    u += (electron/conf.m_e + (!electron)*(-1)/conf.m_i) * 0.5*conf.dt*Ex;
+
+	    while ( --n )
+	    {
+	    	if(relativistic){
+	    		// Relativistic case:
+				real gamma = conf.c / std::sqrt(std::abs(conf.c*conf.c - u*u));
+	    		x  -= gamma * conf.dt*u;
+	    	}else{
+				// Non-relativistic case:
+				x  -= conf.dt*u;
+	    	}
+
+	    	c  = coeffs + n*stride_t;
+			Ex = -eval<real,order,1>(x,c,conf);
+			u  += (electron/conf.m_e + (!electron)*(-1)/conf.m_i) * conf.dt*Ex;
+
+			// Reflecting boundaries:
+	        if(reflecting_boundary){
+				if(x < conf.x_min){
+					x = conf.x_min;
+					u = -u;
+				}else if(x > conf.x_max){
+					x = conf.x_max;
+					u = -u;
+				}
+	        }
+	    }
+
+	    // The final half-step.
+	    if(relativistic){
+			// Relativistic case:
+			real gamma = conf.c / std::sqrt(std::abs(conf.c*conf.c - u*u));
+			x  -= gamma * conf.dt*u;
+	    }else{
+			// Non-relativistic case:
+			x  -= conf.dt*u;
+	    }
+	    c  = coeffs + n*stride_t;
+	    Ex = -eval<real,order,1>(x,c,conf);
+	    u  += (electron/conf.m_e + (!electron)*(-1)/conf.m_i) * conf.dt*Ex;
+
+	    // Reflecting boundaries:
+	    if(reflecting_boundary){
+			if(x < conf.x_min){
+				x = conf.x_min;
+				u = -u;
+			}else if(x > conf.x_max){
+				x = conf.x_max;
+				u = -u;
+			}
+	    }
+	}
+}
 
 template <typename real, size_t order>
 __host__ __device__
 real eval_ftilda_ion_acoustic( size_t n, real x, real u,
-                  const real *coeffs, const config_t<real> &conf, bool electron = true)
+                  const real *coeffs, const config_t<real> &conf, bool electron = true, bool reflecting_boundary = true, bool relativistic = false)
 {
 	if ( n == 0 ){
 		if(electron){
 			return config_t<real>::f0_electron(x,u);
 		} else {
 			return config_t<real>::f0_ion(x,u);
+		}
+	}
+
+	if(reflecting_boundary){
+		// In this case we assume that f=0 outside the domain.
+		if(x < conf.x_min || x > conf.x_max){
+			return 0;
 		}
 	}
 
@@ -236,31 +314,36 @@ real eval_ftilda_ion_acoustic( size_t n, real x, real u,
     while ( --n )
     {
     	// Relativistic case:
-    	//real gamma = conf.c / std::sqrt(std::abs(conf.c*conf.c - u*u));
-        //x  -= gamma * conf.dt * u;
+    	if(relativistic){
+    		real gamma = conf.c / std::sqrt(std::abs(conf.c*conf.c - u*u));
+    		x  -= gamma * conf.dt * u;
+    	}else{
         // Non-relativistic case:
-        x  -= conf.dt*u;
+    		x  -= conf.dt*u;
+    	}
 
         c  = coeffs + n*stride_t;
         Ex = -eval<real,order,1>(x,c,conf);
         u  += (electron/conf.m_e + (!electron)*(-1)/conf.m_i) * conf.dt*Ex;
 
         // Reflecting boundaries:
-        /*
-        if(x < conf.x_min){
-        	x = conf.x_min;
-        	u = -u;
-        }else if(x > conf.x_max){
-        	x = conf.x_max;
-        	u = -u;
+        if(reflecting_boundary){
+			if(x < conf.x_min){
+				x = conf.x_min;
+				u = -u;
+			}else if(x > conf.x_max){
+				x = conf.x_max;
+				u = -u;
+			}
         }
-        */
     }
 
     // The final half-step.
     // Relativistic case:
-	//real gamma = conf.c / std::sqrt(std::abs(conf.c*conf.c - u*u));
-    //x  -= gamma * conf.dt*u;
+    if(relativistic){
+		real gamma = conf.c / std::sqrt(std::abs(conf.c*conf.c - u*u));
+		x  -= gamma * conf.dt*u;
+    }
     // Non-relativistic case:
     x  -= conf.dt*u;
 
@@ -269,15 +352,15 @@ real eval_ftilda_ion_acoustic( size_t n, real x, real u,
     u  += (electron/conf.m_e + (!electron)*(-1)/conf.m_i) * conf.dt*Ex;
 
     // Reflecting boundaries:
-    /*
-    if(x < conf.x_min){
-    	x = conf.x_min;
-    	u = -u;
-    }else if(x > conf.x_max){
-    	x = conf.x_max;
-    	u = -u;
+    if(reflecting_boundary){
+		if(x < conf.x_min){
+			x = conf.x_min;
+			u = -u;
+		}else if(x > conf.x_max){
+			x = conf.x_max;
+			u = -u;
+		}
     }
-    */
 
 	if(electron){
 		return config_t<real>::f0_electron(x,u);
@@ -289,13 +372,19 @@ real eval_ftilda_ion_acoustic( size_t n, real x, real u,
 template <typename real, size_t order>
 __host__ __device__
 real eval_f_ion_acoustic( size_t n, real x, real u,
-             const real *coeffs, const config_t<real> &conf, bool electron = true)
+             const real *coeffs, const config_t<real> &conf, bool electron = true, bool reflecting_boundary = true, bool relativistic = false)
 {
-	if ( n == 0 ){
+	if ( n == 0){
 		if(electron){
 			return config_t<real>::f0_electron(x,u);
 		} else {
 			return config_t<real>::f0_ion(x,u);
+		}
+	}
+	if(reflecting_boundary){
+		// In this case we assume that f=0 outside the domain.
+		if(x < conf.x_min || x > conf.x_max){
+			return 0;
 		}
 	}
 
@@ -312,47 +401,54 @@ real eval_f_ion_acoustic( size_t n, real x, real u,
 
     while ( --n )
     {
-    	// Relativistic case:
-    	//real gamma = conf.c / std::sqrt(std::abs(conf.c*conf.c - u*u));
-        //x  -= gamma * conf.dt*u;
-        // Non-relativistic case:
-        x  -= conf.dt*u;
-        c  = coeffs + n*stride_t;
-        Ex = -eval<real,order,1>(x,c,conf);
-        u  += (electron/conf.m_e + (!electron)*(-1)/conf.m_i) * conf.dt*Ex;
+    	if(relativistic){
+    		// Relativistic case:
+			real gamma = conf.c / std::sqrt(std::abs(conf.c*conf.c - u*u));
+    		x  -= gamma * conf.dt*u;
+    	}else{
+			// Non-relativistic case:
+			x  -= conf.dt*u;
+    	}
 
-        // Reflecting boundaries:
-        /*
-        if(x < conf.x_min){
-        	x = conf.x_min;
-        	u = -u;
-        }else if(x > conf.x_max){
-        	x = conf.x_max;
-        	u = -u;
+    	c  = coeffs + n*stride_t;
+		Ex = -eval<real,order,1>(x,c,conf);
+		u  += (electron/conf.m_e + (!electron)*(-1)/conf.m_i) * conf.dt*Ex;
+
+		// Reflecting boundaries:
+        if(reflecting_boundary){
+			if(x < conf.x_min){
+				x = conf.x_min;
+				u = -u;
+			}else if(x > conf.x_max){
+				x = conf.x_max;
+				u = -u;
+			}
         }
-        */
     }
 
     // The final half-step.
-    // Relativistic case:
-	//real gamma = conf.c / std::sqrt(std::abs(conf.c*conf.c - u*u));
-    //x  -= gamma * conf.dt*u;
-    // Non-relativistic case:
-    x  -= conf.dt*u;
+    if(relativistic){
+		// Relativistic case:
+		real gamma = conf.c / std::sqrt(std::abs(conf.c*conf.c - u*u));
+		x  -= gamma * conf.dt*u;
+    }else{
+		// Non-relativistic case:
+		x  -= conf.dt*u;
+    }
     c  = coeffs + n*stride_t;
     Ex = -eval<real,order,1>(x,c,conf);
     u  += (electron/conf.m_e + (!electron)*(-1)/conf.m_i) * conf.dt*Ex;
 
     // Reflecting boundaries:
-    /*
-    if(x < conf.x_min){
-    	x = conf.x_min;
-    	u = -u;
-    }else if(x > conf.x_max){
-    	x = conf.x_max;
-    	u = -u;
+    if(reflecting_boundary){
+		if(x < conf.x_min){
+			x = conf.x_min;
+			u = -u;
+		}else if(x > conf.x_max){
+			x = conf.x_max;
+			u = -u;
+		}
     }
-    */
 
     if(electron){
 		return config_t<real>::f0_electron(x,u);

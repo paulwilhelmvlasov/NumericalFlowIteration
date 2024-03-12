@@ -110,7 +110,7 @@ struct config_t
     constexpr static real q = 1;
     constexpr static real c = 1;
     constexpr static real n_c = 4*M_PI*m_e*c*c/(q*q*lambda*lambda);
-    constexpr static real T_e = 5000, T_i = 1;
+    constexpr static real T_e = 2, T_i = 1;
     //constexpr static real K = 1.38*1e-23; // Boltzmann constant
     constexpr static real K = 1; // Boltzmann constant
 
@@ -187,6 +187,7 @@ template <typename real>
 __host__ __device__
 real config_t<real>::initial_plasma_density( real x) noexcept
 {
+	/*
 	if(x < 3*lambda) {
 		return 0;
 	} else if(x < 4*lambda) {
@@ -198,6 +199,8 @@ real config_t<real>::initial_plasma_density( real x) noexcept
 	} else {
 		return 0;
 	}
+	*/
+	return 1;
 }
 
 template <typename real>
@@ -213,14 +216,16 @@ template <typename real>
 __host__ __device__
 real config_t<real>::f0_electron( real x, real u ) noexcept
 {
-	return initial_plasma_density(x)*boltzmann(u,T_e,m_e);
+	real us = 0;
+	return initial_plasma_density(x)*boltzmann(u-us,T_e,m_e);
 }
 
 template <typename real>
 __host__ __device__
 real config_t<real>::f0_ion( real x, real u ) noexcept
 {
-	return initial_plasma_density(x)*boltzmann(u,T_i,m_i);
+	real us = -2;
+	return initial_plasma_density(x)*boltzmann(u-us,T_i,m_i);
 }
 
 
@@ -254,30 +259,6 @@ real config_t<real>::call_surface_model( bool state, real x, real u) noexcept
         return 0;
     }
     return c * 1.0/std::sqrt( 1 - x*x - u*u );
-    /*
-    switch (state)
-    {
-        case DOMAIN:
-            // using std::sin;
-            // using std::cos;
-            // using std::exp;
-            // constexpr real alpha = 0.01;
-            // constexpr real k     = 0.5;   
-            // return 0.39894228040143267793994 * ( 1. + alpha*cos(k*x) ) * exp( -u*u/2. ) * u*u;
-            if(x*x + u*u >= 1 )
-            {
-    	        return 0;
-            }
-            return c * 1.0/std::sqrt( 1 - x*x - u*u );
-            break;
-        case OUTSIDE_DOMAIN:
-            return 0.0;
-            break;
-        default:
-            return 0.0;
-            break;
-    }
-    */
 }
 
 }
