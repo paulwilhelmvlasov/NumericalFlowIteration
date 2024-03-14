@@ -51,14 +51,14 @@ void test()
 {
 	config_t<real> conf;
 	conf.dt = 0.01;
-	conf.Nt = 10/conf.dt;
+	conf.Nt = 1000/conf.dt;
 	//conf.Nt = 12;
-	conf.Nu_electron = 128;
+	conf.Nu_electron = 256;
 	conf.Nu_ion = conf.Nu_electron;
     conf.u_electron_min = -10;
     conf.u_electron_max =  10;
-    conf.u_ion_min = -3;
-    conf.u_ion_max =  3;
+    conf.u_ion_min = -4;
+    conf.u_ion_max =  4;
     conf.du_electron = (conf.u_electron_max - conf.u_electron_min)/conf.Nu_electron;
     conf.du_ion = (conf.u_ion_max - conf.u_ion_min)/conf.Nu_ion;
 
@@ -93,7 +93,7 @@ void test()
 
     double total_time = 0;
 
-
+    std::ofstream stats_file( "stats.txt" );
     for ( size_t n = 0; n <= conf.Nt; n++ )
     {
         dergeraet::stopwatch<double> timer;
@@ -151,94 +151,115 @@ void test()
         real u_max_electron_plot = conf.u_electron_max;
         real u_min_ion_plot = conf.u_ion_min;
         real u_max_ion_plot = conf.u_ion_max;
-        size_t plot_x = 256;
-        size_t plot_u = 256;
+        size_t plot_x = 1024;
+        size_t plot_u = 1024;
 
         real dx_plot = (x_max_plot - x_min_plot) / plot_x;
         real du_electron_plot = (u_max_electron_plot - u_min_electron_plot) / plot_u;
         real du_ion_plot = (u_max_ion_plot - u_min_ion_plot) / plot_u;
 
-		if(n % 50 == 0)
+        if(n%1 == 0)
         {
-			std::ofstream f_electron_file("f_electron_"+ std::to_string(t) + ".txt");
-			for(size_t i = 0; i <= plot_x; i++)
+        	real E_l2 = 0;
+        	real E_max = 0;
+			for(size_t i = 0; i < plot_x; i++)
 			{
-				for(size_t j = 0; j <= plot_u; j++)
-				{
-					double x = x_min_plot + i*dx_plot;
-					double u = u_min_electron_plot + j*du_electron_plot;
-					double f = eval_f_ion_acoustic<real,order>(n, x, u, coeffs.get(), conf);
-					f_electron_file << x << " " << u << " " << f << std::endl;
-				}
-				f_electron_file << std::endl;
-			}
-			
-			std::ofstream f_ion_file("f_ion_"+ std::to_string(t) + ".txt");
-			for(size_t i = 0; i <= plot_x; i++)
-			{
-				for(size_t j = 0; j <= plot_u; j++)
-				{
-					double x = x_min_plot + i*dx_plot;
-					double u = u_min_ion_plot + j*du_ion_plot;
-					double f = eval_f_ion_acoustic<real,order>(n, x, u, coeffs.get(), conf, false);
-					f_ion_file << x << " " << u << " " << f << std::endl;
-				}
-				f_ion_file << std::endl;
-			}
-
-			std::ofstream flow_map_electron_file("flow_map_electron_"+ std::to_string(t) + ".txt");
-			for(size_t i = 0; i <= plot_x; i++)
-			{
-				for(size_t j = 0; j <= plot_u; j++)
-				{
-					double x = x_min_plot + i*dx_plot;
-					double u = u_min_ion_plot + j*du_ion_plot;
-					double x_0 = x;
-					double u_0 = u;
-					eval_flow_map_ion_acoustic<real,order>(n, x_0, u_0, coeffs.get(),
-															conf, true);
-					flow_map_electron_file << x << " " << u << " " << x_0 << " " << u_0 << std::endl;
-				}
-				flow_map_electron_file << std::endl;
-			}
-
-			std::ofstream flow_map_ion_file("flow_map_ion_"+ std::to_string(t) + ".txt");
-			for(size_t i = 0; i <= plot_x; i++)
-			{
-				for(size_t j = 0; j <= plot_u; j++)
-				{
-					double x = x_min_plot + i*dx_plot;
-					double u = u_min_ion_plot + j*du_ion_plot;
-					double x_0 = x;
-					double u_0 = u;
-					eval_flow_map_ion_acoustic<real,order>(n, x_0, u_0, coeffs.get(),
-															conf, false);
-					flow_map_ion_file << x << " " << u << " " << x_0 << " " << u_0 << std::endl;
-				}
-				flow_map_ion_file << std::endl;
-			}
-
-			std::ofstream E_file("E_"+ std::to_string(t) + ".txt");
-			std::ofstream rho_electron_file("rho_electron_"+ std::to_string(t) + ".txt");
-			std::ofstream rho_ion_file("rho_ion_"+ std::to_string(t) + ".txt");
-			std::ofstream phi_file("phi_"+ std::to_string(t) + ".txt");
-			for(size_t i = 0; i <= plot_x; i++)
-			{
-				real x = x_min_plot + i*dx_plot;
+				real x = x_min_plot + (i+0.5)*dx_plot;
 				real E = -dim1::dirichlet::eval<real,order,1>( x, coeffs.get() + n*stride_t, conf );
-				real phi = dim1::dirichlet::eval<real,order>( x, coeffs.get() + n*stride_t, conf );
-				real rho_electron = eval_rho_electron<real,order>(n, x, coeffs.get(), conf);
-				real rho_ion = eval_rho_ion<real,order>(n, x, coeffs.get(), conf);
 
-				E_file << x << " " << E << std::endl;
-				rho_electron_file << x << " " << rho_electron << std::endl;
-				rho_ion_file << x << " " << rho_ion << std::endl;
-				phi_file << x << " " << phi << std::endl;
+				E_max = std::max( E_max, abs(E) );
+				E_l2 += E*E;
+			}
+			E_l2 *=  dx_plot;
+			stats_file << std::setw(20) << t << std::setw(20) << std::setprecision(8)
+					   << std::scientific << E_max << std::setw(20)
+					   << std::setprecision(8) << std::scientific << E_l2
+					   << std::endl;
+
+
+			if(n % 500 == 0 && true)
+			{
+				std::ofstream f_electron_file("f_electron_"+ std::to_string(t) + ".txt");
+				for(size_t i = 0; i <= plot_x; i++)
+				{
+					for(size_t j = 0; j <= plot_u; j++)
+					{
+						double x = x_min_plot + i*dx_plot;
+						double u = u_min_electron_plot + j*du_electron_plot;
+						double f = eval_f_ion_acoustic<real,order>(n, x, u, coeffs.get(), conf);
+						f_electron_file << x << " " << u << " " << f << std::endl;
+					}
+					f_electron_file << std::endl;
+				}
+				/*
+				std::ofstream f_ion_file("f_ion_"+ std::to_string(t) + ".txt");
+				for(size_t i = 0; i <= plot_x; i++)
+				{
+					for(size_t j = 0; j <= plot_u; j++)
+					{
+						double x = x_min_plot + i*dx_plot;
+						double u = u_min_ion_plot + j*du_ion_plot;
+						double f = eval_f_ion_acoustic<real,order>(n, x, u, coeffs.get(), conf, false);
+						f_ion_file << x << " " << u << " " << f << std::endl;
+					}
+					f_ion_file << std::endl;
+				}
+				*/
+				/*
+				std::ofstream flow_map_electron_file("flow_map_electron_"+ std::to_string(t) + ".txt");
+				for(size_t i = 0; i <= plot_x; i++)
+				{
+					for(size_t j = 0; j <= plot_u; j++)
+					{
+						double x = x_min_plot + i*dx_plot;
+						double u = u_min_ion_plot + j*du_ion_plot;
+						double x_0 = x;
+						double u_0 = u;
+						eval_flow_map_ion_acoustic<real,order>(n, x_0, u_0, coeffs.get(),
+																conf, true);
+						flow_map_electron_file << x << " " << u << " " << x_0 << " " << u_0 << std::endl;
+					}
+					flow_map_electron_file << std::endl;
+				}
+
+				std::ofstream flow_map_ion_file("flow_map_ion_"+ std::to_string(t) + ".txt");
+				for(size_t i = 0; i <= plot_x; i++)
+				{
+					for(size_t j = 0; j <= plot_u; j++)
+					{
+						double x = x_min_plot + i*dx_plot;
+						double u = u_min_ion_plot + j*du_ion_plot;
+						double x_0 = x;
+						double u_0 = u;
+						eval_flow_map_ion_acoustic<real,order>(n, x_0, u_0, coeffs.get(),
+																conf, false);
+						flow_map_ion_file << x << " " << u << " " << x_0 << " " << u_0 << std::endl;
+					}
+					flow_map_ion_file << std::endl;
+				}
+				*/
+				/*
+				std::ofstream E_file("E_"+ std::to_string(t) + ".txt");
+				std::ofstream rho_electron_file("rho_electron_"+ std::to_string(t) + ".txt");
+				std::ofstream rho_ion_file("rho_ion_"+ std::to_string(t) + ".txt");
+				std::ofstream phi_file("phi_"+ std::to_string(t) + ".txt");
+				for(size_t i = 0; i <= plot_x; i++)
+				{
+					real x = x_min_plot + i*dx_plot;
+					real E = -dim1::dirichlet::eval<real,order,1>( x, coeffs.get() + n*stride_t, conf );
+					real phi = dim1::dirichlet::eval<real,order>( x, coeffs.get() + n*stride_t, conf );
+					real rho_electron = eval_rho_electron<real,order>(n, x, coeffs.get(), conf);
+					real rho_ion = eval_rho_ion<real,order>(n, x, coeffs.get(), conf);
+
+					E_file << x << " " << E << std::endl;
+					rho_electron_file << x << " " << rho_electron << std::endl;
+					rho_ion_file << x << " " << rho_ion << std::endl;
+					phi_file << x << " " << phi << std::endl;
+				}
+				*/
 			}
         }
-
     }
-
 }
 
 }

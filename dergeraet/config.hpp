@@ -110,7 +110,7 @@ struct config_t
     constexpr static real q = 1;
     constexpr static real c = 1;
     constexpr static real n_c = 4*M_PI*m_e*c*c/(q*q*lambda*lambda);
-    constexpr static real T_e = 2, T_i = 1;
+    constexpr static real T_e = 2, T_i = 100;
     //constexpr static real K = 1.38*1e-23; // Boltzmann constant
     constexpr static real K = 1; // Boltzmann constant
 
@@ -224,7 +224,7 @@ template <typename real>
 __host__ __device__
 real config_t<real>::f0_ion( real x, real u ) noexcept
 {
-	real us = -2;
+	real us = -1;
 	return initial_plasma_density(x)*boltzmann(u-us,T_i,m_i);
 }
 
