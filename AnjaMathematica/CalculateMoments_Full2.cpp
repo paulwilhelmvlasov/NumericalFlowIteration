@@ -3,9 +3,13 @@
 // Author: Anja Matena (anja.matena@rwth-aachen.de)
 
 #include <cstddef>
+#include <cmath>
+#include <algorithm>
+
+#include <dergeraet/config.hpp>
 
 template <typename real, size_t order>
-void eval_rho( size_t n, size_t l, const real *coeffs, const config_t<real> &conf, real* moments )
+void eval_moments( size_t n, size_t l, const real *coeffs, const config_t<real> &conf, real* moments )
 {
 	const size_t k   = l   / (conf.Nx * conf.Ny); 
 	const size_t tmp = l   % (conf.Nx * conf.Ny);
@@ -65,7 +69,7 @@ void eval_rho( size_t n, size_t l, const real *coeffs, const config_t<real> &con
 		real vnew = v - j_y;
 		real wnew = w - j_z;
 
-		std_dev += f * (pow(unew, 2) + pow(vnew, 2) + pow(wnew, 2));
+		std_dev += f * 1/3 * (pow(unew, 2) + pow(vnew, 2) + pow(wnew, 2));
 	}
 
 	std_dev = sqrt(std_dev / rho); // Standard deviation
@@ -85,42 +89,49 @@ void eval_rho( size_t n, size_t l, const real *coeffs, const config_t<real> &con
 		real vnew = (v - j_y)/std_dev;
 		real wnew = (w - j_z)/std_dev;
 
-		moments[0] += f* 1; 
-		moments[1] += f* 1.5 + (-Power(unew,2) - Power(vnew,2) - Power(wnew,2))/2.; 
-		moments[2] += f* 3.75 - (5*(Power(unew,2) + Power(vnew,2) + Power(wnew,2)))/2. + Power(Power(unew,2) + Power(vnew,2) + Power(wnew,2),2)/4.; 
-		moments[3] += f* vnew; 
-		moments[4] += f* wnew; 
-		moments[5] += f* -unew; 
-		moments[6] += f* vnew*(2.5 + (-Power(unew,2) - Power(vnew,2) - Power(wnew,2))/2.); 
-		moments[7] += f* wnew*(2.5 + (-Power(unew,2) - Power(vnew,2) - Power(wnew,2))/2.); 
-		moments[8] += f* -(unew*(2.5 + (-Power(unew,2) - Power(vnew,2) - Power(wnew,2))/2.)); 
-		moments[9] += f* unew*vnew; 
-		moments[10] += f* vnew*wnew; 
-		moments[11] += f* -Power(unew,2) - Power(vnew,2) + 2*Power(wnew,2); 
-		moments[12] += f* -(unew*wnew); 
-		moments[13] += f* Power(unew,2) - Power(vnew,2); 
-		moments[14] += f* unew*vnew*(3.5 + (-Power(unew,2) - Power(vnew,2) - Power(wnew,2))/2.); 
-		moments[15] += f* vnew*wnew*(3.5 + (-Power(unew,2) - Power(vnew,2) - Power(wnew,2))/2.); 
-		moments[16] += f* (-Power(unew,2) - Power(vnew,2) + 2*Power(wnew,2))*(3.5 + (-Power(unew,2) - Power(vnew,2) - Power(wnew,2))/2.); 
-		moments[17] += f* -(unew*wnew*(3.5 + (-Power(unew,2) - Power(vnew,2) - Power(wnew,2))/2.)); 
-		moments[18] += f* (Power(unew,2) - Power(vnew,2))*(3.5 + (-Power(unew,2) - Power(vnew,2) - Power(wnew,2))/2.); 
-		moments[19] += f* 3*Power(unew,2)*vnew - Power(vnew,3); 
-		moments[20] += f* unew*vnew*wnew; 
-		moments[21] += f* -(Power(unew,2)*vnew) - Power(vnew,3) + 4*vnew*Power(wnew,2); 
-		moments[22] += f* -3*Power(unew,2)*wnew - 3*Power(vnew,2)*wnew + 2*Power(wnew,3); 
-		moments[23] += f* Power(unew,3) + unew*Power(vnew,2) - 4*unew*Power(wnew,2); 
-		moments[24] += f* Power(unew,2)*wnew - Power(vnew,2)*wnew; 
-		moments[25] += f* -Power(unew,3) + 3*unew*Power(vnew,2); 
-		moments[26] += f* Power(unew,3)*vnew - unew*Power(vnew,3); 
-		moments[27] += f* 3*Power(unew,2)*vnew*wnew - Power(vnew,3)*wnew; 
-		moments[28] += f* -(Power(unew,3)*vnew) - unew*Power(vnew,3) + 6*unew*vnew*Power(wnew,2); 
-		moments[29] += f* -3*Power(unew,2)*vnew*wnew - 3*Power(vnew,3)*wnew + 4*vnew*Power(wnew,3); 
-		moments[30] += f* 3*Power(unew,4) + 6*Power(unew,2)*Power(vnew,2) + 3*Power(vnew,4) - 24*Power(unew,2)*Power(wnew,2) - 24*Power(vnew,2)*Power(wnew,2) + 8*Power(wnew,4); 
-		moments[31] += f* 3*Power(unew,3)*wnew + 3*unew*Power(vnew,2)*wnew - 4*unew*Power(wnew,3); 
-		moments[32] += f* -Power(unew,4) + Power(vnew,4) + 6*Power(unew,2)*Power(wnew,2) - 6*Power(vnew,2)*Power(wnew,2); 
-		moments[33] += f* -(Power(unew,3)*wnew) + 3*unew*Power(vnew,2)*wnew; 
-		moments[34] += f* Power(unew,4) - 6*Power(unew,2)*Power(vnew,2) + Power(vnew,4); 
+		if(rho != 0) {
+
+			moments[0] += f/rho * 1; 
+			moments[1] += f/rho * sqrt(0.6666666666666666)*(1.5 - pow(unew,2)/2. - pow(vnew,2)/2. - pow(wnew,2)/2.); 
+			moments[2] += f/rho * sqrt(0.13333333333333333)*(3.75 - (5*pow(unew,2))/2. + pow(unew,4)/4. - (5*pow(vnew,2))/2. + (pow(unew,2)*pow(vnew,2))/2. + pow(vnew,4)/4. - (5*pow(wnew,2))/2. + (pow(unew,2)*pow(wnew,2))/2. + (pow(vnew,2)*pow(wnew,2))/2. + pow(wnew,4)/4.); 
+			moments[3] += f/rho * vnew; 
+			moments[4] += f/rho * wnew; 
+			moments[5] += f/rho * -unew; 
+			moments[6] += f/rho * sqrt(0.4)*((5*vnew)/2. - (pow(unew,2)*vnew)/2. - pow(vnew,3)/2. - (vnew*pow(wnew,2))/2.); 
+			moments[7] += f/rho * sqrt(0.4)*((5*wnew)/2. - (pow(unew,2)*wnew)/2. - (pow(vnew,2)*wnew)/2. - pow(wnew,3)/2.); 
+			moments[8] += f/rho * sqrt(0.4)*((-5*unew)/2. + pow(unew,3)/2. + (unew*pow(vnew,2))/2. + (unew*pow(wnew,2))/2.); 
+			moments[9] += f/rho * unew*vnew; 
+			moments[10] += f/rho * vnew*wnew; 
+			moments[11] += f/rho * (-pow(unew,2) - pow(vnew,2) + 2*pow(wnew,2))/(2.*sqrt(3)); 
+			moments[12] += f/rho * -(unew*wnew); 
+			moments[13] += f/rho * (pow(unew,2) - pow(vnew,2))/2.; 
+			moments[14] += f/rho * sqrt(0.2857142857142857)*((7*unew*vnew)/2. - (pow(unew,3)*vnew)/2. - (unew*pow(vnew,3))/2. - (unew*vnew*pow(wnew,2))/2.); 
+			moments[15] += f/rho * sqrt(0.2857142857142857)*((7*vnew*wnew)/2. - (pow(unew,2)*vnew*wnew)/2. - (pow(vnew,3)*wnew)/2. - (vnew*pow(wnew,3))/2.); 
+			moments[16] += f/rho * ((-7*pow(unew,2))/2. + pow(unew,4)/2. - (7*pow(vnew,2))/2. + pow(unew,2)*pow(vnew,2) + pow(vnew,4)/2. + 7*pow(wnew,2) - (pow(unew,2)*pow(wnew,2))/2. - (pow(vnew,2)*pow(wnew,2))/2. - pow(wnew,4))/sqrt(42); 
+			moments[17] += f/rho * sqrt(0.2857142857142857)*((-7*unew*wnew)/2. + (pow(unew,3)*wnew)/2. + (unew*pow(vnew,2)*wnew)/2. + (unew*pow(wnew,3))/2.); 
+			moments[18] += f/rho * ((7*pow(unew,2))/2. - pow(unew,4)/2. - (7*pow(vnew,2))/2. + pow(vnew,4)/2. - (pow(unew,2)*pow(wnew,2))/2. + (pow(vnew,2)*pow(wnew,2))/2.)/sqrt(14); 
+			moments[19] += f/rho * (3*pow(unew,2)*vnew - pow(vnew,3))/(2.*sqrt(6)); 
+			moments[20] += f/rho * unew*vnew*wnew; 
+			moments[21] += f/rho * (-(pow(unew,2)*vnew) - pow(vnew,3) + 4*vnew*pow(wnew,2))/(2.*sqrt(10)); 
+			moments[22] += f/rho * (-3*pow(unew,2)*wnew - 3*pow(vnew,2)*wnew + 2*pow(wnew,3))/(2.*sqrt(15)); 
+			moments[23] += f/rho * (pow(unew,3) + unew*pow(vnew,2) - 4*unew*pow(wnew,2))/(2.*sqrt(10)); 
+			moments[24] += f/rho * (pow(unew,2)*wnew - pow(vnew,2)*wnew)/2.; 
+			moments[25] += f/rho * (-pow(unew,3) + 3*unew*pow(vnew,2))/(2.*sqrt(6)); 
+			moments[26] += f/rho * (pow(unew,3)*vnew - unew*pow(vnew,3))/(2.*sqrt(3)); 
+			moments[27] += f/rho * (3*pow(unew,2)*vnew*wnew - pow(vnew,3)*wnew)/(2.*sqrt(6)); 
+			moments[28] += f/rho * (-(pow(unew,3)*vnew) - unew*pow(vnew,3) + 6*unew*vnew*pow(wnew,2))/(2.*sqrt(21)); 
+			moments[29] += f/rho * (-3*pow(unew,2)*vnew*wnew - 3*pow(vnew,3)*wnew + 4*vnew*pow(wnew,3))/(2.*sqrt(42)); 
+			moments[30] += f/rho * (3*pow(unew,4) + 6*pow(unew,2)*pow(vnew,2) + 3*pow(vnew,4) - 24*pow(unew,2)*pow(wnew,2) - 24*pow(vnew,2)*pow(wnew,2) + 8*pow(wnew,4))/(8.*sqrt(105)); 
+			moments[31] += f/rho * (3*pow(unew,3)*wnew + 3*unew*pow(vnew,2)*wnew - 4*unew*pow(wnew,3))/(2.*sqrt(42)); 
+			moments[32] += f/rho * (-pow(unew,4) + pow(vnew,4) + 6*pow(unew,2)*pow(wnew,2) - 6*pow(vnew,2)*pow(wnew,2))/(4.*sqrt(21)); 
+			moments[33] += f/rho * (-(pow(unew,3)*wnew) + 3*unew*pow(vnew,2)*wnew)/(2.*sqrt(6)); 
+			moments[34] += f/rho * (pow(unew,4) - 6*pow(unew,2)*pow(vnew,2) + pow(vnew,4))/(8.*sqrt(3)); 
+		}
 	}
-	rho = 1 - du*dv*dw*rho;
-	moments /= rho; 
-}
+	moments[35] = rho; 
+	moments[36] = j_x; 
+	moments[37] = j_y; 
+	moments[38] = j_z; 
+	moments[39] = std_dev; 
+} 
+
