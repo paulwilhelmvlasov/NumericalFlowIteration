@@ -143,8 +143,8 @@ int main () {
   gauss3333333(); 
 
   // gauss444444444();
-  
+
   // Full10();
 
   return 0;
-}
+  }

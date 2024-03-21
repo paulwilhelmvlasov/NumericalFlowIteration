@@ -10,10 +10,10 @@
 NotebookFileLineBreakTest
 NotebookFileLineBreakTest
 NotebookDataPosition[       158,          7]
-NotebookDataLength[    375028,       7109]
-NotebookOptionsPosition[    364694,       6931]
-NotebookOutlinePosition[    365188,       6949]
-CellTagsIndexPosition[    365145,       6946]
+NotebookDataLength[    371877,       7078]
+NotebookOptionsPosition[    361673,       6903]
+NotebookOutlinePosition[    362167,       6921]
+CellTagsIndexPosition[    362124,       6918]
 WindowFrame->Normal*)
 
 (* Beginning of Notebook Content *)
@@ -5732,43 +5732,45 @@ Cell[TextData[{
 Cell[BoxData[
  RowBox[{
   RowBox[{
-   RowBox[{"generatefFile", "[", 
-    RowBox[{"theory_", ",", "filename_"}], "]"}], " ", ":=", 
-   RowBox[{"Block", "[", 
-    RowBox[{
-     RowBox[{"{", 
-      RowBox[{
-      "file", ",", "sText", ",", " ", "IDXset", ",", "idx", ",", "NN", ",", 
-       "a", ",", "l", ",", " ", "factor"}], "}"}], ",", "\[IndentingNewLine]", 
+   RowBox[{
+    RowBox[{"generatefFile", "[", 
+     RowBox[{"theory_", ",", "filename_"}], "]"}], " ", ":=", 
+    RowBox[{"Block", "[", 
      RowBox[{
-      RowBox[{"If", "[", 
+      RowBox[{"{", 
        RowBox[{
-        RowBox[{"FileExistsQ", "[", "filename", "]"}], ",", " ", 
-        RowBox[{"DeleteFile", "[", "filename", "]"}]}], "\[IndentingNewLine]",
-        "]"}], ";", "\[IndentingNewLine]", 
-      RowBox[{"file", "=", 
-       RowBox[{"File", "[", 
-        RowBox[{"CreateFile", "[", "filename", "]"}], "]"}]}], ";", 
-      "\[IndentingNewLine]", "\[IndentingNewLine]", 
+       "file", ",", "sText", ",", " ", "IDXset", ",", "idx", ",", "NN", ",", 
+        "a", ",", "l", ",", " ", "factor"}], "}"}], ",", 
+      "\[IndentingNewLine]", 
       RowBox[{
-      "sText", "=", 
-       "\"\<// This code has been generated automatically using the \
+       RowBox[{"If", "[", 
+        RowBox[{
+         RowBox[{"FileExistsQ", "[", "filename", "]"}], ",", " ", 
+         RowBox[{"DeleteFile", "[", "filename", "]"}]}], 
+        "\[IndentingNewLine]", "]"}], ";", "\[IndentingNewLine]", 
+       RowBox[{"file", "=", 
+        RowBox[{"File", "[", 
+         RowBox[{"CreateFile", "[", "filename", "]"}], "]"}]}], ";", 
+       "\[IndentingNewLine]", "\[IndentingNewLine]", 
+       RowBox[{
+       "sText", "=", 
+        "\"\<// This code has been generated automatically using the \
 Mathematica file C++CodeGenerator.nb\n// This file calculates moments from a \
 distribution\n// Author: Anja Matena (anja.matena@rwth-aachen.de)\n\n#include \
-<cstddef>\n#include <cmath>\n#include <algorithm>\n#include <vector>\n\n\
-#include <dergeraet/config.hpp>\n\ntemplate <typename real, size_t order>\n\
-void eval_moments( size_t n, size_t l, const real *coeffs, const \
-config_t<real> &conf, real* moments )\n{\n\tconst size_t k   = l   / (conf.Nx \
-* conf.Ny); \n\tconst size_t tmp = l   % (conf.Nx * conf.Ny);\n\tconst size_t \
-j   = tmp / conf.Nx;\n\tconst size_t i   = tmp % conf.Nx;\n\n\tconst real x = \
-conf.x_min + i*conf.dx;\n\tconst real y = conf.y_min + j*conf.dy;\n\tconst \
-real z = conf.z_min + k*conf.dz;\n\n\tconst real du = (conf.u_max-conf.u_min) \
-/ conf.Nu; \n\tconst real dv = (conf.v_max-conf.v_min) / conf.Nv;\n\tconst \
-real dw = (conf.w_max-conf.w_min) / conf.Nw;\n\n\tconst real u_min = \
-conf.u_min + 0.5*du;\n\tconst real v_min = conf.v_min + 0.5*dv;\n\tconst real \
-w_min = conf.w_min + 0.5*dw;\n\n\treal rho = 0;\n\treal j_x = 0;\n\treal j_y \
-= 0;\n\treal j_z = 0;\n\treal std_dev = 0;\n\n\t\
-std::vector<std::vector<std::vector<real>>> f(conf.Nu, \
+<cstddef>\n#include <cmath>\n#include <math.h>\n#include <algorithm>\n\
+#include <vector>\n\n#include <dergeraet/config.hpp>\n\ntemplate <typename \
+real, size_t order>\nvoid eval_moments( size_t n, size_t l, const real \
+*coeffs, const config_t<real> &conf, real* moments )\n{\n\tconst size_t k   = \
+l   / (conf.Nx * conf.Ny); \n\tconst size_t tmp = l   % (conf.Nx * conf.Ny);\n\
+\tconst size_t j   = tmp / conf.Nx;\n\tconst size_t i   = tmp % conf.Nx;\n\n\t\
+const real x = conf.x_min + i*conf.dx;\n\tconst real y = conf.y_min + \
+j*conf.dy;\n\tconst real z = conf.z_min + k*conf.dz;\n\n\tconst real du = \
+(conf.u_max-conf.u_min) / conf.Nu; \n\tconst real dv = \
+(conf.v_max-conf.v_min) / conf.Nv;\n\tconst real dw = (conf.w_max-conf.w_min) \
+/ conf.Nw;\n\n\tconst real u_min = conf.u_min + 0.5*du;\n\tconst real v_min = \
+conf.v_min + 0.5*dv;\n\tconst real w_min = conf.w_min + 0.5*dw;\n\n\treal rho \
+= 0;\n\treal j_x = 0;\n\treal j_y = 0;\n\treal j_z = 0;\n\treal std_dev = 0;\n\
+\n\tstd::vector<std::vector<std::vector<real>>> f(conf.Nu, \
 std::vector<std::vector<real>>(conf.Nv, std::vector<real>(conf.Nw)));\n\n\t\
 for ( size_t kk = 0; kk < conf.Nw; ++kk )\n\tfor ( size_t jj = 0; jj < \
 conf.Nv; ++jj )\n\tfor ( size_t ii = 0; ii < conf.Nu; ++ii )\n\t{\n\t\treal u \
@@ -5782,105 +5784,174 @@ size_t kk = 0; kk < conf.Nw; ++kk )\n\tfor ( size_t jj = 0; jj < conf.Nv; \
 \treal unew = u_min + ii*du - j_x;\n\t\treal vnew = v_min + jj*dv - j_y;\n\t\t\
 real wnew = w_min + kk*dw - j_z;\n\n\t\tstd_dev += f[ii][jj][kk] * 1/3 * \
 (pow(unew, 2) + pow(vnew, 2) + pow(wnew, 2));\n\t}\n\n\tstd_dev = \
-sqrt(std_dev / rho); // Standard deviation\n\n\t// Calculate moments\n\tfor ( \
-size_t kk = 0; kk < conf.Nw; ++kk )\n\tfor ( size_t jj = 0; jj < conf.Nv; \
-++jj )\n\tfor ( size_t ii = 0; ii < conf.Nu; ++ii )\n\t{\n\t\t// std_dev = 1\n\
-\t\treal unew = (u_min + ii*du - j_x)/std_dev;\n\t\treal vnew = (v_min + \
-jj*dv - j_y)/std_dev;\n\t\treal wnew = (w_min + kk*dw - j_z)/std_dev;\n\n\t\t\
-if(rho < pow(10,-6)) {\n\t\t\tfor (int i = 0; i < \>\""}], ";", "\n", "\n", 
-      RowBox[{"IDXset", "=", 
-       RowBox[{"generateIDXset", "[", "theory", "]"}]}], ";", "\n", 
-      RowBox[{"sText", " ", "=", " ", 
-       RowBox[{"sText", " ", "<>", " ", 
-        RowBox[{"ToString", "[", 
-         RowBox[{"Length", "[", "IDXset", "]"}], "]"}], " ", "<>", " ", 
-        "\"\<; i++) {\n\t\t\t\tmoments[i] = 0;\n\t\t\t}\n\t\t} else {\n\n\
-\>\""}]}], ";", "\[IndentingNewLine]", 
-      RowBox[{"Do", "[", "\[IndentingNewLine]", 
-       RowBox[{
+sqrt(std_dev / rho); // Standard deviation\n\n\tif(rho < pow(10,-6)) {\n\t\t\
+for (int i = 0; i < \>\""}], ";", "\n", "\n", 
+       RowBox[{"IDXset", "=", 
+        RowBox[{"generateIDXset", "[", "theory", "]"}]}], ";", "\n", 
+       RowBox[{"sText", " ", "=", " ", 
+        RowBox[{"sText", " ", "<>", " ", 
+         RowBox[{"ToString", "[", 
+          RowBox[{"Length", "[", "IDXset", "]"}], "]"}], " ", "<>", " ", 
+         "\"\<; i++) {\n\t\t\tmoments[i] = 0;\n\t\t}\n\t} else {\n\n\t// \
+Calculate moments\n\tfor ( size_t kk = 0; kk < conf.Nw; ++kk )\n\tfor ( \
+size_t jj = 0; jj < conf.Nv; ++jj )\n\tfor ( size_t ii = 0; ii < conf.Nu; \
+++ii )\n\t{\n\t\t// std_dev = 1\n\t\treal unew = (u_min + ii*du - \
+j_x)/std_dev;\n\t\treal vnew = (v_min + jj*dv - j_y)/std_dev;\n\t\treal wnew \
+= (w_min + kk*dw - j_z)/std_dev;\n\n\n\>\""}]}], ";", "\[IndentingNewLine]", 
+       RowBox[{"Do", "[", "\[IndentingNewLine]", 
         RowBox[{
          RowBox[{
-          RowBox[{"{", 
-           RowBox[{"NN", ",", "a", ",", "l"}], "}"}], "=", 
-          RowBox[{"IDXset", "[", 
-           RowBox[{"[", "idx", "]"}], "]"}]}], ";", "\[IndentingNewLine]", 
-         RowBox[{"factor", " ", "=", " ", 
-          RowBox[{"StringReplace", "[", 
-           RowBox[{
+          RowBox[{
+           RowBox[{"{", 
+            RowBox[{"NN", ",", "a", ",", "l"}], "}"}], "=", 
+           RowBox[{"IDXset", "[", 
+            RowBox[{"[", "idx", "]"}], "]"}]}], ";", "\[IndentingNewLine]", 
+          RowBox[{"factor", " ", "=", " ", 
+           RowBox[{"StringReplace", "[", 
+            RowBox[{
+             RowBox[{"ToString", "[", 
+              RowBox[{"CForm", "[", 
+               RowBox[{"N", "[", 
+                RowBox[{"\[Psi]NormalizedA", "[", 
+                 RowBox[{
+                 "unew", ",", "vnew", ",", "wnew", ",", "NN", ",", "l", ",", 
+                  "a"}], "]"}], "]"}], "]"}], "]"}], ",", " ", 
+             RowBox[{"\"\<Power\>\"", " ", "->", " ", "\"\<pow\>\""}]}], 
+            "]"}]}], ";", "\[IndentingNewLine]", 
+          RowBox[{"sText", "=", 
+           RowBox[{"sText", "<>", "\"\<\\t\\t\\tmoments[\>\"", "<>", 
             RowBox[{"ToString", "[", 
-             RowBox[{"CForm", "[", 
-              RowBox[{"N", "[", 
-               RowBox[{"\[Psi]NormalizedA", "[", 
-                RowBox[{
-                "unew", ",", "vnew", ",", "wnew", ",", "NN", ",", "l", ",", 
-                 "a"}], "]"}], "]"}], "]"}], "]"}], ",", " ", 
-            RowBox[{"\"\<Power\>\"", " ", "->", " ", "\"\<pow\>\""}]}], 
-           "]"}]}], ";", "\[IndentingNewLine]", 
-         RowBox[{"sText", "=", 
-          RowBox[{"sText", "<>", "\"\<\\t\\t\\tmoments[\>\"", "<>", 
-           RowBox[{"ToString", "[", 
-            RowBox[{"idx", "-", "1"}], "]"}], "<>", 
-           "\"\<] += f[ii][jj][kk]/rho * \>\"", "<>", " ", "factor", "<>", 
-           "\"\<; \\n\>\""}]}], ";"}], "\[IndentingNewLine]", ",", 
-        RowBox[{"{", 
-         RowBox[{"idx", ",", 
-          RowBox[{"Length", "[", "IDXset", "]"}]}], "}"}]}], "]"}], ";", 
-      "\[IndentingNewLine]", "\[IndentingNewLine]", "\[IndentingNewLine]", 
-      RowBox[{"sText", " ", "=", " ", 
-       RowBox[{"sText", " ", "<>", " ", "\"\<\\t\\t}\n\t}\n\>\""}]}], ";", 
-      "\[IndentingNewLine]", 
-      RowBox[{"sText", "=", 
-       RowBox[{"sText", "<>", "\"\<\\tmoments[\>\"", "<>", 
-        RowBox[{"ToString", "[", 
-         RowBox[{"Length", "[", "IDXset", "]"}], "]"}], "<>", 
-        "\"\<] = rho\>\"", " ", "<>", "\"\<; \\n\>\""}]}], ";", 
-      "\[IndentingNewLine]", 
-      RowBox[{"sText", "=", 
-       RowBox[{"sText", "<>", "\"\<\\tmoments[\>\"", "<>", 
-        RowBox[{"ToString", "[", 
+             RowBox[{"idx", "-", "1"}], "]"}], "<>", 
+            "\"\<] += f[ii][jj][kk]/rho * \>\"", "<>", " ", 
+            RowBox[{"ToString", "[", "factor", "]"}], "<>", 
+            "\"\<; \\n\>\""}]}], ";"}], "\[IndentingNewLine]", ",", 
+         RowBox[{"{", 
+          RowBox[{"idx", ",", 
+           RowBox[{"Length", "[", "IDXset", "]"}]}], "}"}]}], "]"}], ";", 
+       "\[IndentingNewLine]", "\[IndentingNewLine]", "\[IndentingNewLine]", 
+       RowBox[{"sText", " ", "=", " ", 
+        RowBox[{"sText", " ", "<>", " ", "\"\<\\t\\t}\n\t}\n\>\""}]}], ";", 
+       "\[IndentingNewLine]", 
+       RowBox[{"sText", "=", 
+        RowBox[{"sText", "<>", "\"\<\\tmoments[\>\"", "<>", 
+         RowBox[{"ToString", "[", 
+          RowBox[{"Length", "[", "IDXset", "]"}], "]"}], "<>", 
+         "\"\<] = rho\>\"", " ", "<>", "\"\<; \\n\>\""}]}], ";", 
+       "\[IndentingNewLine]", 
+       RowBox[{"sText", "=", 
+        RowBox[{"sText", "<>", "\"\<\\tmoments[\>\"", "<>", 
+         RowBox[{"ToString", "[", 
+          RowBox[{
+           RowBox[{"Length", "[", "IDXset", "]"}], "+", "1"}], "]"}], "<>", 
+         "\"\<] = j_x\>\"", " ", "<>", "\"\<; \\n\>\""}]}], ";", 
+       "\[IndentingNewLine]", 
+       RowBox[{"sText", "=", 
+        RowBox[{"sText", "<>", "\"\<\\tmoments[\>\"", "<>", 
+         RowBox[{"ToString", "[", 
+          RowBox[{
+           RowBox[{"Length", "[", "IDXset", "]"}], "+", "2"}], "]"}], " ", 
+         "<>", "\"\<] = j_y\>\"", " ", "<>", "\"\<; \\n\>\""}]}], ";", 
+       "\[IndentingNewLine]", 
+       RowBox[{"sText", "=", 
+        RowBox[{"sText", "<>", "\"\<\\tmoments[\>\"", "<>", 
+         RowBox[{"ToString", "[", 
+          RowBox[{
+           RowBox[{"Length", "[", "IDXset", "]"}], "+", "3"}], "]"}], " ", 
+         "<>", "\"\<] = j_z\>\"", " ", "<>", "\"\<; \\n\>\""}]}], ";", 
+       "\[IndentingNewLine]", 
+       RowBox[{"sText", "=", 
+        RowBox[{"sText", "<>", "\"\<\\tmoments[\>\"", "<>", 
+         RowBox[{"ToString", "[", 
+          RowBox[{
+           RowBox[{"Length", "[", "IDXset", "]"}], "+", "4"}], "]"}], " ", 
+         "<>", "\"\<] = std_dev\>\"", " ", "<>", "\"\<; \\n\>\""}]}], ";", 
+       "\[IndentingNewLine]", 
+       RowBox[{"sText", " ", "=", " ", 
+        RowBox[{"sText", " ", "<>", " ", "\"\<} \n\>\""}]}], ";", 
+       "\[IndentingNewLine]", "\[IndentingNewLine]", 
+       RowBox[{"sText", " ", "=", " ", 
+        RowBox[{
+        "sText", " ", "<>", " ", 
+         "\"\<template <typename real, size_t order>\nreal pi_inverse( real \
+u, real v, real w, real* moments )\n{\n\treal value = 0;\n\tu = u * \>\""}]}],
+        ";", "\[IndentingNewLine]", "\[IndentingNewLine]", 
+       RowBox[{"sText", "=", 
+        RowBox[{"sText", "<>", "\"\<moments[\>\"", "<>", 
+         RowBox[{"ToString", "[", 
+          RowBox[{
+           RowBox[{"Length", "[", "IDXset", "]"}], "+", "4"}], "]"}], " ", 
+         "<>", "\"\<] + \>\"", " ", "<>", " ", "\"\<moments[\>\"", " ", "<>", 
+         RowBox[{"ToString", "[", 
+          RowBox[{
+           RowBox[{"Length", "[", "IDXset", "]"}], "+", "1"}], "]"}], "<>", 
+         "\"\<]\>\"", " ", "<>", "\"\<; \\n\>\""}]}], ";", 
+       "\[IndentingNewLine]", 
+       RowBox[{"sText", "=", 
+        RowBox[{"sText", "<>", "\"\<\\tv = v * moments[\>\"", "<>", 
+         RowBox[{"ToString", "[", 
+          RowBox[{
+           RowBox[{"Length", "[", "IDXset", "]"}], "+", "4"}], "]"}], " ", 
+         "<>", "\"\<] + \>\"", " ", "<>", " ", "\"\<moments[\>\"", " ", "<>", 
+         RowBox[{"ToString", "[", 
+          RowBox[{
+           RowBox[{"Length", "[", "IDXset", "]"}], "+", "2"}], "]"}], "<>", 
+         "\"\<]\>\"", " ", "<>", "\"\<; \\n\>\""}]}], ";", 
+       "\[IndentingNewLine]", 
+       RowBox[{"sText", "=", 
+        RowBox[{"sText", "<>", "\"\<\\tw = w * moments[\>\"", "<>", 
+         RowBox[{"ToString", "[", 
+          RowBox[{
+           RowBox[{"Length", "[", "IDXset", "]"}], "+", "4"}], "]"}], " ", 
+         "<>", "\"\<] + \>\"", " ", "<>", " ", "\"\<moments[\>\"", " ", "<>", 
+         RowBox[{"ToString", "[", 
+          RowBox[{
+           RowBox[{"Length", "[", "IDXset", "]"}], "+", "3"}], "]"}], "<>", 
+         "\"\<]\>\"", " ", "<>", "\"\<; \\n\>\""}]}], ";", 
+       "\[IndentingNewLine]", 
+       RowBox[{"Do", "[", "\[IndentingNewLine]", 
+        RowBox[{
          RowBox[{
-          RowBox[{"Length", "[", "IDXset", "]"}], "+", "1"}], "]"}], "<>", 
-        "\"\<] = j_x\>\"", " ", "<>", "\"\<; \\n\>\""}]}], ";", 
-      "\[IndentingNewLine]", 
-      RowBox[{"sText", "=", 
-       RowBox[{"sText", "<>", "\"\<\\tmoments[\>\"", "<>", 
-        RowBox[{"ToString", "[", 
-         RowBox[{
-          RowBox[{"Length", "[", "IDXset", "]"}], "+", "2"}], "]"}], " ", 
-        "<>", "\"\<] = j_y\>\"", " ", "<>", "\"\<; \\n\>\""}]}], ";", 
-      "\[IndentingNewLine]", 
-      RowBox[{"sText", "=", 
-       RowBox[{"sText", "<>", "\"\<\\tmoments[\>\"", "<>", 
-        RowBox[{"ToString", "[", 
-         RowBox[{
-          RowBox[{"Length", "[", "IDXset", "]"}], "+", "3"}], "]"}], " ", 
-        "<>", "\"\<] = j_z\>\"", " ", "<>", "\"\<; \\n\>\""}]}], ";", 
-      "\[IndentingNewLine]", 
-      RowBox[{"sText", "=", 
-       RowBox[{"sText", "<>", "\"\<\\tmoments[\>\"", "<>", 
-        RowBox[{"ToString", "[", 
-         RowBox[{
-          RowBox[{"Length", "[", "IDXset", "]"}], "+", "4"}], "]"}], " ", 
-        "<>", "\"\<] = std_dev\>\"", " ", "<>", "\"\<; \\n\>\""}]}], ";", 
-      "\[IndentingNewLine]", 
-      RowBox[{"sText", " ", "=", " ", 
-       RowBox[{"sText", " ", "<>", " ", "\"\<} \n\>\""}]}], ";", 
-      "\[IndentingNewLine]", "\[IndentingNewLine]", 
-      RowBox[{"StringTrim", "[", "sText", "]"}], " ", 
-      RowBox[{"(*", 
-       RowBox[{"<>", " ", "\"\<\\n\>\""}], "*)"}], ";", "\[IndentingNewLine]", 
-      RowBox[{"WriteLine", "[", 
-       RowBox[{"file", ",", "sText"}], "]"}], ";", "\[IndentingNewLine]", 
-      RowBox[{"Close", "[", "file", "]"}], ";", "\[IndentingNewLine]", 
-      "\[IndentingNewLine]", "sText"}]}], "\[IndentingNewLine]", 
-    RowBox[{"(*", 
-     RowBox[{
-      RowBox[{"FilePrint", "[", "file", "]"}], ";"}], "*)"}], 
-    "\[IndentingNewLine]", 
-    RowBox[{"(*", 
-     RowBox[{
-      RowBox[{"DeleteFile", "[", "file", "]"}], ";"}], "*)"}], 
-    "\[IndentingNewLine]", "]"}]}], ";"}]], "Input",
+          RowBox[{
+           RowBox[{"{", 
+            RowBox[{"NN", ",", "a", ",", "l"}], "}"}], "=", 
+           RowBox[{"IDXset", "[", 
+            RowBox[{"[", "idx", "]"}], "]"}]}], ";", "\[IndentingNewLine]", 
+          RowBox[{"factor", " ", "=", " ", 
+           RowBox[{"StringReplace", "[", 
+            RowBox[{
+             RowBox[{"ToString", "[", 
+              RowBox[{"CForm", "[", 
+               RowBox[{"N", "[", 
+                RowBox[{"\[Psi]NormalizedA", "[", 
+                 RowBox[{
+                 "u", ",", "v", ",", "w", ",", "NN", ",", "l", ",", "a"}], 
+                 "]"}], "]"}], "]"}], "]"}], ",", " ", 
+             RowBox[{"\"\<Power\>\"", " ", "->", " ", "\"\<pow\>\""}]}], 
+            "]"}]}], ";", "\[IndentingNewLine]", 
+          RowBox[{"sText", "=", 
+           RowBox[{"sText", "<>", "\"\<\\tvalue += moments[\>\"", "<>", 
+            RowBox[{"ToString", "[", 
+             RowBox[{"idx", "-", "1"}], "]"}], "<>", 
+            "\"\<] * exp(-(pow(u,2) + pow(v,2) + pow(w,2)) /2) * \>\"", "<>", 
+            " ", 
+            RowBox[{"ToString", "[", "factor", "]"}], "<>", 
+            "\"\<; \\n\>\""}]}], ";"}], "\[IndentingNewLine]", ",", 
+         RowBox[{"{", 
+          RowBox[{"idx", ",", 
+           RowBox[{"Length", "[", "IDXset", "]"}]}], "}"}]}], "]"}], ";", 
+       "\[IndentingNewLine]", "\[IndentingNewLine]", 
+       RowBox[{"sText", " ", "=", " ", 
+        RowBox[{"sText", " ", "<>", " ", "\"\<\\treturn value;\n}\n\>\""}]}], 
+       ";", "\[IndentingNewLine]", "\[IndentingNewLine]", 
+       "\[IndentingNewLine]", "\[IndentingNewLine]", 
+       RowBox[{"StringTrim", "[", "sText", "]"}], " ", 
+       RowBox[{"(*", 
+        RowBox[{"<>", " ", "\"\<\\n\>\""}], "*)"}], ";", 
+       "\[IndentingNewLine]", 
+       RowBox[{"WriteLine", "[", 
+        RowBox[{"file", ",", "sText"}], "]"}], ";", "\[IndentingNewLine]", 
+       RowBox[{"Close", "[", "file", "]"}], ";"}]}], "\[IndentingNewLine]", 
+     "]"}]}], ";"}], "\[IndentingNewLine]", "\[IndentingNewLine]"}]], "Input",
  CellChangeTimes->{{3.791192448966908*^9, 3.791192462956981*^9}, {
    3.7911924986761436`*^9, 3.79119260068135*^9}, {3.791192642227992*^9, 
    3.791192689341468*^9}, {3.791192741982069*^9, 3.791192774138753*^9}, {
@@ -5978,9 +6049,30 @@ if(rho < pow(10,-6)) {\n\t\t\tfor (int i = 0; i < \>\""}], ";", "\n", "\n",
    3.9198596166885233`*^9, 3.919859711402218*^9}, {3.919914285625731*^9, 
    3.919914325913528*^9}, {3.919915100408553*^9, 3.91991516877215*^9}, {
    3.919915452939093*^9, 3.9199154553155737`*^9}, {3.919915577581299*^9, 
-   3.919915581063011*^9}, 3.919920374002461*^9},
- CellLabel->
-  "In[132]:=",ExpressionUUID->"9f46df57-afea-4594-86d2-7b70d901695c"]
+   3.919915581063011*^9}, 3.919920374002461*^9, {3.919937979301065*^9, 
+   3.919937987730764*^9}, {3.919938115161992*^9, 3.9199381160461273`*^9}, {
+   3.919938200678624*^9, 3.9199382287382727`*^9}, {3.919938324372979*^9, 
+   3.919938344562367*^9}, 3.919938600503265*^9, {3.919939489274756*^9, 
+   3.9199395167457323`*^9}, {3.9199395478695107`*^9, 3.919939577797223*^9}, {
+   3.919939694080757*^9, 3.919939720406781*^9}, {3.919939801732296*^9, 
+   3.919939828841666*^9}, {3.919939983889243*^9, 3.919939999750669*^9}, {
+   3.919940580975403*^9, 3.919940600265295*^9}, {3.919940699755835*^9, 
+   3.919940702361093*^9}, {3.919940921342317*^9, 3.919940929259653*^9}, 
+   3.91994097719821*^9, {3.9199410192008667`*^9, 3.9199410921062403`*^9}, 
+   3.919941130787621*^9, {3.919941276125505*^9, 3.9199413681498127`*^9}, {
+   3.9199414411948977`*^9, 3.919941469528604*^9}, {3.9199416013712463`*^9, 
+   3.9199416017025433`*^9}, {3.919941661623897*^9, 3.919941674173237*^9}, {
+   3.919941713751112*^9, 3.919941734657866*^9}, {3.919941791727541*^9, 
+   3.919941900814912*^9}, {3.919942518266534*^9, 3.919942568203952*^9}, {
+   3.919942615670233*^9, 3.919942760584819*^9}, {3.919942837565144*^9, 
+   3.9199428431603107`*^9}, {3.9199428795225143`*^9, 3.919942914525552*^9}, {
+   3.9199458086012983`*^9, 3.9199458398600607`*^9}, {3.919945889210988*^9, 
+   3.919945893728558*^9}, 3.919946080450506*^9, {3.919946121654254*^9, 
+   3.919946137056237*^9}, {3.919949117797736*^9, 3.919949122978168*^9}, {
+   3.919949293003189*^9, 3.9199492998733*^9}, {3.919949742900908*^9, 
+   3.919949750073398*^9}, {3.9199497893631268`*^9, 
+   3.91994981860984*^9}},ExpressionUUID->"9f46df57-afea-4594-86d2-\
+7b70d901695c"]
 }, Open  ]],
 
 Cell[CellGroupData[{
@@ -6014,7 +6106,7 @@ Cell[BoxData[
  RowBox[{"NotebookDirectory", "[", "]"}]], "Input",
  CellChangeTimes->{{3.8284508427776756`*^9, 3.828450851415454*^9}},
  CellLabel->
-  "In[133]:=",ExpressionUUID->"8e2e207c-7f57-4463-a93c-65400ce810de"],
+  "In[212]:=",ExpressionUUID->"8e2e207c-7f57-4463-a93c-65400ce810de"],
 
 Cell[BoxData["\<\"/Users/amat/Documents/Privat/Uni/Semester5/ACoM/dergeraet/\
 AnjaMathematica/\"\>"], "Output",
@@ -6053,9 +6145,11 @@ AnjaMathematica/\"\>"], "Output",
    3.91917280098927*^9, 3.919173159482505*^9, 3.919173190927975*^9, 
    3.919173604718264*^9, 3.919174983384439*^9, 3.919851267138015*^9, 
    3.9198597361206207`*^9, 3.919915197149961*^9, 3.919915461834695*^9, 
-   3.919915588083703*^9, 3.919920412081986*^9},
+   3.919915588083703*^9, 3.919920412081986*^9, 3.919945844844841*^9, 
+   3.919946172588357*^9, 3.91994625774442*^9, 3.9199492511901197`*^9, 
+   3.9199493468544483`*^9},
  CellLabel->
-  "Out[133]=",ExpressionUUID->"dfc2948b-a153-4661-8b50-1900cdb16814"]
+  "Out[212]=",ExpressionUUID->"64c547ce-5fb3-4aa2-aff1-37b7839f0955"]
 }, Open  ]],
 
 Cell[CellGroupData[{
@@ -6066,7 +6160,7 @@ Cell[BoxData[
   3.917004640217662*^9, 3.917004641723925*^9}, {3.917838560219998*^9, 
   3.91783856439988*^9}},
  CellLabel->
-  "In[134]:=",ExpressionUUID->"784352eb-3dca-4e57-838c-2c9676eb8e74"],
+  "In[213]:=",ExpressionUUID->"784352eb-3dca-4e57-838c-2c9676eb8e74"],
 
 Cell[BoxData["\<\"CalculateMoments\"\>"], "Output",
  CellChangeTimes->{
@@ -6105,12 +6199,12 @@ Cell[BoxData["\<\"CalculateMoments\"\>"], "Output",
    3.919172801013914*^9, 3.9191731595113087`*^9, 3.919173190963548*^9, 
    3.919173604744301*^9, 3.919174983415597*^9, 3.919851267179223*^9, 
    3.919859736158121*^9, 3.919915197172247*^9, 3.919915461858835*^9, 
-   3.91991558810892*^9, 3.919920412106287*^9},
+   3.91991558810892*^9, 3.919920412106287*^9, 3.91994584487024*^9, 
+   3.9199461726097927`*^9, 3.9199462577706738`*^9, 3.919949251214964*^9, 
+   3.919949346879284*^9},
  CellLabel->
-  "Out[134]=",ExpressionUUID->"8bb3914a-46a0-4b06-88a7-4ebe8f9cf5a4"]
+  "Out[213]=",ExpressionUUID->"01182fb9-93cb-4a94-963f-f156f633fe53"]
 }, Open  ]],
-
-Cell[CellGroupData[{
 
 Cell[BoxData[{
  RowBox[{
@@ -6136,135 +6230,7 @@ Cell[BoxData[{
    3.918031785433972*^9, 3.918031826774856*^9, {3.918727534740903*^9, 
    3.918727558683372*^9}},
  CellLabel->
-  "In[135]:=",ExpressionUUID->"99fb9024-c3be-409e-80b5-aad10256776e"],
-
-Cell[BoxData["\<\"// This code has been generated automatically using the \
-Mathematica file C++CodeGenerator.nb\\n// This file calculates moments from a \
-distribution\\n// Author: Anja Matena \
-(anja.matena@rwth-aachen.de)\\n\\n#include <cstddef>\\n#include \
-<cmath>\\n#include <algorithm>\\n#include <vector>\\n\\n#include \
-<dergeraet/config.hpp>\\n\\ntemplate <typename real, size_t order>\\nvoid \
-eval_moments( size_t n, size_t l, const real *coeffs, const config_t<real> \
-&conf, real* moments )\\n{\\n\\tconst size_t k   = l   / (conf.Nx * conf.Ny); \
-\\n\\tconst size_t tmp = l   % (conf.Nx * conf.Ny);\\n\\tconst size_t j   = \
-tmp / conf.Nx;\\n\\tconst size_t i   = tmp % conf.Nx;\\n\\n\\tconst real x = \
-conf.x_min + i*conf.dx;\\n\\tconst real y = conf.y_min + \
-j*conf.dy;\\n\\tconst real z = conf.z_min + k*conf.dz;\\n\\n\\tconst real du \
-= (conf.u_max-conf.u_min) / conf.Nu; \\n\\tconst real dv = \
-(conf.v_max-conf.v_min) / conf.Nv;\\n\\tconst real dw = \
-(conf.w_max-conf.w_min) / conf.Nw;\\n\\n\\tconst real u_min = conf.u_min + \
-0.5*du;\\n\\tconst real v_min = conf.v_min + 0.5*dv;\\n\\tconst real w_min = \
-conf.w_min + 0.5*dw;\\n\\n\\treal rho = 0;\\n\\treal j_x = 0;\\n\\treal j_y = \
-0;\\n\\treal j_z = 0;\\n\\treal std_dev = \
-0;\\n\\n\\tstd::vector<std::vector<std::vector<real>>> f(conf.Nu, \
-std::vector<std::vector<real>>(conf.Nv, \
-std::vector<real>(conf.Nw)));\\n\\n\\tfor ( size_t kk = 0; kk < conf.Nw; ++kk \
-)\\n\\tfor ( size_t jj = 0; jj < conf.Nv; ++jj )\\n\\tfor ( size_t ii = 0; ii \
-< conf.Nu; ++ii )\\n\\t{\\n\\t\\treal u = u_min + ii*du;\\n\\t\\treal v = \
-v_min + jj*dv;\\n\\t\\treal w = w_min + kk*dw;\\n\\t\\treal func = \
-eval_f<real,order>( n, x, y, z, u, v, w, coeffs, conf );\\n\\n\\t\\trho += \
-func;\\n\\t\\tj_x += func * u;\\n\\t\\tj_y += func * v;\\n\\t\\tj_z += func * \
-w;\\n\\n\\t\\tf[ii][jj][kk] = func;\\n\\t}\\n\\n\\t// Calculate \
-vmean\\n\\tj_x /= rho;\\n\\tj_y /= rho;\\n\\tj_z /= rho;\\n\\n\\t// Calculate \
-standard deviation\\n\\tfor ( size_t kk = 0; kk < conf.Nw; ++kk )\\n\\tfor ( \
-size_t jj = 0; jj < conf.Nv; ++jj )\\n\\tfor ( size_t ii = 0; ii < conf.Nu; \
-++ii )\\n\\t{\\n\\t\\t// vmean = 0\\n\\t\\treal unew = u_min + ii*du - \
-j_x;\\n\\t\\treal vnew = v_min + jj*dv - j_y;\\n\\t\\treal wnew = w_min + \
-kk*dw - j_z;\\n\\n\\t\\tstd_dev += f[ii][jj][kk] * 1/3 * (pow(unew, 2) + \
-pow(vnew, 2) + pow(wnew, 2));\\n\\t}\\n\\n\\tstd_dev = sqrt(std_dev / rho); \
-// Standard deviation\\n\\n\\t// Calculate moments\\n\\tfor ( size_t kk = 0; \
-kk < conf.Nw; ++kk )\\n\\tfor ( size_t jj = 0; jj < conf.Nv; ++jj )\\n\\tfor \
-( size_t ii = 0; ii < conf.Nu; ++ii )\\n\\t{\\n\\t\\t// std_dev = \
-1\\n\\t\\treal unew = (u_min + ii*du - j_x)/std_dev;\\n\\t\\treal vnew = \
-(v_min + jj*dv - j_y)/std_dev;\\n\\t\\treal wnew = (w_min + kk*dw - \
-j_z)/std_dev;\\n\\n\\t\\tif(rho < pow(10,-6)) {\\n\\t\\t\\tfor (int i = 0; i \
-< 35; i++) {\\n\\t\\t\\t\\tmoments[i] = 0;\\n\\t\\t\\t}\\n\\t\\t} else \
-{\\n\\n\\t\\t\\tmoments[0] += f[ii][jj][kk]/rho * 1.; \\n\\t\\t\\tmoments[1] \
-+= f[ii][jj][kk]/rho * 0.816496580927726*(1.5 - 0.5*pow(unew,2) - \
-0.5*pow(vnew,2) - 0.5*pow(wnew,2)); \\n\\t\\t\\tmoments[2] += \
-f[ii][jj][kk]/rho * 0.3651483716701107*(3.75 - 2.5*pow(unew,2) + \
-0.25*pow(unew,4) - 2.5*pow(vnew,2) + 0.5*pow(unew,2)*pow(vnew,2) + \
-0.25*pow(vnew,4) - 2.5*pow(wnew,2) + 0.5*pow(unew,2)*pow(wnew,2) + \
-0.5*pow(vnew,2)*pow(wnew,2) + 0.25*pow(wnew,4)); \\n\\t\\t\\tmoments[3] += \
-f[ii][jj][kk]/rho * vnew; \\n\\t\\t\\tmoments[4] += f[ii][jj][kk]/rho * wnew; \
-\\n\\t\\t\\tmoments[5] += f[ii][jj][kk]/rho * -1.*unew; \
-\\n\\t\\t\\tmoments[6] += f[ii][jj][kk]/rho * 0.6324555320336759*(2.5*vnew - \
-0.5*pow(unew,2)*vnew - 0.5*pow(vnew,3) - 0.5*vnew*pow(wnew,2)); \
-\\n\\t\\t\\tmoments[7] += f[ii][jj][kk]/rho * 0.6324555320336759*(2.5*wnew - \
-0.5*pow(unew,2)*wnew - 0.5*pow(vnew,2)*wnew - 0.5*pow(wnew,3)); \
-\\n\\t\\t\\tmoments[8] += f[ii][jj][kk]/rho * 0.6324555320336759*(-2.5*unew + \
-0.5*pow(unew,3) + 0.5*unew*pow(vnew,2) + 0.5*unew*pow(wnew,2)); \
-\\n\\t\\t\\tmoments[9] += f[ii][jj][kk]/rho * unew*vnew; \
-\\n\\t\\t\\tmoments[10] += f[ii][jj][kk]/rho * vnew*wnew; \
-\\n\\t\\t\\tmoments[11] += f[ii][jj][kk]/rho * \
-0.2886751345948129*(-1.*pow(unew,2) - 1.*pow(vnew,2) + 2.*pow(wnew,2)); \
-\\n\\t\\t\\tmoments[12] += f[ii][jj][kk]/rho * -1.*unew*wnew; \
-\\n\\t\\t\\tmoments[13] += f[ii][jj][kk]/rho * 0.5*(pow(unew,2) - \
-1.*pow(vnew,2)); \\n\\t\\t\\tmoments[14] += f[ii][jj][kk]/rho * \
-0.5345224838248488*(3.5*unew*vnew - 0.5*pow(unew,3)*vnew - \
-0.5*unew*pow(vnew,3) - 0.5*unew*vnew*pow(wnew,2)); \\n\\t\\t\\tmoments[15] += \
-f[ii][jj][kk]/rho * 0.5345224838248488*(3.5*vnew*wnew - \
-0.5*pow(unew,2)*vnew*wnew - 0.5*pow(vnew,3)*wnew - 0.5*vnew*pow(wnew,3)); \\n\
-\\t\\t\\tmoments[16] += f[ii][jj][kk]/rho * \
-0.1543033499620919*(-3.5*pow(unew,2) + 0.5*pow(unew,4) - 3.5*pow(vnew,2) + \
-pow(unew,2)*pow(vnew,2) + 0.5*pow(vnew,4) + 7.*pow(wnew,2) - \
-0.5*pow(unew,2)*pow(wnew,2) - 0.5*pow(vnew,2)*pow(wnew,2) - 1.*pow(wnew,4)); \
-\\n\\t\\t\\tmoments[17] += f[ii][jj][kk]/rho * \
-0.5345224838248488*(-3.5*unew*wnew + 0.5*pow(unew,3)*wnew + \
-0.5*unew*pow(vnew,2)*wnew + 0.5*unew*pow(wnew,3)); \\n\\t\\t\\tmoments[18] += \
-f[ii][jj][kk]/rho * 0.2672612419124244*(3.5*pow(unew,2) - 0.5*pow(unew,4) - \
-3.5*pow(vnew,2) + 0.5*pow(vnew,4) - 0.5*pow(unew,2)*pow(wnew,2) + \
-0.5*pow(vnew,2)*pow(wnew,2)); \\n\\t\\t\\tmoments[19] += f[ii][jj][kk]/rho * \
-0.20412414523193154*(3.*pow(unew,2)*vnew - 1.*pow(vnew,3)); \
-\\n\\t\\t\\tmoments[20] += f[ii][jj][kk]/rho * unew*vnew*wnew; \
-\\n\\t\\t\\tmoments[21] += f[ii][jj][kk]/rho * \
-0.15811388300841897*(-1.*pow(unew,2)*vnew - 1.*pow(vnew,3) + \
-4.*vnew*pow(wnew,2)); \\n\\t\\t\\tmoments[22] += f[ii][jj][kk]/rho * \
-0.12909944487358055*(-3.*pow(unew,2)*wnew - 3.*pow(vnew,2)*wnew + \
-2.*pow(wnew,3)); \\n\\t\\t\\tmoments[23] += f[ii][jj][kk]/rho * \
-0.15811388300841897*(pow(unew,3) + unew*pow(vnew,2) - 4.*unew*pow(wnew,2)); \
-\\n\\t\\t\\tmoments[24] += f[ii][jj][kk]/rho * 0.5*(pow(unew,2)*wnew - \
-1.*pow(vnew,2)*wnew); \\n\\t\\t\\tmoments[25] += f[ii][jj][kk]/rho * \
-0.20412414523193154*(-1.*pow(unew,3) + 3.*unew*pow(vnew,2)); \
-\\n\\t\\t\\tmoments[26] += f[ii][jj][kk]/rho * \
-0.2886751345948129*(pow(unew,3)*vnew - 1.*unew*pow(vnew,3)); \
-\\n\\t\\t\\tmoments[27] += f[ii][jj][kk]/rho * \
-0.20412414523193154*(3.*pow(unew,2)*vnew*wnew - 1.*pow(vnew,3)*wnew); \
-\\n\\t\\t\\tmoments[28] += f[ii][jj][kk]/rho * \
-0.1091089451179962*(-1.*pow(unew,3)*vnew - 1.*unew*pow(vnew,3) + \
-6.*unew*vnew*pow(wnew,2)); \\n\\t\\t\\tmoments[29] += f[ii][jj][kk]/rho * \
-0.07715167498104596*(-3.*pow(unew,2)*vnew*wnew - 3.*pow(vnew,3)*wnew + \
-4.*vnew*pow(wnew,3)); \\n\\t\\t\\tmoments[30] += f[ii][jj][kk]/rho * \
-0.012198750911856666*(3.*pow(unew,4) + 6.*pow(unew,2)*pow(vnew,2) + \
-3.*pow(vnew,4) - 24.*pow(unew,2)*pow(wnew,2) - 24.*pow(vnew,2)*pow(wnew,2) + \
-8.*pow(wnew,4)); \\n\\t\\t\\tmoments[31] += f[ii][jj][kk]/rho * \
-0.07715167498104596*(3.*pow(unew,3)*wnew + 3.*unew*pow(vnew,2)*wnew - \
-4.*unew*pow(wnew,3)); \\n\\t\\t\\tmoments[32] += f[ii][jj][kk]/rho * \
-0.0545544725589981*(-1.*pow(unew,4) + pow(vnew,4) + \
-6.*pow(unew,2)*pow(wnew,2) - 6.*pow(vnew,2)*pow(wnew,2)); \
-\\n\\t\\t\\tmoments[33] += f[ii][jj][kk]/rho * \
-0.20412414523193154*(-1.*pow(unew,3)*wnew + 3.*unew*pow(vnew,2)*wnew); \\n\\t\
-\\t\\tmoments[34] += f[ii][jj][kk]/rho * 0.07216878364870323*(pow(unew,4) - \
-6.*pow(unew,2)*pow(vnew,2) + pow(vnew,4)); \\n\\t\\t}\\n\\t}\\n\\tmoments[35] \
-= rho; \\n\\tmoments[36] = j_x; \\n\\tmoments[37] = j_y; \\n\\tmoments[38] = \
-j_z; \\n\\tmoments[39] = std_dev; \\n} \\n\"\>"], "Output",
- CellChangeTimes->{
-  3.918727066609057*^9, 3.91872739040352*^9, 3.918727452841925*^9, 
-   3.918727596368718*^9, 3.918727733144243*^9, 3.9187279919041643`*^9, 
-   3.918728097417457*^9, 3.918728190934931*^9, 3.918808873021215*^9, 
-   3.918836665624258*^9, 3.918903157321111*^9, 3.918903254156925*^9, 
-   3.9189033185761228`*^9, 3.9189033576164107`*^9, 3.918905105452176*^9, 
-   3.9189054764164143`*^9, {3.918905579348051*^9, 3.918905588277232*^9}, {
-   3.9189056766944733`*^9, 3.918905690044471*^9}, 3.918907832252039*^9, 
-   3.919171558786338*^9, 3.919172004034092*^9, 3.919172062719603*^9, {
-   3.919172172755621*^9, 3.919172202353988*^9}, 3.9191724476613483`*^9, 
-   3.919172560455472*^9, 3.919172801042973*^9, 3.919173159534324*^9, 
-   3.919173190989655*^9, 3.919173604770376*^9, 3.9191749834406433`*^9, 
-   3.919851267263188*^9, 3.919859736199079*^9, 3.9199151972957287`*^9, 
-   3.919915461870432*^9, 3.9199155881192923`*^9, 3.919920412126359*^9},
- CellLabel->
-  "Out[136]=",ExpressionUUID->"07c832a5-4ea2-4ca6-86a1-158af63702f8"]
-}, Open  ]],
+  "In[214]:=",ExpressionUUID->"99fb9024-c3be-409e-80b5-aad10256776e"],
 
 Cell[CellGroupData[{
 
@@ -6353,7 +6319,7 @@ f* Power(unew,4) - 6*Power(unew,2)*Power(vnew,2) + Power(vnew,4); \\\\n   }\\\
 \\n    rho = 1 - du*dv*dw*rho;\\\\n    moments /= rho; \\\\n}\>\""], "Input",
  CellChangeTimes->{{3.918727003086052*^9, 3.918727003093996*^9}},
  CellLabel->
-  "In[137]:=",ExpressionUUID->"7e5111b0-01d0-4c93-861d-0fc7110ef4db"],
+  "In[216]:=",ExpressionUUID->"7e5111b0-01d0-4c93-861d-0fc7110ef4db"],
 
 Cell[BoxData["\<\"// This code has been generated automatically using the \
 Mathematica file C++CodeGenerator.nb\\\\n// This file calculates moments from \
@@ -6451,9 +6417,11 @@ f* Power(unew,4) - 6*Power(unew,2)*Power(vnew,2) + Power(vnew,4); \\\\n   }\\\
    3.919172560460545*^9, 3.919172801057995*^9, 3.919173159550499*^9, 
    3.91917319099494*^9, 3.919173604775672*^9, 3.9191749834559813`*^9, 
    3.919851267275215*^9, 3.9198597362080593`*^9, 3.9199151973056993`*^9, 
-   3.9199154618826637`*^9, 3.9199155881307287`*^9, 3.919920412132945*^9},
+   3.9199154618826637`*^9, 3.9199155881307287`*^9, 3.919920412132945*^9, 
+   3.919945844915085*^9, 3.9199461726317244`*^9, 3.9199462577868357`*^9, 
+   3.919949251238166*^9, 3.919949346900958*^9},
  CellLabel->
-  "Out[137]=",ExpressionUUID->"2f252ab5-83ac-446a-8a4b-c9e967de3a8f"]
+  "Out[216]=",ExpressionUUID->"7407afe1-263f-44e5-b923-f40b124caa0e"]
 }, Open  ]],
 
 Cell[CellGroupData[{
@@ -6540,7 +6508,7 @@ Power(v,4); \\\\n   }\\\\n\\\\trho = 1 - du*dv*dw*rho;\\\\n\\\\n    // fill \
 moments vector\\\\n}\>\""], "Input",
  CellChangeTimes->{{3.918023370211582*^9, 3.918023370217276*^9}},
  CellLabel->
-  "In[138]:=",ExpressionUUID->"db2c46d4-47df-4597-ba05-fc21d15fbcea"],
+  "In[217]:=",ExpressionUUID->"db2c46d4-47df-4597-ba05-fc21d15fbcea"],
 
 Cell[BoxData["\<\"// This code has been generated automatically .....\\\\n// \
 This file calculates moments from a distribution\\\\n// Author: Anja Matena \
@@ -6639,9 +6607,11 @@ moments vector\\\\n}\"\>"], "Output",
    3.919172560465227*^9, 3.919172801064528*^9, 3.919173159556716*^9, 
    3.919173191000358*^9, 3.919173604780657*^9, 3.919174983461833*^9, 
    3.919851267315749*^9, 3.919859736240979*^9, 3.9199151973146143`*^9, 
-   3.9199154618887672`*^9, 3.919915588135229*^9, 3.919920412145606*^9},
+   3.9199154618887672`*^9, 3.919915588135229*^9, 3.919920412145606*^9, 
+   3.919945844924142*^9, 3.919946172639813*^9, 3.919946257790724*^9, 
+   3.919949251250854*^9, 3.9199493469050922`*^9},
  CellLabel->
-  "Out[138]=",ExpressionUUID->"94883060-09c7-456f-ac30-5af08e1040d6"]
+  "Out[217]=",ExpressionUUID->"96a0e43a-893a-4a1e-801a-397723a0f537"]
 }, Open  ]],
 
 Cell[CellGroupData[{
@@ -6716,7 +6686,7 @@ Power(z,2),4)/16.); \\\\n }\\\\n    rho = 1 - du*dv*dw*rho;\\\\n    // \
 ...\\\\n\\\\n    // fill moments vector\\\\n}\>\""], "Input",
  CellChangeTimes->{{3.917844576283641*^9, 3.917844576287838*^9}},
  CellLabel->
-  "In[139]:=",ExpressionUUID->"88783790-2a92-4887-8398-c383935f964e"],
+  "In[218]:=",ExpressionUUID->"88783790-2a92-4887-8398-c383935f964e"],
 
 Cell[BoxData["\<\"// This file calculates moments from a distribution\\\\n// \
 Author: Anja Matena (anja.matena@rwth-aachen.de)\\\\ntemplate <typename real, \
@@ -6808,9 +6778,11 @@ Power(z,2),4)/16.); \\\\n }\\\\n    rho = 1 - du*dv*dw*rho;\\\\n    // \
    3.919172801078425*^9, 3.919173159571729*^9, 3.91917319101232*^9, 
    3.9191736047936573`*^9, 3.919174983467236*^9, 3.9198512673262577`*^9, 
    3.9198597362495193`*^9, 3.9199151973211613`*^9, 3.9199154619006557`*^9, 
-   3.9199155881467133`*^9, 3.919920412152071*^9},
+   3.9199155881467133`*^9, 3.919920412152071*^9, 3.919945844929714*^9, 
+   3.919946172644421*^9, 3.919946257799344*^9, 3.919949251255422*^9, 
+   3.919949346917192*^9},
  CellLabel->
-  "Out[139]=",ExpressionUUID->"342e74d0-e073-4072-9669-8015bda3d297"]
+  "Out[218]=",ExpressionUUID->"c0e679f3-98d9-48cc-8406-cbbf289bc837"]
 }, Open  ]],
 
 Cell[BoxData[{
@@ -6840,7 +6812,7 @@ Cell[BoxData[{
    3.828455111053261*^9, 3.909053704606615*^9, 3.913814608710213*^9, 
    3.918031847010805*^9, 3.918031882958344*^9, 3.918727574915483*^9},
  CellLabel->
-  "In[140]:=",ExpressionUUID->"ec95ea2b-2176-4ef7-9584-a26830aeda77"],
+  "In[219]:=",ExpressionUUID->"ec95ea2b-2176-4ef7-9584-a26830aeda77"],
 
 Cell[BoxData[{
  RowBox[{
@@ -6864,7 +6836,7 @@ Cell[BoxData[{
  CellChangeTimes->{{3.915010798713681*^9, 3.915010813848222*^9}, {
    3.918031851592835*^9, 3.918031879394534*^9}, 3.91872757594466*^9},
  CellLabel->
-  "In[142]:=",ExpressionUUID->"7950cad9-4da6-4c8b-a288-ab548e8d2ce6"],
+  "In[221]:=",ExpressionUUID->"7950cad9-4da6-4c8b-a288-ab548e8d2ce6"],
 
 Cell[BoxData[{
  RowBox[{
@@ -6888,7 +6860,7 @@ Cell[BoxData[{
  CellChangeTimes->{{3.913814617004052*^9, 3.91381463131046*^9}, {
    3.9180318600922*^9, 3.918031876908071*^9}, 3.918727577066788*^9},
  CellLabel->
-  "In[144]:=",ExpressionUUID->"6502be29-ca23-4034-b2c7-a1b78d083c0c"],
+  "In[223]:=",ExpressionUUID->"6502be29-ca23-4034-b2c7-a1b78d083c0c"],
 
 Cell[BoxData[
  RowBox[{
@@ -6926,7 +6898,7 @@ Cell[BoxData[
    3.909053709491209*^9, {3.918031865356398*^9, 3.918031872380825*^9}, 
    3.918727580406216*^9},
  CellLabel->
-  "In[146]:=",ExpressionUUID->"bbca885d-432f-4c82-9666-f373b8a75464"]
+  "In[225]:=",ExpressionUUID->"bbca885d-432f-4c82-9666-f373b8a75464"]
 }, Closed]]
 },
 WindowSize->{Full, Full},
@@ -6993,24 +6965,24 @@ Cell[41484, 1078, 990, 21, 69, "Section",ExpressionUUID->"fc631935-8a27-46a4-8f7
 Cell[42477, 1101, 8036, 210, 341, "Input",ExpressionUUID->"afa61b89-9901-42e6-aa59-1497b7ea0446"],
 Cell[CellGroupData[{
 Cell[50538, 1315, 176, 2, 30, "Input",ExpressionUUID->"ea9ed237-4002-49c5-9b71-5fb3351e0e1f"],
-Cell[50717, 1319, 639, 13, 70, "Output",ExpressionUUID->"fe1c2d6b-b7f1-4e6d-a848-f426493171b3"]
+Cell[50717, 1319, 639, 13, 34, "Output",ExpressionUUID->"fe1c2d6b-b7f1-4e6d-a848-f426493171b3"]
 }, Open  ]],
 Cell[CellGroupData[{
 Cell[51393, 1337, 173, 2, 30, "Input",ExpressionUUID->"f5fff19e-5a2b-4797-8f85-1278d02435d1"],
-Cell[51569, 1341, 868, 13, 70, "Output",ExpressionUUID->"e2192bc0-e7e1-46a7-bf92-80b7bee34b9e"]
+Cell[51569, 1341, 868, 13, 49, "Output",ExpressionUUID->"e2192bc0-e7e1-46a7-bf92-80b7bee34b9e"]
 }, Open  ]],
 Cell[CellGroupData[{
 Cell[52474, 1359, 174, 2, 30, "Input",ExpressionUUID->"30c0b21c-d618-43e0-a8ae-918d72fd7e4f"],
-Cell[52651, 1363, 866, 13, 70, "Output",ExpressionUUID->"eb64fe23-1e38-40b2-a409-378695581f69"]
+Cell[52651, 1363, 866, 13, 49, "Output",ExpressionUUID->"eb64fe23-1e38-40b2-a409-378695581f69"]
 }, Open  ]],
 Cell[53532, 1379, 667, 17, 44, "Input",ExpressionUUID->"d9964000-2e16-467c-9075-726d4811249e"],
 Cell[CellGroupData[{
 Cell[54224, 1400, 226, 6, 32, "Input",ExpressionUUID->"60acfb04-748a-45bc-887f-f54eb3951bab"],
-Cell[54453, 1408, 297, 7, 70, "Output",ExpressionUUID->"92bc5b65-a0a1-477d-8944-ea3fbe73d387"]
+Cell[54453, 1408, 297, 7, 35, "Output",ExpressionUUID->"92bc5b65-a0a1-477d-8944-ea3fbe73d387"]
 }, Open  ]],
 Cell[CellGroupData[{
 Cell[54787, 1420, 717, 14, 44, "Input",ExpressionUUID->"7f39e42d-679f-4c68-8d00-7a7f4a2242aa"],
-Cell[55507, 1436, 85204, 1437, 70, "Output",ExpressionUUID->"4e6462c7-4c67-454d-977f-614fbf89c2ab"]
+Cell[55507, 1436, 85204, 1437, 245, "Output",ExpressionUUID->"4e6462c7-4c67-454d-977f-614fbf89c2ab"]
 }, Open  ]],
 Cell[CellGroupData[{
 Cell[140748, 2878, 664, 13, 44, "Input",ExpressionUUID->"102cf5a1-259a-404a-9226-66bd8ab5005d"],
@@ -7078,38 +7050,35 @@ Cell[287884, 5693, 343, 9, 70, "Output",ExpressionUUID->"f43ce25e-3091-43a2-ba4d
 }, Closed]],
 Cell[CellGroupData[{
 Cell[288276, 5708, 1010, 21, 55, "Section",ExpressionUUID->"98f8be1c-b57f-4c80-9693-60a3ef05ced8"],
-Cell[289289, 5731, 15105, 251, 2917, "Input",ExpressionUUID->"9f46df57-afea-4594-86d2-7b70d901695c"]
+Cell[289289, 5731, 20170, 343, 3463, "Input",ExpressionUUID->"9f46df57-afea-4594-86d2-7b70d901695c"]
 }, Open  ]],
 Cell[CellGroupData[{
-Cell[304431, 5987, 973, 21, 69, "Section",ExpressionUUID->"30dcbd12-f50f-46d2-a30a-735f46e1b353"],
+Cell[309496, 6079, 973, 21, 69, "Section",ExpressionUUID->"30dcbd12-f50f-46d2-a30a-735f46e1b353"],
 Cell[CellGroupData[{
-Cell[305429, 6012, 216, 4, 44, "Input",ExpressionUUID->"8e2e207c-7f57-4463-a93c-65400ce810de"],
-Cell[305648, 6018, 2670, 39, 70, "Output",ExpressionUUID->"dfc2948b-a153-4661-8b50-1900cdb16814"]
+Cell[310494, 6104, 216, 4, 44, "Input",ExpressionUUID->"8e2e207c-7f57-4463-a93c-65400ce810de"],
+Cell[310713, 6110, 2791, 41, 70, "Output",ExpressionUUID->"64c547ce-5fb3-4aa2-aff1-37b7839f0955"]
 }, Open  ]],
 Cell[CellGroupData[{
-Cell[308355, 6062, 327, 6, 30, "Input",ExpressionUUID->"784352eb-3dca-4e57-838c-2c9676eb8e74"],
-Cell[308685, 6070, 2688, 39, 70, "Output",ExpressionUUID->"8bb3914a-46a0-4b06-88a7-4ebe8f9cf5a4"]
+Cell[313541, 6156, 327, 6, 30, "Input",ExpressionUUID->"784352eb-3dca-4e57-838c-2c9676eb8e74"],
+Cell[313871, 6164, 2809, 41, 70, "Output",ExpressionUUID->"01182fb9-93cb-4a94-963f-f156f633fe53"]
+}, Open  ]],
+Cell[316695, 6208, 1085, 24, 86, "Input",ExpressionUUID->"99fb9024-c3be-409e-80b5-aad10256776e"],
+Cell[CellGroupData[{
+Cell[317805, 6236, 6261, 85, 850, "Input",ExpressionUUID->"7e5111b0-01d0-4c93-861d-0fc7110ef4db"],
+Cell[324069, 6323, 7269, 100, 70, "Output",ExpressionUUID->"7407afe1-263f-44e5-b923-f40b124caa0e"]
 }, Open  ]],
 Cell[CellGroupData[{
-Cell[311410, 6114, 1085, 24, 86, "Input",ExpressionUUID->"99fb9024-c3be-409e-80b5-aad10256776e"],
-Cell[312498, 6140, 8651, 125, 70, "Output",ExpressionUUID->"07c832a5-4ea2-4ca6-86a1-158af63702f8"]
+Cell[331375, 6428, 6157, 82, 829, "Input",ExpressionUUID->"db2c46d4-47df-4597-ba05-fc21d15fbcea"],
+Cell[337535, 6512, 7488, 101, 70, "Output",ExpressionUUID->"96a0e43a-893a-4a1e-801a-397723a0f537"]
 }, Open  ]],
 Cell[CellGroupData[{
-Cell[321186, 6270, 6261, 85, 850, "Input",ExpressionUUID->"7e5111b0-01d0-4c93-861d-0fc7110ef4db"],
-Cell[327450, 6357, 7147, 98, 70, "Output",ExpressionUUID->"2f252ab5-83ac-446a-8a4b-c9e967de3a8f"]
+Cell[345060, 6618, 5233, 70, 724, "Input",ExpressionUUID->"88783790-2a92-4887-8398-c383935f964e"],
+Cell[350296, 6690, 6863, 94, 70, "Output",ExpressionUUID->"c0e679f3-98d9-48cc-8406-cbbf289bc837"]
 }, Open  ]],
-Cell[CellGroupData[{
-Cell[334634, 6460, 6157, 82, 829, "Input",ExpressionUUID->"db2c46d4-47df-4597-ba05-fc21d15fbcea"],
-Cell[340794, 6544, 7368, 99, 70, "Output",ExpressionUUID->"94883060-09c7-456f-ac30-5af08e1040d6"]
-}, Open  ]],
-Cell[CellGroupData[{
-Cell[348199, 6648, 5233, 70, 724, "Input",ExpressionUUID->"88783790-2a92-4887-8398-c383935f964e"],
-Cell[353435, 6720, 6745, 92, 70, "Output",ExpressionUUID->"342e74d0-e073-4072-9669-8015bda3d297"]
-}, Open  ]],
-Cell[360195, 6815, 1195, 27, 86, "Input",ExpressionUUID->"ec95ea2b-2176-4ef7-9584-a26830aeda77"],
-Cell[361393, 6844, 826, 22, 86, "Input",ExpressionUUID->"7950cad9-4da6-4c8b-a288-ab548e8d2ce6"],
-Cell[362222, 6868, 847, 22, 86, "Input",ExpressionUUID->"6502be29-ca23-4034-b2c7-a1b78d083c0c"],
-Cell[363072, 6892, 1606, 36, 107, "Input",ExpressionUUID->"bbca885d-432f-4c82-9666-f373b8a75464"]
+Cell[357174, 6787, 1195, 27, 86, "Input",ExpressionUUID->"ec95ea2b-2176-4ef7-9584-a26830aeda77"],
+Cell[358372, 6816, 826, 22, 86, "Input",ExpressionUUID->"7950cad9-4da6-4c8b-a288-ab548e8d2ce6"],
+Cell[359201, 6840, 847, 22, 86, "Input",ExpressionUUID->"6502be29-ca23-4034-b2c7-a1b78d083c0c"],
+Cell[360051, 6864, 1606, 36, 107, "Input",ExpressionUUID->"bbca885d-432f-4c82-9666-f373b8a75464"]
 }, Closed]]
 }
 ]
