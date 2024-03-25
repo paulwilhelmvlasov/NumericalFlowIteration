@@ -148,9 +148,9 @@ void ion_acoustic()
 	// Set parameters.
     const double L  = 4*3.14159265358979323846;
 	//const double L  = 40*3.14159265358979323846;
-    const size_t Nx_f = 256;
+    const size_t Nx_f = 128;
     const size_t Nx_poisson = Nx_f;
-    const size_t Nv_f_electron = 4096*4;
+    const size_t Nv_f_electron = 512;
     const size_t Nv_f_ion = Nv_f_electron;
     const size_t N_f_electron = Nx_f*Nv_f_electron;
     const size_t N_f_ion = Nx_f*Nv_f_ion;
@@ -293,13 +293,13 @@ void ion_acoustic()
         // Plotting:
         if(nt % 1 == 0)
         {
-			size_t plot_x = 256;
+			size_t plot_x = 1024;
 			size_t plot_v = plot_x;
 			double dx_plot = conf.Lx/plot_x;
 			double Emax = 0;
 			double E_l2 = 0;
 
-			if(nt % (100*8) == 0) {
+			if(nt % (500*8) == 0) {
 				std::ofstream file_xv_electron( "xv_electron_" + std::to_string(t) + ".txt" );
 				file_xv_electron << xv_electron;
 				std::ofstream file_xv_ion( "xv_ion_" + std::to_string(t) + ".txt" );
@@ -330,14 +330,13 @@ void ion_acoustic()
 				}
 
 
-				double v_min_plot_electron = -20;
-				double v_max_plot_electron = 20;
+				double v_min_plot_electron = -8;
+				double v_max_plot_electron = 5;
 				double dv_plot_electron = (v_max_plot_electron-v_min_plot_electron)/plot_v;
-				double v_min_plot_ion = -0.4;
-				double v_max_plot_ion = 0.4;
+				double v_min_plot_ion = -0.2;
+				double v_max_plot_ion = 0.2;
 				double dv_plot_ion = (v_max_plot_ion-v_min_plot_ion)/plot_v;
 
-				/*
 				std::ofstream f_electron_str("f_electon_" + std::to_string(t) + ".txt");
 				arma::mat f_plot;
 				f_plot.set_size(plot_x+1,plot_v+1);
@@ -391,7 +390,6 @@ void ion_acoustic()
 					}
 					f_ion_str << std::endl;
 				}
-				*/
 			} else {
 				for ( size_t i = 0; i < plot_x; ++i )
 				{

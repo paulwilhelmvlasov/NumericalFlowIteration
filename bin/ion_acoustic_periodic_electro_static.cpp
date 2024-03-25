@@ -53,25 +53,25 @@ void read_coeffs(const config_t<real>& conf, std::vector<real>& coeffs_old, size
 }
 
 template <typename real, size_t order>
-void ion_acoustic_restart(const config_t<real>& conf, const std::vector<real>& coeffs_old, size_t old_n)
+void ion_acoustic_restart(const config_t<real>& conf_electron, const config_t<real>& conf_ion, const std::vector<real>& coeffs_old, size_t old_n)
 {
     using std::abs;
     using std::max;
 
 	// This method allows to read in an old set of coefficients and start from that rather than
 	// rerunning the entire simulation with the same parameters.
-    const size_t stride_t = conf.Nx + order - 1;
+    const size_t stride_t = conf_electron.Nx + order - 1;
 
-    std::unique_ptr<real[]> coeffs { new real[ (conf.Nt+1)*stride_t ] {} };
-    std::unique_ptr<real,decltype(std::free)*> rho { reinterpret_cast<real*>(std::aligned_alloc(64,sizeof(real)*conf.Nx)), std::free };
+    std::unique_ptr<real[]> coeffs { new real[ (conf_electron.Nt+1)*stride_t ] {} };
+    std::unique_ptr<real,decltype(std::free)*> rho { reinterpret_cast<real*>(std::aligned_alloc(64,sizeof(real)*conf_electron.Nx)), std::free };
     if ( rho == nullptr ) throw std::bad_alloc {};
-    std::vector<real> rho_electron(conf.Nx);
-    std::vector<real> rho_ion(conf.Nx);
+    std::vector<real> rho_electron(conf_electron.Nx);
+    std::vector<real> rho_ion(conf_electron.Nx);
 
     // Copy old coefficients into coeff vector:
     // Also start writing the coefficients onto disc to continue writing
     // at the right position later on.
-    std::ofstream coeffs_str( "restart_coeffs_Nt_" + std::to_string(conf.Nt) + "_Nx_ " + std::to_string(conf.Nx) + "_stride_t_" + std::to_string(stride_t) + ".txt" );
+    std::ofstream coeffs_str( "restart_coeffs_Nt_" + std::to_string(conf_electron.Nt) + "_Nx_ " + std::to_string(conf_electron.Nx) + "_stride_t_" + std::to_string(stride_t) + ".txt" );
     for(size_t i = 0; i < old_n*stride_t; i++){
     	coeffs.get()[i] = coeffs_old[i];
     	coeffs_str << coeffs.get()[i] << std::endl;
@@ -79,13 +79,64 @@ void ion_acoustic_restart(const config_t<real>& conf, const std::vector<real>& c
 
     // Maybe it would be nice to compute these initial bounds automatically instead of setting
     // them manually. This would give some additional robustness to the approach.
+    /*
     std::vector<real> velocity_support_electron_lower_bound(conf.Nx, -10);
     std::vector<real> velocity_support_electron_upper_bound(conf.Nx, 8);
     std::vector<real> velocity_support_ion_lower_bound(conf.Nx, -0.35);
     std::vector<real> velocity_support_ion_upper_bound(conf.Nx, 0.35);
 
     poisson<real> poiss( conf );
+    */
 
+    // Plot:
+    size_t n_plot = 1000*8;
+    real t = n_plot*conf_electron.dt;
+    size_t plot_x_electron = 2048;
+    size_t plot_x_ion = 1024;
+	real dx_plot_electron = conf_electron.Lx/plot_x_electron;
+	real dx_plot_ion = conf_electron.Lx/plot_x_ion;
+    //real x_min_plot = 7.5;
+    //real x_max_plot = 7.54;
+    //real dx_plot = (x_max_plot - x_min_plot)/plot_x;
+	size_t plot_v_electron = 2048;
+    size_t plot_v_ion = 1024;
+	real v_min_electron = -8;
+	real v_max_electron = 5;
+	real dv_electron = (v_max_electron - v_min_electron) / plot_v_electron;
+	real v_min_ion = -0.2;
+	real v_max_ion = 0.2;
+	real dv_ion = (v_max_ion - v_min_ion) / plot_v_ion;
+	//std::ofstream file_f_electron( "f_electron_zoom_" + std::to_string(t) + ".txt" );
+	std::ofstream file_f_electron( "f_electron_" + std::to_string(t) + ".txt" );
+	for ( size_t i = 0; i <= plot_x_electron; ++i )
+	{
+		for ( size_t j = 0; j <= plot_v_electron; ++j )
+		{
+			real x = conf_electron.x_min + i*dx_plot_electron;
+			//real x = x_min_plot + i*dx_plot;
+			real v = v_min_electron + j*dv_electron;
+
+			real f = eval_f_ion_acoustic<real,order>(n_plot,x,v,coeffs.get(),conf_electron,true);
+			file_f_electron << x << " " << v << " " << f << std::endl;
+		}
+		file_f_electron << std::endl;
+	}
+
+	std::ofstream file_f_ion( "f_ion_" + std::to_string(t) + ".txt" );
+	for ( size_t i = 0; i <= plot_x_ion; ++i )
+	{
+		for ( size_t j = 0; j <= plot_v_ion; ++j )
+		{
+			real x = conf_electron.x_min + i*dx_plot_ion;
+			real v = v_min_ion + j*dv_ion;
+
+			real f = eval_f_ion_acoustic<real,order>(n_plot,x,v,coeffs.get(),conf_ion,false);
+			file_f_ion << x << " " << v << " " << f << std::endl;
+		}
+		file_f_ion << std::endl;
+	}
+
+    /*
     bool write_stats = true;
     std::ofstream stats_file( "restart_stats.txt" );
     double total_time = 0;
@@ -158,7 +209,7 @@ void ion_acoustic_restart(const config_t<real>& conf, const std::vector<real>& c
         	coeffs_str << coeffs.get()[n*stride_t + i] << std::endl;
         }
     }
-
+	*/
 
 }
 
@@ -175,7 +226,7 @@ void ion_acoustic()
     // However, be careful to keep Lx, Nx, dt, Nt, etc. the same for
     // electrons and ions to not break the method.
     config_t<real> conf_electron;
-    conf_electron.Nx = 256;
+    conf_electron.Nx = 32;
     conf_electron.x_min = 0;
     //conf_electron.x_max = 40*M_PI;
     conf_electron.x_max = 4*M_PI;
@@ -189,7 +240,7 @@ void ion_acoustic()
     conf_electron.tol_cut_off_velocity_supp = 1e-7;
     conf_electron.tol_integral = 1e-5;
     conf_electron.max_depth_integration = 3;
-    conf_electron.Nu = 512;
+    conf_electron.Nu = 64;
 
     config_t<real> conf_ion;
     conf_ion.Nx = conf_electron.Nx;
@@ -205,7 +256,7 @@ void ion_acoustic()
     conf_ion.tol_cut_off_velocity_supp = 1e-7;
     conf_ion.tol_integral = 1e-5;
     conf_ion.max_depth_integration = 3;
-    conf_ion.Nu = 64;
+    conf_ion.Nu = 32;
 
     const size_t stride_t = conf_electron.Nx + order - 1;
 
@@ -281,7 +332,7 @@ void ion_acoustic()
 			real Emax = 0;
 			real E_l2 = 0;
 
-			if(n % (100*4) == 0)
+			if(n % (5*4) == 0)
 			{
 				/*
 				std::ofstream file_v_min_max( "v_min_max_" + std::to_string(t) + ".txt" );
@@ -320,8 +371,8 @@ void ion_acoustic()
 
 
 
-				real v_min_electron = -15;
-				real v_max_electron = 15;
+				real v_min_electron = -10;
+				real v_max_electron = 10;
 				real dv_electron = (v_max_electron - v_min_electron) / plot_v;
 				real v_min_ion = -0.4;
 				real v_max_ion = 0.4;
@@ -388,29 +439,45 @@ int main()
 
 	/*
 	constexpr size_t order = 4;
-	dergeraet::dim1::config_t<double> conf;
-    conf.Nx = 32;
-    conf.x_min = 0;
-    //conf.x_max = 4*M_PI;
-    conf.x_max = 40*M_PI;
-    conf.dt = 1./8.0;
-    conf.Nt = 2000.0 / conf.dt;
-    conf.Lx = conf.x_max - conf.x_min;
-    conf.Lx_inv = 1/conf.Lx;
-    conf.dx = conf.Lx/conf.Nx;
-    conf.dx_inv = 1/conf.dx;
+	dergeraet::dim1::config_t<double> conf_electron;
+    conf_electron.Nx = 128;
+    conf_electron.x_min = 0;
+    conf_electron.x_max = 40*M_PI;
+    //conf_electron.x_max = 4*M_PI;
+    conf_electron.dt = 1./8.0;
+    conf_electron.Nt = 2000.0 / conf_electron.dt;
+    conf_electron.Lx = conf_electron.x_max - conf_electron.x_min;
+    conf_electron.Lx_inv = 1/conf_electron.Lx;
+    conf_electron.dx = conf_electron.Lx/conf_electron.Nx;
+    conf_electron.dx_inv = 1/conf_electron.dx;
 
-    conf.tol_cut_off_velocity_supp = 1e-7;
-    conf.tol_integral = 1e-5;
-    conf.max_depth_integration = 1;//3;
-    conf.Nu = 32;
+    conf_electron.tol_cut_off_velocity_supp = 1e-7;
+    conf_electron.tol_integral = 1e-5;
+    conf_electron.max_depth_integration = 3;
+    conf_electron.Nu = 128;
 
-    const size_t stride_t = conf.Nx + order - 1;
-    size_t old_n = 1000*8;
+    dergeraet::dim1::config_t<double> conf_ion;
+    conf_ion.Nx = conf_electron.Nx;
+    conf_ion.x_min = conf_electron.x_min;
+    conf_ion.x_max = conf_electron.x_max;
+    conf_ion.dt = conf_electron.dt;
+    conf_ion.Nt = conf_electron.Nt;
+    conf_ion.Lx = conf_electron.Lx;
+    conf_ion.Lx_inv = conf_electron.Lx_inv;
+    conf_ion.dx = conf_electron.dx;
+    conf_ion.dx_inv = conf_electron.dx_inv;
+
+    conf_ion.tol_cut_off_velocity_supp = 1e-7;
+    conf_ion.tol_integral = 1e-5;
+    conf_ion.max_depth_integration = 3;
+    conf_ion.Nu = 128;
+
+    const size_t stride_t = conf_electron.Nx + order - 1;
+    size_t old_n = 2000*8;
 
 	std::vector<double> coeffs_old((old_n+1)*stride_t);
-	dergeraet::dim1::read_coeffs<double,order>(conf, coeffs_old, old_n, std::string("../coeffs_Nt_16000_Nx_ 32_stride_t_35.txt"));
-	dergeraet::dim1::ion_acoustic_restart<double,order>(conf, coeffs_old, old_n);
+	dergeraet::dim1::read_coeffs<double,order>(conf_electron, coeffs_old, old_n, std::string("../coeffs_Nt_16000_Nx_ 128_stride_t_131.txt"));
+	dergeraet::dim1::ion_acoustic_restart<double,order>(conf_electron, conf_ion, coeffs_old, old_n);
 	*/
 }
 
