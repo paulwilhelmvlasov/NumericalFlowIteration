@@ -34,8 +34,8 @@ int main () {
     conf.x_max = conf.y_max = conf.z_max = 1; // aktuell egal
 
     // Integration limits for velocity space.
-    conf.u_min = conf.v_min = conf.w_min = -20; // ausprobieren
-    conf.u_max = conf.v_max = conf.w_max = 20;
+    conf.u_min = conf.v_min = conf.w_min = -50; // ausprobieren
+    conf.u_max = conf.v_max = conf.w_max = 50;
 
     // Grid-sizes and their reciprocals.
     conf.dx = conf.dy = conf.dz = 1; // aktuell egal
@@ -49,7 +49,27 @@ int main () {
 
     constexpr size_t order = 1; // aktuell egal
 
-    eval_moments<double, order>(n, l, &coeffs[0], conf, &moments[0]);
+    eval_moments<double, order>(1, 1, &coeffs[0], conf, &moments[0] );
+
+    for (int i = 0; i < 196; i++) {
+			moments[i] = 0;
+	}
+
+    moments[0] = 1.;
+    moments[2] = -0.1369306394;
+    moments[3] = -0.08451542547;
+    moments[18] = 0.8660254038;
+    moments[23] = 0.4629100499;
+    moments[28] = 0.1735912687;
+    moments[33] = 0.04273521617;
+    moments[68] = 0.2195775164;
+    moments[77] = 0.1872563352;
+    moments[86] = 0.1201009893;
+    moments[95] = 0.06569386817;
+    moments[150] = 0.03310255611;
+    moments[163] = 0.03626203338;
+    moments[176] = 0.02968256789;
+    moments[189] = 0.02079872197;
 
     const double du = (conf.u_max-conf.u_min) / conf.Nu; 
 	const double dv = (conf.v_max-conf.v_min) / conf.Nv;
@@ -68,24 +88,34 @@ int main () {
 		double u = u_min + ii*du;
 		double v = v_min + jj*dv;
 		double w = w_min + kk*dw;
-		double func = eval_f<double, order> (n, 0, 0, 0, u * moments[200] + moments[197], v * moments[200] + moments[198], w * moments[200] + moments[199], &coeffs[0], conf ) - pi_inverse<double, order>(u, v, w, &moments[0]);
-        
-        double zsp = accum; 
-		accum += func * func * du * dv * dw;
+		double func = eval_f<double, order> (n, 0, 0, 0, u, v , w , &coeffs[0], conf ) - pi_inverse<double, order>(u, v, w, &moments[0]);
 
-        if(accum - zsp > 1) {
-            std::cout << "(" << u * moments[200] + moments[197] << ", " << v * moments[200] + moments[198] << ", " << w * moments[200] + moments[199] << ") " << func << std::endl;
-        }
-        
+		accum += func * func * du * dv * dw;  
 	}
 
     accum = std::sqrt(accum);
+
+    double accumf = 0.;
+    
+    for ( size_t kk = 0; kk < conf.Nw; ++kk )
+	for ( size_t jj = 0; jj < conf.Nv; ++jj )
+	for ( size_t ii = 0; ii < conf.Nu; ++ii )
+	{
+		double u = u_min + ii*du;
+		double v = v_min + jj*dv;
+		double w = w_min + kk*dw;
+		double func = eval_f<double, order> (n, 0, 0, 0, u, v, w, &coeffs[0], conf );
+
+		accumf += func * func * du * dv * dw;  
+	}
+
+    accumf = std::sqrt(accumf);
+
+    accum /= accumf;
 
     double u = 0;
     double v = 10;
     double w = 5;
     std::cout << accum << std::endl;
-    std::cout << pi_inverse<double, order>(u, v, w, &moments[0]) << std::endl;
-    std::cout << eval_f<double, order> (n, 0, 0, 0, u, v, w, &coeffs[0], conf ) << std::endl;
     return 0;
 }

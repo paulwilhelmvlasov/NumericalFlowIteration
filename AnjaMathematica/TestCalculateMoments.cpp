@@ -48,7 +48,7 @@ void gauss3333333 () {
   //conf.dx_inv = conf.dy_inv = conf.dz_inv = 1;
   //conf.Lx = conf.Ly = conf.Lz = 1;
   //conf.Lx_inv = conf.Ly_inv = conf.Lz_inv = 1;
-  conf.du = conf.dv = conf.dw = 0.5; // ausprobieren
+  conf.du = conf.dv = conf.dw = 1; // ausprobieren
 
   size_t n = 1; // aktuell egal
   size_t l = 1; // aktuell egal
@@ -147,4 +147,4 @@ int main () {
   // Full10();
 
   return 0;
-  }
+}

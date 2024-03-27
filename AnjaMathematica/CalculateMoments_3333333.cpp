@@ -81,16 +81,15 @@ void eval_moments( size_t n, size_t l, const real *coeffs, const config_t<real> 
 		}
 	} else {
 
-	// Calculate moments
-	for ( size_t kk = 0; kk < conf.Nw; ++kk )
-	for ( size_t jj = 0; jj < conf.Nv; ++jj )
-	for ( size_t ii = 0; ii < conf.Nu; ++ii )
-	{
-		// std_dev = 1
-		real unew = (u_min + ii*du - j_x)/std_dev;
-		real vnew = (v_min + jj*dv - j_y)/std_dev;
-		real wnew = (w_min + kk*dw - j_z)/std_dev;
-
+		// Calculate moments
+		for ( size_t kk = 0; kk < conf.Nw; ++kk )
+		for ( size_t jj = 0; jj < conf.Nv; ++jj )
+		for ( size_t ii = 0; ii < conf.Nu; ++ii )
+		{
+			// std_dev = 1
+			real unew = (u_min + ii*du - j_x)/std_dev;
+			real vnew = (v_min + jj*dv - j_y)/std_dev;
+			real wnew = (w_min + kk*dw - j_z)/std_dev;
 
 			moments[0] += f[ii][jj][kk]/rho * 1.; 
 			moments[1] += f[ii][jj][kk]/rho * 0.816496580927726*(1.5 - 0.5*pow(unew,2) - 0.5*pow(vnew,2) - 0.5*pow(wnew,2)); 
@@ -300,9 +299,9 @@ template <typename real, size_t order>
 real pi_inverse( real u, real v, real w, real* moments )
 {
 	real value = 0;
-	// u = (u - moments[197])/moments[200]; 
-	//v = (v - moments[198])/moments[200]; 
-	//w = (w - moments[199])/moments[200]; 
+	u = (u - moments[197]) / moments[200]; 
+	v = (v - moments[198]) / moments[200]; 
+	w = (w - moments[199]) / moments[200]; 
 	value += moments[0] * exp(-(pow(u,2) + pow(v,2) + pow(w,2)) /2) * 1.; 
 	value += moments[1] * exp(-(pow(u,2) + pow(v,2) + pow(w,2)) /2) * 0.816496580927726*(1.5 - 0.5*pow(u,2) - 0.5*pow(v,2) - 0.5*pow(w,2)); 
 	value += moments[2] * exp(-(pow(u,2) + pow(v,2) + pow(w,2)) /2) * 0.3651483716701107*(3.75 - 2.5*pow(u,2) + 0.25*pow(u,4) - 2.5*pow(v,2) + 0.5*pow(u,2)*pow(v,2) + 0.25*pow(v,4) - 2.5*pow(w,2) + 0.5*pow(u,2)*pow(w,2) + 0.5*pow(v,2)*pow(w,2) + 0.25*pow(w,4)); 
@@ -499,6 +498,7 @@ real pi_inverse( real u, real v, real w, real* moments )
 	value += moments[193] * exp(-(pow(u,2) + pow(v,2) + pow(w,2)) /2) * 0.00008071616563214806*(-605.625*pow(u,6) + 121.125*pow(u,8) - 7.125*pow(u,10) + 0.125*pow(u,12) + 3028.125*pow(u,4)*pow(v,2) - 484.5*pow(u,6)*pow(v,2) + 21.375*pow(u,8)*pow(v,2) - 0.25*pow(u,10)*pow(v,2) + 3028.125*pow(u,2)*pow(v,4) - 1211.25*pow(u,4)*pow(v,4) + 99.75*pow(u,6)*pow(v,4) - 2.125*pow(u,8)*pow(v,4) - 605.625*pow(v,6) - 484.5*pow(u,2)*pow(v,6) + 99.75*pow(u,4)*pow(v,6) - 3.5*pow(u,6)*pow(v,6) + 121.125*pow(v,8) + 21.375*pow(u,2)*pow(v,8) - 2.125*pow(u,4)*pow(v,8) - 7.125*pow(v,10) - 0.25*pow(u,2)*pow(v,10) + 0.125*pow(v,12) + 6056.25*pow(u,4)*pow(w,2) - 1090.125*pow(u,6)*pow(w,2) + 57.*pow(u,8)*pow(w,2) - 0.875*pow(u,10)*pow(w,2) - 36337.5*pow(u,2)*pow(v,2)*pow(w,2) + 5450.625*pow(u,4)*pow(v,2)*pow(w,2) - 228.*pow(u,6)*pow(v,2)*pow(w,2) + 2.625*pow(u,8)*pow(v,2)*pow(w,2) + 6056.25*pow(v,4)*pow(w,2) + 5450.625*pow(u,2)*pow(v,4)*pow(w,2) - 570.*pow(u,4)*pow(v,4)*pow(w,2) + 12.25*pow(u,6)*pow(v,4)*pow(w,2) - 1090.125*pow(v,6)*pow(w,2) - 228.*pow(u,2)*pow(v,6)*pow(w,2) + 12.25*pow(u,4)*pow(v,6)*pow(w,2) + 57.*pow(v,8)*pow(w,2) + 2.625*pow(u,2)*pow(v,8)*pow(w,2) - 0.875*pow(v,10)*pow(w,2) - 1211.25*pow(u,4)*pow(w,4) + 135.375*pow(u,6)*pow(w,4) - 3.375*pow(u,8)*pow(w,4) + 7267.5*pow(u,2)*pow(v,2)*pow(w,4) - 676.875*pow(u,4)*pow(v,2)*pow(w,4) + 13.5*pow(u,6)*pow(v,2)*pow(w,4) - 1211.25*pow(v,4)*pow(w,4) - 676.875*pow(u,2)*pow(v,4)*pow(w,4) + 33.75*pow(u,4)*pow(v,4)*pow(w,4) + 135.375*pow(v,6)*pow(w,4) + 13.5*pow(u,2)*pow(v,6)*pow(w,4) - 3.375*pow(v,8)*pow(w,4) + 71.25*pow(u,4)*pow(w,6) - 3.625*pow(u,6)*pow(w,6) - 427.5*pow(u,2)*pow(v,2)*pow(w,6) + 18.125*pow(u,4)*pow(v,2)*pow(w,6) + 71.25*pow(v,4)*pow(w,6) + 18.125*pow(u,2)*pow(v,4)*pow(w,6) - 3.625*pow(v,6)*pow(w,6) - 1.25*pow(u,4)*pow(w,8) + 7.5*pow(u,2)*pow(v,2)*pow(w,8) - 1.25*pow(v,4)*pow(w,8)); 
 	value += moments[194] * exp(-(pow(u,2) + pow(v,2) + pow(w,2)) /2) * 0.0003785923753535455*(-605.625*pow(u,5)*w + 121.125*pow(u,7)*w - 7.125*pow(u,9)*w + 0.125*pow(u,11)*w + 6056.25*pow(u,3)*pow(v,2)*w - 1090.125*pow(u,5)*pow(v,2)*w + 57.*pow(u,7)*pow(v,2)*w - 0.875*pow(u,9)*pow(v,2)*w - 3028.125*u*pow(v,4)*w - 605.625*pow(u,3)*pow(v,4)*w + 99.75*pow(u,5)*pow(v,4)*w - 2.75*pow(u,7)*pow(v,4)*w + 605.625*u*pow(v,6)*w - 1.75*pow(u,5)*pow(v,6)*w - 35.625*u*pow(v,8)*w + 0.625*pow(u,3)*pow(v,8)*w + 0.625*u*pow(v,10)*w + 121.125*pow(u,5)*pow(w,3) - 14.25*pow(u,7)*pow(w,3) + 0.375*pow(u,9)*pow(w,3) - 1211.25*pow(u,3)*pow(v,2)*pow(w,3) + 128.25*pow(u,5)*pow(v,2)*pow(w,3) - 3.*pow(u,7)*pow(v,2)*pow(w,3) + 605.625*u*pow(v,4)*pow(w,3) + 71.25*pow(u,3)*pow(v,4)*pow(w,3) - 5.25*pow(u,5)*pow(v,4)*pow(w,3) - 71.25*u*pow(v,6)*pow(w,3) + 1.875*u*pow(v,8)*pow(w,3) - 7.125*pow(u,5)*pow(w,5) + 0.375*pow(u,7)*pow(w,5) + 71.25*pow(u,3)*pow(v,2)*pow(w,5) - 3.375*pow(u,5)*pow(v,2)*pow(w,5) - 35.625*u*pow(v,4)*pow(w,5) - 1.875*pow(u,3)*pow(v,4)*pow(w,5) + 1.875*u*pow(v,6)*pow(w,5) + 0.125*pow(u,5)*pow(w,7) - 1.25*pow(u,3)*pow(v,2)*pow(w,7) + 0.625*u*pow(v,4)*pow(w,7)); 
 	value += moments[195] * exp(-(pow(u,2) + pow(v,2) + pow(w,2)) /2) * 0.00010929020491175468*(605.625*pow(u,6) - 121.125*pow(u,8) + 7.125*pow(u,10) - 0.125*pow(u,12) - 9084.375*pow(u,4)*pow(v,2) + 1695.75*pow(u,6)*pow(v,2) - 92.625*pow(u,8)*pow(v,2) + 1.5*pow(u,10)*pow(v,2) + 9084.375*pow(u,2)*pow(v,4) - 99.75*pow(u,6)*pow(v,4) + 3.375*pow(u,8)*pow(v,4) - 605.625*pow(v,6) - 1695.75*pow(u,2)*pow(v,6) + 99.75*pow(u,4)*pow(v,6) + 121.125*pow(v,8) + 92.625*pow(u,2)*pow(v,8) - 3.375*pow(u,4)*pow(v,8) - 7.125*pow(v,10) - 1.5*pow(u,2)*pow(v,10) + 0.125*pow(v,12) - 121.125*pow(u,6)*pow(w,2) + 14.25*pow(u,8)*pow(w,2) - 0.375*pow(u,10)*pow(w,2) + 1816.875*pow(u,4)*pow(v,2)*pow(w,2) - 199.5*pow(u,6)*pow(v,2)*pow(w,2) + 4.875*pow(u,8)*pow(v,2)*pow(w,2) - 1816.875*pow(u,2)*pow(v,4)*pow(w,2) + 5.25*pow(u,6)*pow(v,4)*pow(w,2) + 121.125*pow(v,6)*pow(w,2) + 199.5*pow(u,2)*pow(v,6)*pow(w,2) - 5.25*pow(u,4)*pow(v,6)*pow(w,2) - 14.25*pow(v,8)*pow(w,2) - 4.875*pow(u,2)*pow(v,8)*pow(w,2) + 0.375*pow(v,10)*pow(w,2) + 7.125*pow(u,6)*pow(w,4) - 0.375*pow(u,8)*pow(w,4) - 106.875*pow(u,4)*pow(v,2)*pow(w,4) + 5.25*pow(u,6)*pow(v,2)*pow(w,4) + 106.875*pow(u,2)*pow(v,4)*pow(w,4) - 7.125*pow(v,6)*pow(w,4) - 5.25*pow(u,2)*pow(v,6)*pow(w,4) + 0.375*pow(v,8)*pow(w,4) - 0.125*pow(u,6)*pow(w,6) + 1.875*pow(u,4)*pow(v,2)*pow(w,6) - 1.875*pow(u,2)*pow(v,4)*pow(w,6) + 0.125*pow(v,6)*pow(w,6)); 
+	value *= moments[196]/pow(moments[200],3) ;
 	return value;
 }
 

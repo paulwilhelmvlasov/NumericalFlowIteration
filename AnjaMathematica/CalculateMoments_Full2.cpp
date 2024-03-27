@@ -81,16 +81,15 @@ void eval_moments( size_t n, size_t l, const real *coeffs, const config_t<real> 
 		}
 	} else {
 
-	// Calculate moments
-	for ( size_t kk = 0; kk < conf.Nw; ++kk )
-	for ( size_t jj = 0; jj < conf.Nv; ++jj )
-	for ( size_t ii = 0; ii < conf.Nu; ++ii )
-	{
-		// std_dev = 1
-		real unew = (u_min + ii*du - j_x)/std_dev;
-		real vnew = (v_min + jj*dv - j_y)/std_dev;
-		real wnew = (w_min + kk*dw - j_z)/std_dev;
-
+		// Calculate moments
+		for ( size_t kk = 0; kk < conf.Nw; ++kk )
+		for ( size_t jj = 0; jj < conf.Nv; ++jj )
+		for ( size_t ii = 0; ii < conf.Nu; ++ii )
+		{
+			// std_dev = 1
+			real unew = (u_min + ii*du - j_x)/std_dev;
+			real vnew = (v_min + jj*dv - j_y)/std_dev;
+			real wnew = (w_min + kk*dw - j_z)/std_dev;
 
 			moments[0] += f[ii][jj][kk]/rho * 1.; 
 			moments[1] += f[ii][jj][kk]/rho * 0.816496580927726*(1.5 - 0.5*pow(unew,2) - 0.5*pow(vnew,2) - 0.5*pow(wnew,2)); 
@@ -139,9 +138,9 @@ template <typename real, size_t order>
 real pi_inverse( real u, real v, real w, real* moments )
 {
 	real value = 0;
-	u = u * moments[39] + moments[36]; 
-	v = v * moments[39] + moments[37]; 
-	w = w * moments[39] + moments[38]; 
+	u = (u - moments[36]) / moments[39]; 
+	v = (v - moments[37]) / moments[39]; 
+	w = (w - moments[38]) / moments[39]; 
 	value += moments[0] * exp(-(pow(u,2) + pow(v,2) + pow(w,2)) /2) * 1.; 
 	value += moments[1] * exp(-(pow(u,2) + pow(v,2) + pow(w,2)) /2) * 0.816496580927726*(1.5 - 0.5*pow(u,2) - 0.5*pow(v,2) - 0.5*pow(w,2)); 
 	value += moments[2] * exp(-(pow(u,2) + pow(v,2) + pow(w,2)) /2) * 0.3651483716701107*(3.75 - 2.5*pow(u,2) + 0.25*pow(u,4) - 2.5*pow(v,2) + 0.5*pow(u,2)*pow(v,2) + 0.25*pow(v,4) - 2.5*pow(w,2) + 0.5*pow(u,2)*pow(w,2) + 0.5*pow(v,2)*pow(w,2) + 0.25*pow(w,4)); 
@@ -177,6 +176,7 @@ real pi_inverse( real u, real v, real w, real* moments )
 	value += moments[32] * exp(-(pow(u,2) + pow(v,2) + pow(w,2)) /2) * 0.0545544725589981*(-1.*pow(u,4) + pow(v,4) + 6.*pow(u,2)*pow(w,2) - 6.*pow(v,2)*pow(w,2)); 
 	value += moments[33] * exp(-(pow(u,2) + pow(v,2) + pow(w,2)) /2) * 0.20412414523193154*(-1.*pow(u,3)*w + 3.*u*pow(v,2)*w); 
 	value += moments[34] * exp(-(pow(u,2) + pow(v,2) + pow(w,2)) /2) * 0.07216878364870323*(pow(u,4) - 6.*pow(u,2)*pow(v,2) + pow(v,4)); 
+	value *= moments[35]/pow(moments[39],3) ;
 	return value;
 }
 
