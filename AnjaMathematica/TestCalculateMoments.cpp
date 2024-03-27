@@ -31,7 +31,7 @@ void gauss3333333 () {
 
   config_t<double> conf;
   conf.Nx = conf.Ny = conf.Nz = 1;  // Number of grid points in physical space.
-  conf.Nu = conf.Nv = conf.Nw = 20;  // Number of quadrature points in velocity space.
+  conf.Nu = conf.Nv = conf.Nw = 50;  // Number of quadrature points in velocity space.
   //conf.Nt = 50;  // Number of time-steps.
   //conf.dt = 1;  // Time-step size.
 
@@ -40,15 +40,19 @@ void gauss3333333 () {
   conf.x_max = conf.y_max = conf.z_max = 1; // aktuell egal
 
   // Integration limits for velocity space.
-  conf.u_min = conf.v_min = conf.w_min = -10; // ausprobieren
-  conf.u_max = conf.v_max = conf.w_max = 10;
+  conf.u_min = conf.v_min = conf.w_min = -5; // ausprobieren
+  conf.u_max = conf.v_max = conf.w_max = 5;
 
   // Grid-sizes and their reciprocals.
   conf.dx = conf.dy = conf.dz = 1; // aktuell egal
   //conf.dx_inv = conf.dy_inv = conf.dz_inv = 1;
   //conf.Lx = conf.Ly = conf.Lz = 1;
   //conf.Lx_inv = conf.Ly_inv = conf.Lz_inv = 1;
-  conf.du = conf.dv = conf.dw = 1; // ausprobieren
+
+
+  conf.du = (conf.u_max-conf.u_min) / conf.Nu; 
+	conf.dv = (conf.v_max-conf.v_min) / conf.Nv;
+	conf.dw = (conf.w_max-conf.w_min) / conf.Nw;
 
   size_t n = 1; // aktuell egal
   size_t l = 1; // aktuell egal
@@ -86,7 +90,10 @@ void gauss444444444 () {
   //conf.dx_inv = conf.dy_inv = conf.dz_inv = 1;
   //conf.Lx = conf.Ly = conf.Lz = 1;
   //conf.Lx_inv = conf.Ly_inv = conf.Lz_inv = 1;
-  conf.du = conf.dv = conf.dw = 0.5; // ausprobieren
+  
+  conf.du = (conf.u_max-conf.u_min) / conf.Nu; 
+	conf.dv = (conf.v_max-conf.v_min) / conf.Nv;
+	conf.dw = (conf.w_max-conf.w_min) / conf.Nw;
 
   size_t n = 1; // aktuell egal
   size_t l = 1; // aktuell egal
@@ -124,7 +131,10 @@ void Full10 () {
   //conf.dx_inv = conf.dy_inv = conf.dz_inv = 1;
   //conf.Lx = conf.Ly = conf.Lz = 1;
   //conf.Lx_inv = conf.Ly_inv = conf.Lz_inv = 1;
-  conf.du = conf.dv = conf.dw = 0.5; // ausprobieren
+  
+  conf.du = (conf.u_max-conf.u_min) / conf.Nu; 
+	conf.dv = (conf.v_max-conf.v_min) / conf.Nv;
+	conf.dw = (conf.w_max-conf.w_min) / conf.Nw;
 
   size_t n = 1; // aktuell egal
   size_t l = 1; // aktuell egal

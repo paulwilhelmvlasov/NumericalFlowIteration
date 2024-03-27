@@ -34,15 +34,18 @@ int main () {
     conf.x_max = conf.y_max = conf.z_max = 1; // aktuell egal
 
     // Integration limits for velocity space.
-    conf.u_min = conf.v_min = conf.w_min = -50; // ausprobieren
-    conf.u_max = conf.v_max = conf.w_max = 50;
+    conf.u_min = conf.v_min = conf.w_min = -5; // ausprobieren
+    conf.u_max = conf.v_max = conf.w_max = 5;
 
     // Grid-sizes and their reciprocals.
     conf.dx = conf.dy = conf.dz = 1; // aktuell egal
     //conf.dx_inv = conf.dy_inv = conf.dz_inv = 1;
     //conf.Lx = conf.Ly = conf.Lz = 1;
     //conf.Lx_inv = conf.Ly_inv = conf.Lz_inv = 1;
-    conf.du = conf.dv = conf.dw = 0.1; // ausprobieren
+    
+    conf.du = (conf.u_max-conf.u_min) / conf.Nu; 
+	conf.dv = (conf.v_max-conf.v_min) / conf.Nv;
+	conf.dw = (conf.w_max-conf.w_min) / conf.Nw;
 
     size_t n = 1; // aktuell egal
     size_t l = 1; // aktuell egal
