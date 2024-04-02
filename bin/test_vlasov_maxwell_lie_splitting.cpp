@@ -53,6 +53,7 @@ void exp_jb_times_v(double B, double& v1, double& v2, double tol=1e-16)
 	}
 }
 
+// The following 3 function do essentially the same for 3 different field quantities. Unify them!
 template <size_t dx = 0>
 double eval_E_1(size_t nt, double x, double* coeffs_E_1, const dergeraet::dim_1_half::config_t<double>& conf, size_t stride_t)
 {
