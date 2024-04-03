@@ -25,8 +25,8 @@ inline double f0_1d(double x, double v)
     constexpr double k     = 0.5;
     constexpr double fac   = 0.39894228040143267793994;
 
-    //return fac*(1+alpha*cos(k*x))*exp(-v*v/2) * v*v;
-    return fac*(1+alpha*cos(k*x))*exp(-v*v/2);
+    return fac*(1+alpha*cos(k*x))*exp(-v*v/2) * v*v;
+    //return fac*(1+alpha*cos(k*x))*exp(-v*v/2);
 }
 
 inline double f0_1d_electron(double x, double v)
@@ -416,12 +416,12 @@ void single_species()
 	// Using FFT-based Poisson solver.
 	// Set parameters.
     const double L  = 4*3.14159265358979323846;
-    const size_t Nx_f = 128;
+    const size_t Nx_f = 64;
     const size_t Nx_poisson = Nx_f;
-    const size_t Nv_f = 256;
+    const size_t Nv_f = 4*Nx_f;
     const size_t N_f = Nx_f*Nv_f;
-    const double v_min = -6;
-    const double v_max =  6;
+    const double v_min = -8;
+    const double v_max =  8;
 
     // Compute derived quantities.
     const double eps_x = L/Nx_f;
@@ -430,8 +430,8 @@ void single_species()
     const double delta_x_inv = 1/delta_x;
     const double L_inv  = 1/L;
 
-    const size_t Nt = 30 * 16;
-    const double T = 30;
+    const size_t Nt = 100 * 16;
+    const double T = 100;
     const double dt = 1.0 / 16.0;
 
     // Initiate particles.
@@ -491,6 +491,7 @@ void single_species()
         rho.get()[0] = 0.5*(rho.get()[1] + rho.get()[Nx_poisson-1]); // This is a hack because for some reason just
         // integrating along x=0 doesn't work...
 
+        /*
         std::ofstream rho_str("rho" + std::to_string(nt*dt) + ".txt");
         for(size_t i = 0; i < Nx_poisson; i++)
     	{
@@ -498,7 +499,7 @@ void single_species()
 
     		rho_str << x << " " << rho.get()[i] << std::endl;
     	}
-
+    	*/
 
         // Solve for electric potential/field with FFT:
         double electric_energy = poiss.solve( rho.get() );
@@ -523,7 +524,8 @@ void single_species()
     	E_l2_str << t << " " << electric_energy << std::endl;
     	std::cout << "E_l2 = " << electric_energy << std::endl;
 
-    	if(nt % (16) == 0)
+    	//if(nt % (16) == 0)
+    	if(nt == 16*30 || nt == 16*100)
     	{
     		size_t plot_x = 256;
     		size_t plot_v = plot_x;
@@ -539,7 +541,6 @@ void single_species()
     			E_str << x << " " << E << std::endl;
     		}
 
-    		/*
     		std::ofstream f_str("f_" + std::to_string(t) + ".txt");
     		for(size_t i = 0; i <= plot_x; i++)
     		{
@@ -554,7 +555,6 @@ void single_species()
     			}
     			f_str << std::endl;
     		}
-    		*/
     	}
     }
 
@@ -563,8 +563,8 @@ void single_species()
 }
 
 int main() {
-	//single_species();
-	ion_acoustic();
+	single_species();
+	//ion_acoustic();
 
 	return 0;
 }
