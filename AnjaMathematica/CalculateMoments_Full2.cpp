@@ -176,7 +176,7 @@ real pi_inverse( real u, real v, real w, real* moments )
 	value += moments[32] * exp(-(pow(u,2) + pow(v,2) + pow(w,2))/2) * 0.0545544725589981*(-1.*pow(u,4) + pow(v,4) + 6.*pow(u,2)*pow(w,2) - 6.*pow(v,2)*pow(w,2)); 
 	value += moments[33] * exp(-(pow(u,2) + pow(v,2) + pow(w,2))/2) * 0.20412414523193154*(-1.*pow(u,3)*w + 3.*u*pow(v,2)*w); 
 	value += moments[34] * exp(-(pow(u,2) + pow(v,2) + pow(w,2))/2) * 0.07216878364870323*(pow(u,4) - 6.*pow(u,2)*pow(v,2) + pow(v,4)); 
-	value *= moments[35]/pow(moments[39],3) ;
+	value *= moments[35]/pow(moments[39],3) * 0.06349363593424097;
 	return value;
 }
 

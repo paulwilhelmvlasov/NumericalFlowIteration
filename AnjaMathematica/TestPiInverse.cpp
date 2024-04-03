@@ -34,8 +34,8 @@ int main () {
     conf.x_max = conf.y_max = conf.z_max = 1; // aktuell egal
 
     // Integration limits for velocity space.
-    conf.u_min = conf.v_min = conf.w_min = -5; // ausprobieren
-    conf.u_max = conf.v_max = conf.w_max = 5;
+    conf.u_min = conf.v_min = conf.w_min = -10; // ausprobieren
+    conf.u_max = conf.v_max = conf.w_max = 10;
 
     // Grid-sizes and their reciprocals.
     conf.dx = conf.dy = conf.dz = 1; // aktuell egal
@@ -54,7 +54,7 @@ int main () {
 
     eval_moments<double, order>(1, 1, &coeffs[0], conf, &moments[0] );
 
-    for (int i = 0; i < 196; i++) {
+    for (int i = 0; i < 199; i++) {
 			moments[i] = 0;
 	}
 
@@ -73,6 +73,10 @@ int main () {
     moments[163] = 0.03626203338;
     moments[176] = 0.02968256789;
     moments[189] = 0.02079872197;
+
+    moments[196] = 1;
+    moments[200] = 1;
+
 
     const double du = (conf.u_max-conf.u_min) / conf.Nu; 
 	const double dv = (conf.v_max-conf.v_min) / conf.Nv;
@@ -95,11 +99,7 @@ int main () {
 
 		accum += func * func * du * dv * dw;  
 	}
-    std::cout << pi_inverse<double, order>(3, -5, 0, &moments[0]) << std::endl;
-    std::cout << pi_inverse<double, order>(3, -5, -1.1, &moments[0]) << std::endl;
-    std::cout << pi_inverse<double, order>(3, -5, 1.1, &moments[0]) << std::endl;
-    std::cout << pi_inverse<double, order>(3, -5, -2, &moments[0]) << std::endl;
-    std::cout << pi_inverse<double, order>(3, -5, 2, &moments[0]) << std::endl;
+    std::cout << "pi_inv(0, 0, 0) = " << pi_inverse<double, order>(0, 0, 0, &moments[0]) << std::endl;
     accum = std::sqrt(accum);
 
     double accumf = 0.;
@@ -123,6 +123,6 @@ int main () {
     double u = 0;
     double v = 10;
     double w = 5;
-    std::cout << accum << std::endl;
+    std::cout << "L_2-Norm: " << accum << std::endl;
     return 0;
 }
