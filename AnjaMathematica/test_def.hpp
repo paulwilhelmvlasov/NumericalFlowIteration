@@ -26,6 +26,6 @@ struct config_t
 
 template <typename real, size_t order>
 real eval_f( size_t n, real x, real y, real z, real u, real v, real w, const real *coeffs, const config_t<real> &conf ){
-    //return exp(-(pow(u,2) + pow(v,2) + pow(w+1,2)) /2) * pow(w+1,10);
+    // return exp(-(pow(u,2) + pow(v,2) + pow(w+1,2)) /2) * pow(w+1,10);
     return 0.0897936 * (exp(-(pow(w + 1.22474,2) + pow(v,2) + pow(u,2))) + exp(-(pow(w - 1.22474,2) + pow(v,2) + pow(u,2))));
 }

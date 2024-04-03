@@ -95,7 +95,11 @@ int main () {
 
 		accum += func * func * du * dv * dw;  
 	}
-
+    std::cout << pi_inverse<double, order>(3, -5, 0, &moments[0]) << std::endl;
+    std::cout << pi_inverse<double, order>(3, -5, -1.1, &moments[0]) << std::endl;
+    std::cout << pi_inverse<double, order>(3, -5, 1.1, &moments[0]) << std::endl;
+    std::cout << pi_inverse<double, order>(3, -5, -2, &moments[0]) << std::endl;
+    std::cout << pi_inverse<double, order>(3, -5, 2, &moments[0]) << std::endl;
     accum = std::sqrt(accum);
 
     double accumf = 0.;

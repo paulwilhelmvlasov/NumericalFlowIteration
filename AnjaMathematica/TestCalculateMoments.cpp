@@ -31,7 +31,7 @@ void gauss3333333 () {
 
     config_t<double> conf;
     conf.Nx = conf.Ny = conf.Nz = 1;  // Number of grid points in physical space.
-    conf.Nu = conf.Nv = conf.Nw = 50;  // Number of quadrature points in velocity space.
+    conf.Nu = conf.Nv = conf.Nw = 40;  // Number of quadrature points in velocity space.
     //conf.Nt = 50;  // Number of time-steps.
     //conf.dt = 1;  // Time-step size.
 
@@ -40,8 +40,8 @@ void gauss3333333 () {
     conf.x_max = conf.y_max = conf.z_max = 1; // aktuell egal
 
     // Integration limits for velocity space.
-    conf.u_min = conf.v_min = conf.w_min = -5; // ausprobieren
-    conf.u_max = conf.v_max = conf.w_max = 5;
+    conf.u_min = conf.v_min = conf.w_min = -20; // ausprobieren
+    conf.u_max = conf.v_max = conf.w_max = 20;
 
     // Grid-sizes and their reciprocals.
     conf.dx = conf.dy = conf.dz = 1; // aktuell egal
