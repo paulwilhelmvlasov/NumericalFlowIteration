@@ -100,6 +100,8 @@ int main () {
 		accum += func * func * du * dv * dw;  
 	}
     std::cout << "pi_inv(0, 0, 0) = " << pi_inverse<double, order>(0, 0, 0, &moments[0]) << std::endl;
+    std::cout << "pi_inv(0, 0, sqrt(3/2)) = " << pi_inverse<double, order>(0, 0, 1.22474, &moments[0]) << std::endl;
+    std::cout << "pi_inv(0, 0, -sqrt(3/2)) = " << pi_inverse<double, order>(0, 0, -1.22474, &moments[0]) << std::endl;
     accum = std::sqrt(accum);
 
     double accumf = 0.;
@@ -120,9 +122,6 @@ int main () {
 
     accum /= accumf;
 
-    double u = 0;
-    double v = 10;
-    double w = 5;
     std::cout << "L_2-Norm: " << accum << std::endl;
     return 0;
 }
