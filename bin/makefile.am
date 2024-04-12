@@ -1,4 +1,4 @@
-noinst_PROGRAMS = test_poisson test_gmres test_fields test_dergeraet test_dergeraet_2d test_dergeraet_3d test_nufi_cpu test_nufi_cpu_2d test_nufi_cpu_3d test_nufi_cpu_3d_isolated
+noinst_PROGRAMS = test_poisson test_gmres test_fields test_dergeraet #test_dergeraet_2d test_dergeraet_3d test_nufi_cpu test_nufi_cpu_2d test_nufi_cpu_3d test_nufi_cpu_3d_isolated
 
 test_poisson_SOURCES = test_poisson.cpp
 test_poisson_LDADD   = $(top_builddir)/dergeraet/libdergeraet.a

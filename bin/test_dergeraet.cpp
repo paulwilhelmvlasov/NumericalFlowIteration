@@ -51,8 +51,8 @@ void test()
 
     config_t<real> conf_metrics;
     // To compute metrics use higher amount of quadrature points:
-    conf_metrics.Nx = 128;//1024;
-    conf_metrics.Nu = 128;//1024;
+    conf_metrics.Nx = conf.Nx;//1024;
+    conf_metrics.Nu = conf.Nu;//1024;
     conf_metrics.dx = (conf_metrics.x_max - conf_metrics.x_min) / conf_metrics.Nx;
     conf_metrics.du = (conf_metrics.u_max - conf_metrics.u_min) / conf_metrics.Nu;
 
@@ -72,6 +72,7 @@ void test()
     statistics_file << std::scientific;
           std::cout << std::scientific;
 
+    std::ofstream coeffs_str( "coeffs_Nt_" + std::to_string(conf.Nt) + "_Nx_ " + std::to_string(conf.Nx) + "_stride_t_" + std::to_string(stride_t) + ".txt" );
     double total_time = 0;
     for ( size_t n = 0; n <= conf.Nt; ++n )
     {
@@ -122,7 +123,8 @@ void test()
                             <<    total_energy << "; "
                             << metrics[3]      << std::endl;
 
-            if(n % (10*16) == 0 && false)
+            /*
+            if(n % (10*16) == 0 )
             {
 				size_t Nx_plot = 256;
 				real dx_plot = conf.Lx / Nx_plot;
@@ -156,8 +158,38 @@ void test()
 					file_f << std::endl;
 				}
             }
+            */
+
+            if(n == 16*100){
+            	real t = n * conf.dt;
+				std::ofstream file_f_zoomed( "f_" + std::to_string(t) + ".txt" );
+				size_t Nx_plot = 2048;
+				size_t Nu_plot = Nx_plot;
+				real x_min_plot = 9.5;
+				real x_max_plot = 10.5;
+				real u_min_plot = -0.5;
+				real u_max_plot = 0.5;
+				real dx_plot = (x_max_plot - x_min_plot)/Nx_plot;
+				real du_plot = (u_max_plot - u_min_plot)/Nu_plot;
+				for(size_t i = 0; i<=Nx_plot; i++)
+				{
+					for(size_t j = 0; j <= Nu_plot; j++)
+					{
+						real x = x_min_plot + i*dx_plot;
+						real v = u_min_plot + j*du_plot;
+						real f = eval_f<real, order>(n, x, v, coeffs.get(), conf);
+
+						file_f_zoomed << x << " " << v << " " << f << std::endl;
+					}
+					file_f_zoomed << std::endl;
+				}
+            }
+
         }
 
+        for(size_t i = 0; i < stride_t; i++){
+        	coeffs_str << coeffs.get()[n*stride_t + i] << std::endl;
+        }
     }
     
     std::cout << "Elapsed time = " << total_time << std::endl;
@@ -246,6 +278,6 @@ void test()
 
 int main()
 {
-    dergeraet::dim1::test<double,4>();
+    dergeraet::dim1::test<float,4>();
 }
 
