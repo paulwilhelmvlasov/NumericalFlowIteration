@@ -7,8 +7,7 @@
 #include <math.h>
 #include <algorithm>
 #include <vector>
-
-#include <dergeraet/config.hpp>
+#include "test_def.hpp"
 
 template <typename real, size_t order>
 void eval_moments( size_t n, size_t l, const real *coeffs, const config_t<real> &conf, real* moments )

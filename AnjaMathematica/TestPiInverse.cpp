@@ -9,8 +9,14 @@
 /*
 g++ -c -std=c++20 CalculateMoments_<<theory>>.cpp
 g++ -c -std=c++20 TestPiInverse.cpp
-g++ TestPiInverse.o CalculateMoments_<<theory>>.o -o Test
-./Test
+g++ TestPiInverse.o CalculateMoments_<<theory>>.o -o TestInverse
+./TestInverse
+
+e.g. for 3333333:
+g++ -c -std=c++20 CalculateMoments_3333333.cpp
+g++ -c -std=c++20 TestPiInverse.cpp
+g++ TestPiInverse.o CalculateMoments_3333333.o -o TestInverse
+./TestInverse
 */
 
 // Select theory
