@@ -7,23 +7,22 @@
 
 // terminal commands:
 /*
-g++ -c -std=c++20 CalculateMoments_<<theory>>.cpp
-g++ -c -std=c++20 TestCalculateMoments.cpp
+g++ -c -std=c++17 -O2 CalculateMoments_<<theory>>.cpp
+g++ -c -std=c++17 -O2 TestCalculateMoments.cpp
 g++ TestCalculateMoments.o CalculateMoments_<<theory>>.o -o TestMoments
 ./TestMoments
 
 e.g. for 3333333:
-g++ -c -std=c++20 CalculateMoments_3333333.cpp
-g++ -c -std=c++20 TestCalculateMoments.cpp
+g++ -c -std=c++17 -O2 CalculateMoments_3333333.cpp
+g++ -c -std=c++17 -O2 TestCalculateMoments.cpp
 g++ TestCalculateMoments.o CalculateMoments_3333333.o -o TestMoments
 ./TestMoments
 */
 
-// Select theory
-// #include "CalculateMoments_3333333.cpp"
-// #include "CalculateMoments_444444444.cpp"
-// #include "CalculateMoments_Full10.cpp"
 #include "CalculateMoments_Full2.cpp"
+#include "CalculateMoments_3333333.cpp"
+#include "CalculateMoments_444444444.cpp"
+#include "CalculateMoments_Full10.cpp"
 
 double runde (double value, int precision)
 {
@@ -41,11 +40,11 @@ void max_norm (const std::vector<double> moments, const std::vector<double> orig
             pos = i;
         }
     }
-    std::cout << "max_norm = " << max << std::endl;
+    std::cout << "max_norm (discontinuous f only!) = " << max << std::endl;
     std::cout << "pos = " << pos << std::endl;
 }
 
-void calculate_moments (const std::vector<double> orig) {
+void calculate_moments (const std::vector<double> orig, int theory) {
     std::vector<double> moments;
     moments.resize(orig.size() + 5);
 
@@ -80,7 +79,24 @@ void calculate_moments (const std::vector<double> orig) {
 
     constexpr size_t order = 1; // aktuell egal
 
-    eval_moments<double, order>(n, l, &coeffs[0], conf, &moments[0] );
+    switch (theory)
+    {
+    case 1:
+        cm_21100::calculate_moments<double, order>(n, l, &coeffs[0], conf, &moments[0]);
+        break;
+    case 2:
+        cm_3333333::calculate_moments<double, order>(n, l, &coeffs[0], conf, &moments[0]);
+        break;
+    case 3:
+        cm_444444444::calculate_moments<double, order>(n, l, &coeffs[0], conf, &moments[0]);
+        break;
+    case 4:
+        cm_1099887766554433221100::calculate_moments<double, order>(n, l, &coeffs[0], conf, &moments[0]);
+        break;
+    default:
+        cm_21100::calculate_moments<double, order>(n, l, &coeffs[0], conf, &moments[0]);
+        break;
+    }
 
     for(int i = 0; i < moments.size(); i++) {
         std::cout << "moments[" << i << "] = ";
@@ -94,6 +110,48 @@ void calculate_moments (const std::vector<double> orig) {
     if(orig[0] == 1.0) {
         max_norm(moments, orig);
     }
+}
+
+void Full2 () {
+    std::vector<double> orig;
+    orig.resize(35);
+    orig[0] = 1.0;
+    orig[1] = 0;
+    orig[2] = -0.1914778361;
+    orig[3] = 0;
+    orig[4] = 0;
+    orig[5] = 0;
+    orig[6] = -0.2797288653;
+    orig[7] = -0.02153353809;
+    orig[8] = -0.03936924771;
+    orig[9] = -0.02205882353;
+    orig[10] = 0;
+    orig[11] = -0.6749903882;
+    orig[12] = -0.2292420186;
+    orig[13] = -0.8823529412;
+    orig[14] = 0.008669806723;
+    orig[15] = 0.002702978232;
+    orig[16] = -0.3849241224;
+    orig[17] = -0.3207534169;
+    orig[18] = -0.281075134;
+    orig[19] = -0.232727199;
+    orig[20] = -0.03404751323;
+    orig[21] = -0.1554049252;
+    orig[22] = -0.02637309034;
+    orig[23] = -0.03522511637;
+    orig[24] = 0.03404751323; 
+    orig[25] = -0.232727199;
+    orig[26] = 0.03371206157;
+    orig[27] = -0.006193301176;
+    orig[28] = 0.01667073307;
+    orig[29] = 0.002340847815;
+    orig[30] = 0.3411191802;
+    orig[31] = 0.02809017378;
+    orig[32] = 0.5398344391;
+    orig[33] = -0.03715980706;
+    orig[34] = 0.6971373398;
+
+    calculate_moments(orig, 1);
 }
 
 void gauss3333333 () {
@@ -296,7 +354,7 @@ void gauss3333333 () {
     orig[194] = -0.01826028117;
     orig[195] = -0.5270443588;
 
-    calculate_moments(orig);
+    calculate_moments(orig, 2);
 }
 
 void gauss444444444 () {
@@ -708,66 +766,45 @@ void gauss444444444 () {
     orig[403] = -0.002193011377;
     orig[404] = 0.3374265533;
 
-    calculate_moments(orig);
+    calculate_moments(orig, 3);
 }
 
 void Full10 () {
     std::vector<double> orig;
     orig.resize(1771);
     orig[0] = 0;
-    calculate_moments(orig);
+    calculate_moments(orig, 4);
 }
 
-void Full2 () {
-    std::vector<double> orig;
-    orig.resize(35);
-    orig[0] = 1.0;
-    orig[1] = 0;
-    orig[2] = -0.1914778361;
-    orig[3] = 0;
-    orig[4] = 0;
-    orig[5] = 0;
-    orig[6] = -0.2797288653;
-    orig[7] = -0.02153353809;
-    orig[8] = -0.03936924771;
-    orig[9] = -0.02205882353;
-    orig[10] = 0;
-    orig[11] = -0.6749903882;
-    orig[12] = -0.2292420186;
-    orig[13] = -0.8823529412;
-    orig[14] = 0.008669806723;
-    orig[15] = 0.002702978232;
-    orig[16] = -0.3849241224;
-    orig[17] = -0.3207534169;
-    orig[18] = -0.281075134;
-    orig[19] = -0.232727199;
-    orig[20] = -0.03404751323;
-    orig[21] = -0.1554049252;
-    orig[22] = -0.02637309034;
-    orig[23] = -0.03522511637;
-    orig[24] = 0.03404751323; 
-    orig[25] = -0.232727199;
-    orig[26] = 0.03371206157;
-    orig[27] = -0.006193301176;
-    orig[28] = 0.01667073307;
-    orig[29] = 0.002340847815;
-    orig[30] = 0.3411191802;
-    orig[31] = 0.02809017378;
-    orig[32] = 0.5398344391;
-    orig[33] = -0.03715980706;
-    orig[34] = 0.6971373398;
-
-    calculate_moments(orig);
-}
 
 int main () {
+    bool cont = true;
+    int choice; 
+    char con;
+    while (cont) {
 
-    // gauss3333333();
-
-    // gauss444444444();
-
-    // Full10();
-
-    Full2();
+        std::cout << "Select a theory (select number): 1) Full 2; 2) 3333333; 3) 444444444; 4) Full10" << std::endl;
+        std::cin >> choice;
+        switch (choice)
+        {
+            case 1:
+                Full2();
+                break;
+            case 2:
+                gauss3333333();
+                break;
+            case 3:
+                gauss444444444();
+                break;
+            case 4:
+                Full10();
+                break;
+            default:
+                break;
+        }
+        std::cout << "Continue? [y/n]" << std::endl;
+        std::cin >> con;
+        if (con == 'n') cont = false;
+    }
     return 0;
 }

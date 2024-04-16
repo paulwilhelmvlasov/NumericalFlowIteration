@@ -2,16 +2,11 @@
 // This file calculates moments from a distribution
 // Author: Anja Matena (anja.matena@rwth-aachen.de)
 
-#include <cstddef>
-#include <cmath>
-#include <math.h>
-#include <algorithm>
-#include <vector>
+#include "moments.hpp"
 
-#include "test_def.hpp"
-
+namespace cm_444444444 {
 template <typename real, size_t order>
-void eval_moments( size_t n, size_t l, const real *coeffs, const config_t<real> &conf, real* moments )
+void calculate_moments( size_t n, size_t l, const real *coeffs, const config_t<real> &conf, real* moments )
 {
 	const size_t k   = l   / (conf.Nx * conf.Ny); 
 	const size_t tmp = l   % (conf.Nx * conf.Ny);
@@ -504,7 +499,7 @@ void eval_moments( size_t n, size_t l, const real *coeffs, const config_t<real> 
 	moments[408] = j_z; 
 	moments[409] = std_dev; 
 } 
-template <typename real, size_t order>
+template <typename real>
 real pi_inverse( real u, real v, real w, real* moments )
 {
 	real value = 0;
@@ -918,5 +913,6 @@ real pi_inverse( real u, real v, real w, real* moments )
 	value += moments[404] * exp(-(pow(u,2) + pow(v,2) + pow(w,2))/2) * 7.50358408750064e-7*(14339.0625*pow(u,8) - 3018.75*pow(u,10) + 215.625*pow(u,12) - 6.25*pow(u,14) + 0.0625*pow(u,16) - 401493.75*pow(u,6)*pow(v,2) + 81506.25*pow(u,8)*pow(v,2) - 5606.25*pow(u,10)*pow(v,2) + 156.25*pow(u,12)*pow(v,2) - 1.5*pow(u,14)*pow(v,2) + 1.003734375e6*pow(u,4)*pow(v,4) - 126787.5*pow(u,6)*pow(v,4) + 3234.375*pow(u,8)*pow(v,4) + 68.75*pow(u,10)*pow(v,4) - 2.25*pow(u,12)*pow(v,4) - 401493.75*pow(u,2)*pow(v,6) - 126787.5*pow(u,4)*pow(v,6) + 18112.5*pow(u,6)*pow(v,6) - 618.75*pow(u,8)*pow(v,6) + 5.5*pow(u,10)*pow(v,6) + 14339.0625*pow(v,8) + 81506.25*pow(u,2)*pow(v,8) + 3234.375*pow(u,4)*pow(v,8) - 618.75*pow(u,6)*pow(v,8) + 12.375*pow(u,8)*pow(v,8) - 3018.75*pow(v,10) - 5606.25*pow(u,2)*pow(v,10) + 68.75*pow(u,4)*pow(v,10) + 5.5*pow(u,6)*pow(v,10) + 215.625*pow(v,12) + 156.25*pow(u,2)*pow(v,12) - 2.25*pow(u,4)*pow(v,12) - 6.25*pow(v,14) - 1.5*pow(u,2)*pow(v,14) + 0.0625*pow(v,16) - 3018.75*pow(u,8)*pow(w,2) + 431.25*pow(u,10)*pow(w,2) - 18.75*pow(u,12)*pow(w,2) + 0.25*pow(u,14)*pow(w,2) + 84525.*pow(u,6)*pow(v,2)*pow(w,2) - 11643.75*pow(u,8)*pow(v,2)*pow(w,2) + 487.5*pow(u,10)*pow(v,2)*pow(w,2) - 6.25*pow(u,12)*pow(v,2)*pow(w,2) - 211312.5*pow(u,4)*pow(v,4)*pow(w,2) + 18112.5*pow(u,6)*pow(v,4)*pow(w,2) - 281.25*pow(u,8)*pow(v,4)*pow(w,2) - 2.75*pow(u,10)*pow(v,4)*pow(w,2) + 84525.*pow(u,2)*pow(v,6)*pow(w,2) + 18112.5*pow(u,4)*pow(v,6)*pow(w,2) - 1575.*pow(u,6)*pow(v,6)*pow(w,2) + 24.75*pow(u,8)*pow(v,6)*pow(w,2) - 3018.75*pow(v,8)*pow(w,2) - 11643.75*pow(u,2)*pow(v,8)*pow(w,2) - 281.25*pow(u,4)*pow(v,8)*pow(w,2) + 24.75*pow(u,6)*pow(v,8)*pow(w,2) + 431.25*pow(v,10)*pow(w,2) + 487.5*pow(u,2)*pow(v,10)*pow(w,2) - 2.75*pow(u,4)*pow(v,10)*pow(w,2) - 18.75*pow(v,12)*pow(w,2) - 6.25*pow(u,2)*pow(v,12)*pow(w,2) + 0.25*pow(v,14)*pow(w,2) + 215.625*pow(u,8)*pow(w,4) - 18.75*pow(u,10)*pow(w,4) + 0.375*pow(u,12)*pow(w,4) - 6037.5*pow(u,6)*pow(v,2)*pow(w,4) + 506.25*pow(u,8)*pow(v,2)*pow(w,4) - 9.75*pow(u,10)*pow(v,2)*pow(w,4) + 15093.75*pow(u,4)*pow(v,4)*pow(w,4) - 787.5*pow(u,6)*pow(v,4)*pow(w,4) + 5.625*pow(u,8)*pow(v,4)*pow(w,4) - 6037.5*pow(u,2)*pow(v,6)*pow(w,4) - 787.5*pow(u,4)*pow(v,6)*pow(w,4) + 31.5*pow(u,6)*pow(v,6)*pow(w,4) + 215.625*pow(v,8)*pow(w,4) + 506.25*pow(u,2)*pow(v,8)*pow(w,4) + 5.625*pow(u,4)*pow(v,8)*pow(w,4) - 18.75*pow(v,10)*pow(w,4) - 9.75*pow(u,2)*pow(v,10)*pow(w,4) + 0.375*pow(v,12)*pow(w,4) - 6.25*pow(u,8)*pow(w,6) + 0.25*pow(u,10)*pow(w,6) + 175.*pow(u,6)*pow(v,2)*pow(w,6) - 6.75*pow(u,8)*pow(v,2)*pow(w,6) - 437.5*pow(u,4)*pow(v,4)*pow(w,6) + 10.5*pow(u,6)*pow(v,4)*pow(w,6) + 175.*pow(u,2)*pow(v,6)*pow(w,6) + 10.5*pow(u,4)*pow(v,6)*pow(w,6) - 6.25*pow(v,8)*pow(w,6) - 6.75*pow(u,2)*pow(v,8)*pow(w,6) + 0.25*pow(v,10)*pow(w,6) + 0.0625*pow(u,8)*pow(w,8) - 1.75*pow(u,6)*pow(v,2)*pow(w,8) + 4.375*pow(u,4)*pow(v,4)*pow(w,8) - 1.75*pow(u,2)*pow(v,6)*pow(w,8) + 0.0625*pow(v,8)*pow(w,8)); 
 	value *= moments[405]/pow(moments[409],3) * 0.06349363593424097;
 	return value;
+}
 }
 

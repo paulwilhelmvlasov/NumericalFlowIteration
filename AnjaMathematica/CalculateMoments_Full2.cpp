@@ -2,15 +2,11 @@
 // This file calculates moments from a distribution
 // Author: Anja Matena (anja.matena@rwth-aachen.de)
 
-#include <cstddef>
-#include <cmath>
-#include <math.h>
-#include <algorithm>
-#include <vector>
-#include "test_def.hpp"
+#include "moments.hpp"
 
+namespace cm_21100 {
 template <typename real, size_t order>
-void eval_moments( size_t n, size_t l, const real *coeffs, const config_t<real> &conf, real* moments )
+void calculate_moments( size_t n, size_t l, const real *coeffs, const config_t<real> &conf, real* moments )
 {
 	const size_t k   = l   / (conf.Nx * conf.Ny); 
 	const size_t tmp = l   % (conf.Nx * conf.Ny);
@@ -133,7 +129,7 @@ void eval_moments( size_t n, size_t l, const real *coeffs, const config_t<real> 
 	moments[38] = j_z; 
 	moments[39] = std_dev; 
 } 
-template <typename real, size_t order>
+template <typename real>
 real pi_inverse( real u, real v, real w, real* moments )
 {
 	real value = 0;
@@ -177,5 +173,6 @@ real pi_inverse( real u, real v, real w, real* moments )
 	value += moments[34] * exp(-(pow(u,2) + pow(v,2) + pow(w,2))/2) * 0.07216878364870323*(pow(u,4) - 6.*pow(u,2)*pow(v,2) + pow(v,4)); 
 	value *= moments[35]/pow(moments[39],3) * 0.06349363593424097;
 	return value;
+}
 }
 

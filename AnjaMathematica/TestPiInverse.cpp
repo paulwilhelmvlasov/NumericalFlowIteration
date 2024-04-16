@@ -7,31 +7,30 @@
 
 // terminal commands:
 /*
-g++ -c -std=c++20 CalculateMoments_<<theory>>.cpp
-g++ -c -std=c++20 TestPiInverse.cpp
+g++ -c -std=c++17 -O2 CalculateMoments_<<theory>>.cpp
+g++ -c -std=c++17 -O2 TestPiInverse.cpp
 g++ TestPiInverse.o CalculateMoments_<<theory>>.o -o TestInverse
 ./TestInverse
 
 e.g. for 3333333:
-g++ -c -std=c++20 CalculateMoments_3333333.cpp
-g++ -c -std=c++20 TestPiInverse.cpp
+g++ -c -std=c++17 -O2 CalculateMoments_3333333.cpp
+g++ -c -std=c++17 -O2 TestPiInverse.cpp
 g++ TestPiInverse.o CalculateMoments_3333333.o -o TestInverse
 ./TestInverse
 */
 
-// Select theory
+#include "CalculateMoments_Full2.cpp"
 #include "CalculateMoments_3333333.cpp"
-// #include "CalculateMoments_444444444.cpp"
-// #include "CalculateMoments_Full10.cpp"
+#include "CalculateMoments_444444444.cpp"
+#include "CalculateMoments_Full10.cpp"
 
-int main () {
+void calculate (int theory) {
     std::vector<double> coeffs; // aktuell egal
     std::vector<double> moments;
-    moments.resize(201);
 
     config_t<double> conf;
     conf.Nx = conf.Ny = conf.Nz = 1;  // Number of grid points in physical space.
-    conf.Nu = conf.Nv = conf.Nw = 50;  // Number of quadrature points in velocity space.
+    conf.Nu = conf.Nv = conf.Nw = 80;  // Number of quadrature points in velocity space.
     //conf.Nt = 50;  // Number of time-steps.
     //conf.dt = 1;  // Time-step size.
 
@@ -40,8 +39,8 @@ int main () {
     conf.x_max = conf.y_max = conf.z_max = 1; // aktuell egal
 
     // Integration limits for velocity space.
-    conf.u_min = conf.v_min = conf.w_min = -10; // ausprobieren
-    conf.u_max = conf.v_max = conf.w_max = 10;
+    conf.u_min = conf.v_min = conf.w_min = -20; // ausprobieren
+    conf.u_max = conf.v_max = conf.w_max = 20;
 
     // Grid-sizes and their reciprocals.
     conf.dx = conf.dy = conf.dz = 1; // aktuell egal
@@ -58,31 +57,29 @@ int main () {
 
     constexpr size_t order = 1; // aktuell egal
 
-    eval_moments<double, order>(1, 1, &coeffs[0], conf, &moments[0] );
-
-    for (int i = 0; i < 199; i++) {
-			moments[i] = 0;
-	}
-
-    moments[0] = 1.;
-    moments[2] = -0.1369306394;
-    moments[3] = -0.08451542547;
-    moments[18] = 0.8660254038;
-    moments[23] = 0.4629100499;
-    moments[28] = 0.1735912687;
-    moments[33] = 0.04273521617;
-    moments[68] = 0.2195775164;
-    moments[77] = 0.1872563352;
-    moments[86] = 0.1201009893;
-    moments[95] = 0.06569386817;
-    moments[150] = 0.03310255611;
-    moments[163] = 0.03626203338;
-    moments[176] = 0.02968256789;
-    moments[189] = 0.02079872197;
-
-    moments[196] = 1;
-    moments[200] = 1;
-
+    switch (theory)
+    {
+    case 1:
+        moments.resize(40);
+        cm_21100::calculate_moments<double, order>(n, l, &coeffs[0], conf, &moments[0]);
+        break;
+    case 2:
+        moments.resize(201);
+        cm_3333333::calculate_moments<double, order>(n, l, &coeffs[0], conf, &moments[0]);
+        break;
+    case 3:
+        moments.resize(410);
+        cm_444444444::calculate_moments<double, order>(n, l, &coeffs[0], conf, &moments[0]);
+        break;
+    case 4:
+        moments.resize(1776);
+        cm_1099887766554433221100::calculate_moments<double, order>(n, l, &coeffs[0], conf, &moments[0]);
+        break;
+    default:
+        moments.resize(40);
+        cm_21100::calculate_moments<double, order>(n, l, &coeffs[0], conf, &moments[0]);
+        break;
+    }
 
     const double du = (conf.u_max-conf.u_min) / conf.Nu; 
 	const double dv = (conf.v_max-conf.v_min) / conf.Nv;
@@ -101,13 +98,31 @@ int main () {
 		double u = u_min + ii*du;
 		double v = v_min + jj*dv;
 		double w = w_min + kk*dw;
-		double func = eval_f<double, order> (n, 0, 0, 0, u, v , w , &coeffs[0], conf ) - pi_inverse<double, order>(u, v, w, &moments[0]);
+
+        double func;
+        switch (theory)
+        {
+        case 1:
+            func = eval_f<double, order> (n, 0, 0, 0, u, v , w , &coeffs[0], conf ) - cm_21100::pi_inverse<double>(u, v, w, &moments[0]);
+    
+            break;
+        case 2:
+            func = eval_f<double, order> (n, 0, 0, 0, u, v , w , &coeffs[0], conf ) - cm_3333333::pi_inverse<double>(u, v, w, &moments[0]);
+            break;
+        case 3:
+            func = eval_f<double, order> (n, 0, 0, 0, u, v , w , &coeffs[0], conf ) - cm_444444444::pi_inverse<double>(u, v, w, &moments[0]);
+            break;
+        case 4:
+            func = eval_f<double, order> (n, 0, 0, 0, u, v , w , &coeffs[0], conf ) - cm_1099887766554433221100::pi_inverse<double>(u, v, w, &moments[0]);
+            break;
+        default:
+            func = eval_f<double, order> (n, 0, 0, 0, u, v , w , &coeffs[0], conf ) - cm_21100::pi_inverse<double>(u, v, w, &moments[0]);
+            break;
+        }
 
 		accum += func * func * du * dv * dw;  
 	}
-    std::cout << "pi_inv(0, 0, 0) = " << pi_inverse<double, order>(0, 0, 0, &moments[0]) << std::endl;
-    std::cout << "pi_inv(0, 0, sqrt(3/2)) = " << pi_inverse<double, order>(0, 0, 1.22474, &moments[0]) << std::endl;
-    std::cout << "pi_inv(0, 0, -sqrt(3/2)) = " << pi_inverse<double, order>(0, 0, -1.22474, &moments[0]) << std::endl;
+    
     accum = std::sqrt(accum);
 
     double accumf = 0.;
@@ -129,5 +144,19 @@ int main () {
     accum /= accumf;
 
     std::cout << "L_2-Norm: " << accum << std::endl;
+}
+
+int main () {
+    bool cont = true;
+    int choice; 
+    char con;
+    while (cont) {
+        std::cout << "Select a theory (select number): 1) Full 2; 2) 3333333; 3) 444444444; 4) Full10" << std::endl;
+        std::cin >> choice;
+        calculate(choice);
+        std::cout << "Continue? [y/n]" << std::endl;
+        std::cin >> con;
+        if (con == 'n') cont = false;
+    }
     return 0;
 }
