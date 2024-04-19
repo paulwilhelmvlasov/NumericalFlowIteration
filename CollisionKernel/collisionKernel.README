@@ -1,0 +1,6 @@
+//Compilation command
+//Remember to change the header file for each compilation:
+g++ -O2 -o collideNmax4 main.cpp 
+g++ -O2 -o collideNmax6 main.cpp 
+g++ -O2 -o collideNmax8 main.cpp 
+
