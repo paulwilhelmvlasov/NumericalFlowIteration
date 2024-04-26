@@ -28,7 +28,6 @@ namespace dim1
 {
 
 template <typename real, size_t order>
-__host__ __device__
 real eval_ftilda( size_t n, real x, real u,
                   const real *coeffs, const config_t<real> &conf )
 {
@@ -60,7 +59,6 @@ real eval_ftilda( size_t n, real x, real u,
 }
 
 template <typename real, size_t order>
-__host__ __device__
 real eval_f( size_t n, real x, real u, 
              const real *coeffs, const config_t<real> &conf )
 {
@@ -153,7 +151,6 @@ namespace dim2
 
 
 template <typename real, size_t order>
-__host__ __device__
 real eval_ftilda( size_t n, real x, real y, real u, real v,
                   const real *coeffs, const config_t<real> &conf )
 {
@@ -196,7 +193,6 @@ real eval_ftilda( size_t n, real x, real y, real u, real v,
 }
 
 template <typename real, size_t order>
-__host__ __device__
 real eval_f( size_t n, real x, real y, real u, real v,
              const real *coeffs, const config_t<real> &conf )
 {
@@ -280,7 +276,6 @@ namespace dim3
 
 
 template <typename real, size_t order>
-__host__ __device__
 real eval_ftilda( size_t n, real x, real y, real z,
                             real u, real v, real w,
                   const real *coeffs, const config_t<real> &conf )
@@ -331,7 +326,6 @@ real eval_ftilda( size_t n, real x, real y, real z,
 }
 
 template <typename real, size_t order>
-__host__ __device__
 real eval_f( size_t n, real x, real y, real z,
                        real u, real v, real w,
              const real *coeffs, const config_t<real> &conf )

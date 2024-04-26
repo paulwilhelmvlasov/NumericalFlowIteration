@@ -21,7 +21,6 @@
 #define DERGERAET_CONFIG_HPP
 
 #include <cmath>
-#include <dergeraet/cuda_runtime.hpp>
 
 namespace dergeraet
 {
@@ -48,7 +47,7 @@ struct config_t
     real du;
 
     config_t() noexcept;
-    __host__ __device__ static real f0( real x, real u ) noexcept;
+    static real f0( real x, real u ) noexcept;
 };
 
 template <typename real>
@@ -69,7 +68,6 @@ config_t<real>::config_t() noexcept
 }
 
 template <typename real>
-__host__ __device__
 real config_t<real>::f0( real x, real u ) noexcept
 {
     using std::sin;
@@ -109,7 +107,7 @@ struct config_t
     real du, dv;
 
     config_t() noexcept;
-    __host__ __device__ static real f0( real x, real y, real u, real v ) noexcept;
+    static real f0( real x, real y, real u, real v ) noexcept;
 };
 
 
@@ -137,7 +135,6 @@ config_t<real>::config_t() noexcept
 }
 
 template <typename real>
-__host__ __device__
 real config_t<real>::f0( real x, real y, real u, real v ) noexcept
 {
     using std::sin;
@@ -188,7 +185,7 @@ struct config_t
     real du, dv, dw;
 
     config_t() noexcept;
-    __host__ __device__ static real f0( real x, real y, real z, real u, real v, real w ) noexcept;
+    static real f0( real x, real y, real z, real u, real v, real w ) noexcept;
 };
 
 
@@ -219,7 +216,6 @@ config_t<real>::config_t() noexcept
 }
 
 template <typename real>
-__host__ __device__
 real config_t<real>::f0( real x, real y, real z, real u, real v, real w ) noexcept
 {
     using std::sin;
