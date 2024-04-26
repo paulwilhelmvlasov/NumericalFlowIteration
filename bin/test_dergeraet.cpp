@@ -23,6 +23,7 @@
 #include <fstream>
 #include <sstream>
 
+#include <armadillo>
 
 #include <dergeraet/config.hpp>
 #include <dergeraet/random.hpp>
@@ -37,6 +38,168 @@ namespace dergeraet
 
 namespace dim1
 {
+
+template<typename real>
+void transform_to_polar_coordinates(real x, real y, real& r, real& phi)
+{
+	r = std::sqrt(x*x + y*y);
+
+	if(std::abs(x) < 1e-16){
+		if(y > 0){
+			phi = M_PI/2.0;
+		}else{
+			phi = -M_PI/2.0;
+		}
+	}else{
+		if(x > 0){
+			phi = std::atan(y/x);
+		}else{
+			if(y < 0){
+				phi = std::atan(y/x) - M_PI;
+			}else{
+				phi = std::atan(y/x) + M_PI;
+			}
+		}
+	}
+}
+
+template<typename real>
+void transform_to_plain_coordinates(real r, real phi, real& x, real& y)
+{
+	x = r*std::cos(phi);
+	y = r*std::sin(phi);
+}
+
+void transform_to_fourier_space(size_t Nx, size_t Nv, const config_t<double>& conf, std::vector<double>& F)
+{
+    std::unique_ptr<double,decltype(std::free)*> data { reinterpret_cast<double*>(
+    		std::aligned_alloc(64,sizeof(double)*Nx*Nv)), std::free };
+    if ( data == nullptr ) throw std::bad_alloc {};
+
+    for(size_t i = 0; i < Nx; i++){
+    	for(size_t j = 0; j < Nv; j++){
+    		size_t pos = i + j*Nx;
+    		data[pos] = F[pos];
+    	}
+    }
+
+
+    using memptr = std::unique_ptr<double,decltype(std::free)*>;
+
+    size_t mem_size  = sizeof(double) * Nx * Nv;
+    void *tmp = std::aligned_alloc( 64, mem_size ); // alignement_double = 64
+    if ( tmp == nullptr ) throw std::bad_alloc {};
+    memptr mem { reinterpret_cast<double*>(tmp), &std::free };
+
+    fftw_plan plan = fftw_plan_r2r_2d( Nx, Nv, mem.get(), mem.get(),
+                             FFTW_DHT, FFTW_DHT, FFTW_MEASURE );
+
+    fftw_execute_r2r( plan, data, data );
+
+    for(size_t i = 0; i < Nx; i++){
+    	for(size_t j = 0; j < Nv; j++){
+    		size_t pos = i + j*Nx;
+    		F[pos] = data[pos];
+    	}
+    }
+}
+
+
+template <typename real, size_t order>
+void read_in_coeffs(const std::string& i_str)
+{
+    config_t<real> conf;
+    const size_t stride_x = 1;
+    const size_t stride_t = conf.Nx + order - 1;
+
+    size_t n = conf.Nt;
+
+    std::unique_ptr<real[]> coeffs { new real[ conf.Nt*stride_t ] {} };
+
+	std::ifstream coeff_str(i_str);
+	for(size_t i = 0; i <= conf.Nt*stride_t; i++){
+		coeff_str >> coeffs[i];
+	}
+
+	size_t Nx_plot = 1024;
+    real dx_plot = conf.Lx / Nx_plot;
+	real t = n * conf.dt;
+	size_t Nv_plot = Nx_plot;
+	real dv_plot = (conf.u_max - conf.u_min)/Nv_plot;
+
+	std::ofstream file_f( "f_" + std::to_string(t) + ".txt" );
+	for(size_t i = 0; i<=Nx_plot; i++)
+	{
+		for(size_t j = 0; j <= Nv_plot; j++)
+		{
+			real x = conf.x_min + i*dx_plot;
+			real v = conf.u_min + j*dv_plot;
+			real f = eval_f<real, order>(n, x, v, coeffs.get(), conf);
+
+			file_f << x << " " << v << " " << f << std::endl;
+		}
+		file_f << std::endl;
+	}
+
+	std::ofstream file_phase_flow_x( "phase_flow_x_" + std::to_string(t) + ".txt" );
+	std::ofstream file_phase_flow_v( "phase_flow_v_" + std::to_string(t) + ".txt" );
+	for(size_t i = 0; i<=Nx_plot; i++)
+	{
+		for(size_t j = 0; j <= Nv_plot; j++)
+		{
+			real x = conf.x_min + i*dx_plot;
+			real v = conf.u_min + j*dv_plot;
+			real x_new = x;
+			real v_new = v;
+			eval_phase_flow<real, order>(n, x_new, v_new, coeffs.get(), conf);
+
+			file_phase_flow_x << x << " " << v << " " << x_new << std::endl;
+			file_phase_flow_v << x << " " << v << " " << v_new << std::endl;
+		}
+		file_phase_flow_x << std::endl;
+		file_phase_flow_v << std::endl;
+	}
+
+	// Plot in polar coordinates:
+	/*
+	size_t N_r_plot = 1024;
+	size_t N_phi_plot = N_r_plot;
+
+	real r_max = conf.Lx / 2.0;
+	real phi_min = -M_PI;
+	real phi_max = M_PI;
+	real dr_plot = r_max/N_r_plot;
+	real dphi_plot = (phi_max-phi_min)/N_phi_plot;
+
+	std::ofstream file_f_polar( "f_polar_" + std::to_string(t) + ".txt" );
+	std::ofstream file_phase_flow_r( "phase_flow_r_" + std::to_string(t) + ".txt" );
+	std::ofstream file_phase_flow_phi( "phase_flow_phi_" + std::to_string(t) + ".txt" );
+	for(size_t i = 0; i <= N_r_plot; i++){
+		for(size_t j = 0; j <= N_phi_plot; j++){
+			real r = i*dr_plot;
+			real phi = phi_min + j*dphi_plot;
+			real x,v;
+			transform_to_plain_coordinates<real>(r, phi, x, v);
+
+			real f = eval_f<real, order>(n, x, v, coeffs.get(), conf);
+			file_f_polar << r << " " << phi << " " << f << std::endl;
+
+			real x_new = x;
+			real v_new = v;
+			eval_phase_flow<real, order>(n, x_new, v_new, coeffs.get(), conf);
+			real r_new, phi_new;
+			transform_to_polar_coordinates<real>(x_new, v_new, r_new, phi_new);
+
+			file_phase_flow_r << r << " " << phi << " " << r_new << std::endl;
+			file_phase_flow_phi << r << " " << phi << " " << phi_new << std::endl;
+		}
+		file_f_polar << std::endl;
+		file_phase_flow_r << std::endl;
+		file_phase_flow_phi << std::endl;
+	}
+	*/
+
+}
 
 template <typename real, size_t order>
 void test()
@@ -123,10 +286,9 @@ void test()
                             <<    total_energy << "; "
                             << metrics[3]      << std::endl;
 
-            /*
             if(n % (10*16) == 0 )
             {
-				size_t Nx_plot = 256;
+				size_t Nx_plot = 1024;
 				real dx_plot = conf.Lx / Nx_plot;
 				real t = n * conf.dt;
 				std::ofstream file_E( "E_" + std::to_string(t) + ".txt" );
@@ -144,6 +306,10 @@ void test()
 				size_t Nv_plot = Nx_plot;
 				real dv_plot = (conf.u_max - conf.u_min)/Nv_plot;
 
+			    arma::mat pf_x(Nx_plot+1, Nv_plot+1);
+			    arma::mat pf_v(Nx_plot+1, Nv_plot+1);
+			    arma::mat f_mat(Nx_plot+1, Nv_plot+1);
+
 				std::ofstream file_f( "f_" + std::to_string(t) + ".txt" );
 				for(size_t i = 0; i<=Nx_plot; i++)
 				{
@@ -154,37 +320,44 @@ void test()
 						real f = eval_f<real, order>(n, x, v, coeffs.get(), conf);
 						
 						file_f << x << " " << v << " " << f << std::endl;
+						f_mat(i,j) = f;
 					}
 					file_f << std::endl;
 				}
-            }
-            */
 
-            if(n == 16*100){
-            	real t = n * conf.dt;
-				std::ofstream file_f_zoomed( "f_" + std::to_string(t) + ".txt" );
-				size_t Nx_plot = 2048;
-				size_t Nu_plot = Nx_plot;
-				real x_min_plot = 9.5;
-				real x_max_plot = 10.5;
-				real u_min_plot = -0.5;
-				real u_max_plot = 0.5;
-				real dx_plot = (x_max_plot - x_min_plot)/Nx_plot;
-				real du_plot = (u_max_plot - u_min_plot)/Nu_plot;
+				std::ofstream file_phase_flow_x( "phase_flow_x_" + std::to_string(t) + ".txt" );
+				std::ofstream file_phase_flow_v( "phase_flow_v_" + std::to_string(t) + ".txt" );
 				for(size_t i = 0; i<=Nx_plot; i++)
 				{
-					for(size_t j = 0; j <= Nu_plot; j++)
+					for(size_t j = 0; j <= Nv_plot; j++)
 					{
-						real x = x_min_plot + i*dx_plot;
-						real v = u_min_plot + j*du_plot;
-						real f = eval_f<real, order>(n, x, v, coeffs.get(), conf);
+						real x = conf.x_min + i*dx_plot;
+						real v = conf.u_min + j*dv_plot;
+						real x_new = x;
+						real v_new = v;
+						eval_phase_flow<real, order>(n, x_new, v_new, coeffs.get(), conf);
 
-						file_f_zoomed << x << " " << v << " " << f << std::endl;
+						file_phase_flow_x << x << " " << v << " " << x_new << std::endl;
+						file_phase_flow_v << x << " " << v << " " << v_new << std::endl;
+
+						pf_x(i,j) = x_new;
+					    pf_v(i,j) = v_new;
 					}
-					file_f_zoomed << std::endl;
+					file_phase_flow_x << std::endl;
+					file_phase_flow_v << std::endl;
 				}
-            }
 
+				arma::vec s_x = arma::svd(pf_x);
+				arma::vec s_v = arma::svd(pf_v);
+				arma::vec s_f = arma::svd(f_mat);
+
+				std::ofstream file_s_x("s_x_" + std::to_string(t) + ".txt" );
+				file_s_x << s_x;
+				std::ofstream file_s_v("s_v_" + std::to_string(t) + ".txt" );
+				file_s_v << s_v;
+				std::ofstream file_s_f("s_f_" + std::to_string(t) + ".txt" );
+				file_s_f << s_f;
+            }
         }
 
         for(size_t i = 0; i < stride_t; i++){
@@ -193,83 +366,6 @@ void test()
     }
     
     std::cout << "Elapsed time = " << total_time << std::endl;
-
-
-    // Debugging/Testing:
-    /*
-    std::cout << "Let's try something out: " << std::endl;
-	size_t Nx_plot = 256;
-	real dx_plot = conf.Lx / Nx_plot;
-    std::vector<real> exact_rho(Nx_plot);
-    real rho_max = 0;
-    real rho_l2 = 0;
-	for(size_t i = 0; i < Nx_plot; i++)
-	{
-		real x = conf.x_min + i*dx_plot;
-		exact_rho[i] = -dim1::eval<real,order,2>( x, coeffs.get() + conf.Nt*stride_t, conf );
-		rho_max = max(abs(exact_rho[i]),rho_max);
-		rho_l2 = exact_rho[i]*exact_rho[i];
-	}
-
-	rho_l2 = sqrt(rho_l2)*dx_plot;
-	std::cout << "rho_exact: L2-norm =" << rho_l2 << " Max-norm = " << rho_max << std::endl;
-
-	size_t Nv_plot = 128;
-	real dv_plot = (conf.u_max - conf.u_min)/Nv_plot;
-	std::vector<real> num_rho_midpoint(Nx_plot, 0);
-	std::vector<real> num_rho_simpson(Nx_plot, 0);
-
-
-	real max_error_mp = 0;
-	real max_error_simpson = 0;
-	real l2_error_mp = 0;
-	real l2_error_simpson = 0;
-	#pragma omp parallel for
-	for(size_t i = 0; i < Nx_plot; i++)
-	{
-		real x = conf.x_min + i*dx_plot;
-
-		// Compute rho with mid-point rule:
-		for(size_t j = 0; j < Nv_plot; j++)
-		{
-			real v = conf.u_min + j*dv_plot;
-			num_rho_midpoint[i] += eval_ftilda<real,order>( conf.Nt, x, v, coeffs.get(), conf );
-		}
-		num_rho_midpoint[i] = 1 - dv_plot*num_rho_midpoint[i];
-
-		// Compute rho with simpson-rule:
-		for(size_t j = 0; j < Nv_plot; j++)
-		{
-		    real left = conf.u_min + j*dv_plot;
-			real mid = left + 0.5*dv_plot;
-			real right = left + dv_plot;
-		    real f_left = eval_ftilda<real,order>( conf.Nt, x, left, coeffs.get(), conf );
-		    real f_mid = eval_ftilda<real,order>( conf.Nt, x, mid, coeffs.get(), conf );
-		    real f_right = eval_ftilda<real,order>( conf.Nt, x, right, coeffs.get(), conf );
-
-		    num_rho_simpson[i] += 1.0/6.0*f_left + 4.0/6.0*f_mid + 1.0/6.0*f_right;
-		}
-		num_rho_simpson[i] = 1 - dv_plot*num_rho_simpson[i];
-
-		real dist_mp = abs(num_rho_midpoint[i] - exact_rho[i]);
-		real dist_simpson = abs(num_rho_simpson[i] - exact_rho[i]);
-
-		max_error_mp = max(dist_mp, max_error_mp);
-		max_error_simpson = max(dist_simpson, max_error_simpson);
-
-		l2_error_mp += dist_mp*dist_mp;
-		l2_error_simpson += dist_simpson*dist_simpson;
-	}
-
-	l2_error_mp = sqrt(l2_error_mp)*dx_plot;
-	l2_error_simpson = sqrt(l2_error_simpson)*dx_plot;
-
-	std::cout << "MP: Max-error = " << max_error_mp << " L2-error = " << l2_error_mp << std::endl;
-	std::cout << "Simpson: Max-error = " << max_error_simpson << " L2-error = " << l2_error_simpson << std::endl;
-
-	std::cout << "MP: Rel-Max-error = " << max_error_mp/rho_max << " Rel-L2-error = " << l2_error_mp/rho_l2 << std::endl;
-	std::cout << "Simpson: Rel-Max-error = " << max_error_simpson/rho_max << " Rel-L2-error = " << l2_error_simpson/rho_l2 << std::endl;
-     */
 }
 
 }
@@ -278,6 +374,7 @@ void test()
 
 int main()
 {
-    dergeraet::dim1::test<float,4>();
+    //dergeraet::dim1::test<float,4>();
+	dergeraet::dim1::read_in_coeffs<float,4>(std::string("../coeffs_Nt_1600_Nx_ 256_stride_t_259.txt"));
 }
 

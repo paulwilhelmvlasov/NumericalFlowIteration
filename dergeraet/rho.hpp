@@ -95,6 +95,41 @@ real eval_f( size_t n, real x, real u,
 }
 
 template <typename real, size_t order>
+__host__ __device__
+void eval_phase_flow( size_t n, real& x, real& u,
+             const real *coeffs, const config_t<real> &conf )
+{
+	if(n>1){
+		const size_t stride_x = 1;
+		const size_t stride_t = stride_x*(conf.Nx + order - 1);
+
+		real Ex;
+		const real *c;
+
+		// Initial half-step.
+		c  = coeffs + n*stride_t;
+		Ex = -eval<real,order,1>( x, c, conf );
+		u += 0.5*conf.dt*Ex;
+
+		while ( --n )
+		{
+			x -= conf.dt*u;
+			c  = coeffs + n*stride_t;
+			Ex = -eval<real,order,1>( x, c, conf );
+			u += conf.dt*Ex;
+		}
+
+		// Final half-step.
+		x -= conf.dt*u;
+		c  = coeffs + n*stride_t;
+		Ex = -eval<real,order,1>( x, c, conf );
+		u += 0.5*conf.dt*Ex;
+	}
+
+	x = x - conf.Lx * std::floor( x*conf.Lx_inv );
+}
+
+template <typename real, size_t order>
 real eval_rho( size_t n, size_t i, const real *coeffs, const config_t<real> &conf )
 {
     const real x = conf.x_min + i*conf.dx; 
