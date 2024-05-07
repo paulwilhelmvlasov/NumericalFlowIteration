@@ -32,59 +32,10 @@ namespace dergeraet
 namespace dim1
 {
 
-namespace fd_dirichlet
-{
-
-template <typename real, size_t order, size_t dx = 0>
-__host__ __device__
-real eval( real x, const real *coeffs, const config_t<real> &config ) noexcept
-{
-    using std::floor;
-
-    // Shift to a box that starts at 0.
-    x -= config.x_min;
-
-    // Knot number.
-    real x_knot = floor( x*config.dx_inv );
-
-    size_t ii = static_cast<size_t>(x_knot);
-
-    // Convert x to reference coordinates.
-    x = x*config.dx_inv - x_knot;
-
-    // Scale according to derivative.
-    real factor = 1;
-    for ( size_t i = 0; i < dx; ++i ) factor *= config.dx_inv;
-
-    return factor*splines1d::eval<real,order,dx>( x, coeffs + ii );
-}
-
-/*
-template <typename real, size_t order, size_t dx = 0>
-class spline_interpolant
-{
-public:
-	spline_interpolant() = delete;
-	spline_interpolant( const spline_interpolant  &rhs ) = delete;
-	spline_interpolant( spline_interpolant &&rhs ) = delete;
-	spline_interpolant& operator=( const spline_interpolant  &rhs ) = delete;
-	spline_interpolant& operator=( spline_interpolant &&rhs ) = delete;
-};
-*/
-template <typename real, size_t order>
-void interpolate( real *coeffs, const real *values, const config_t<real> &config )
-{
-	// ...
-}
-
-
-}
-
 namespace periodic
 {
 
 template <typename real, size_t order, size_t dx = 0>
-__host__ __device__
 real eval( real x, const real *coeffs, const config_t<real> &config ) noexcept
 {
     using std::floor;
@@ -206,7 +157,6 @@ namespace dim2
 {
 
 template <typename real, size_t order, size_t dx = 0, size_t dy = 0>
-__host__ __device__
 real eval( real x, real y, const real *coeffs, const config_t<real> &config )
 {
     using std::floor;
@@ -364,7 +314,6 @@ namespace dim3
 {
 
 template <typename real, size_t order, size_t dx = 0, size_t dy = 0, size_t dz = 0>
-__host__ __device__
 real eval( real x, real y, real z, const real *coeffs, const config_t<real> &config )
 {
     using std::floor;

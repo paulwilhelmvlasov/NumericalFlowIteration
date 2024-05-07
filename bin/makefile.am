@@ -1,39 +1,12 @@
-noinst_PROGRAMS = test_poisson test_maxwell_periodic test_gmres test_fields \
-					test_dergeraet test_nufi_cpu test_nufi_cpu_2d test_vlasov_maxwell \
-					test_cpp_interface
-#test_dergeraet_2d test_dergeraet_3d
-
-test_poisson_SOURCES = test_poisson.cpp
-test_poisson_LDADD   = $(top_builddir)/dergeraet/libdergeraet.a
-test_poisson_LDADD  += $(CUDA_LDFLAGS) $(BLAS_LIBS) -lfftw3 -lfftw3f
-
-test_maxwell_periodic_SOURCES = test_maxwell_periodic.cpp
-test_maxwell_periodic_LDADD   = $(top_builddir)/dergeraet/libdergeraet.a
-test_maxwell_periodic_LDADD  += $(CUDA_LDFLAGS) $(BLAS_LIBS) -lfftw3 -lfftw3f
-
-test_vlasov_maxwell_SOURCES = test_vlasov_maxwell.cpp
-test_vlasov_maxwell_LDADD   = $(top_builddir)/dergeraet/libdergeraet.a
-test_vlasov_maxwell_LDADD  += $(CUDA_LDFLAGS) $(BLAS_LIBS) -lfftw3 -lfftw3f
-
-test_gmres_SOURCES = test_gmres.cpp
-test_gmres_LDADD   = $(top_builddir)/dergeraet/libdergeraet.a
-test_gmres_LDADD  += $(CUDA_LDFLAGS) $(BLAS_LIBS) -lfftw3 -lfftw3f
-
-test_fields_SOURCES = test_fields.cpp
-test_fields_LDADD   = $(top_builddir)/dergeraet/libdergeraet.a
-test_fields_LDADD  += $(CUDA_LDFLAGS) $(BLAS_LIBS) -lfftw3 -lfftw3f
-
-test_dergeraet_SOURCES = test_dergeraet.cpp
-test_dergeraet_LDADD   = $(top_builddir)/dergeraet/libdergeraet.a 
-test_dergeraet_LDADD  += $(CUDA_LDFLAGS) $(BLAS_LIBS) -lfftw3 -lfftw3f
+noinst_PROGRAMS = test_nufi_cpu test_nufi_cpu_2d test_cpp_interface
 
 test_nufi_cpu_SOURCES = test_nufi_cpu.cpp
 test_nufi_cpu_LDADD   = $(top_builddir)/dergeraet/libdergeraet.a 
-test_nufi_cpu_LDADD  += $(CUDA_LDFLAGS) $(BLAS_LIBS) -lfftw3 -lfftw3f
+test_nufi_cpu_LDADD  += $(BLAS_LIBS) -lfftw3 -lfftw3f
 
 test_nufi_cpu_2d_SOURCES = test_nufi_cpu_2d.cpp
 test_nufi_cpu_2d_LDADD   = $(top_builddir)/dergeraet/libdergeraet.a 
-test_nufi_cpu_2d_LDADD  += $(CUDA_LDFLAGS) $(BLAS_LIBS) -lfftw3 -lfftw3f
+test_nufi_cpu_2d_LDADD  +=  $(BLAS_LIBS) -lfftw3 -lfftw3f
 
 test_cpp_interface_SOURCES = test_cpp_interface.cpp
 test_cpp_interface_LDADD   = $(top_builddir)/dergeraet/libdergeraet.a 
@@ -41,16 +14,6 @@ test_cpp_interface_LDADD  += /home/paul/Projekte/htlib/build/package/libhtl.a
 test_cpp_interface_LDADD  += /home/paul/Projekte/htlib/build/cpp_interface/libchtlib.a /home/paul/Projekte/htlib/build/cross/libhtl_cross.a 
 test_cpp_interface_LDADD  += /home/paul/Projekte/htlib/build/htens/libhtl_m_htensor.a /home/paul/Projekte/htlib/build/timer/libhtl_timer.a 
 test_cpp_interface_LDADD  += /home/paul/Projekte/htlib/build/linalg/libhtl_linalg.a /home/paul/Projekte/htlib/build/precision/libhtl_m_precision.a /usr/local/lib/libopenblas.so
-test_cpp_interface_LDADD  += $(CUDA_LDFLAGS) $(BLAS_LIBS) -lgfortran -lfftw3 -lfftw3f
+test_cpp_interface_LDADD  += $(BLAS_LIBS) -lgfortran -lfftw3 -lfftw3f
 
-# Programms using mpi are commented out as mpi does not work on Paul's workstation. 
-# If you like to use these files comment the respective files back in.
-
-#test_dergeraet_2d_SOURCES = test_dergeraet_2d.cpp
-#test_dergeraet_2d_LDADD   = $(top_builddir)/dergeraet/libdergeraet.a 
-#test_dergeraet_2d_LDADD  += $(CUDA_LDFLAGS) $(BLAS_LIBS) -lfftw3 -lfftw3f -lmpi #-lmpi_cxx
-
-#test_dergeraet_3d_SOURCES = test_dergeraet_3d.cpp
-#test_dergeraet_3d_LDADD   = $(top_builddir)/dergeraet/libdergeraet.a 
-#test_dergeraet_3d_LDADD  += $(CUDA_LDFLAGS) $(BLAS_LIBS) -lfftw3 -lfftw3f -lmpi #-lmpi_cxx
-
+# Blas is linked twice. Check if this is really necessary.

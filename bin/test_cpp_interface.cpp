@@ -9,12 +9,11 @@
 #include <cmath>
 #include <memory>
 #include "/home/paul/Projekte/htlib/src/cpp_interface/htl_m_cpp_interface.hpp"
-//#include <dergeraet>
 
 
 const size_t dim = 2;
 const size_t Nx = 100;
-const size_t Nv = 50;
+const size_t Nv = 100;
 const double L = 4 * M_PI;
 const double vmax = 10;
 const double dx = L/Nx;
@@ -59,13 +58,8 @@ int main(int argc, char **argv)
 	  auto dPtr = &d;
 	  int32_t n[dim]{Nx,Nv};
 	  int32_t* nPtr1 = &n[0];
-	  //std::vector<double> vec(Nx*Nv);
-	  //std::shared_ptr<double[]> vec_shared_ptr(new double[Nx*Nv]);
-	  //double* testVec = (double*)malloc(Nx*Nv);
 	  double* vec[Nx*Nv];
 	  double** vecPtr = &vec[0];
-	  //double* ptr = vec_shared_ptr.get();//vec.data();
-	  //double** vecPtr = &ptr;
 	  int32_t size = Nx*Nv;
 	  auto sizePtr = &size;
 	  auto fctPtr = &test_function_1;
@@ -84,10 +78,6 @@ int main(int argc, char **argv)
 	  int32_t rank_rand_row = 10; // Was genau tun diese beiden Parameter?
 	  int32_t rank_rand_col = 10;
 
-	  std::cout << Nx << std::endl;
-	  std::cout << Nv << std::endl;
-	  std::cout << vec[0][0] << std::endl;
-
 	  chtl_s_init_truncation_option(optsPtr, &tcase, &tol, &cross_no_loops, &nNodes, &rank, &rank_rand_row, &rank_rand_col);
 	  std::cout << "chtl_s_init_truncation_option finished." << std::endl;
 	  chtl_s_htensor_init_balanced(htensorPtr, dPtr, nPtr1);
@@ -97,8 +87,8 @@ int main(int argc, char **argv)
 	  chtl_s_htensor_vectorize(htensorPtr,vecPtr, sizePtr); // Das da segfaulted auch gerne...
 	  std::cout << "chtl_s_htensor_vectorize finished." << std::endl;
 
-/*
 	  double total_l1_error = 0;
+	  double total_max_error = 0;
 	  std::cout << size << std::endl;
 	  for(size_t k = 0; k < size; k++)
 	  {
@@ -109,18 +99,14 @@ int main(int argc, char **argv)
 		  double v = -vmax + j*dv;
 
 
-		  //double f = vec[0][0];
-		  double f = **(vec+k);
-		  std::cout << f << std::endl;
+		  double f = vec[0][k];
 		  double f_exact = f_2d(x,v);
-		  //double f_exact = 1.0/(1+i + j);
 
 		  double err = std::abs(f - f_exact);
 		  total_l1_error += err;
-		  //std::cout << x << " " << v << " " << f << " " << f_exact << " " << err << std::endl;
-		  std::cout << i << " " << j << " " << f << " " << f_exact << " " << err << std::endl;
+		  total_max_error = std::max(err, total_max_error);
 	  }
 
-	  std::cout << "Total error = " << total_l1_error << std::endl;
-	  */
+	  std::cout << "Total error L1 = " << total_l1_error/size << std::endl;
+	  std::cout << "Total error max = " << total_max_error << std::endl;
 }

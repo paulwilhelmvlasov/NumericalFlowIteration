@@ -21,7 +21,6 @@
 #define DERGERAET_CONFIG_HPP
 
 #include <cmath>
-#include <dergeraet/cuda_runtime.hpp>
 
 namespace dergeraet
 {
@@ -47,43 +46,30 @@ struct config_t
     real dx, dx_inv, Lx, Lx_inv;
     real du;
 
-    config_t() noexcept;
-    // Maybe we could subs this with a function pointer?
-    // Or write a class (interface) which can offers an
-    // operator() overload, i.e., can be called like a
-    // function.
-    __host__ __device__ static real f0( real x, real u ) noexcept;
+    config_t(size_t nx, size_t nu, size_t nt, real dt, real xmin, real xmax,
+    		real umin, real umax, real(*init_data)(real,real)) noexcept;
+
+    real (*f0)( real x, real u );
 };
 
 template <typename real>
-config_t<real>::config_t() noexcept
+config_t<real>::config_t(size_t nx, size_t nu, size_t nt, real delta_t, real xmin, real xmax,
+							real umin, real umax, real(*init_data)(real,real)) noexcept
 {
-    Nx = 1024;
-    Nu = 2048;
-    u_min = -10;
-    u_max =  10;
-    x_min = 0;
-    x_max = 4*M_PI;;
+    Nx = nx;
+    Nu = nu;
+    u_min = umin;
+    u_max =  umax;
+    x_min = xmin;
+    x_max = xmax;
     
-    dt = 1./16.; Nt = 50/dt;
+    dt = delta_t; Nt = nt;
 
     Lx = x_max - x_min; Lx_inv = 1/Lx;
     dx = Lx/Nx; dx_inv = 1/dx;
     du = (u_max - u_min)/Nu;
-}
 
-template <typename real>
-__host__ __device__
-real config_t<real>::f0( real x, real u ) noexcept
-{
-    using std::sin;
-    using std::cos;
-    using std::exp;
-
-    constexpr real alpha = 0.01;
-    constexpr real k     = 0.5;
-    return 0.39894228040143267793994 * ( 1. + alpha*cos(k*x) ) * exp( -u*u/2. ) * u*u;
-//    return 0.39894228040143267793994 * ( 1. + alpha*cos(k*x) ) * exp( -u*u/2 );
+    f0 = init_data;
 }
 
 }
@@ -112,24 +98,37 @@ struct config_t
     real dy, dy_inv, Ly, Ly_inv;
     real du, dv;
 
-    config_t() noexcept;
-    __host__ __device__ static real f0( real x, real y, real u, real v ) noexcept;
+    config_t(size_t nx, size_t ny, size_t nu, size_t nv, size_t nt,
+    		real delta_t, real xmin, real xmax, real ymin, real ymax,
+    		real umin, real umax, real vmin, real vmax,
+			real(*init_data)(real,real,real,real)) noexcept;
+
+    real (*f0)( real x, real y, real u, real v );
 };
 
 
 template <typename real>
-config_t<real>::config_t() noexcept
+config_t<real>::config_t(size_t nx, size_t ny, size_t nu, size_t nv, size_t nt,
+		real delta_t, real xmin, real xmax, real ymin, real ymax,
+		real umin, real umax, real vmin, real vmax,
+		real(*init_data)(real,real,real,real)) noexcept
 {
-    Nx = Ny = 32;
-    Nu = Nv = 64;
-    u_min = v_min = -10;
-    u_max = v_max =  10;
-    x_min = y_min = 0;
-//    x_max = y_max = 10*M_PI;
-    x_max = y_max = 4.0 * M_PI;
+    Nx = nx;
+    Ny = ny;
+    Nu = nu;
+    Nv = nv;
+    u_min = umin;
+    v_min = vmin;
+    u_max = umax;
+    v_max = vmax;
+    x_min = xmin;
+    y_min = ymin;
+    x_max = xmax;
+    y_max = ymax;
 
 
-    dt = 1.0/16.0; Nt = 50/dt;
+    dt = delta_t;
+    Nt = nt;
 
     Lx = x_max - x_min; Lx_inv = 1/Lx;
     Ly = y_max - y_min; Ly_inv = 1/Ly;
@@ -137,37 +136,14 @@ config_t<real>::config_t() noexcept
     dy = Ly/Ny; dy_inv = 1/dy;
     du = (u_max - u_min)/Nu;
     dv = (v_max - v_min)/Nv;
-}
 
-template <typename real>
-__host__ __device__
-real config_t<real>::f0( real x, real y, real u, real v ) noexcept
-{
-    using std::sin;
-    using std::cos;
-    using std::exp;
-
-    return 1.0 / (2.0 * M_PI) * exp(-0.5 * (u*u + v*v))
-            * (1 + 0.5 * (cos(0.5*x) + cos(0.5*y)) );
-
-//    constexpr real alpha = 1e-3;
-//    constexpr real v0 = 2.4;
-//    constexpr real pi    = real(M_PI);
-//    constexpr real k  = 0.2;
-//    constexpr real c = 1.0 / (8.0 * M_PI);
-//    real pertube = 1.0 + alpha*(cos(k*x)+cos(k*y));
-//    real feq = ( exp(-0.5*(v-v0)*(v-v0)) + exp(-0.5*(v+v0)*(v+v0)) ) * ( exp(-0.5*(u-v0)*(u-v0)) + exp(-0.5*(u+v0)*(u+v0)) );
-//    return c * pertube  * feq;
+    f0 = init_data;
 }
 
 }
 
 namespace dim3
 {
-
-// We should either edit this to have separate configs for
-// Poisson and Maxwell, i.e., separate namespaces or change
-// the interfaces for the respective force-classes.
 
 template <typename real>
 struct config_t
@@ -193,30 +169,43 @@ struct config_t
     real dz, dz_inv, Lz, Lz_inv;
     real du, dv, dw;
 
-    // Light speed and other constants.
-    real mu0;
-    real eps0;
-    real light_speed;
-    real light_speed_inv;
+    config_t(size_t nx, size_t ny, size_t nz, size_t nu, size_t nv, size_t nw,
+    		size_t nt, real delta_t, real xmin, real xmax, real ymin, real ymax,
+			real zmin, real zmax, real umin, real umax, real vmin, real vmax,
+			real wmin, real wmax, real(*init_data)(real,real)) noexcept;
 
-    config_t() noexcept;
-    __host__ __device__ static real f0( real x, real y, real z, real u, real v, real w ) noexcept;
+    real (*f0)( real x, real y, real z, real u, real v, real w );
 };
 
 
 template <typename real>
-config_t<real>::config_t() noexcept
+config_t<real>::config_t(size_t nx, size_t ny, size_t nz, size_t nu, size_t nv, size_t nw,
+		size_t nt, real delta_t, real xmin, real xmax, real ymin, real ymax,
+		real zmin, real zmax, real umin, real umax, real vmin, real vmax,
+		real wmin, real wmax, real(*init_data)(real,real)) noexcept
 {
-    Nx = Ny = Nz = 16;
-    Nu = Nv = Nw = 64;
+    Nx = nx;
+    Ny = ny;
+    Nz = nz;
+    Nu = nu;
+    Nv = nv;
+    Nw = nw;
 
-    u_min = v_min = w_min = -6;
-    u_max = v_max = w_max =  6;
-    x_min = y_min = z_min = 0;
-    //x_max = y_max = z_max = 10*M_PI;
-    x_max = y_max = z_max = 4*M_PI;
+    u_min = umin;
+    v_min = vmin;
+    w_min = wmin;
+    u_max = umax;
+    v_max = vmax;
+    w_max = wmax;
+    x_min = xmin;
+    y_min = ymin;
+    z_min = zmin;
+    x_max = xmax;
+    y_max = ymax;
+    z_max = zmax;
 
-    dt = 1./8.; Nt = 30/dt;
+    dt = delta_t;
+    Nt = nt;
 
     Lx = x_max - x_min; Lx_inv = 1/Lx;
     Ly = y_max - y_min; Ly_inv = 1/Ly;
@@ -228,36 +217,7 @@ config_t<real>::config_t() noexcept
     dv = (v_max - v_min)/Nv;
     dw = (w_max - w_min)/Nw;
 
-    mu0 = 1.0;
-    eps0 = 1.0;
-    light_speed = 1/std::sqrt(eps0*mu0);
-    light_speed_inv = 1.0 / light_speed;
-
-}
-
-template <typename real>
-__host__ __device__
-real config_t<real>::f0( real x, real y, real z, real u, real v, real w ) noexcept
-{
-    using std::sin;
-    using std::cos;
-    using std::exp;
-
-    constexpr real alpha = 0.01;
-    constexpr real k     = 0.5;
-
-    // Weak Landau Damping:
-    constexpr real c  = 0.06349363593424096978576330493464; // Weak Landau damping
-    return c * ( 1. + alpha*cos(k*x) + alpha*cos(k*y) + alpha*cos(k*z)) * exp( -(u*u+v*v+w*w)/2.0 );
-
-    // Two Stream instability:
-    /*
-    //constexpr real k     = 0.2;
-    constexpr real c     = 0.03174681796712048489288165246732; // Two Stream instability
-    constexpr real v0 = 2.4;
-    return c * (  (exp(-(v-v0)*(v-v0)/2.0) + exp(-(v+v0)*(v+v0)/2.0)) ) * exp(-(u*u+w*w)/2)
-             * ( 1 + alpha * (cos(k*x) + cos(k*y) + cos(k*z)) );
-    */
+    f0 = init_data;
 }
 
 }

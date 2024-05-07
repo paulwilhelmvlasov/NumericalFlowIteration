@@ -24,116 +24,15 @@
 
 namespace dergeraet
 {
-
 namespace dim1
 {
-
-namespace fd_dirichlet
-{
-template <typename real, size_t order>
-__host__ __device__
-real eval_ftilda( size_t n, real x, real u,
-                  const real *coeffs, const config_t<real> &conf )
-{
-    if ( n == 0 ) return config_t<real>::f0(x,u);
-
-    const size_t stride_x = 1;
-    const size_t stride_t = stride_x*(conf.Nx + order - 1);
-
-    real Ex;
-    const real *c;
-
-    // We omit the initial half-step.
-
-    while ( --n )
-    {
-        x  = x - conf.dt*u;
-        c  = coeffs + n*stride_t;
-        if (x <= conf.x_min) {
-        	Ex = -eval<real,order,1>(conf.x_min,c,conf);
-        } else if (x >= conf.x_max) {
-        	Ex = -eval<real,order,1>(conf.x_max,c,conf);
-        } else {
-            Ex = -eval<real,order,1>(x,c,conf);
-        }
-        u  = u + conf.dt*Ex;
-        return config_t<real>::f0(x,u);
-    }
-
-    // The final half-step.
-    x -= conf.dt*u;
-    c  = coeffs + n*stride_t;
-    if (x <= conf.x_min) {
-    	Ex = -eval<real,order,1>(conf.x_min,c,conf);
-    } else if (x >= conf.x_max) {
-    	Ex = -eval<real,order,1>(conf.x_max,c,conf);
-    } else {
-        Ex = -eval<real,order,1>(x,c,conf);
-    }
-    u += 0.5*conf.dt*Ex;
-
-    return config_t<real>::f0(x,u);
-}
-
-template <typename real, size_t order>
-__host__ __device__
-real eval_f( size_t n, real x, real u,
-             const real *coeffs, const config_t<real> &conf )
-{
-    if ( n == 0 ) return config_t<real>::f0(x,u);
-
-    const size_t stride_x = 1;
-    const size_t stride_t = stride_x*(conf.Nx + order - 1);
-
-    real Ex;
-    const real *c;
-
-    // Initial half-step.
-    c  = coeffs + n*stride_t;
-    Ex = -eval<real,order,1>( x, c, conf );
-    u += 0.5*conf.dt*Ex;
-
-    while ( --n )
-    {
-        x -= conf.dt*u;
-        c  = coeffs + n*stride_t;
-        Ex = -eval<real,order,1>( x, c, conf );
-        u += conf.dt*Ex;
-    }
-
-    // Final half-step.
-    x -= conf.dt*u;
-    c  = coeffs + n*stride_t;
-    Ex = -eval<real,order,1>( x, c, conf );
-    u += 0.5*conf.dt*Ex;
-
-    return config_t<real>::f0(x,u);
-}
-
-template <typename real, size_t order>
-real eval_rho( size_t n, size_t i, const real *coeffs, const config_t<real> &conf )
-{
-    const real x = conf.x_min + i*conf.dx;
-    const real du = (conf.u_max-conf.u_min) / conf.Nu;
-    const real u_min = conf.u_min + 0.5*du;
-
-    real rho = 0;
-    for ( size_t ii = 0; ii < conf.Nu; ++ii )
-        rho += eval_ftilda<real,order>( n, x, u_min + ii*du, coeffs, conf );
-    rho = 1 - du*rho;
-
-    return rho;
-}
-}
-
 namespace periodic
 {
 template <typename real, size_t order>
-__host__ __device__
 real eval_ftilda( size_t n, real x, real u,
                   const real *coeffs, const config_t<real> &conf )
 {
-    if ( n == 0 ) return config_t<real>::f0(x,u);
+    if ( n == 0 ) return conf.f0(x,u);
 
     const size_t stride_x = 1;
     const size_t stride_t = stride_x*(conf.Nx + order - 1);
@@ -157,15 +56,14 @@ real eval_ftilda( size_t n, real x, real u,
     Ex = -eval<real,order,1>(x,c,conf);
     u += 0.5*conf.dt*Ex;
 
-    return config_t<real>::f0(x,u);
+    return conf.f0(x,u);
 }
 
 template <typename real, size_t order>
-__host__ __device__
 real eval_f( size_t n, real x, real u, 
              const real *coeffs, const config_t<real> &conf )
 {
-    if ( n == 0 ) return config_t<real>::f0(x,u);
+    if ( n == 0 ) return conf.f0(x,u);
 
     const size_t stride_x = 1;
     const size_t stride_t = stride_x*(conf.Nx + order - 1);
@@ -192,18 +90,17 @@ real eval_f( size_t n, real x, real u,
     Ex = -eval<real,order,1>( x, c, conf );
     u += 0.5*conf.dt*Ex;
 
-    return config_t<real>::f0(x,u);
+    return conf.f0(x,u);
 }
 
 template <typename real, size_t order>
-__host__ __device__
 real eval_f_on_grid( size_t n, size_t index_x, size_t index_u,
              const real *coeffs, const config_t<real> &conf )
 {
 	real x = conf.x_min + index_x*conf.dx;
 	real u = conf.u_min + index_u*conf.du;
 
-    if ( n == 0 ) return config_t<real>::f0(x,u);
+    if ( n == 0 ) return conf.f0(x,u);
 
     const size_t stride_x = 1;
     const size_t stride_t = stride_x*(conf.Nx + order - 1);
@@ -230,7 +127,7 @@ real eval_f_on_grid( size_t n, size_t index_x, size_t index_u,
     Ex = -eval<real,order,1>( x, c, conf );
     u += 0.5*conf.dt*Ex;
 
-    return config_t<real>::f0(x,u);
+    return conf.f0(x,u);
 }
 
 
@@ -258,11 +155,10 @@ namespace dim2
 
 
 template <typename real, size_t order>
-__host__ __device__
 real eval_ftilda( size_t n, real x, real y, real u, real v,
                   const real *coeffs, const config_t<real> &conf )
 {
-    if ( n == 0 ) return config_t<real>::f0(x,y,u,v);
+    if ( n == 0 ) return conf.f0(x,y,u,v);
 
     const size_t stride_x = 1;
     const size_t stride_y = stride_x*(conf.Nx + order - 1);
@@ -297,15 +193,14 @@ real eval_ftilda( size_t n, real x, real y, real u, real v,
     u += 0.5*conf.dt*Ex;
     v += 0.5*conf.dt*Ey;
 
-    return config_t<real>::f0(x,y,u,v);
+    return conf.f0(x,y,u,v);
 }
 
 template <typename real, size_t order>
-__host__ __device__
 real eval_f( size_t n, real x, real y, real u, real v,
              const real *coeffs, const config_t<real> &conf )
 {
-    if ( n == 0 ) return config_t<real>::f0(x,y,u,v);
+    if ( n == 0 ) return conf.f0(x,y,u,v);
 
     const size_t stride_x = 1;
     const size_t stride_y = stride_x*(conf.Nx + order - 1);
@@ -346,11 +241,10 @@ real eval_f( size_t n, real x, real y, real u, real v,
     u += 0.5*conf.dt*Ex;
     v += 0.5*conf.dt*Ey;
 
-    return config_t<real>::f0(x,y,u,v);
+    return conf.f0(x,y,u,v);
 }
 
 template <typename real, size_t order>
-__host__ __device__
 real eval_f_on_grid( size_t n, size_t index_x, size_t index_y, size_t index_u, size_t index_v,
              const real *coeffs, const config_t<real> &conf )
 {
@@ -359,7 +253,7 @@ real eval_f_on_grid( size_t n, size_t index_x, size_t index_y, size_t index_u, s
 	real u = conf.u_min + index_u*conf.du;
 	real v = conf.v_min + index_v*conf.dv;
 
-    if ( n == 0 ) return config_t<real>::f0(x,y,u,v);
+    if ( n == 0 ) return conf.f0(x,y,u,v);
 
     const size_t stride_x = 1;
     const size_t stride_y = stride_x*(conf.Nx + order - 1);
@@ -400,7 +294,7 @@ real eval_f_on_grid( size_t n, size_t index_x, size_t index_y, size_t index_u, s
     u += 0.5*conf.dt*Ex;
     v += 0.5*conf.dt*Ey;
 
-    return config_t<real>::f0(x,y,u,v);
+    return conf.f0(x,y,u,v);
 }
 
 template <typename real, size_t order>
@@ -439,12 +333,11 @@ namespace dim3
 
 
 template <typename real, size_t order>
-__host__ __device__
 real eval_ftilda( size_t n, real x, real y, real z,
                             real u, real v, real w,
                   const real *coeffs, const config_t<real> &conf )
 {
-    if ( n == 0 ) return config_t<real>::f0(x,y,z,u,v,w);
+    if ( n == 0 ) return conf.f0(x,y,z,u,v,w);
 
     const size_t stride_x = 1;
     const size_t stride_y = stride_x*(conf.Nx + order - 1);
@@ -486,16 +379,15 @@ real eval_ftilda( size_t n, real x, real y, real z,
     v += 0.5*conf.dt*Ey;
     w += 0.5*conf.dt*Ez;
 
-    return config_t<real>::f0( x, y, z, u, v, w );
+    return conf.f0( x, y, z, u, v, w );
 }
 
 template <typename real, size_t order>
-__host__ __device__
 real eval_f( size_t n, real x, real y, real z,
                        real u, real v, real w,
              const real *coeffs, const config_t<real> &conf )
 {
-    if ( n == 0 ) return config_t<real>::f0(x,y,z,u,v,w);
+    if ( n == 0 ) return conf.f0(x,y,z,u,v,w);
 
     const size_t stride_x = 1;
     const size_t stride_y = stride_x*(conf.Nx + order - 1);
@@ -545,11 +437,10 @@ real eval_f( size_t n, real x, real y, real z,
     v += 0.5*conf.dt*Ey;
     w += 0.5*conf.dt*Ez;
 
-    return config_t<real>::f0(x,y,z,u,v,w);
+    return conf.f0(x,y,z,u,v,w);
 }
 
 template <typename real, size_t order>
-__host__ __device__
 real eval_f( size_t n, size_t index_x, size_t index_y, size_t index_z,
                        size_t index_u, size_t index_v, size_t index_w,
              const real *coeffs, const config_t<real> &conf )
@@ -561,7 +452,7 @@ real eval_f( size_t n, size_t index_x, size_t index_y, size_t index_z,
 	real v = conf.v_min + index_v*conf.dv;
 	real w = conf.w_min + index_w*conf.dw;
 
-    if ( n == 0 ) return config_t<real>::f0(x,y,z,u,v,w);
+    if ( n == 0 ) return conf.f0(x,y,z,u,v,w);
 
     const size_t stride_x = 1;
     const size_t stride_y = stride_x*(conf.Nx + order - 1);
@@ -611,7 +502,7 @@ real eval_f( size_t n, size_t index_x, size_t index_y, size_t index_z,
     v += 0.5*conf.dt*Ey;
     w += 0.5*conf.dt*Ez;
 
-    return config_t<real>::f0(x,y,z,u,v,w);
+    return conf.f0(x,y,z,u,v,w);
 }
 
 

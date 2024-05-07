@@ -31,13 +31,20 @@
 #include <dergeraet/poisson.hpp>
 #include <dergeraet/rho.hpp>
 #include <dergeraet/stopwatch.hpp>
-#include <dergeraet/cuda_scheduler.hpp>
 
 namespace dergeraet
 {
 
 namespace dim2
 {
+
+template <typename real>
+real f0(real x, real y, real u, real v) noexcept
+{
+	real alpha = 1e-2;
+	real k = 0.5;
+    return 1.0 / (2.0 * M_PI) * exp(-0.5 * u*u) * (1 + alpha * cos(k*x));
+}
 
 
 template <typename real, size_t order>
@@ -46,8 +53,25 @@ void test()
     using std::abs;
     using std::max;
 
-    config_t<real> conf;
-    conf.Nt = 70;
+    // Number of grid points in physical space.
+    size_t Nx = 32;
+    size_t Ny = 32;
+    // Number of quadrature points in velocity space.
+    size_t Nu = 64;
+    size_t Nv = 64;
+    real   dt = 0.1;   // Time-step size.
+    size_t Nt = 50/dt; // Number of time-steps.
+
+    // Dimensions of physical domain.
+    real x_min = 0, x_max = 4*M_PI;
+    real y_min = x_min, y_max = x_max;
+
+    // Integration limits for velocity space.
+    real u_min = -10, u_max = 10;
+    real v_min = -u_min, v_max = -u_max;
+
+    config_t<real> conf(Nx, Ny, Nu, Nv, Nt, dt, x_min, x_max, y_min, y_max,
+    					u_min, u_max, v_min, v_max, &f0);
     size_t stride_t = (conf.Nx + order - 1) *
                       (conf.Ny + order - 1);
 
