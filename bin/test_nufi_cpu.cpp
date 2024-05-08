@@ -43,7 +43,7 @@ real f0(real x, real u) noexcept
 {
 	real alpha = 1e-2;
 	real k = 0.5;
-    return 1.0 / (2.0 * M_PI) * exp(-0.5 * u*u) * (1 + alpha * cos(k*x));
+    return 1.0 / (2.0 * M_PI) * u*u * exp(-0.5 * u*u) * (1 + alpha * cos(k*x));
 }
 
 template <typename real, size_t order>
@@ -77,12 +77,9 @@ void test()
 
     poisson<real> poiss( conf );
 
-    std::ofstream timings_file( "timings.txt" );
     std::ofstream Emax_file( "Emax.txt" );
-    std::ofstream str_E_max_err("E_max_error.txt");
-    std::ofstream str_E_l2_err("E_l2_error.txt");
-    std::ofstream str_E_max_rel_err("E_max_rel_error.txt");
-    std::ofstream str_E_l2_rel_err("E_l2_rel_error.txt");
+    std::ofstream coeffs_str( "coeffs_Nt_" + std::to_string(conf.Nt) + "_Nx_"
+    						+ std::to_string(conf.Nx) + "_stride_t_" + std::to_string(stride_t) + ".txt" );
     double total_time = 0;
     for ( size_t n = 0; n <= conf.Nt; ++n )
     {
@@ -100,11 +97,6 @@ void test()
 
         double timer_elapsed = timer.elapsed();
         total_time += timer_elapsed;
-        if(n % (10*16) == 0)
-        {
-        	timings_file << "Total time until t = " << n*conf.dt << " was "
-        			<< total_time << "s." << std::endl;
-        }
 
         real Emax = 0;
 	    real E_l2 = 0;
@@ -121,33 +113,9 @@ void test()
         Emax_file << std::setw(15) << t << std::setw(15) << std::setprecision(5) << std::scientific << Emax << std::endl;
         std::cout << std::setw(15) << t << std::setw(15) << std::setprecision(5) << std::scientific << Emax << " Comp-time: " << timer_elapsed << std::endl;
 
-		if(n % (10*16) == 0)
-		{
-			std::ifstream E_str( "../TestRes/E_" + std::to_string(t) + ".txt" );
-			size_t plot_res_e = 256;
-			double dx = conf.Lx / plot_res_e;
-			double E_max_error = 0;
-			double E_l2_error = 0;
-			double E_max_exact = 0;
-			for(size_t i = 0; i <= plot_res_e; i++)
-			{
-				double x = i * dx;
-				double E_exact = 0;
-				E_str >> x >> E_exact;
-				double E = -periodic::eval<real,order,1>(x,coeffs.get()+n*stride_t,conf);
-
-				double dist = std::abs(E - E_exact);
-				E_max_error = std::max(E_max_error, dist);
-				E_l2_error += (dist*dist);
-				E_max_exact = std::max(E_max_exact, E_exact);
-			}
-			E_l2_error *= dx;
-			str_E_max_err << t << " " << E_max_error << std::endl;
-			str_E_l2_err << t << " " << E_l2_error << std::endl;
-			str_E_max_rel_err << t << " " << E_max_error/E_max_exact << std::endl;
-			str_E_l2_rel_err << t << " " << E_l2_error/E_max_exact << std::endl;
-		}
-
+        for(size_t i = 0; i < stride_t; i++){
+        	coeffs_str << coeffs.get()[n*stride_t + i] << std::endl;
+        }
 
     }
     std::cout << "Total time: " << total_time << std::endl;

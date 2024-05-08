@@ -5,22 +5,29 @@
 #include <iterator>
 #include <numeric>
 #include <iostream>
+#include <fstream>
 #include <vector>
 #include <cmath>
 #include <memory>
+
+#include <dergeraet/config.hpp>
+#include <dergeraet/random.hpp>
+#include <dergeraet/fields.hpp>
+#include <dergeraet/poisson.hpp>
+#include <dergeraet/rho.hpp>
+#include <dergeraet/stopwatch.hpp>
+
 #include "/home/paul/Projekte/htlib/src/cpp_interface/htl_m_cpp_interface.hpp"
 
 
 const size_t dim = 2;
-const size_t Nx = 100;
-const size_t Nv = 100;
+const size_t Nx = 20;
+const size_t Nv = 20;
 const double L = 4 * M_PI;
 const double vmax = 10;
 const double dx = L/Nx;
 const double dv = 2*vmax/Nv;
 
-// Interface mit dergeraet schreiben.
-// (int**) ueberall, sonst funktioniert die Uebergabe zu Fortran nicht...
 
 double f_2d(double x, double u)
 {
@@ -48,7 +55,41 @@ void test_function_2(int** ind, double &val)
 	val = 1.0/(1+ind[0][0]-1 + ind[0][1]-1);
 }
 
+namespace dergeraet {
+namespace dim1 {
+	double f0(double x, double u) noexcept
+	{
+		using std::exp;
+		using std::cos;
 
+		double alpha = 1e-2;
+		double k = 0.5;
+		return 1.0 / (2.0 * M_PI) * exp(-0.5 * u*u) * (1 + alpha * cos(k*x));
+	}
+
+	config_t<double> conf(64, 128, 500, 0.1, 0, 4*M_PI, -10, 10, &f0);
+	const size_t order = 4;
+	const size_t stride_t = conf.Nx + order - 1;
+	std::unique_ptr<double[]> coeffs { new double[ (conf.Nt+1)*stride_t ] {} };
+
+	void read_in_coeffs()
+	{
+		std::ifstream coeff_str(std::string("coeffs_Nt_500_Nx_64_stride_t_67.txt"));
+		for(size_t i = 0; i < conf.Nt; i++){
+			coeff_str >> coeffs.get()[i];
+		}
+	}
+
+	void test_function_nufi(int** ind, double &val)
+	{
+		size_t n = 500;
+		size_t i = ind[0][0];
+		size_t j = ind[0][1];
+
+		val = periodic::eval_f_on_grid<double,order>(n, i, j, coeffs.get(), conf);
+	}
+}
+}
 
 int main(int argc, char **argv)
 {
@@ -62,7 +103,9 @@ int main(int argc, char **argv)
 	  double** vecPtr = &vec[0];
 	  int32_t size = Nx*Nv;
 	  auto sizePtr = &size;
-	  auto fctPtr = &test_function_1;
+//	  auto fctPtr = &test_function_1;
+	  dergeraet::dim1::read_in_coeffs();
+	  auto fctPtr = &dergeraet::dim1::test_function_nufi;
 
 	  bool is_rand = true;
 
