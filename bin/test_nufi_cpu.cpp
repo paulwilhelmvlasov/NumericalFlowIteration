@@ -24,6 +24,7 @@
 #include <fstream>
 #include <sstream>
 
+#include <armadillo>
 
 #include <dergeraet/config.hpp>
 #include <dergeraet/random.hpp>
@@ -46,8 +47,52 @@ real f0(real x, real u) noexcept
     return 1.0 / (2.0 * M_PI) * u*u * exp(-0.5 * u*u) * (1 + alpha * cos(k*x));
 }
 
+template <typename real>
+real lin_interpol(real x , real y, real x1, real x2, real y1, real y2, real f_11,
+		real f_12, real f_21, real f_22) noexcept
+{
+	real f_x_y1 = ((x2-x)*f_11 + (x-x1)*f_21)/(x2-x1);
+	real f_x_y2 = ((x2-x)*f_12 + (x-x1)*f_22)/(x2-x1);
+
+	return ((y2-y)*f_x_y1 * (y-y1)*f_x_y2) / (y2-y1);
+}
+
+arma::mat f0_r;
+config_t<double> conf(64, 128, 500, 0.1, 0, 4*M_PI, -10, 10, &f0);
+
+double f_t(double x, double u) noexcept
+{
+	size_t nx_r = f0_r.n_rows;
+	size_t nu_r = f0_r.n_cols;
+
+	double dx_r = conf.Lx/ nx_r;
+	double du_r = (conf.u_max - conf.u_min)/nu_r;
+
+	// Compute periodic reference position of x. Assume x_min = 0 to this end.
+	x -= conf.Lx * std::floor(x*conf.Lx_inv);
+
+	if(u > conf.u_max || u < conf.u_min){
+		return 0;
+	}
+
+	size_t x_ref_pos = std::floor(x*dx_r);
+	size_t u_ref_pos = std::floor((u-conf.u_min)*du_r);
+
+	double x1 = x_ref_pos*dx_r;
+	double x2 = x1+dx_r;
+	double u1 = conf.u_min + u_ref_pos*du_r;
+	double u2 = u1 + du_r;
+
+	double f_11 = f0_r(x_ref_pos, u_ref_pos);
+	double f_21 = f0_r(x_ref_pos+1, u_ref_pos);
+	double f_12 = f0_r(x_ref_pos, u_ref_pos+1);
+	double f_22 = f0_r(x_ref_pos+1, u_ref_pos+1);
+
+	return lin_interpol<double>(x, u, x1, x2, u1, u2, f_11, f_21, f_12, f_22);
+}
+
 template <typename real, size_t order>
-void test()
+void run_simulation()
 {
 	using std::exp;
 	using std::sin;
@@ -122,12 +167,13 @@ void test()
 }
 
 
+
 }
 }
 
 
 int main()
 {
-	dergeraet::dim1::test<double,4>();
+	dergeraet::dim1::run_simulation<double,4>();
 }
 
