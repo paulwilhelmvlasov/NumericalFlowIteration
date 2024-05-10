@@ -44,7 +44,8 @@ real f0(real x, real u) noexcept
 {
 	real alpha = 1e-2;
 	real k = 0.5;
-    return 1.0 / (2.0 * M_PI) * u*u * exp(-0.5 * u*u) * (1 + alpha * cos(k*x));
+    //return 1.0 / (2.0 * M_PI) * u*u * exp(-0.5 * u*u) * (1 + alpha * cos(k*x));
+	return 1.0 / (2.0 * M_PI) * exp(-0.5 * u*u) * (1 + alpha * cos(k*x));
 }
 
 template <typename real>
@@ -89,6 +90,101 @@ double f_t(double x, double u) noexcept
 	double f_22 = f0_r(x_ref_pos+1, u_ref_pos+1);
 
 	return lin_interpol<double>(x, u, x1, x2, u1, u2, f_11, f_21, f_12, f_22);
+}
+
+template <size_t order>
+void run_restarted_simulation()
+{
+	using std::exp;
+	using std::sin;
+	using std::cos;
+    using std::abs;
+    using std::max;
+
+    size_t Nx = 64;  // Number of grid points in physical space.
+    size_t Nu = 128;  // Number of quadrature points in velocity space.
+    double   dt = 0.1;  // Time-step size.
+    size_t Nt = 50/dt;  // Number of time-steps.
+
+    // Dimensions of physical domain.
+    double x_min = 0;
+    double x_max = 4*M_PI;
+
+    // Integration limits for velocity space.
+    double u_min = -10;
+    double u_max = 10;
+
+    // We use conf.Nt as restart timer for now.
+    size_t nt_restart = 100;
+    size_t nx_r = 256;
+    size_t nu_r = nx_r;
+    double dx_r = conf.Lx / nx_r;
+    double du_r = (conf.u_max - conf.u_min)/ nu_r;
+    f0_r.resize(nx_r+1, nu_r+1);
+    conf = config_t<double>(Nx, Nu, nt_restart, dt, x_min, x_max, u_min, u_max, &f0);
+    const size_t stride_t = conf.Nx + order - 1;
+
+    std::unique_ptr<double[]> coeffs { new double[ (conf.Nt+1)*stride_t ] {} };
+    std::unique_ptr<double,decltype(std::free)*> rho { reinterpret_cast<double*>(std::aligned_alloc(64,sizeof(double)*conf.Nx)), std::free };
+    if ( rho == nullptr ) throw std::bad_alloc {};
+
+    poisson<double> poiss( conf );
+
+    std::ofstream Emax_file( "Emax.txt" );
+    double total_time = 0;
+    size_t nt_r_curr = 0;
+    for ( size_t n = 0; n <= Nt; ++n )
+    {
+    	dergeraet::stopwatch<double> timer;
+
+    	if(nt_r_curr == nt_restart)
+    	{
+    		for(size_t i = 0; i <= nx_r; i++ ){
+    			for(size_t j = 0; j <= nu_r; j++){
+    				double x = i*dx_r;
+    				double u = conf.u_min + j*du_r;
+    				f0_r(i,j) = periodic::eval_f<double,order>(nt_r_curr,x,u,coeffs.get(),conf);
+    			}
+
+    			conf = config_t<double>(Nx, Nu, nt_restart, dt, x_min, x_max,
+    					u_min, u_max, &f_t);
+    		}
+
+    		nt_r_curr = 0;
+    	}
+
+    	// Compute rho:
+		#pragma omp parallel for
+    	for(size_t i = 0; i<conf.Nx; i++)
+    	{
+    		rho.get()[i] = periodic::eval_rho<double,order>(nt_r_curr, i, coeffs.get(), conf);
+    	}
+
+        poiss.solve( rho.get() );
+        periodic::interpolate<double,order>( coeffs.get() + nt_r_curr*stride_t, rho.get(), conf );
+
+        double timer_elapsed = timer.elapsed();
+        total_time += timer_elapsed;
+
+        double Emax = 0;
+	    double E_l2 = 0;
+        for ( size_t i = 0; i < conf.Nx; ++i )
+        {
+            double x = conf.x_min + i*conf.dx;
+            double E_abs = abs( periodic::eval<double,order,1>(x,coeffs.get()+nt_r_curr*stride_t,conf));
+            Emax = max( Emax, E_abs );
+	        E_l2 += E_abs*E_abs;
+        }
+	    E_l2 *=  conf.dx;
+
+	    double t = n*conf.dt;
+        Emax_file << std::setw(15) << t << std::setw(15) << std::setprecision(5) << std::scientific << Emax << std::endl;
+        std::cout << std::setw(15) << t << std::setw(15) << std::setprecision(5) << std::scientific << Emax << " Comp-time: " << timer_elapsed << std::endl;
+
+        nt_r_curr++;
+    }
+    std::cout << "Total time: " << total_time << std::endl;
+
 }
 
 template <typename real, size_t order>
@@ -174,6 +270,7 @@ void run_simulation()
 
 int main()
 {
-	dergeraet::dim1::run_simulation<double,4>();
+	//dergeraet::dim1::run_simulation<double,4>();
+	dergeraet::dim1::run_restarted_simulation<4>();
 }
 

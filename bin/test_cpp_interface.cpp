@@ -20,9 +20,12 @@
 #include "/home/paul/Projekte/htlib/src/cpp_interface/htl_m_cpp_interface.hpp"
 
 
+// Fortran Indices start at 1.
+// Fortran uses different sorting in arrays.
+
 const size_t dim = 2;
-const size_t Nx = 20;
-const size_t Nv = 20;
+const size_t Nx = 500;
+const size_t Nv = Nx;
 const double L = 4 * M_PI;
 const double vmax = 10;
 const double dx = L/Nx;
@@ -43,8 +46,8 @@ void test_function_1(int** ind, double& val)
 	// ind: Indizes des Gitters
 	// val: Return value
 
-	double x = ind[0][0] * dx;
-	double v = -vmax + ind[0][1] * dv;
+	double x = ind[0][1] * dx;
+	double v = -vmax + ind[0][0] * dv;
 
 	val = f_2d(x,v);
 }
@@ -82,9 +85,9 @@ namespace dim1 {
 
 	void test_function_nufi(int** ind, double &val)
 	{
-		size_t n = 500;
-		size_t i = ind[0][0];
-		size_t j = ind[0][1];
+		size_t n = 10;
+		size_t i = ind[0][1];
+		size_t j = ind[0][0];
 
 		val = periodic::eval_f_on_grid<double,order>(n, i, j, coeffs.get(), conf);
 	}
@@ -103,23 +106,23 @@ int main(int argc, char **argv)
 	  double** vecPtr = &vec[0];
 	  int32_t size = Nx*Nv;
 	  auto sizePtr = &size;
-//	  auto fctPtr = &test_function_1;
+	  //auto fctPtr = &test_function_1;
 	  dergeraet::dim1::read_in_coeffs();
 	  auto fctPtr = &dergeraet::dim1::test_function_nufi;
 
-	  bool is_rand = true;
+	  bool is_rand = false;
 
 	  void* opts;
 	  auto optsPtr = &opts;
 
-	  double tol = 1e-10;
+	  double tol = 1e-12;
 	  int32_t tcase = 1;
 
 	  int32_t cross_no_loops = 3;
 	  int32_t nNodes = 3;
-	  int32_t rank = 20;
-	  int32_t rank_rand_row = 10; // Was genau tun diese beiden Parameter?
-	  int32_t rank_rand_col = 10;
+	  int32_t rank = 30;
+	  int32_t rank_rand_row = 50; // Was genau tun diese beiden Parameter?
+	  int32_t rank_rand_col = rank_rand_row;
 
 	  chtl_s_init_truncation_option(optsPtr, &tcase, &tol, &cross_no_loops, &nNodes, &rank, &rank_rand_row, &rank_rand_col);
 	  std::cout << "chtl_s_init_truncation_option finished." << std::endl;
@@ -138,12 +141,13 @@ int main(int argc, char **argv)
 		  size_t i = k/Nx;
 		  size_t j = k % Nx;
 
-		  double x = i*dx;
-		  double v = -vmax + j*dv;
-
+		  double x = (i+1)*dx;
+		  double v = -vmax + (j+1)*dv;
 
 		  double f = vec[0][k];
-		  double f_exact = f_2d(x,v);
+		  double f_exact = dergeraet::dim1::periodic::eval_f<double,dergeraet::dim1::order>
+		  	  	  	  	  	  (10, x, v, dergeraet::dim1::coeffs.get(),
+		  	  	  	  	  			  dergeraet::dim1::conf);
 
 		  double err = std::abs(f - f_exact);
 		  total_l1_error += err;
