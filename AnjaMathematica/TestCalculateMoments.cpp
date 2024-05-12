@@ -77,7 +77,7 @@ void calculate_moments (const std::vector<double> orig, int theory) {
     size_t n = 1; // aktuell egal
     size_t l = 1; // aktuell egal
 
-    constexpr size_t order = 1; // aktuell egal
+    const size_t order = 1; // aktuell egal
 
     switch (theory)
     {
@@ -101,9 +101,9 @@ void calculate_moments (const std::vector<double> orig, int theory) {
     for(int i = 0; i < moments.size(); i++) {
         std::cout << "moments[" << i << "] = ";
         if(abs(moments[i]) < 1) {
-            std::cout << runde(moments[i],6)  << std::endl;
+            std::cout << runde(moments[i],6) << ";" << std::endl;
         } else {
-            std::cout << moments[i]  << std::endl;
+            std::cout << moments[i] << ";" << std::endl;
         }
     }
 

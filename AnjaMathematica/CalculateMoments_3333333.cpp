@@ -31,7 +31,7 @@ void calculate_moments( size_t n, size_t l, const real *coeffs, const config_t<r
 	real j_z = 0;
 	real std_dev = 0;
 
-	std::vector<std::vector<std::vector<real>>> f(conf.Nu, std::vector<std::vector<real>>(conf.Nv, std::vector<real>(conf.Nw)));
+	std::vector<std::vector<std::vector<real> > > f(conf.Nu, std::vector<std::vector<real> >(conf.Nv, std::vector<real>(conf.Nw)));
 
 	for ( size_t kk = 0; kk < conf.Nw; ++kk )
 	for ( size_t jj = 0; jj < conf.Nv; ++jj )
