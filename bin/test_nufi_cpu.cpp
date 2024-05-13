@@ -44,8 +44,8 @@ real f0(real x, real u) noexcept
 {
 	real alpha = 1e-2;
 	real k = 0.5;
-    //return 1.0 / (2.0 * M_PI) * u*u * exp(-0.5 * u*u) * (1 + alpha * cos(k*x));
-	return 1.0 / (2.0 * M_PI) * exp(-0.5 * u*u) * (1 + alpha * cos(k*x));
+    //return 1.0 / std::sqrt(2.0 * M_PI) * u*u * exp(-0.5 * u*u) * (1 + alpha * cos(k*x));
+	return 1.0 / std::sqrt(2.0 * M_PI) * exp(-0.5 * u*u) * (1 + alpha * cos(k*x));
 }
 
 template <typename real>
@@ -196,18 +196,18 @@ void run_simulation()
     using std::abs;
     using std::max;
 
-    size_t Nx = 64;  // Number of grid points in physical space.
-    size_t Nu = 128;  // Number of quadrature points in velocity space.
+    size_t Nx = 128;  // Number of grid points in physical space.
+    size_t Nu = 256;  // Number of quadrature points in velocity space.
     real   dt = 0.1;  // Time-step size.
-    size_t Nt = 50/dt;  // Number of time-steps.
+    size_t Nt = 100/dt;  // Number of time-steps.
 
     // Dimensions of physical domain.
     real x_min = 0;
     real x_max = 4*M_PI;
 
     // Integration limits for velocity space.
-    real u_min = -10;
-    real u_max = 10;
+    real u_min = -6;
+    real u_max = 6;
 
     config_t<real> conf(Nx, Nu, Nt, dt, x_min, x_max, u_min, u_max, &f0);
     const size_t stride_t = conf.Nx + order - 1;
@@ -270,7 +270,7 @@ void run_simulation()
 
 int main()
 {
-	//dergeraet::dim1::run_simulation<double,4>();
-	dergeraet::dim1::run_restarted_simulation<4>();
+	dergeraet::dim1::run_simulation<double,4>();
+	//dergeraet::dim1::run_restarted_simulation<4>();
 }
 
