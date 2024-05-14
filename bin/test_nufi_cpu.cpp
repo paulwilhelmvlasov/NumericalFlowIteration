@@ -42,7 +42,8 @@ namespace dim1
 template <typename real>
 real f0(real x, real u) noexcept
 {
-	real alpha = 1e-2;
+	//real alpha = 1e-2;
+	real alpha = 0.5; // Strong Landau Damping
 	real k = 0.5;
     //return 1.0 / std::sqrt(2.0 * M_PI) * u*u * exp(-0.5 * u*u) * (1 + alpha * cos(k*x));
 	return 1.0 / std::sqrt(2.0 * M_PI) * exp(-0.5 * u*u) * (1 + alpha * cos(k*x));
