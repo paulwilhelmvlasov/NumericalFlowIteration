@@ -27,10 +27,12 @@ const size_t dim = 2;
 const double L = 4*M_PI;
 const double vmin = -6;
 const double vmax = 6;
-const size_t Nx = 256;
+const size_t Nx = 512;
 const size_t Nv = Nx;
 const double dx = L/Nx;
 const double dv = (vmax-vmin)/Nv;
+
+std::vector<double> mat(Nx*Nv);
 
 
 namespace dergeraet {
@@ -52,7 +54,7 @@ namespace dim1 {
 	const size_t stride_t = conf.Nx + order - 1;
 	std::unique_ptr<double[]> coeffs { new double[ (conf.Nt+1)*stride_t ] {} };
 
-	const size_t nt = 100;
+	const size_t nt = 500;
 
 	void read_in_coeffs()
 	{
@@ -63,6 +65,8 @@ namespace dim1 {
 			coeff_str >> coeffs.get()[i];
 		}
 	}
+
+	size_t counter = 0;
 
 	void nufi_interface_for_fortran(int** ind, double &val)
 	{
@@ -78,6 +82,17 @@ namespace dim1 {
 		double v = vmin + j*dv;
 
 		val = periodic::eval_f<double,order>(nt, x, v, coeffs.get(), conf);
+		counter++;
+	}
+
+	void test_interface(int** ind, double &val)
+	{
+		// Fortran starts indexing at 1:
+		size_t i = ind[0][1] - 1;
+		size_t j = ind[0][0] - 1;
+
+		val = mat[i + Nx*j];
+		counter++;
 	}
 }
 }
@@ -100,20 +115,36 @@ int main(int argc, char **argv)
 
 	//auto fctPtr = &test_function_1;
 	dergeraet::dim1::read_in_coeffs();
-	auto fctPtr = &dergeraet::dim1::nufi_interface_for_fortran;
+	//auto fctPtr = &dergeraet::dim1::nufi_interface_for_fortran;
+	auto fctPtr = &dergeraet::dim1::test_interface;
+
+	dergeraet::stopwatch<double> timer_nufi_eval;
+	for(size_t i = 0; i < Nx; i++) {
+		for(size_t j = 0; j < Nv; j++) {
+			double x = i*dx;
+			double v = vmin + j*dv;
+
+			mat[i+j*Nx] = dergeraet::dim1::periodic::eval_f<double,dergeraet::dim1::order>
+					(dergeraet::dim1::nt, x, v, dergeraet::dim1::coeffs.get(),dergeraet::dim1::conf);
+		}
+	}
+	double time_nxnv_nufi_eval = timer_nufi_eval.elapsed();
+	std::cout << "All eval took " << time_nxnv_nufi_eval << " s." << std::endl;
+	std::cout << "One eval takes on average " << time_nxnv_nufi_eval/size << " s." << std::endl;
+
 
 	bool is_rand = false;
 
 	void* opts;
 	auto optsPtr = &opts;
 
-	double tol = 1e-2;
+	double tol = 1e-5;
 	int32_t tcase = 1;
 
-	int32_t cross_no_loops = 5;
+	int32_t cross_no_loops = 1;
 	int32_t nNodes = 3;
-	int32_t rank = 50;
-	int32_t rank_rand_row = 100; // Was genau tun diese beiden Parameter?
+	int32_t rank = 40;
+	int32_t rank_rand_row = 100;
 	int32_t rank_rand_col = rank_rand_row;
 
 	double time = 0;
@@ -136,6 +167,7 @@ int main(int argc, char **argv)
 
 	double total_l1_error = 0;
 	double total_max_error = 0;
+	double time_mem_access = 0;
 	std::cout << size << std::endl;
 	std::ofstream f_tensor_file( "ft.txt" );
 	std::ofstream f_exact_file( "fe.txt" );
@@ -149,8 +181,11 @@ int main(int argc, char **argv)
 			double v = vmin + j*dv;
 
 			double f = vec[0][k];
-			double f_exact = dergeraet::dim1::periodic::eval_f<double,dergeraet::dim1::order>
-						(dergeraet::dim1::nt, x, v, dergeraet::dim1::coeffs.get(),dergeraet::dim1::conf);
+			dergeraet::stopwatch<double> timer_mem_access;
+			double f_exact = mat[i+j*Nx];
+			time_mem_access += timer_mem_access.elapsed();
+					/*dergeraet::dim1::periodic::eval_f<double,dergeraet::dim1::order>
+						(dergeraet::dim1::nt, x, v, dergeraet::dim1::coeffs.get(),dergeraet::dim1::conf);*/
 
 			double err = std::abs(f - f_exact);
 			total_l1_error += err;
@@ -167,4 +202,11 @@ int main(int argc, char **argv)
 
 	std::cout << "Total error L1 = " << total_l1_error/size << std::endl;
 	std::cout << "Total error max = " << total_max_error << std::endl;
+
+	std::cout << "All mem access took " << time_mem_access << " s." << std::endl;
+	std::cout << "One mem access takes on average " << time_mem_access/size << " s." << std::endl;
+
+
+	std::cout << "Counter = " << dergeraet::dim1::counter << std::endl; // Probably very
+	// inaccurate. Should only be used as a rough estimate for the order of magnitude.
 }
