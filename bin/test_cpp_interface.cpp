@@ -54,7 +54,7 @@ namespace dim1 {
 	const size_t stride_t = conf.Nx + order - 1;
 	std::unique_ptr<double[]> coeffs { new double[ (conf.Nt+1)*stride_t ] {} };
 
-	const size_t nt = 500;
+	const size_t nt = 100;
 
 	void read_in_coeffs()
 	{
@@ -165,6 +165,10 @@ int main(int argc, char **argv)
 	time = timer.elapsed();
 	std::cout << "chtl_s_htensor_vectorize finished. It took " << time << " s." << std::endl;
 
+	double f = 0;
+	int* arr = new int[2];
+	int** arrPtr = &arr;
+
 	double total_l1_error = 0;
 	double total_max_error = 0;
 	double time_mem_access = 0;
@@ -180,7 +184,10 @@ int main(int argc, char **argv)
 			double x = i*dx;
 			double v = vmin + j*dv;
 
+			arr[0] = j;
+			arr[1] = i;
 			double f = vec[0][k];
+			//chtl_s_htensor_point_eval(htensorPtr,arrPtr,f);
 			dergeraet::stopwatch<double> timer_mem_access;
 			double f_exact = mat[i+j*Nx];
 			time_mem_access += timer_mem_access.elapsed();
