@@ -165,9 +165,8 @@ int main(int argc, char **argv)
 	time = timer.elapsed();
 	std::cout << "chtl_s_htensor_vectorize finished. It took " << time << " s." << std::endl;
 
-	double f = 0;
-	int* arr = new int[2];
-	int** arrPtr = &arr;
+    int arr[2] = {0, 0};
+	int* arrPtr = arr;
 
 	double total_l1_error = 0;
 	double total_max_error = 0;
@@ -186,8 +185,10 @@ int main(int argc, char **argv)
 
 			arr[0] = j;
 			arr[1] = i;
-			double f = vec[0][k];
-			//chtl_s_htensor_point_eval(htensorPtr,arrPtr,f);
+			//double f = vec[0][k];
+			double f = 0;
+			chtl_s_htensor_point_eval(htensorPtr,&arrPtr,f);
+			std::cout << "Did I reach here?" << std::endl;
 			dergeraet::stopwatch<double> timer_mem_access;
 			double f_exact = mat[i+j*Nx];
 			time_mem_access += timer_mem_access.elapsed();
