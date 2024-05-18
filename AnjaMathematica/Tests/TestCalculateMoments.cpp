@@ -861,7 +861,7 @@ int main () {
     char con;
     while (cont) {
 
-        std::cout << "Select a theory (select number): 1) Full 2; 2) 3333333; 3) 444444444; 4) Full10" << std::endl;
+        std::cout << "Select a theory (select number): 1) Full 2; 2) 3333333; 3) 444444444; 4) Full10; 5) Everything (safe in Moments)" << std::endl;
         std::cin >> choice;
 
         std::vector<double> orig;
