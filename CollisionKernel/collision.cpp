@@ -112,9 +112,9 @@ int main(int argc, char **argv)
     {
         // initialize the moment vector and the collision operator as a one-dimensional array with a particular order of the parameters - similar to [n][a][l]
 
-        std::vector<double> f0;
+        std::vector<double> f0;  // f0 in moments
         std::string line;
-        double coeff;
+        double coeff; // these are moments
         int idx;
 
         // initialize the values of fnow as given in the Finitfile
@@ -122,12 +122,12 @@ int main(int argc, char **argv)
         {
             std::stringstream finitvalues(line);
             finitvalues >> idx >> coeff;
-            f0.push_back(coeff);
+            f0.push_back(coeff); // we are pushing moments into the f0 vector
         }
         Finitfile.close();
 
-        std::vector<double> Soperator;
-        Soperator.resize(f0.size());
+        std::vector<double> Soperator(f0.size(), 0);
+        //Soperator.resize(f0.size());
 
         // Calculate collision
         for (int j = 0; j < Slength; j++)
