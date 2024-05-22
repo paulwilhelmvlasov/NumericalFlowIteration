@@ -1,3 +1,2 @@
-noinst_LIBRARIES = libanjamathematica.a
-
-libanjamathematica_a_SOURCES = CalculateMoments_3333333.cpp CalculateMoments_444444444.cpp CalculateMoments_Full10.cpp  CalculateMoments_Full2.cpp CalculateMoments_OnlyEvenN10.cpp
+ACLOCAL_AMFLAGS = -I m4
+SUBDIRS=CalculateMoments_generated

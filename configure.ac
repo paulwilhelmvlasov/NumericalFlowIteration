@@ -21,6 +21,7 @@ AC_SUBST([AM_CPPFLAGS],['-I$(top_srcdir)'])
 AC_CONFIG_HEADERS([dergeraet/autoconfig.hpp])
 AC_CONFIG_FILES([Makefile
                  AnjaMathematica/makefile
+                 AnjaMathematica/CalculateMoments_generated/makefile
                  dergeraet/makefile
                  bin/makefile])
 

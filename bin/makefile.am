@@ -44,6 +44,6 @@ test_nufi_cpu_3d_isolated_LDADD  += $(CUDA_LDFLAGS) $(BLAS_LIBS) -lfftw3 -lfftw3
 
 TestCalculateMoments_SOURCES = TestCalculateMoments.cpp
 TestCalculateMoments_LDADD   = $(top_builddir)/dergeraet/libdergeraet.a 
-TestCalculateMoments_LDADD  += $(top_builddir)/AnjaMathematica/libanjamathematica.a 
+TestCalculateMoments_LDADD  += $(top_builddir)/AnjaMathematica/CalculateMoments_generated/libCalculateMomentsgenerated.a 
 TestCalculateMoments_LDADD  += $(CUDA_LDFLAGS) $(BLAS_LIBS) -lfftw3 -lfftw3f -lmpi -lmpi_cxx
 

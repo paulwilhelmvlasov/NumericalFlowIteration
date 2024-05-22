@@ -19,7 +19,7 @@ g++ TestCalculateMoments.o CalculateMoments_3333333.o -o TestMoments
 ./TestMoments
 */
 
-#include "../AnjaMathematica/CalculateMoments_Full2.cpp"
+#include "../AnjaMathematica/CalculateMoments_generated/CalculateMoments_Full2.cpp"
 /*
 #include "../AnjaMathematica/CalculateMoments_3333333.cpp"
 #include "../AnjaMathematica/CalculateMoments_444444444.cpp"
