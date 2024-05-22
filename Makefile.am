@@ -1,3 +1,3 @@
 ACLOCAL_AMFLAGS = -I m4
-SUBDIRS=dergeraet bin
+SUBDIRS=dergeraet AnjaMathematica bin
 
