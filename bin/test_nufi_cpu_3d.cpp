@@ -279,7 +279,7 @@ void test_moments(size_t n)
     size_t m = 10;
 	#pragma omp parallel for
     for(size_t k = 0; k < m; k++){
-    	std::ofstream plot_m("plot_moment_" + std::to_string(k) + ".txt");
+    	std::ofstream plot_m("plot_moment_" + std::to_string(k) + "_n_" + std::to_string(n) + ".txt");
     	std::vector<double> moment_array(40, 0);
     	for(size_t i = 0; i <= Nplot; i++){
     		for(size_t j = 0; j <= Nplot; j++){
@@ -339,6 +339,36 @@ void test_moments(size_t n)
     std::cout << "f_l1_error = " << f_l1_error << std::endl;
     std::cout << "f_l2_error = " << f_l2_error << std::endl;
     std::cout << "f_max_error = " << f_max_error << std::endl;
+
+	std::ofstream f_exact_xu("f_exact_xu_n_" + std::to_string(n) + ".txt");
+	std::ofstream f_mom_xu("f_exact_xu_n_" + std::to_string(n) + ".txt");
+	std::ofstream f_dist_xu("f_dist_xu_n_" + std::to_string(n) + ".txt");
+    for(size_t ix = 0; ix < Nplot; ix++)
+    {
+		for(size_t iu = 0; iu < Nplot; iu++){
+			double x = ix*dx_plot;
+			double y = (conf.y_max-conf.y_min)/2;
+			double z = (conf.z_max-conf.z_min)/2;
+			double u = conf.u_min + iu*du_plot;
+			double v = (conf.v_max-conf.v_min)/2;
+			double w = (conf.w_max-conf.w_min)/2;;
+
+			for(size_t k = 0; k < 40; k++){
+				moment_array[k] = eval<double,order>(x,y,z,moment_coeffs_vec[k].data(),conf);
+			}
+
+			double f_exact = eval_f<double,order>( n, x, y, z, u, v, w, coeffs.get(), conf);
+			double f_mom = pi_inverse( u, v, w, moment_array.data());
+			double dist = std::abs(f_exact-f_mom);
+
+			f_exact_xu << x << " " << u << " " << f_exact << std::endl;
+			f_mom_xu << x << " " << u << " " << f_mom << std::endl;
+			f_dist_xu << x << " " << u << " " << f_mom << std::endl;
+		}
+		f_exact_xu << std::endl;
+		f_mom_xu << std::endl;
+		f_dist_xu << std::endl;
+    }
 }
 
 void test()
