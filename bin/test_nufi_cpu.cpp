@@ -31,7 +31,6 @@
 #include <dergeraet/poisson.hpp>
 #include <dergeraet/rho.hpp>
 #include <dergeraet/stopwatch.hpp>
-#include <dergeraet/cuda_scheduler.hpp>
 
 namespace dergeraet
 {

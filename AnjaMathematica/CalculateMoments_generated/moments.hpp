@@ -6,7 +6,7 @@
 #include <algorithm>
 #include <vector>
 
-// #include <dergeraet/config.hpp>
+//#include <dergeraet/config.hpp>
 #include "../Tests/test_def.hpp" // for testing, remove later
 
 template <typename real, size_t order>

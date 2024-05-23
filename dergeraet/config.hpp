@@ -21,7 +21,6 @@
 #define DERGERAET_CONFIG_HPP
 
 #include <cmath>
-#include <dergeraet/cuda_runtime.hpp>
 
 namespace dergeraet
 {
@@ -48,7 +47,7 @@ struct config_t
     real du;
 
     config_t() noexcept;
-    __host__ __device__ static real f0( real x, real u ) noexcept;
+    static real f0( real x, real u ) noexcept;
 };
 
 template <typename real>
@@ -69,7 +68,6 @@ config_t<real>::config_t() noexcept
 }
 
 template <typename real>
-__host__ __device__
 real config_t<real>::f0( real x, real u ) noexcept
 {
     using std::sin;
@@ -109,7 +107,7 @@ struct config_t
     real du, dv;
 
     config_t() noexcept;
-    __host__ __device__ static real f0( real x, real y, real u, real v ) noexcept;
+    static real f0( real x, real y, real u, real v ) noexcept;
 };
 
 
@@ -137,7 +135,6 @@ config_t<real>::config_t() noexcept
 }
 
 template <typename real>
-__host__ __device__
 real config_t<real>::f0( real x, real y, real u, real v ) noexcept
 {
     using std::sin;
@@ -158,7 +155,6 @@ real config_t<real>::f0( real x, real y, real u, real v ) noexcept
 }
 
 }
-
 
 namespace dim3
 {
@@ -187,24 +183,43 @@ struct config_t
     real dz, dz_inv, Lz, Lz_inv;
     real du, dv, dw;
 
-    config_t() noexcept;
-    __host__ __device__ static real f0( real x, real y, real z, real u, real v, real w ) noexcept;
+    config_t(size_t nx, size_t ny, size_t nz, size_t nu, size_t nv, size_t nw,
+    		size_t nt, real delta_t, real xmin, real xmax, real ymin, real ymax,
+			real zmin, real zmax, real umin, real umax, real vmin, real vmax,
+			real wmin, real wmax, real(*init_data)(real,real,real,real,real,real)) noexcept;
+
+    real (*f0)( real x, real y, real z, real u, real v, real w );
 };
 
 
 template <typename real>
-config_t<real>::config_t() noexcept
+config_t<real>::config_t(size_t nx, size_t ny, size_t nz, size_t nu, size_t nv, size_t nw,
+		size_t nt, real delta_t, real xmin, real xmax, real ymin, real ymax,
+		real zmin, real zmax, real umin, real umax, real vmin, real vmax,
+		real wmin, real wmax, real(*init_data)(real,real,real,real,real,real)) noexcept
 {
-    Nx = Ny = Nz = 8;
-    Nu = Nv = Nw = 8;
+    Nx = nx;
+    Ny = ny;
+    Nz = nz;
+    Nu = nu;
+    Nv = nv;
+    Nw = nw;
 
-    u_min = v_min = w_min = -9;
-    u_max = v_max = w_max =  0;
-    x_min = y_min = z_min = 0;
-    x_max = y_max = z_max = 20*M_PI/3.0; // Bump On Tail instability
-	//10*M_PI;
+    u_min = umin;
+    v_min = vmin;
+    w_min = wmin;
+    u_max = umax;
+    v_max = vmax;
+    w_max = wmax;
+    x_min = xmin;
+    y_min = ymin;
+    z_min = zmin;
+    x_max = xmax;
+    y_max = ymax;
+    z_max = zmax;
 
-    dt = 1./10.; Nt = 5/dt;
+    dt = delta_t;
+    Nt = nt;
 
     Lx = x_max - x_min; Lx_inv = 1/Lx;
     Ly = y_max - y_min; Ly_inv = 1/Ly;
@@ -215,37 +230,81 @@ config_t<real>::config_t() noexcept
     du = (u_max - u_min)/Nu;
     dv = (v_max - v_min)/Nv;
     dw = (w_max - w_min)/Nw;
+
+    f0 = init_data;
 }
+
+}
+
+
+namespace dim_1x3v
+{
+// Based on "Sparse-grid discontinuous Galerkin methods for the
+// Vlasov–Poisson–Lenard–Bernstein model" by Schnake et.al.
 
 template <typename real>
-__host__ __device__
-real config_t<real>::f0( real x, real y, real z, real u, real v, real w ) noexcept
+struct config_t
 {
-    using std::sin;
-    using std::cos;
-    using std::exp;
+    size_t Nx;  // Number of grid points in physical space.
+    size_t Nu, Nv, Nw;  // Number of quadrature points in velocity space.
+    size_t Nt;          // Number of time-steps.
+    real   dt;          // Time-step size.
 
-    constexpr real alpha = 0.001;
-    constexpr real k     = 0.2;
+    // Dimensions of physical domain.
+    real x_min, x_max;
 
-    // Weak Landau Damping:
-    // constexpr real c  = 0.06349363593424096978576330493464; // Weak Landau damping
-    // return c * ( 1. + alpha*cos(k*x) + alpha*cos(k*y) + alpha*cos(k*z)) * exp( -(u*u+v*v+w*w)/2 );
+    // Integration limits for velocity space.
+    real u_min, u_max;
+    real v_min, v_max;
+    real w_min, w_max;
 
-    // Two Stream instability:
-    /*
-    constexpr real c     = 0.03174681796712048489288165246732; // Two Stream instability
-    constexpr real v0 = 2.4;
-    return c * (  (exp(-(v-v0)*(v-v0)/2.0) + exp(-(v+v0)*(v+v0)/2.0)) ) * exp(-(u*u+w*w)/2)
-             * ( 1 + alpha * (cos(k*x) + cos(k*y) + cos(k*z)) );
-    */
-    // Bump On Tail
-    constexpr real c = 0.06349363593424096978576330493464;
-    return c * (0.9*exp(-0.5*u*u) + 0.2*exp(-2*(u-4.5)*(u-4.5)) ) 
-             * exp(-0.5 * (v*v + w*w) ) * (1 + 0.03*(cos(0.3*x) + cos(0.3*y) + cos(0.3*z)) );
+    // Grid-sizes and their reciprocals.
+    real dx, dx_inv, Lx, Lx_inv;
+    real du, dv, dw;
+
+    config_t(size_t nx, size_t nu, size_t nv, size_t nw, size_t nt, real delta_t,
+    		real xmin, real xmax, real umin, real umax, real vmin, real vmax,
+			real wmin, real wmax, real(*init_data)(real,real)) noexcept;
+
+    real (*f0)( real x, real u );
+
+};
+
+
+template <typename real>
+config_t<real>::config_t(size_t nx, size_t nu, size_t nv, size_t nw, size_t nt,
+		real delta_t, real xmin, real xmax, real umin, real umax, real vmin,
+		real vmax, real wmin, real wmax, real(*init_data)(real,real)) noexcept
+{
+    Nx = nx;
+    Nu = nu;
+    Nv = nv;
+    Nw = nw;
+
+    u_min = umin;
+    v_min = vmin;
+    w_min = wmin;
+    u_max = umax;
+    v_max = vmax;
+    w_max = wmax;
+    x_min = xmin;
+    x_max = xmax;
+
+    dt = delta_t;
+    Nt = nt;
+
+    Lx = x_max - x_min; Lx_inv = 1/Lx;
+    dx = Lx/Nx; dx_inv = 1/dx;
+    du = (u_max - u_min)/Nu;
+    dv = (v_max - v_min)/Nv;
+    dw = (w_max - w_min)/Nw;
+
+    f0 = init_data;
 }
 
 }
+
+
 
 }
 
