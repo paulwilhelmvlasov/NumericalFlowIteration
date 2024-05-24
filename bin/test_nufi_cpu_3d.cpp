@@ -214,8 +214,8 @@ double f0(double x, double y, double z, double u, double v, double w) noexcept
     using std::cos;
     using std::exp;
 
-    constexpr double alpha = 0.001;
-    constexpr double k     = 0.2;
+    constexpr double alpha = 0.01;
+    constexpr double k     = 0.5;
 
     // Weak Landau Damping:
     constexpr double c  = 0.06349363593424096978576330493464; // Weak Landau damping
@@ -341,14 +341,14 @@ void test_moments(size_t n)
     std::cout << "f_max_error = " << f_max_error << std::endl;
 
 	std::ofstream f_exact_xu("f_exact_xu_n_" + std::to_string(n) + ".txt");
-	std::ofstream f_mom_xu("f_exact_xu_n_" + std::to_string(n) + ".txt");
+	std::ofstream f_mom_xu("f_mom_xu_n_" + std::to_string(n) + ".txt");
 	std::ofstream f_dist_xu("f_dist_xu_n_" + std::to_string(n) + ".txt");
-    for(size_t ix = 0; ix < Nplot; ix++)
+    for(size_t ix = 0; ix <= Nplot; ix++)
     {
-		for(size_t iu = 0; iu < Nplot; iu++){
+		for(size_t iu = 0; iu <= Nplot; iu++){
 			double x = ix*dx_plot;
-			double y = (conf.y_max-conf.y_min)/2;
-			double z = (conf.z_max-conf.z_min)/2;
+			double y = (conf.y_max-conf.y_min)/4;
+			double z = (conf.z_max-conf.z_min)/4;
 			double u = conf.u_min + iu*du_plot;
 			double v = (conf.v_max-conf.v_min)/2;
 			double w = (conf.w_max-conf.w_min)/2;;
@@ -363,7 +363,7 @@ void test_moments(size_t n)
 
 			f_exact_xu << x << " " << u << " " << f_exact << std::endl;
 			f_mom_xu << x << " " << u << " " << f_mom << std::endl;
-			f_dist_xu << x << " " << u << " " << f_mom << std::endl;
+			f_dist_xu << x << " " << u << " " << dist << std::endl;
 		}
 		f_exact_xu << std::endl;
 		f_mom_xu << std::endl;
@@ -424,7 +424,7 @@ void test()
 
 int main()
 {
-	//dergeraet::dim3::test();
-	dergeraet::dim3::test_moments(0);
+	dergeraet::dim3::test();
+	//dergeraet::dim3::test_moments(0);
 }
 
