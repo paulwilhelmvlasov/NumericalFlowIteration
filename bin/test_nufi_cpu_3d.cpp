@@ -266,7 +266,7 @@ void test_moments(size_t n)
     }
 
     // Plotting sizes.
-    size_t Nplot = 16;
+    size_t Nplot = 128;
     double dx_plot = conf.Lx/Nplot;
     double dy_plot = conf.Ly/Nplot;
     double dz_plot = conf.Lz/Nplot;
@@ -295,9 +295,10 @@ void test_moments(size_t n)
     }
     std::cout << "Plotting moments took: " << timer.elapsed() << " s." << std::endl;
     // Compute error between f and f_moments.
+    std::vector<double> moment_array(40,0);
+    /*
     std::cout << "Start computing error:" << std::endl;
     timer.reset();
-    std::vector<double> moment_array(40,0);
     double f_l1_error = 0;
     double f_l2_error = 0;
     double f_max_error = 0;
@@ -339,7 +340,8 @@ void test_moments(size_t n)
     std::cout << "f_l1_error = " << f_l1_error << std::endl;
     std::cout << "f_l2_error = " << f_l2_error << std::endl;
     std::cout << "f_max_error = " << f_max_error << std::endl;
-
+     */
+    timer.reset();
 	std::ofstream f_exact_xu("f_exact_xu_n_" + std::to_string(n) + ".txt");
 	std::ofstream f_mom_xu("f_mom_xu_n_" + std::to_string(n) + ".txt");
 	std::ofstream f_dist_xu("f_dist_xu_n_" + std::to_string(n) + ".txt");
@@ -347,11 +349,11 @@ void test_moments(size_t n)
     {
 		for(size_t iu = 0; iu <= Nplot; iu++){
 			double x = ix*dx_plot;
-			double y = (conf.y_max-conf.y_min)/4;
-			double z = (conf.z_max-conf.z_min)/4;
+			double y = 2*M_PI;
+			double z = 2*M_PI;
 			double u = conf.u_min + iu*du_plot;
-			double v = (conf.v_max-conf.v_min)/2;
-			double w = (conf.w_max-conf.w_min)/2;;
+			double v = 0;
+			double w = 0;
 
 			for(size_t k = 0; k < 40; k++){
 				moment_array[k] = eval<double,order>(x,y,z,moment_coeffs_vec[k].data(),conf);
@@ -369,6 +371,7 @@ void test_moments(size_t n)
 		f_mom_xu << std::endl;
 		f_dist_xu << std::endl;
     }
+    std::cout << "Plotting f took: " << timer.elapsed() << " s." << std::endl;
 }
 
 void test()
@@ -422,9 +425,11 @@ void test()
 }
 
 
-int main()
+int main(int argc, char* argv[])
 {
-	dergeraet::dim3::test();
-	//dergeraet::dim3::test_moments(0);
+
+	size_t n = std::atoi(argv[1]);
+	//dergeraet::dim3::test();
+	dergeraet::dim3::test_moments(n);
 }
 
