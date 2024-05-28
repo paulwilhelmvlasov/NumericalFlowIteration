@@ -31,7 +31,7 @@ double runde (double value, int precision)
     return (double)((int)(value * multiplier + 0.5f))/multiplier;
 }
 
-void max_norm (const std::vector<double> moments, const std::vector<double> orig) {
+void max_norm (const std::vector<double>& moments, const std::vector<double> orig) {
     double max = 0;
     double pos;
     for(int i = 0; i < orig.size(); i++) {
@@ -45,7 +45,7 @@ void max_norm (const std::vector<double> moments, const std::vector<double> orig
     std::cout << "pos = " << pos << std::endl;
 }
 
-void calculate_moments (const std::vector<double> orig, int theory) {
+void calculate_moments (const std::vector<double>& orig, int theory) {
     std::vector<double> moments;
     moments.resize(orig.size() + 5);
 
@@ -192,7 +192,7 @@ void calculate_moments (const std::vector<double> orig, int theory) {
 }
 
 void Full2 () {
-    std::vector<double> orig;
+    std::vector<double> orig; // analytical values calculated by Andreas Mathematica file
     orig.resize(35);
     orig[0] = 1.0;
     orig[1] = 0;
@@ -234,7 +234,7 @@ void Full2 () {
 }
 
 void gauss3333333 () {
-    std::vector<double> orig;
+    std::vector<double> orig; // analytical values calculated by Andreas Mathematica file
     orig.resize(196);
     orig[0] = 1.;
     orig[1] = 0.;
@@ -437,7 +437,7 @@ void gauss3333333 () {
 }
 
 void gauss444444444 () {
-    std::vector<double> orig;
+    std::vector<double> orig; // analytical values calculated by Andreas Mathematica file
     orig.resize(405);
     orig[0] = 1.0;
     orig[1] = 0.0;
@@ -864,7 +864,7 @@ int main () {
         std::cout << "Select a theory (select number): 1) Full 2; 2) 3333333; 3) 444444444; 4) Full10; 5) Everything (safe in Moments)" << std::endl;
         std::cin >> choice;
 
-        std::vector<double> orig;
+        std::vector<double> orig; // analytical values calculated by Andreas Mathematica file
         switch (choice)
         {
             case 1:
