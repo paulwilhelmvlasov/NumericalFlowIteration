@@ -38,6 +38,10 @@ namespace dergeraet
 namespace dim3
 {
 
+namespace cm_21100 {
+
+constexpr size_t n_mom = 40;
+
 template <typename real, size_t order>
 void calculate_moments( size_t n, size_t l, const real *coeffs, const config_t<real> &conf, real* moments )
 {
@@ -208,6 +212,9 @@ real pi_inverse( real u, real v, real w, real* moments )
 	return value;
 }
 
+}
+
+
 double f0(double x, double y, double z, double u, double v, double w) noexcept
 {
     using std::sin;
@@ -226,8 +233,18 @@ config_t<double> conf(8, 8, 8, 16, 16, 16, 100, 0.2, 0, 4*M_PI, 0, 4*M_PI, 0, 4*
 		-5, 5, -5, 5, -5, 5, &f0);
 constexpr size_t order = 4;
 
-void test_moments(size_t n)
+void test_moments(size_t n, size_t theory = 0, bool compute_errors = false)
 {
+	size_t n_mom = 0;
+
+	switch(theory){
+	case 0:
+		n_mom = cm_21100::n_mom;
+		break;
+	default:
+		n_mom = cm_21100::n_mom;
+	}
+
     size_t stride_t = (conf.Nx + order - 1) *
                       (conf.Ny + order - 1) *
 					  (conf.Nz + order - 1);
@@ -235,7 +252,7 @@ void test_moments(size_t n)
 
     std::unique_ptr<double[]> coeffs { new double[ conf.Nt*stride_t ] {} };
     // Vector to store moment-vectors at each grid-location.
-    std::vector<std::vector<double>> moments_vec(size, std::vector<double>(40,0));
+    std::vector<std::vector<double>> moments_vec(size, std::vector<double>(n_mom,0));
 
     // Read in coefficients.
     std::ifstream coeffs_ifstr( "lin_landau_coeffs/coeffs_Nt_100_dt_0.200000_Nx_8_Ny_8_Nz_8_stride_t_1331.txt" );
@@ -246,21 +263,27 @@ void test_moments(size_t n)
     // Compute moments at time t=n*dt.
 	#pragma omp parallel for
     for(size_t l = 0; l < size; l++){
-    	calculate_moments<double,order>( n, l, coeffs.get(), conf, moments_vec[l].data());
+    	switch(theory){
+    	case 0:
+    		cm_21100::calculate_moments<double,order>( n, l, coeffs.get(), conf, moments_vec[l].data());
+    		break;
+    	default:
+    		cm_21100::calculate_moments<double,order>( n, l, coeffs.get(), conf, moments_vec[l].data());
+    	}
     }
 
     // Sort the moments such that I can use them for my interpolation routine.
-    std::vector<std::vector<double>> resorted_moments_vec(40,std::vector<double>(size,0));
+    std::vector<std::vector<double>> resorted_moments_vec(n_mom,std::vector<double>(size,0));
 	#pragma omp parallel for
     for(size_t l = 0; l < size; l++){
-    	for(size_t k = 0; k < 40; k++){
+    	for(size_t k = 0; k < n_mom; k++){
     		resorted_moments_vec[k][l] = moments_vec[l][k];
     	}
     }
 
     // Interpolate the moments such that we can evaluate them outside of grid-points.
-    std::vector<std::vector<double>> moment_coeffs_vec(40,std::vector<double>(stride_t, 0));
-    for(size_t k = 0; k < 40; k++){
+    std::vector<std::vector<double>> moment_coeffs_vec(n_mom,std::vector<double>(stride_t, 0));
+    for(size_t k = 0; k < n_mom; k++){
     	interpolate<double,order>( moment_coeffs_vec[k].data(), resorted_moments_vec[k].data(),
     								conf );
     }
@@ -280,7 +303,7 @@ void test_moments(size_t n)
 	#pragma omp parallel for
     for(size_t k = 0; k < m; k++){
     	std::ofstream plot_m("plot_moment_" + std::to_string(k) + "_n_" + std::to_string(n) + ".txt");
-    	std::vector<double> moment_array(40, 0);
+    	std::vector<double> moment_array(n_mom, 0);
     	for(size_t i = 0; i <= Nplot; i++){
     		for(size_t j = 0; j <= Nplot; j++){
     			double x = i*dx_plot;
@@ -295,52 +318,60 @@ void test_moments(size_t n)
     }
     std::cout << "Plotting moments took: " << timer.elapsed() << " s." << std::endl;
     // Compute error between f and f_moments.
-    std::vector<double> moment_array(40,0);
-    /*
-    std::cout << "Start computing error:" << std::endl;
-    timer.reset();
-    double f_l1_error = 0;
-    double f_l2_error = 0;
-    double f_max_error = 0;
-	#pragma omp parallel for
-    for(size_t ix = 0; ix < Nplot; ix++)
-    for(size_t iy = 0; iy < Nplot; iy++)
-    for(size_t iz = 0; iz < Nplot; iz++)
-    for(size_t iu = 0; iu < Nplot; iu++)
-    for(size_t iv = 0; iv < Nplot; iv++)
-    for(size_t iw = 0; iw < Nplot; iw++){
-    	double x = ix*dx_plot;
-    	double y = iy*dy_plot;
-    	double z = iz*dz_plot;
-    	double u = conf.u_min + iu*du_plot;
-    	double v = conf.v_min + iv*dv_plot;
-    	double w = conf.w_min + iw*dw_plot;
+    std::vector<double> moment_array(n_mom,0);
 
-    	for(size_t k = 0; k < 40; k++){
-    		moment_array[k] = eval<double,order>(x,y,z,moment_coeffs_vec[k].data(),conf);
-    	}
+    if(compute_errors){
+		std::cout << "Start computing error:" << std::endl;
+		timer.reset();
+		double f_l1_error = 0;
+		double f_l2_error = 0;
+		double f_max_error = 0;
+		#pragma omp parallel for
+		for(size_t ix = 0; ix < Nplot; ix++)
+		for(size_t iy = 0; iy < Nplot; iy++)
+		for(size_t iz = 0; iz < Nplot; iz++)
+		for(size_t iu = 0; iu < Nplot; iu++)
+		for(size_t iv = 0; iv < Nplot; iv++)
+		for(size_t iw = 0; iw < Nplot; iw++){
+			double x = ix*dx_plot;
+			double y = iy*dy_plot;
+			double z = iz*dz_plot;
+			double u = conf.u_min + iu*du_plot;
+			double v = conf.v_min + iv*dv_plot;
+			double w = conf.w_min + iw*dw_plot;
 
-    	double f_exact = eval_f<double,order>( n, x, y, z, u, v, w, coeffs.get(), conf);
-    	double f_mom = pi_inverse( u, v, w, moment_array.data());
+			for(size_t k = 0; k < n_mom; k++){
+				moment_array[k] = eval<double,order>(x,y,z,moment_coeffs_vec[k].data(),conf);
+			}
 
-    	double dist = std::abs(f_exact-f_mom);
-		#pragma omp critical
-    	{
-			f_l1_error += dist;
-			f_l2_error += dist*dist;
-			f_max_error = std::max(dist,f_max_error);
-    	}
+			double f_exact = eval_f<double,order>( n, x, y, z, u, v, w, coeffs.get(), conf);
+			double f_mom = 0;
+			switch(theory){
+			case 0:
+				f_mom = cm_21100::pi_inverse( u, v, w, moment_array.data());
+				break;
+			default:
+				f_mom = cm_21100::pi_inverse( u, v, w, moment_array.data());
+			}
+
+			double dist = std::abs(f_exact-f_mom);
+			#pragma omp critical
+			{
+				f_l1_error += dist;
+				f_l2_error += dist*dist;
+				f_max_error = std::max(dist,f_max_error);
+			}
+		}
+
+		f_l1_error *= dx_plot*dy_plot*dz_plot*du_plot*dv_plot*dw_plot;
+		f_l2_error *= dx_plot*dy_plot*dz_plot*du_plot*dv_plot*dw_plot;
+		f_l2_error = std::sqrt(f_l2_error);
+
+		std::cout << "Computing errors took: " << timer.elapsed() << " s." << std::endl;
+		std::cout << "f_l1_error = " << f_l1_error << std::endl;
+		std::cout << "f_l2_error = " << f_l2_error << std::endl;
+		std::cout << "f_max_error = " << f_max_error << std::endl;
     }
-
-    f_l1_error *= dx_plot*dy_plot*dz_plot*du_plot*dv_plot*dw_plot;
-    f_l2_error *= dx_plot*dy_plot*dz_plot*du_plot*dv_plot*dw_plot;
-    f_l2_error = std::sqrt(f_l2_error);
-
-    std::cout << "Computing errors took: " << timer.elapsed() << " s." << std::endl;
-    std::cout << "f_l1_error = " << f_l1_error << std::endl;
-    std::cout << "f_l2_error = " << f_l2_error << std::endl;
-    std::cout << "f_max_error = " << f_max_error << std::endl;
-     */
     timer.reset();
 	std::ofstream f_exact_xu("f_exact_xu_n_" + std::to_string(n) + ".txt");
 	std::ofstream f_mom_xu("f_mom_xu_n_" + std::to_string(n) + ".txt");
@@ -355,12 +386,19 @@ void test_moments(size_t n)
 			double v = 0;
 			double w = 0;
 
-			for(size_t k = 0; k < 40; k++){
+			for(size_t k = 0; k < n_mom; k++){
 				moment_array[k] = eval<double,order>(x,y,z,moment_coeffs_vec[k].data(),conf);
 			}
 
 			double f_exact = eval_f<double,order>( n, x, y, z, u, v, w, coeffs.get(), conf);
-			double f_mom = pi_inverse( u, v, w, moment_array.data());
+			double f_mom = 0;
+	    	switch(theory){
+	    	case 0:
+	    		f_mom = cm_21100::pi_inverse( u, v, w, moment_array.data());
+	    		break;
+	    	default:
+	    		f_mom = cm_21100::pi_inverse( u, v, w, moment_array.data());
+	    	}
 			double dist = std::abs(f_exact-f_mom);
 
 			f_exact_xu << x << " " << u << " " << f_exact << std::endl;
@@ -429,7 +467,9 @@ int main(int argc, char* argv[])
 {
 
 	size_t n = std::atoi(argv[1]);
+	size_t theory = std::atoi(argv[2]);
+	bool compute_errors = std::atoi(argv[3]);
 	//dergeraet::dim3::test();
-	dergeraet::dim3::test_moments(n);
+	dergeraet::dim3::test_moments(n,theory,compute_errors);
 }
 
