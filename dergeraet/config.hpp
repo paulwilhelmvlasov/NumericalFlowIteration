@@ -122,8 +122,8 @@ struct config_t
 template <typename real>
 config_t<real>::config_t() noexcept
 {
-    Nx = 32;
-    Nu = 64;
+    Nx = 128;
+    Nu = 256;
     Nv = Nu;
 /*
     u_min = -0.4; // Two Stream
@@ -174,7 +174,7 @@ real config_t<real>::f0( real x, real u, real v ) noexcept
     constexpr real sigma_1 = 0.0141421356237309504880168872421;
     constexpr real sigma_2 = 0.04898979485566356196394568149413;
     constexpr real fac = 1.0 / (2*M_PI * sigma_1 * sigma_2);
-    return fac * exp( -0.5 * ( (u/sigma_1)*(u/sigma_1) + (v/sigma_2)*(v/sigma_2) ));
+    return fac * exp( -0.5 * ( (u*u)/(sigma_1*sigma_1) + (v*v)/(sigma_2*sigma_2) ));
 
     // Two stream instability:
 /*

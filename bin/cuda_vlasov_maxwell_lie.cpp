@@ -286,9 +286,9 @@ void test()
     double init_time = timer_init.elapsed();
 
     double E_energy = compute_electric_energy<order>(0, coeffs_E_1.get(),
-    							coeffs_E_2.get(), conf, 128, true);
+    							coeffs_E_2.get(), conf, 128, false);
     double B_energy = compute_magnetic_energy<order>(0, coeffs_B_3.get(),
-													conf, 128, true);
+													conf, 128, false);
 
     ck_vm.compute_metrics(0, 0, N);
     ck_vm.download_metrics(metrics);
@@ -340,9 +340,9 @@ void test()
 			ck_vm.download_metrics(metrics);
 			if(nt % 16 == 0){
 				E_energy = compute_electric_energy<order>(nt, coeffs_E_1.get(),
-											coeffs_E_2.get(), conf, 128, true);
+											coeffs_E_2.get(), conf, 128, false);
 				B_energy = compute_magnetic_energy<order>(nt, coeffs_B_3.get(),
-																conf, 128, true);
+																conf, 128, false);
 			}else{
 				E_energy = compute_electric_energy<order>(nt, coeffs_E_1.get(),
 											coeffs_E_2.get(), conf, 128, false);
@@ -352,6 +352,7 @@ void test()
 			output(metrics, E_energy, B_energy, statistics_file, nt*conf.dt, time_elapsed);
 
 	        // Output j. (Testing only)
+			/*
 		    std::ofstream j_1_str("j_1_" + std::to_string(nt*conf.dt) + ".txt");
 		    std::ofstream j_2_str("j_2_" + std::to_string(nt*conf.dt) + ".txt");
 		    for(size_t i = 0; i <= 64; i++)
@@ -366,6 +367,7 @@ void test()
 
 			double time_with_metrics = time_elapsed + timer_metrics.elapsed();
 			std::cout << "Time for time step with metrics: " << time_with_metrics << std::endl;
+			*/
 
         }else{
             for ( size_t i = 0; i < 80; ++i )
