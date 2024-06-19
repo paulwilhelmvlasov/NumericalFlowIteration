@@ -131,17 +131,17 @@ config_t<real>::config_t() noexcept
     v_min = -0.2; // Two Stream
     v_max =  0.2; // Two Stream
 */
-    u_min = -1.5; // Weibel instability
-    u_max =  1.5; // Weibel instability
-    v_min = -3; // Weibel instability
-    v_max =  3; // Weibel instability
+    u_min = -0.1; // Weibel instability
+    u_max =  0.1; // Weibel instability
+    v_min = -0.4; // Weibel instability
+    v_max =  0.4; // Weibel instability
 
     x_min = 0;
     x_max = 2*M_PI/1.25; // Weibel instability!
     //x_max = 2*M_PI/0.5; // Weak Landau Damping!
     //x_max = 2*M_PI; // Two stream instability!
 
-    dt = 1.0/32.;
+    dt = 0.05;
     Nt = 500.0/dt;
 
     Lx = x_max - x_min; Lx_inv = 1/Lx;
@@ -167,14 +167,14 @@ real config_t<real>::f0( real x, real u, real v ) noexcept
     return fac * ( 1. + alpha*cos(k*x) ) * exp( -(u*u+v*v)/2. );
 */
 //  Weibel instability:
-
-    constexpr real alpha = 1e-4;
+    // Example 1 GEMPIC paper:
+    constexpr real alpha = 0;
     constexpr real k = 1.25;
-    constexpr real beta = 1e-4;
-    constexpr real vth = 0.02;
-    constexpr real Tr = 12;
-    real fac = 1.0 / (M_PI * vth * std::sqrt(Tr));
-    return fac * ( 1. + alpha*cos(k*x) ) * exp( -0.5*(u*u+v*v/Tr)/vth );
+    constexpr real beta = -1e-4;
+    constexpr real sigma_1 = 0.0141421356237309504880168872421;
+    constexpr real sigma_2 = 0.04898979485566356196394568149413;
+    constexpr real fac = 1.0 / (2*M_PI * sigma_1 * sigma_2);
+    return fac * exp( -0.5 * ( (u/sigma_1)*(u/sigma_1) + (v/sigma_2)*(v/sigma_2) ));
 
     // Two stream instability:
 /*

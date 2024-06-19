@@ -3435,7 +3435,7 @@ fi
 case $enable_silent_rules in # (((
   yes) AM_DEFAULT_VERBOSITY=0;;
    no) AM_DEFAULT_VERBOSITY=1;;
-    *) AM_DEFAULT_VERBOSITY=0;;
+    *) AM_DEFAULT_VERBOSITY=1;;
 esac
 am_make=${MAKE-make}
 { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking whether $am_make supports nested variables" >&5
@@ -9694,7 +9694,7 @@ AM_CPPFLAGS='-I$(top_srcdir)'
 
 ac_config_headers="$ac_config_headers dergeraet/autoconfig.hpp"
 
-ac_config_files="$ac_config_files Makefile dergeraet/makefile bin/makefile"
+ac_config_files="$ac_config_files Makefile AnjaMathematica/makefile AnjaMathematica/CalculateMoments_generated/makefile dergeraet/makefile bin/makefile"
 
 
 cat >confcache <<\_ACEOF
@@ -10428,6 +10428,8 @@ do
     "depfiles") CONFIG_COMMANDS="$CONFIG_COMMANDS depfiles" ;;
     "dergeraet/autoconfig.hpp") CONFIG_HEADERS="$CONFIG_HEADERS dergeraet/autoconfig.hpp" ;;
     "Makefile") CONFIG_FILES="$CONFIG_FILES Makefile" ;;
+    "AnjaMathematica/makefile") CONFIG_FILES="$CONFIG_FILES AnjaMathematica/makefile" ;;
+    "AnjaMathematica/CalculateMoments_generated/makefile") CONFIG_FILES="$CONFIG_FILES AnjaMathematica/CalculateMoments_generated/makefile" ;;
     "dergeraet/makefile") CONFIG_FILES="$CONFIG_FILES dergeraet/makefile" ;;
     "bin/makefile") CONFIG_FILES="$CONFIG_FILES bin/makefile" ;;
 

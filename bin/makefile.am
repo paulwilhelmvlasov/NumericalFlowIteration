@@ -1,19 +1,7 @@
-noinst_PROGRAMS = test_poisson test_maxwell_periodic test_gmres test_fields \
-					test_dergeraet test_nufi_cpu test_nufi_cpu_2d test_vlasov_maxwell \
-					test_vlasov_maxwell_lie_splitting cuda_vlasov_maxwell_lie
-#test_dergeraet_2d test_dergeraet_3d
+noinst_PROGRAMS = test_dergeraet test_nufi_cpu test_nufi_cpu_2d \
+				test_vlasov_maxwell_lie_splitting cuda_vlasov_maxwell_lie \
+				test_dergeraet_2d test_dergeraet_3d
 
-test_poisson_SOURCES = test_poisson.cpp
-test_poisson_LDADD   = $(top_builddir)/dergeraet/libdergeraet.a
-test_poisson_LDADD  += $(CUDA_LDFLAGS) $(BLAS_LIBS) -lfftw3 -lfftw3f
-
-test_maxwell_periodic_SOURCES = test_maxwell_periodic.cpp
-test_maxwell_periodic_LDADD   = $(top_builddir)/dergeraet/libdergeraet.a
-test_maxwell_periodic_LDADD  += $(CUDA_LDFLAGS) $(BLAS_LIBS) -lfftw3 -lfftw3f
-
-test_vlasov_maxwell_SOURCES = test_vlasov_maxwell.cpp
-test_vlasov_maxwell_LDADD   = $(top_builddir)/dergeraet/libdergeraet.a
-test_vlasov_maxwell_LDADD  += $(CUDA_LDFLAGS) $(BLAS_LIBS) -lfftw3 -lfftw3f
 
 test_vlasov_maxwell_lie_splitting_SOURCES = test_vlasov_maxwell_lie_splitting.cpp
 test_vlasov_maxwell_lie_splitting_LDADD   = $(top_builddir)/dergeraet/libdergeraet.a
@@ -22,14 +10,6 @@ test_vlasov_maxwell_lie_splitting_LDADD  += $(CUDA_LDFLAGS) $(BLAS_LIBS) -lfftw3
 cuda_vlasov_maxwell_lie_SOURCES = cuda_vlasov_maxwell_lie.cpp
 cuda_vlasov_maxwell_lie_LDADD   = $(top_builddir)/dergeraet/libdergeraet.a
 cuda_vlasov_maxwell_lie_LDADD  += $(CUDA_LDFLAGS) $(BLAS_LIBS) -lfftw3 -lfftw3f
-
-test_gmres_SOURCES = test_gmres.cpp
-test_gmres_LDADD   = $(top_builddir)/dergeraet/libdergeraet.a
-test_gmres_LDADD  += $(CUDA_LDFLAGS) $(BLAS_LIBS) -lfftw3 -lfftw3f
-
-test_fields_SOURCES = test_fields.cpp
-test_fields_LDADD   = $(top_builddir)/dergeraet/libdergeraet.a
-test_fields_LDADD  += $(CUDA_LDFLAGS) $(BLAS_LIBS) -lfftw3 -lfftw3f
 
 test_dergeraet_SOURCES = test_dergeraet.cpp
 test_dergeraet_LDADD   = $(top_builddir)/dergeraet/libdergeraet.a 
@@ -43,14 +23,11 @@ test_nufi_cpu_2d_SOURCES = test_nufi_cpu_2d.cpp
 test_nufi_cpu_2d_LDADD   = $(top_builddir)/dergeraet/libdergeraet.a 
 test_nufi_cpu_2d_LDADD  += $(CUDA_LDFLAGS) $(BLAS_LIBS) -lfftw3 -lfftw3f
 
-# Programms using mpi are commented out as mpi does not work on Paul's workstation. 
-# If you like to use these files comment the respective files back in.
+test_dergeraet_2d_SOURCES = test_dergeraet_2d.cpp
+test_dergeraet_2d_LDADD   = $(top_builddir)/dergeraet/libdergeraet.a 
+test_dergeraet_2d_LDADD  += $(CUDA_LDFLAGS) $(BLAS_LIBS) -lfftw3 -lfftw3f -lmpi -lmpi_cxx
 
-#test_dergeraet_2d_SOURCES = test_dergeraet_2d.cpp
-#test_dergeraet_2d_LDADD   = $(top_builddir)/dergeraet/libdergeraet.a 
-#test_dergeraet_2d_LDADD  += $(CUDA_LDFLAGS) $(BLAS_LIBS) -lfftw3 -lfftw3f -lmpi #-lmpi_cxx
-
-#test_dergeraet_3d_SOURCES = test_dergeraet_3d.cpp
-#test_dergeraet_3d_LDADD   = $(top_builddir)/dergeraet/libdergeraet.a 
-#test_dergeraet_3d_LDADD  += $(CUDA_LDFLAGS) $(BLAS_LIBS) -lfftw3 -lfftw3f -lmpi #-lmpi_cxx
+test_dergeraet_3d_SOURCES = test_dergeraet_3d.cpp
+test_dergeraet_3d_LDADD   = $(top_builddir)/dergeraet/libdergeraet.a 
+test_dergeraet_3d_LDADD  += $(CUDA_LDFLAGS) $(BLAS_LIBS) -lfftw3 -lfftw3f -lmpi -lmpi_cxx
 
