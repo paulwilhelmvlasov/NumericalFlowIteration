@@ -79,7 +79,7 @@ void transform_to_fourier_space(size_t Nx, size_t Nv, const config_t<double>& co
     for(size_t i = 0; i < Nx; i++){
     	for(size_t j = 0; j < Nv; j++){
     		size_t pos = i + j*Nx;
-    		data[pos] = F[pos];
+    		data.get()[pos] = F[pos];
     	}
     }
 
@@ -94,12 +94,12 @@ void transform_to_fourier_space(size_t Nx, size_t Nv, const config_t<double>& co
     fftw_plan plan = fftw_plan_r2r_2d( Nx, Nv, mem.get(), mem.get(),
                              FFTW_DHT, FFTW_DHT, FFTW_MEASURE );
 
-    fftw_execute_r2r( plan, data, data );
+    fftw_execute_r2r( plan, data.get(), data.get() );
 
     for(size_t i = 0; i < Nx; i++){
     	for(size_t j = 0; j < Nv; j++){
     		size_t pos = i + j*Nx;
-    		F[pos] = data[pos];
+    		F[pos] = data.get()[pos];
     	}
     }
 }
@@ -374,7 +374,7 @@ void test()
 
 int main()
 {
-    //dergeraet::dim1::test<float,4>();
-	dergeraet::dim1::read_in_coeffs<float,4>(std::string("../coeffs_Nt_1600_Nx_ 256_stride_t_259.txt"));
+    dergeraet::dim1::test<float,4>();
+	//dergeraet::dim1::read_in_coeffs<float,4>(std::string("../coeffs_Nt_1600_Nx_ 256_stride_t_259.txt"));
 }
 
