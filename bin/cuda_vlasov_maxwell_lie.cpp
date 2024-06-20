@@ -285,12 +285,10 @@ void test()
     	interpolate<double,order>(coeffs_J_Hf_1.get() + (nt-1)*stride_t, j_hf_1.data(), conf);
     	interpolate<double,order>(coeffs_J_Hf_2.get() + (nt-1)*stride_t, j_hf_2.data(), conf);
 
-    	// Compute next E.
-    	compute_E<order>(nt, coeffs_E_1.get(), coeffs_E_2.get(), coeffs_B_3.get(),
+    	// Compute next E and B.
+    	compute_E_B<order>(nt, coeffs_E_1.get(), coeffs_E_2.get(), coeffs_B_3.get(),
     				coeffs_J_Hf_1.get(), coeffs_J_Hf_2.get(), conf);
 
-    	// Compute next B.
-    	compute_B<order>(nt, coeffs_E_2.get(), coeffs_B_3.get(), conf);
 
     	// Upload E and B coefficients to GPU.
     	ck_vm.upload_coeffs(nt, coeffs_E_1.get(), coeffs_E_2.get(), coeffs_B_3.get());

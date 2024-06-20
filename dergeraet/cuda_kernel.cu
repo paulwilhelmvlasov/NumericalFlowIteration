@@ -265,7 +265,7 @@ void cuda_eval_j_hf( size_t nt, const real *coeffs_E_1, const real *coeffs_E_2,
     real *my_j_hf_2 = j_hf_2 + ix;
 
     const real f = eval_f_vm_lie<real,order>( nt, x-0.5*conf.dt*u, u, v, coeffs_E_1, coeffs_E_2,
-    										coeffs_B_3, conf );
+    										coeffs_B_3, j_hf_1, j_hf_2, conf );
     const real weight = conf.du*conf.dv;
 
     if ( q < q_end ){
