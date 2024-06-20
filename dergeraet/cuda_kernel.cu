@@ -205,35 +205,39 @@ void matrix_exp_jb_times_v(real B, real& v1, real& v2, real tol=1e-16)
 		if(B<0){
 			fac1*=-1;
 		}
-		real fac2 = 1 - std::cos(B);
+		real fac2 = std::cos(B) - 1;
 
 		real old_v1 = v1;
 		real old_v2 = v2;
 
-		v1 = old_v1 + fac1*old_v2 - fac2*old_v1;
-		v2 = old_v2 - fac1*old_v1 - fac2*old_v2;
+		v1 = old_v1 + fac1*old_v2 + fac2*old_v1;
+		v2 = old_v2 - fac1*old_v1 + fac2*old_v2;
 	}
 }
 
 template <typename real, size_t order>
 __host__ __device__
 real eval_f_vm_lie(size_t nt, real x, real u, real v, const real *coeffs_E_1,
-		const real *coeffs_E_2, const real *coeffs_B_3, const config_t<real> conf)
+		const real *coeffs_E_2, const real *coeffs_B_3, const real *coeffs_J_hf_1,
+		const real *coeffs_J_hf_2, const config_t<real> conf)
 {
     const size_t stride_t = conf.Nx + order - 1;
 
-    real B = 0;
-
 	for(;nt > 0; nt--)
 	{
+	    real B = eval<real,order>(x, coeffs_B_3 + (nt-1)*stride_t, conf);
+	    real alpha_1 = u;
+	    real alpha_2 = v;
+	    matrix_exp_jb_times_v(conf.dt*B,alpha_1,alpha_2);
+
+	    real beta_1 = eval<real,order>(x, coeffs_E_1 + (nt-1)*stride_t, conf)
+	    				- conf.dt*eval<real,order>(x, coeffs_j_hf_1 + (nt-1)*stride_t, conf);
+		real beta_2 = eval<real,order>(x, coeffs_E_2 + (nt-1)*stride_t, conf)
+	    	    		- conf.dt*eval<real,order>(x, coeffs_j_hf_2 + (nt-1)*stride_t, conf)
+						- conf.dt*eval<real,order,1>(x, coeffs_B_3 + (nt-1)*stride_t, conf);
+		u = alpha_1 - conf.dt*beta_1;
+		v = alpha_2 - conf.dt*beta_2;
 		x -= conf.dt*u;
-		B = -conf.dt*(eval<real,order>(x, coeffs_B_3 + (nt-1)*stride_t, conf)
-			- conf.dt*eval<real,order,1>(x, coeffs_E_2 + (nt-1)*stride_t, conf));
-
-		matrix_exp_jb_times_v<real>(B, u, v);
-
-		u -= conf.dt*eval<real,order>(x, coeffs_E_1 + (nt-1)*stride_t, conf);
-		v -= conf.dt*eval<real,order>(x, coeffs_E_2 + (nt-1)*stride_t, conf);
 	}
 
 	return conf.f0(x, u, v);
@@ -245,6 +249,8 @@ void cuda_eval_j_hf( size_t nt, const real *coeffs_E_1, const real *coeffs_E_2,
 					const real *coeffs_B_3, const config_t<real> conf, real *j_hf_1,
 					real *j_hf_2, size_t q_begin, size_t q_end )
 {
+	// J_Hf has to be computed to advance from t to t+dt. Thus we use J_Hf(nt-1) to evaluate
+	// f(nt+1).
     // Number of my quadrature node.
     const size_t q = q_begin + size_t(blockDim.x)*size_t(blockIdx.x) + size_t(threadIdx.x);
 
@@ -258,12 +264,7 @@ void cuda_eval_j_hf( size_t nt, const real *coeffs_E_1, const real *coeffs_E_2,
     real *my_j_hf_1 = j_hf_1 + ix;
     real *my_j_hf_2 = j_hf_2 + ix;
 
-    // Care: We use the formula with x_shift = x - dt*u instead
-    // of x_shift = x - 0.5*dt*u, i.e., explicit approximation of
-    // the derivative of E instead of midpoint-approx of the rhs
-    // integral for j.
-    // This function now actually computes j(nt).
-    const real f = eval_f_vm_lie<real,order>( nt, x, u, v, coeffs_E_1, coeffs_E_2,
+    const real f = eval_f_vm_lie<real,order>( nt, x-0.5*conf.dt*u, u, v, coeffs_E_1, coeffs_E_2,
     										coeffs_B_3, conf );
     const real weight = conf.du*conf.dv;
 
