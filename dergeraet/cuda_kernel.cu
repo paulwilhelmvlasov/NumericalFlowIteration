@@ -218,8 +218,8 @@ void matrix_exp_jb_times_v(real B, real& v1, real& v2, real tol=1e-16)
 template <typename real, size_t order>
 __host__ __device__
 real eval_f_vm_lie(size_t nt, real x, real u, real v, const real *coeffs_E_1,
-		const real *coeffs_E_2, const real *coeffs_B_3, const real *coeffs_J_hf_1,
-		const real *coeffs_J_hf_2, const config_t<real> conf)
+		const real *coeffs_E_2, const real *coeffs_B_3, const real *coeffs_j_hf_1,
+		const real *coeffs_j_hf_2, const config_t<real> conf)
 {
     const size_t stride_t = conf.Nx + order - 1;
 
@@ -246,8 +246,8 @@ real eval_f_vm_lie(size_t nt, real x, real u, real v, const real *coeffs_E_1,
 template <typename real, size_t order>
 __global__
 void cuda_eval_j_hf( size_t nt, const real *coeffs_E_1, const real *coeffs_E_2,
-					const real *coeffs_B_3, const config_t<real> conf, real *j_hf_1,
-					real *j_hf_2, size_t q_begin, size_t q_end )
+					const real *coeffs_B_3, real *j_hf_1, real *j_hf_2,
+					const config_t<real> conf, size_t q_begin, size_t q_end )
 {
 	// J_Hf has to be computed to advance from t to t+dt. Thus we use J_Hf(nt-1) to evaluate
 	// f(nt+1).
@@ -277,8 +277,8 @@ void cuda_eval_j_hf( size_t nt, const real *coeffs_E_1, const real *coeffs_E_2,
 template <typename real, size_t order>
 __global__
 void cuda_eval_metrics( size_t nt, const real *coeffs_E_1, const real *coeffs_E_2,
-						const real *coeffs_B_3, const config_t<real> conf,
-						real *metrics, size_t q_begin, size_t q_end )
+						const real *coeffs_B_3, const real *j_hf_1, const real *j_hf_2,
+						const config_t<real> conf, real *metrics, size_t q_begin, size_t q_end )
 {
     // Number of my quadrature node.
     const size_t q = q_begin +
@@ -293,7 +293,7 @@ void cuda_eval_metrics( size_t nt, const real *coeffs_E_1, const real *coeffs_E_
     const real v = conf.v_min + (iv+0.5)*conf.dv;
 
     const real f = eval_f_vm_lie<real,order>( nt, x, u, v, coeffs_E_1, coeffs_E_2,
-											coeffs_B_3, conf );
+											coeffs_B_3, j_hf_1, j_hf_2, conf );
     const real weight = conf.dx*conf.du*conf.dv;
 
     if ( q < q_end )
@@ -349,7 +349,7 @@ void cuda_kernel_vm<real,order>::compute_j_hf( size_t n, size_t q_begin, size_t 
     cuda::memset( cu_j_2, 0, j_size );
 
     cuda_eval_j_hf<real,order><<<Nblocks,block_size>>>( n, cu_coeffs_E_1, cu_coeffs_E_2,
-    					cu_coeffs_B_3, conf, cu_j_1, cu_j_2, q_begin, q_end );
+    					cu_coeffs_B_3, cu_j_1, cu_j_1, conf, q_begin, q_end );
 }
 
 template <typename real, size_t order>
