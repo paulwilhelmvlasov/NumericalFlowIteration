@@ -268,7 +268,7 @@ int main()
     for(size_t i = 0; i < conf.Nx; i++)
     {
     	//  Weibel instability:
-    	double alpha = 1e-4;
+    	double alpha = 0;//1e-4;
     	double beta = 1e-4;
     	double k = 1.25;
     	double x = conf.x_min + i*conf.dx;
