@@ -122,8 +122,8 @@ struct config_t
 template <typename real>
 config_t<real>::config_t() noexcept
 {
-    Nx = 128;
-    Nu = 256;
+    Nx = 32;
+    Nu = 64;
     Nv = Nu;
 /*
     u_min = -0.4; // Two Stream
@@ -141,7 +141,8 @@ config_t<real>::config_t() noexcept
     //x_max = 2*M_PI/0.5; // Weak Landau Damping!
     //x_max = 2*M_PI; // Two stream instability!
 
-    dt = 0.05;
+//    dt = 0.05;
+    dt = 0.1;
     Nt = 500.0/dt;
 
     Lx = x_max - x_min; Lx_inv = 1/Lx;

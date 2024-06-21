@@ -317,8 +317,8 @@ conf { p_conf }, device_number { dev }
     cuda_coeffs_E_1.reset( cuda::malloc(  coeff_size), dev );
     cuda_coeffs_E_2.reset( cuda::malloc(  coeff_size), dev );
     cuda_coeffs_B_3.reset( cuda::malloc(  coeff_size), dev );
-    cuda_j_1.reset( cuda::malloc( j_size), dev );
-    cuda_j_2.reset( cuda::malloc( j_size), dev );
+    cuda_coeffs_j_hf_1.reset( cuda::malloc( j_size), dev );
+    cuda_coeffs_j_hf_2.reset( cuda::malloc( j_size), dev );
     cuda_metrics.reset( cuda::malloc(metrics_size), dev );
     tmp_j_1.reset( new real[ conf.Nx ] );
     tmp_j_2.reset( new real[ conf.Nx ] );
@@ -335,8 +335,8 @@ void cuda_kernel_vm<real,order>::compute_j_hf( size_t n, size_t q_begin, size_t 
     real *cu_coeffs_E_1 = reinterpret_cast<real*>( cuda_coeffs_E_1.get() );
     real *cu_coeffs_E_2 = reinterpret_cast<real*>( cuda_coeffs_E_2.get() );
     real *cu_coeffs_B_3 = reinterpret_cast<real*>( cuda_coeffs_B_3.get() );
-    real *cu_j_1    = reinterpret_cast<real*>( cuda_j_1.get() );
-    real *cu_j_2    = reinterpret_cast<real*>( cuda_j_2.get() );
+    real *cu_j_hf_1    = reinterpret_cast<real*>( cuda_coeffs_j_hf_1.get() );
+    real *cu_j_hf_2    = reinterpret_cast<real*>( cuda_coeffs_j_hf_2.get() );
 
     size_t N          = q_end - q_begin;
     size_t block_size = 64;
@@ -345,23 +345,23 @@ void cuda_kernel_vm<real,order>::compute_j_hf( size_t n, size_t q_begin, size_t 
     size_t j_size = conf.Nx*sizeof(real);
 
     cuda::set_device( device_number );
-    cuda::memset( cu_j_1, 0, j_size );
-    cuda::memset( cu_j_2, 0, j_size );
+    cuda::memset( cu_j_hf_1, 0, j_size );
+    cuda::memset( cu_j_hf_2, 0, j_size );
 
     cuda_eval_j_hf<real,order><<<Nblocks,block_size>>>( n, cu_coeffs_E_1, cu_coeffs_E_2,
-    					cu_coeffs_B_3, cu_j_1, cu_j_1, conf, q_begin, q_end );
+    					cu_coeffs_B_3, cu_j_hf_1, cu_j_hf_1, conf, q_begin, q_end );
 }
 
 template <typename real, size_t order>
 void cuda_kernel_vm<real,order>::download_j_hf( real *j_1, real *j_2 )
 {
-    real *cu_j_1    = reinterpret_cast<real*>( cuda_j_1.get() );
-    real *cu_j_2    = reinterpret_cast<real*>( cuda_j_2.get() );
+    real *cu_j_hf_1    = reinterpret_cast<real*>( cuda_coeffs_j_hf_1.get() );
+    real *cu_j_hf_2    = reinterpret_cast<real*>( cuda_coeffs_j_hf_2.get() );
     size_t N        = conf.Nx;
 
     cuda::set_device(device_number);
-    cuda::memcpy_to_host( tmp_j_1.get(), cu_j_1, sizeof(real)*N );
-    cuda::memcpy_to_host( tmp_j_2.get(), cu_j_2, sizeof(real)*N );
+    cuda::memcpy_to_host( tmp_j_1.get(), cu_j_hf_1, sizeof(real)*N );
+    cuda::memcpy_to_host( tmp_j_2.get(), cu_j_hf_2, sizeof(real)*N );
 
     for ( size_t i = 0; i < N; ++i )
     {
@@ -401,6 +401,8 @@ void cuda_kernel_vm<real,order>::compute_metrics( size_t n, size_t q_begin, size
     real *cu_coeffs_E_1  = reinterpret_cast<real*>( cuda_coeffs_E_1.get() );
     real *cu_coeffs_E_2  = reinterpret_cast<real*>( cuda_coeffs_E_2.get() );
     real *cu_coeffs_B_3  = reinterpret_cast<real*>( cuda_coeffs_B_3.get() );
+    real *cu_coeffs_j_hf_1  = reinterpret_cast<real*>( cuda_coeffs_j_hf_1.get() );
+    real *cu_coeffs_j_hf_2  = reinterpret_cast<real*>( cuda_coeffs_j_hf_2.get() );
     real *cu_metrics = reinterpret_cast<real*>( cuda_metrics.get() );
 
     size_t N = q_end - q_begin;
@@ -411,7 +413,8 @@ void cuda_kernel_vm<real,order>::compute_metrics( size_t n, size_t q_begin, size
     cuda::memset( cu_metrics, 0, 4*sizeof(real) );
 
     cuda_eval_metrics<real,order><<<Nblocks,block_size>>>( n, cu_coeffs_E_1,
-    			cu_coeffs_E_2, cu_coeffs_B_3, conf, cu_metrics, q_begin, q_end );
+    			cu_coeffs_E_2, cu_coeffs_B_3, cu_coeffs_j_hf_1,
+				cu_coeffs_j_hf_2, conf, cu_metrics, q_begin, q_end );
 }
 
 template <typename real, size_t order>

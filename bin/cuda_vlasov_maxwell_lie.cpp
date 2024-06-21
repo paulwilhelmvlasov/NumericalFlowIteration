@@ -168,7 +168,7 @@ double compute_magnetic_energy(size_t nt, const double* coeffs_B_3,
 
 template <size_t order>
 void compute_E_B(size_t nt, double* coeffs_E_1, double* coeffs_E_2, double* coeffs_B_3,
-			double* coeffs_J_Hf_1, double* coeffs_J_Hf_2, const config_t<double>& conf)
+			double* coeffs_j_hf_1, double* coeffs_j_hf_2, const config_t<double>& conf)
 {
 	// Given nt > 0 computes the coefficients of E_1(n_t) and E_2(n_t).
 	if(nt == 0)
@@ -187,17 +187,17 @@ void compute_E_B(size_t nt, double* coeffs_E_1, double* coeffs_E_2, double* coef
 	{
 		double x = conf.x_min + i*conf.dx;
 
-		E_values_1[i] = eval<real,order>(x, coeffs_E_1 + (nt-1)*stride_t, conf)
-						- conf.dt*eval<real,order>(x, coeffs_j_hf_1 + (nt-1)*stride_t, conf);
+		E_values_1[i] = eval<double,order>(x, coeffs_E_1 + (nt-1)*stride_t, conf)
+						- conf.dt*eval<double,order>(x, coeffs_j_hf_1 + (nt-1)*stride_t, conf);
 
-		E_values_2[i] = eval<real,order>(x, coeffs_E_2 + (nt-1)*stride_t, conf)
-	    	    	    - conf.dt*eval<real,order>(x, coeffs_j_hf_2 + (nt-1)*stride_t, conf)
-	    				- conf.dt*eval<real,order,1>(x, coeffs_B_3 + (nt-1)*stride_t, conf);
+		E_values_2[i] = eval<double,order>(x, coeffs_E_2 + (nt-1)*stride_t, conf)
+	    	    	    - conf.dt*eval<double,order>(x, coeffs_j_hf_2 + (nt-1)*stride_t, conf)
+	    				- conf.dt*eval<double,order,1>(x, coeffs_B_3 + (nt-1)*stride_t, conf);
 
-		B_values[i] = eval<real,order>(x, coeffs_B_3 + (nt-1)*stride_t, conf)
-					 + conf.dt*eval<real,order,1>(x, coeffs_E_2 + (nt-1)*stride_t, conf)
-					 + conf.dt*conf.dt*eval<real,order,1>(x, coeffs_j_hf_2 + (nt-1)*stride_t, conf)
-					 + conf.dt*conf.dt*eval<real,order,2>(x, coeffs_B_3 + (nt-1)*stride_t, conf);
+		B_values[i] = eval<double,order>(x, coeffs_B_3 + (nt-1)*stride_t, conf)
+					 + conf.dt*eval<double,order,1>(x, coeffs_E_2 + (nt-1)*stride_t, conf)
+					 + conf.dt*conf.dt*eval<double,order,1>(x, coeffs_j_hf_2 + (nt-1)*stride_t, conf)
+					 + conf.dt*conf.dt*eval<double,order,2>(x, coeffs_B_3 + (nt-1)*stride_t, conf);
 	}
 
 	interpolate<double,order>(coeffs_E_1 + nt*stride_t, E_values_1.data(), conf);
@@ -280,7 +280,7 @@ void test()
     	// Compute next J_Hf.
     	std::vector<double> j_hf_1(conf.Nx,0);
     	std::vector<double> j_hf_2(conf.Nx,0);
-    	ck_vm.compute_j_hf(nt, 0, N);
+    	ck_vm.compute_j_hf(nt-1, 0, N);
     	ck_vm.download_j_hf(j_hf_1.data(), j_hf_2.data());
     	interpolate<double,order>(coeffs_J_Hf_1.get() + (nt-1)*stride_t, j_hf_1.data(), conf);
     	interpolate<double,order>(coeffs_J_Hf_2.get() + (nt-1)*stride_t, j_hf_2.data(), conf);

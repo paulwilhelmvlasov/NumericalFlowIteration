@@ -96,8 +96,8 @@ public:
 
 private:
     config_t<real> conf; int device_number;
-    cuda::autoptr cuda_coeffs_E_1, cuda_coeffs_E_2, cuda_coeffs_B_3, cuda_j_1,
-						cuda_j_2, cuda_metrics; // Pointers on device.
+    cuda::autoptr cuda_coeffs_E_1, cuda_coeffs_E_2, cuda_coeffs_B_3,
+				cuda_coeffs_j_hf_1, cuda_coeffs_j_hf_2, cuda_metrics; // Pointers on device.
     std::unique_ptr<real[]> tmp_j_1, tmp_j_2;  //Pointers to host.
 };
 
