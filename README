@@ -35,5 +35,5 @@ make
 ```
 mkdir build
 cd build
-../bin/test_dergeraet
+../bin/test_nufi_cpu_1d
 ```

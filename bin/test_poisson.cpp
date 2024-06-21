@@ -1,32 +1,33 @@
 /*
  * Copyright (C) 2022 Matthias Kirchhart and Paul Wilhelm
  *
- * This file is part of Der Gerät, a solver for the Vlasov–Poisson equation.
+ * This file is part of NuFI, a solver for the Vlasov–Poisson equation.
  *
- * Der Gerät is free software; you can redistribute it and/or modify it under
+ * NuFI is free software; you can redistribute it and/or modify it under
  * the terms of the GNU General Public License as published by the Free
  * Software Foundation; either version 3, or (at your option) any later
  * version.
  *
- * Der Gerät is distributed in the hope that it will be useful, but WITHOUT ANY
+ * NuFI is distributed in the hope that it will be useful, but WITHOUT ANY
  * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
  * FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
  * details.
  *
  * You should have received a copy of the GNU General Public License along with
- * Der Gerät; see the file COPYING.  If not see http://www.gnu.org/licenses.
+ * NuFI; see the file COPYING.  If not see http://www.gnu.org/licenses.
  */
+
 
 #include <iostream>
 #include <fstream>
 
 #include <iomanip>
 
-#include <dergeraet/poisson.hpp>
-#include <dergeraet/stopwatch.hpp>
+#include <nufi/poisson.hpp>
+#include <nufi/stopwatch.hpp>
 
 
-namespace dergeraet
+namespace nufi
 {
 
 namespace dim3
@@ -124,9 +125,9 @@ void test()
 int main()
 {
     std::cout << "Testing float.\n";
-    dergeraet::dim3::test<float>();
+    nufi::dim3::test<float>();
 
     std::cout << "Testing double.\n";
-    dergeraet::dim3::test<double>();
+    nufi::dim3::test<double>();
 }
 

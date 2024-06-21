@@ -1,30 +1,31 @@
 /*
  * Copyright (C) 2022 Matthias Kirchhart and Paul Wilhelm
  *
- * This file is part of Der Gerät, a solver for the Vlasov–Poisson equation.
+ * This file is part of NuFI, a solver for the Vlasov–Poisson equation.
  *
- * Der Gerät is free software; you can redistribute it and/or modify it under
+ * NuFI is free software; you can redistribute it and/or modify it under
  * the terms of the GNU General Public License as published by the Free
  * Software Foundation; either version 3, or (at your option) any later
  * version.
  *
- * Der Gerät is distributed in the hope that it will be useful, but WITHOUT ANY
+ * NuFI is distributed in the hope that it will be useful, but WITHOUT ANY
  * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
  * FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
  * details.
  *
  * You should have received a copy of the GNU General Public License along with
- * Der Gerät; see the file COPYING.  If not see http://www.gnu.org/licenses.
+ * NuFI; see the file COPYING.  If not see http://www.gnu.org/licenses.
  */
-#ifndef DERGERAET_CUDA_RUNTIME_HPP
-#define DERGERAET_CUDA_RUNTIME_HPP
 
-#include <dergeraet/autoconfig.hpp>
+#ifndef NUFI_CUDA_RUNTIME_HPP
+#define NUFI_CUDA_RUNTIME_HPP
+
+#include <nufi/autoconfig.hpp>
 
 #include <stdexcept>
 #include <cuda_runtime.h>
 
-namespace dergeraet
+namespace nufi
 {
 
 namespace cuda
@@ -197,7 +198,7 @@ int device_count()
 {
     int count;
     cudaError_t code = cudaGetDeviceCount(&count);
-    if ( code != cudaSuccess ) throw exception { code, "dergeraet::cuda::device_count(): " };
+    if ( code != cudaSuccess ) throw exception { code, "nufi::cuda::device_count(): " };
     return count;
 }
 
@@ -205,7 +206,7 @@ inline
 void set_device( int dev_number )
 {
     cudaError_t code = cudaSetDevice( dev_number );
-    if ( code != cudaSuccess ) throw exception { code, "dergeraet::cuda::set_device(): " };
+    if ( code != cudaSuccess ) throw exception { code, "nufi::cuda::set_device(): " };
 }
 
 inline
@@ -213,7 +214,7 @@ int get_device()
 {
     int dev_number;
     cudaError_t code = cudaGetDevice( &dev_number );
-    if ( code != cudaSuccess ) throw exception { code, "dergeraet::cuda::get_device(): " };
+    if ( code != cudaSuccess ) throw exception { code, "nufi::cuda::get_device(): " };
     return dev_number;
 }
 
@@ -222,7 +223,7 @@ void* malloc( std::size_t size )
 {
     void* result;
     cudaError_t code = cudaMalloc( &result, size );
-    if ( code != cudaSuccess ) throw exception { code, "dergeraet::cuda::malloc(): " };
+    if ( code != cudaSuccess ) throw exception { code, "nufi::cuda::malloc(): " };
     return result;
 }
 
@@ -230,28 +231,28 @@ inline
 void free( void* ptr )
 {
     cudaError_t code = cudaFree(ptr);
-    if ( code != cudaSuccess ) throw exception { code, "dergeraet::cuda::free(): " }; 
+    if ( code != cudaSuccess ) throw exception { code, "nufi::cuda::free(): " }; 
 }
 
 inline
 void memcpy_to_host( void *dest, const void *src, size_t num )
 {
     cudaError_t code = cudaMemcpy( dest, src, num, cudaMemcpyDeviceToHost );
-    if ( code != cudaSuccess ) throw exception { code, "dergeraet::cuda::memcpy_to_host(): " };
+    if ( code != cudaSuccess ) throw exception { code, "nufi::cuda::memcpy_to_host(): " };
 }
 
 inline
 void memcpy_to_device( void *dest, const void *src, size_t num )
 {
     cudaError_t code = cudaMemcpy( dest, src, num, cudaMemcpyHostToDevice );
-    if ( code != cudaSuccess ) throw exception { code, "dergeraet::cuda::memcpy_to_device(): " };
+    if ( code != cudaSuccess ) throw exception { code, "nufi::cuda::memcpy_to_device(): " };
 }
 
 inline
 void memset( void *dest, int val, size_t num )
 {
     cudaError_t code = cudaMemset( dest, val, num );
-    if ( code != cudaSuccess ) throw exception { code, "dergeraet::cuda::memset(): " };
+    if ( code != cudaSuccess ) throw exception { code, "nufi::cuda::memset(): " };
 }
 
 }

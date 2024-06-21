@@ -16,14 +16,15 @@
  * You should have received a copy of the GNU General Public License along with
  * Der Gerät; see the file COPYING.  If not see http://www.gnu.org/licenses.
  */
-#ifndef DERGERAET_RANDOM_HPP
-#define DERGERAET_RANDOM_HPP
+
+#ifndef NUFI_RANDOM_HPP
+#define NUFI_RANDOM_HPP
 
 #include <random>
 #include <cstddef>
 #include <functional>
 
-namespace dergeraet
+namespace nufi
 {
 
 template <typename real>

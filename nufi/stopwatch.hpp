@@ -16,12 +16,12 @@
  * You should have received a copy of the GNU General Public License along with
  * Der Gerät; see the file COPYING.  If not see http://www.gnu.org/licenses.
  */
-#ifndef DERGERAET_STOPWATCH_HPP
-#define DERGERAET_STOPWATCH_HPP
+#ifndef NUFI_STOPWATCH_HPP
+#define NUFI_STOPWATCH_HPP
 
 #include <chrono>
 
-namespace dergeraet
+namespace nufi
 {
 
 template <typename real>
