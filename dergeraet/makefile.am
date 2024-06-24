@@ -1,3 +1,0 @@
-noinst_LIBRARIES = libdergeraet.a
-
-libdergeraet_a_SOURCES = poisson.cpp lapack.cpp blas.cpp 

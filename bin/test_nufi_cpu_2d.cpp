@@ -1,20 +1,20 @@
 /*
  * Copyright (C) 2022 Matthias Kirchhart and Paul Wilhelm
  *
- * This file is part of Der Gerät, a solver for the Vlasov–Poisson equation.
+ * This file is part of NuFI, a solver for the Vlasov–Poisson equation.
  *
- * Der Gerät is free software; you can redistribute it and/or modify it under
+ * NuFI is free software; you can redistribute it and/or modify it under
  * the terms of the GNU General Public License as published by the Free
  * Software Foundation; either version 3, or (at your option) any later
  * version.
  *
- * Der Gerät is distributed in the hope that it will be useful, but WITHOUT ANY
+ * NuFI is distributed in the hope that it will be useful, but WITHOUT ANY
  * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
  * FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
  * details.
  *
  * You should have received a copy of the GNU General Public License along with
- * Der Gerät; see the file COPYING.  If not see http://www.gnu.org/licenses.
+ * NuFI; see the file COPYING.  If not see http://www.gnu.org/licenses.
  */
 
 #include <cmath>
@@ -25,14 +25,14 @@
 #include <sstream>
 
 
-#include <dergeraet/config.hpp>
-#include <dergeraet/random.hpp>
-#include <dergeraet/fields.hpp>
-#include <dergeraet/poisson.hpp>
-#include <dergeraet/rho.hpp>
-#include <dergeraet/stopwatch.hpp>
+#include <nufi/config.hpp>
+#include <nufi/random.hpp>
+#include <nufi/fields.hpp>
+#include <nufi/poisson.hpp>
+#include <nufi/rho.hpp>
+#include <nufi/stopwatch.hpp>
 
-namespace dergeraet
+namespace nufi
 {
 
 namespace dim2
@@ -61,7 +61,7 @@ void test()
     double total_time = 0;
     for ( size_t n = 0; n < conf.Nt; ++n )
     {
-    	dergeraet::stopwatch<double> timer;
+    	nufi::stopwatch<double> timer;
 
     	// Compute rho:
 		#pragma omp parallel for
@@ -111,6 +111,6 @@ void test()
 
 int main()
 {
-	dergeraet::dim2::test<double,4>();
+	nufi::dim2::test<double,4>();
 }
 
