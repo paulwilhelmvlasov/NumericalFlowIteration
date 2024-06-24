@@ -1,34 +1,34 @@
 /*
  * Copyright (C) 2022 Matthias Kirchhart and Paul Wilhelm
  *
- * This file is part of Der Gerät, a solver for the Vlasov–Poisson equation.
+ * This file is part of NuFI, a solver for the Vlasov–Poisson equation.
  *
- * Der Gerät is free software; you can redistribute it and/or modify it under
+ * NuFI is free software; you can redistribute it and/or modify it under
  * the terms of the GNU General Public License as published by the Free
  * Software Foundation; either version 3, or (at your option) any later
  * version.
  *
- * Der Gerät is distributed in the hope that it will be useful, but WITHOUT ANY
+ * NuFI is distributed in the hope that it will be useful, but WITHOUT ANY
  * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
  * FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
  * details.
  *
  * You should have received a copy of the GNU General Public License along with
- * Der Gerät; see the file COPYING.  If not see http://www.gnu.org/licenses.
+ * NuFI; see the file COPYING.  If not see http://www.gnu.org/licenses.
  */
 
 #include <memory>
 #include <iomanip>
 #include <iostream>
-#include <dergeraet/gmres.hpp>
-#include <dergeraet/random.hpp>
+#include <nufi/gmres.hpp>
+#include <nufi/random.hpp>
 
 int main()
 {
     constexpr size_t N = 100;
     std::unique_ptr<double[]> mem { new double[ N*(N+3) ] };
 
-    dergeraet::random_real<double> rand(-1,1);
+    nufi::random_real<double> rand(-1,1);
 
     double *A = mem.get();
     double *b = A + N*N;
@@ -65,8 +65,8 @@ int main()
     };
 
     matmul_t mat { A };
-    dergeraet::gmres_config<double> opt; opt.target_residual = 1e-9;
-    dergeraet::gmres<double,matmul_t>( N, x, 1, b, 1, mat, opt );
+    nufi::gmres_config<double> opt; opt.target_residual = 1e-9;
+    nufi::gmres<double,matmul_t>( N, x, 1, b, 1, mat, opt );
 
     mat( x, 1, test, 1 );
 

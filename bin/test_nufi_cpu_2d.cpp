@@ -1,20 +1,20 @@
 /*
  * Copyright (C) 2022 Matthias Kirchhart and Paul Wilhelm
  *
- * This file is part of Der Gerät, a solver for the Vlasov–Poisson equation.
+ * This file is part of NuFI, a solver for the Vlasov–Poisson equation.
  *
- * Der Gerät is free software; you can redistribute it and/or modify it under
+ * NuFI is free software; you can redistribute it and/or modify it under
  * the terms of the GNU General Public License as published by the Free
  * Software Foundation; either version 3, or (at your option) any later
  * version.
  *
- * Der Gerät is distributed in the hope that it will be useful, but WITHOUT ANY
+ * NuFI is distributed in the hope that it will be useful, but WITHOUT ANY
  * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
  * FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
  * details.
  *
  * You should have received a copy of the GNU General Public License along with
- * Der Gerät; see the file COPYING.  If not see http://www.gnu.org/licenses.
+ * NuFI; see the file COPYING.  If not see http://www.gnu.org/licenses.
  */
 
 #include <cmath>
@@ -26,16 +26,16 @@
 #include <armadillo>
 
 
-#include <dergeraet/config.hpp>
-#include <dergeraet/random.hpp>
-#include <dergeraet/fields.hpp>
-#include <dergeraet/poisson.hpp>
-#include <dergeraet/rho.hpp>
-#include <dergeraet/stopwatch.hpp>
-#include <dergeraet/cuda_scheduler.hpp>
-#include <dergeraet/finite_difference_poisson.hpp>
+#include <nufi/config.hpp>
+#include <nufi/random.hpp>
+#include <nufi/fields.hpp>
+#include <nufi/poisson.hpp>
+#include <nufi/rho.hpp>
+#include <nufi/stopwatch.hpp>
+#include <nufi/cuda_scheduler.hpp>
+#include <nufi/finite_difference_poisson.hpp>
 
-namespace dergeraet
+namespace nufi
 {
 
 namespace dim2
@@ -66,7 +66,7 @@ void test()
     double total_time_with_plotting = 0;
     for ( size_t n = 0; n < conf.Nt; ++n )
     {
-    	dergeraet::stopwatch<double> timer;
+    	nufi::stopwatch<double> timer;
 
     	// Compute rho:
 		#pragma omp parallel for
@@ -80,7 +80,7 @@ void test()
 
         double timer_elapsed = timer.elapsed();
         total_time += timer_elapsed;
-        dergeraet::stopwatch<double> timer_plots;
+        nufi::stopwatch<double> timer_plots;
 
 /*
         real Emax = 0;
@@ -150,7 +150,7 @@ void test()
 
     for ( size_t n = 0; n < conf.Nt; ++n )
     {
-    	dergeraet::stopwatch<double> timer;
+    	nufi::stopwatch<double> timer;
         
         // Compute rho_dir:
         #pragma omp parallel for
@@ -195,7 +195,7 @@ void test()
         double timer_elapsed = timer.elapsed();
         total_time += timer_elapsed;
         double result = 0;
-        dergeraet::stopwatch<double> timer_plots;
+        nufi::stopwatch<double> timer_plots;
         // std::ofstream outputtfile("result.txt"); //prints out the interpolation results
         // std::ofstream errorfile("error.txt");   //prints out the numerical error between rho_dir and interpolated result (should be 0)
         // for ( size_t i = 0; i < conf.Nx+1; ++i ){
@@ -205,7 +205,7 @@ void test()
         //     real x = conf.x_min + i*conf.dx;
         //     real y = conf.y_min + j*conf.dy;
             
-        //     result = dergeraet::dim2::dirichlet::eval<real,order,0,0>(x,y,coeffs.get()+n*stride_t,conf);
+        //     result = nufi::dim2::dirichlet::eval<real,order,0,0>(x,y,coeffs.get()+n*stride_t,conf);
     	//     outputtfile<<result<<"\t";
         //     errorfile<<result- rho_dir.get()[j*(conf.Nx+1)+i]<<"\t";
         //     if((result-rho_dir.get()[j*(conf.Nx+1)+i])>1e-6){
@@ -295,7 +295,7 @@ int main()
 {
         std::cout<<"test"<<std::endl;;
 
-	dergeraet::dim2::dirichlet::test<double,4>();
+	nufi::dim2::dirichlet::test<double,4>();
 
 
 
@@ -315,9 +315,9 @@ int main()
 	const size_t nx = lx + order;
     const size_t ny = ly + order;
 	std::vector<double> N_vec(order);
-	dergeraet::splines1d::N<double,order>(0, N_vec.data());
+	nufi::splines1d::N<double,order>(0, N_vec.data());
 
-	dergeraet::dim2::config_t<double> conf;
+	nufi::dim2::config_t<double> conf;
 	conf.Nx = Nx;
     conf.Nx = Ny;
 	conf.x_min = a;
