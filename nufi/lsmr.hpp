@@ -1,31 +1,31 @@
 /*
  * Copyright (C) 2022 Matthias Kirchhart and Paul Wilhelm
  *
- * This file is part of Der Gerät, a solver for the Vlasov–Poisson equation.
+ * This file is part of NuFI, a solver for the Vlasov–Poisson equation.
  *
- * Der Gerät is free software; you can redistribute it and/or modify it under
+ * NuFI is free software; you can redistribute it and/or modify it under
  * the terms of the GNU General Public License as published by the Free
  * Software Foundation; either version 3, or (at your option) any later
  * version.
  *
- * Der Gerät is distributed in the hope that it will be useful, but WITHOUT ANY
+ * NuFI is distributed in the hope that it will be useful, but WITHOUT ANY
  * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
  * FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
  * details.
  *
  * You should have received a copy of the GNU General Public License along with
- * Der Gerät; see the file COPYING.  If not see http://www.gnu.org/licenses.
+ * NuFI; see the file COPYING.  If not see http://www.gnu.org/licenses.
  */
-#ifndef DERGERAET_LSMR_H
-#define DERGERAET_LSMR_H
+#ifndef NUFI_LSMR_H
+#define NUFI_LSMR_H
 
 #include <cmath>
 #include <limits>
 #include <iomanip>
 #include <iostream>
-#include <dergeraet/blas.hpp>
+#include <nufi/blas.hpp>
 
-namespace dergeraet
+namespace nufi
 {
 
 template <typename real>
@@ -71,6 +71,6 @@ void lsmr( size_t m, size_t n, const mat& A, const transposed_mat& At,
 
 }
 
-#include <dergeraet/lsmr.tpp>
+#include <nufi/lsmr.tpp>
 #endif
 

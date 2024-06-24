@@ -1,4 +1,4 @@
-AC_INIT([dergeraet],[0.1])
+AC_INIT([nufi],[0.1])
 AC_CONFIG_MACRO_DIR([m4])
 
 AM_INIT_AUTOMAKE([nostdinc dist-xz subdir-objects])
@@ -15,7 +15,7 @@ AX_BLAS
 
 AC_SUBST([AM_CPPFLAGS],['-I$(top_srcdir)'])
 
-AC_CONFIG_HEADERS([dergeraet/autoconfig.hpp])
+AC_CONFIG_HEADERS([nufi/autoconfig.hpp])
 AC_CONFIG_FILES([Makefile])
 
 LT_INIT
