@@ -1,4 +1,4 @@
-noinst_PROGRAMS = test_nufi test_nufi_cpu test_nufi_cpu_2d \
+noinst_PROGRAMS = test_nufi_cpu_1d test_nufi_cpu_2d \
 				test_vlasov_maxwell_lie_splitting cuda_vlasov_maxwell_lie \
 				test_nufi_gpu_2d test_nufi_gpu_3d
 
@@ -11,17 +11,17 @@ cuda_vlasov_maxwell_lie_SOURCES = cuda_vlasov_maxwell_lie.cpp
 cuda_vlasov_maxwell_lie_LDADD   = $(top_builddir)/nufi/libnufi.a
 cuda_vlasov_maxwell_lie_LDADD  += $(CUDA_LDFLAGS) $(BLAS_LIBS) -lfftw3 -lfftw3f
 
-test_nufi_SOURCES = test_nufi.cpp
-test_nufi_LDADD   = $(top_builddir)/nufi/libnufi.a 
-test_nufi_LDADD  += $(CUDA_LDFLAGS) $(BLAS_LIBS) -lfftw3 -lfftw3f
-
-test_nufi_cpu_SOURCES = test_nufi_cpu.cpp
-test_nufi_cpu_LDADD   = $(top_builddir)/nufi/libnufi.a 
-test_nufi_cpu_LDADD  += $(CUDA_LDFLAGS) $(BLAS_LIBS) -lfftw3 -lfftw3f
+test_nufi_cpu_1d_SOURCES = test_nufi_cpu_1d.cpp
+test_nufi_cpu_1d_LDADD   = $(top_builddir)/nufi/libnufi.a 
+test_nufi_cpu_1d_LDADD  += $(CUDA_LDFLAGS) $(BLAS_LIBS) -lfftw3 -lfftw3f
 
 test_nufi_cpu_2d_SOURCES = test_nufi_cpu_2d.cpp
 test_nufi_cpu_2d_LDADD   = $(top_builddir)/nufi/libnufi.a 
 test_nufi_cpu_2d_LDADD  += $(CUDA_LDFLAGS) $(BLAS_LIBS) -lfftw3 -lfftw3f
+
+test_nufi_gpu_1d_SOURCES = test_nufi_gpu_1d.cpp
+test_nufi_gpu_1d_LDADD   = $(top_builddir)/nufi/libnufi.a 
+test_nufi_gpu_1d_LDADD  += $(CUDA_LDFLAGS) $(BLAS_LIBS) -lfftw3 -lfftw3f -lmpi -lmpi_cxx
 
 test_nufi_gpu_2d_SOURCES = test_nufi_gpu_2d.cpp
 test_nufi_gpu_2d_LDADD   = $(top_builddir)/nufi/libnufi.a 
