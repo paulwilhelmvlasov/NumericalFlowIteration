@@ -1,39 +1,44 @@
-## Instruction for use on the Cluster
+The Numerical Flow Iteration is a numerical solver for the kinetic, non-lienar Vlasov-Poisson system 
+arising in the context of high temperature plasmas assuming the collisionless, electro-static limit.
+The aproach is based on a backwards-in-time iteration procedure making use of the solution structure
+through the Lagrangian formulation: the characteristic map can be evaluated on-the-fly via
+application of Hamiltonian operator splitting via the Stoermer-Verlet time-integration scheme. 
+This allows to evaluate the solution of the Vlasov equation on-the-fly without the need to store the 
+high dimensional distribution function explicitly. 
 
-1. Clone the project
+For further technical details consider the following publications:
 
-2. Copy the include folder into `` ~/local/ ``
+[1] The Numerical Flow Iteration for the Vlasov–Poisson Equation (2024), Kirchhart, Matthias and Wilhelm, R.-Paul,
+SIAM Journal on Scientific Computing, 46, 3, https://doi.org/10.1137/23M154710X.
 
-3. Add the following code to either your ``.bashrc`` or ``.zshrc``:
+[2] Introduction to the numerical flow iteration for the Vlasov–Poisson equation (2023), Wilhelm, R.-Paul Wilhelm,
+Kirchhart, Mathhias and Torrilhon, Manuel, Special Issue:93rd Annual Meeting of the International Association of 
+Applied Mathematics and Mechanics (GAMM), 23, 3, https://doi.org/10.1002/pamm.202300162.
 
-```
-module unload intel
-module unload intelmpi
-module load cuda/11.6
-module load gcc/11
-module load openmpi/4.1.1
+When using this codebase please cite the previously mentioned works. 
 
-export C_INCLUDE_PATH=$MPI_INCLUDE:$CUDA_ROOT/include:$C_INCLUDE_PATH
-export CPLUS_INCLUDE_PATH=$MPI_INCLUDE:$CUDA_ROOT/include:$CPLUS_INCLUDE_PATH
-export LIBRARY_PATH=$MPI_LIBDIR:$CUDA_ROOT/lib64:$LIBRARY_PATH
-export LD_LIBRARY_PATH=$MPI_LIBDIR:$CUDA_ROOT/lib64:$LD_LIBRARY_PATH
-export C_INCLUDE_PATH=~/local/include:$C_INCLUDE_PATH
-export CPLUS_INCLUDE_PATH=~/local/include:$CPLUS_INCLUDE_PATH
-export LIBRARY_PATH=~/local/lib:$LIBRARY_PATH
-export LD_LIBRARY_PATH=~/local/lib:$LD_LIBRARY_PATH
-```
+The implementation includes:
+* Support for computations on CPU using OpenMP and MPI communication. 
+* Support for computation on NVIDIA GPU's using CUDA and MPI.
 
-4. Next execute the following commands in the main folder:
+Additional features like solving the multi-species Vlasov-Poisson equation, Vlasov-Maxwell equation or handling
+of non-periodic boundary conditions can be found on the feature branches. Note, however, that these features
+are still in development and thus (partially) not tested yet. 
 
+
+To install and run the code you require the automake toolchain. Additionally you require a working installation of 
+Blas, Lapack, MPI and CUDA (this can be avoided by switching to a CPU-only branch). 
+After cloning the repository locally you need to run the following commands:
 ```
 autoreconf --install
 ./configure
 make
 ```
-
-5. Lastly you can test the install:
+You can test the install via:
 ```
-mkdir build
-cd build
+mkdir test
+cd test
 ../bin/test_nufi_cpu_1d
 ```
+
+The pre-made executables can be found in the bin-folder.
