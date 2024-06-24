@@ -2,7 +2,7 @@
 #include <iostream>
 #include <cmath>
 
-// for testing: remove #include <dergeraet/config.hpp> from CalculateMoments_<<theory>>.cpp and add the following statement
+// for testing: remove #include <nufi/config.hpp> from CalculateMoments_<<theory>>.cpp and add the following statement
 // #include "test_def.hpp"
 
 // terminal commands:
