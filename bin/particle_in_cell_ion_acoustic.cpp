@@ -12,12 +12,12 @@
 
 #include <armadillo>
 
-#include <dergeraet/config.hpp>
-#include <dergeraet/fields.hpp>
-#include <dergeraet/poisson.hpp>
-#include <dergeraet/stopwatch.hpp>
+#include <nufi/config.hpp>
+#include <nufi/fields.hpp>
+#include <nufi/poisson.hpp>
+#include <nufi/stopwatch.hpp>
 
-namespace dergeraet
+namespace nufi
 {
 
 namespace dim1
@@ -121,7 +121,7 @@ void ion_acoustic()
     const double dt = 1.0 / 8.0;
 
     // Init for FFT-Poisson solver:
-    dergeraet::dim1::config_t<double> conf;
+    nufi::dim1::config_t<double> conf;
     conf.Lx = L;
     conf.Lx_inv = 1/L;
     conf.x_min = 0;
@@ -367,7 +367,7 @@ void ion_acoustic()
 				for ( size_t i = 0; i < plot_x; ++i )
 				{
 					double x = conf.x_min + i*dx_plot;
-					double E = -dergeraet::dim1::eval<double,order,1>(x,coeffs.get()+nt*stride_t,conf);
+					double E = -nufi::dim1::eval<double,order,1>(x,coeffs.get()+nt*stride_t,conf);
 					Emax = std::max( Emax, std::abs(E) );
 					E_l2 += E*E;
 				}
