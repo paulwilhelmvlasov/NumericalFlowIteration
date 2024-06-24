@@ -1,3 +1,3 @@
 ACLOCAL_AMFLAGS = -I m4
-SUBDIRS=dergeraet bin
+SUBDIRS=nufi bin
 

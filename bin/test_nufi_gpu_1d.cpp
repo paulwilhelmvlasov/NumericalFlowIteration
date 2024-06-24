@@ -1,0 +1,163 @@
+/*
+ * Copyright (C) 2022 Matthias Kirchhart and Paul Wilhelm
+ *
+ * This file is part of NuFI, a solver for the Vlasov–Poisson equation.
+ *
+ * NuFI is free software; you can redistribute it and/or modify it under
+ * the terms of the GNU General Public License as published by the Free
+ * Software Foundation; either version 3, or (at your option) any later
+ * version.
+ *
+ * NuFI is distributed in the hope that it will be useful, but WITHOUT ANY
+ * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+ * FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+ * details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * NuFI; see the file COPYING.  If not see http://www.gnu.org/licenses.
+ */
+
+#include <cmath>
+#include <memory>
+#include <iomanip>
+#include <fstream>
+#include <sstream>
+
+
+#include <nufi/config.hpp>
+#include <nufi/random.hpp>
+#include <nufi/fields.hpp>
+#include <nufi/poisson.hpp>
+#include <nufi/rho.hpp>
+#include <nufi/stopwatch.hpp>
+#include <nufi/cuda_scheduler.hpp>
+
+namespace nufi
+{
+
+namespace dim1
+{
+namespace periodic
+{
+template <typename real, size_t order>
+void test()
+{
+    using std::abs;
+    using std::max;
+    using std::sqrt;
+
+    config_t<real> conf;
+    const size_t stride_x = 1;
+    const size_t stride_t = conf.Nx + order - 1;
+
+    std::unique_ptr<real[]> coeffs { new real[ conf.Nt*stride_t ] {} };
+    std::unique_ptr<real,decltype(std::free)*> rho { reinterpret_cast<real*>(std::aligned_alloc(64,sizeof(real)*conf.Nx)), std::free };
+    if ( rho == nullptr ) throw std::bad_alloc {};
+
+    poisson<real> poiss( conf );
+
+    cuda_scheduler<real,order> sched { conf };
+
+    std::ofstream statistics_file( "statistics.csv" );
+    statistics_file << R"("Time"; "L1-Norm"; "L2-Norm"; "Electric Energy"; "Kinetic Energy"; "Total Energy"; "Entropy")";
+    statistics_file << std::endl;
+
+    statistics_file << std::scientific;
+          std::cout << std::scientific;
+
+    double total_time = 0;
+    for ( size_t n = 0; n < conf.Nt; ++n )
+    {
+        nufi::stopwatch<double> timer;
+        std::memset( rho.get(), 0, conf.Nx*sizeof(real) );
+        sched.compute_rho ( n, 0, conf.Nx*conf.Nu );
+        sched.download_rho( rho.get() );
+
+        real electric_energy = poiss.solve( rho.get() );
+        interpolate<real,order>( coeffs.get() + n*stride_t, rho.get(), conf );
+
+        sched.upload_phi( n, coeffs.get() );
+        double time_elapsed = timer.elapsed();
+        total_time += time_elapsed;
+
+        if( n % 1 == 0 )
+        {
+            real metrics[4] = { 0, 0, 0, 0 };
+            sched.compute_metrics( n, 0, conf.Nx*conf.Nu );
+            sched.download_metrics( metrics );
+
+            real kinetic_energy = metrics[2];
+            real   total_energy = electric_energy + kinetic_energy;
+
+            metrics[1]  = sqrt(metrics[1]);
+
+            for ( size_t i = 0; i < 80; ++i )
+                std::cout << '=';
+            std::cout << std::endl;
+
+            std::cout << "t = " << conf.dt*n  << ".\n";
+
+            std::cout << "L¹-Norm:      " << std::setw(20) << metrics[0]      << std::endl;
+            std::cout << "L²-Norm:      " << std::setw(20) << metrics[1]      << std::endl;
+            std::cout << "Total energy: " << std::setw(20) << total_energy    << std::endl;
+            std::cout << "Entropy:      " << std::setw(20) << metrics[3]      << std::endl;
+
+            std::cout << std::endl;
+
+            statistics_file << conf.dt*n       << "; "
+                            << metrics[0]      << "; "
+                            << metrics[1]      << "; "
+                            << electric_energy << "; "
+                            <<  kinetic_energy << "; "
+                            <<    total_energy << "; "
+                            << metrics[3]      << std::endl;
+
+            //if(n % (100*16) == 0)
+            if(n % (1) == 0)
+            {
+				size_t Nx_plot = 256;
+				real dx_plot = conf.Lx / Nx_plot;
+				real t = n * conf.dt;
+				std::ofstream file_E( "E_" + std::to_string(t) + ".txt" );
+				std::ofstream file_rho( "rho_" + std::to_string(t) + ".txt" );
+				for(size_t i = 0; i <= Nx_plot; i++)
+				{
+					real x = conf.x_min + i*dx_plot;
+					real E = -eval<real,order,1>( x, coeffs.get() + n*stride_t, conf );
+					real rho = -eval<real,order,2>( x, coeffs.get() + n*stride_t, conf );
+
+					file_E << x << " " << E << std::endl;
+					file_rho << x << " " << rho << std::endl;
+				}
+
+				// Compute j
+				std::ofstream file_j( "j_" + std::to_string(t) + ".txt" );
+				for(size_t i = 0; i < conf.Nx; i++)
+				{
+					double x = conf.x_min + i * conf.dx;
+					double charge_current = 0;
+					for(size_t j = 0; j < conf.Nu; j++)
+					{
+						double u = conf.u_min + j * conf.du;
+
+						charge_current += u*eval_f<real, order>(n, x, u, coeffs.get(), conf);
+					}
+					file_j << x << " " << charge_current << std::endl;
+				}
+            }
+        }
+    }
+    
+    std::cout << "Elapsed time = " << total_time << std::endl;
+}
+
+}
+}
+}
+
+
+int main()
+{
+    nufi::dim1::periodic::test<double,4>();
+}
+

@@ -1,20 +1,20 @@
 /*
  * Copyright (C) 2022 Matthias Kirchhart and Paul Wilhelm
  *
- * This file is part of Der Gerät, a solver for the Vlasov–Poisson equation.
+ * This file is part of NuFI, a solver for the Vlasov–Poisson equation.
  *
- * Der Gerät is free software; you can redistribute it and/or modify it under
+ * NuFI is free software; you can redistribute it and/or modify it under
  * the terms of the GNU General Public License as published by the Free
  * Software Foundation; either version 3, or (at your option) any later
  * version.
  *
- * Der Gerät is distributed in the hope that it will be useful, but WITHOUT ANY
+ * NuFI is distributed in the hope that it will be useful, but WITHOUT ANY
  * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
  * FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
  * details.
  *
  * You should have received a copy of the GNU General Public License along with
- * Der Gerät; see the file COPYING.  If not see http://www.gnu.org/licenses.
+ * NuFI; see the file COPYING.  If not see http://www.gnu.org/licenses.
  */
 
 
@@ -22,7 +22,7 @@
 #include <fstream>
 #include <vector>
 
-#include <dergeraet/fields.hpp>
+#include <nufi/fields.hpp>
 
 constexpr size_t order = 4;
 
@@ -55,25 +55,25 @@ void exp_jb_times_v(double B, double& v1, double& v2, double tol=1e-16)
 
 // The following 3 function do essentially the same for 3 different field quantities. Unify them!
 template <size_t dx = 0>
-double eval_E_1(size_t nt, double x, double* coeffs_E_1, const dergeraet::dim_1_half::config_t<double>& conf, size_t stride_t)
+double eval_E_1(size_t nt, double x, double* coeffs_E_1, const nufi::dim_1_half::config_t<double>& conf, size_t stride_t)
 {
-	return dergeraet::dim_1_half::eval<double,order,dx>(x, coeffs_E_1 + nt*stride_t, conf);
+	return nufi::dim_1_half::eval<double,order,dx>(x, coeffs_E_1 + nt*stride_t, conf);
 }
 
 template <size_t dx = 0>
-double eval_E_2(size_t nt, double x, double* coeffs_E_2, const dergeraet::dim_1_half::config_t<double>& conf, size_t stride_t)
+double eval_E_2(size_t nt, double x, double* coeffs_E_2, const nufi::dim_1_half::config_t<double>& conf, size_t stride_t)
 {
-	return dergeraet::dim_1_half::eval<double,order,dx>(x, coeffs_E_2 + nt*stride_t, conf);
+	return nufi::dim_1_half::eval<double,order,dx>(x, coeffs_E_2 + nt*stride_t, conf);
 }
 
 template <size_t dx = 0>
-double eval_B_3(size_t nt, double x, double* coeffs_B_3, const dergeraet::dim_1_half::config_t<double>& conf, size_t stride_t)
+double eval_B_3(size_t nt, double x, double* coeffs_B_3, const nufi::dim_1_half::config_t<double>& conf, size_t stride_t)
 {
-	return dergeraet::dim_1_half::eval<double,order,dx>(x, coeffs_B_3 + nt*stride_t, conf);
+	return nufi::dim_1_half::eval<double,order,dx>(x, coeffs_B_3 + nt*stride_t, conf);
 }
 
 double eval_f(size_t nt, double x, double u, double v, double* coeffs_E_1, double* coeffs_E_2,
-				double* coeffs_B_3, const dergeraet::dim_1_half::config_t<double>& conf, size_t stride_t)
+				double* coeffs_B_3, const nufi::dim_1_half::config_t<double>& conf, size_t stride_t)
 {
 	double B = 0;
 	for(;nt > 0; nt--)
@@ -92,7 +92,7 @@ double eval_f(size_t nt, double x, double u, double v, double* coeffs_E_1, doubl
 }
 
 void backwards_iteration_J_Hf(size_t nt, double* coeffs_E_1, double* coeffs_E_2, double* coeffs_B_3,
-								double* coeffs_J_Hf_1, double* coeffs_J_Hf_2, const dergeraet::dim_1_half::config_t<double>& conf, size_t stride_t)
+								double* coeffs_J_Hf_1, double* coeffs_J_Hf_2, const nufi::dim_1_half::config_t<double>& conf, size_t stride_t)
 {
 	// nt is the next time-step for which one wants to compute J_Hf.
 	// Computes J_Hf on a grid and interpolates it then using B-Splines.
@@ -139,12 +139,12 @@ void backwards_iteration_J_Hf(size_t nt, double* coeffs_E_1, double* coeffs_E_2,
 		j_hf_2[i] *= conf.du*conf.dv;
 	}
 
-	dergeraet::dim_1_half::interpolate<double,order>(coeffs_J_Hf_1 + (nt-1)*stride_t, j_hf_1.data(), conf);
-	dergeraet::dim_1_half::interpolate<double,order>(coeffs_J_Hf_2 + (nt-1)*stride_t, j_hf_2.data(), conf);
+	nufi::dim_1_half::interpolate<double,order>(coeffs_J_Hf_1 + (nt-1)*stride_t, j_hf_1.data(), conf);
+	nufi::dim_1_half::interpolate<double,order>(coeffs_J_Hf_2 + (nt-1)*stride_t, j_hf_2.data(), conf);
 }
 
 void backwards_iteration_avrg_J_Hf(size_t nt, double* coeffs_E_1, double* coeffs_E_2, double* coeffs_B_3,
-								double& avrg_J_Hf_1, double& avrg_J_Hf_2, const dergeraet::dim_1_half::config_t<double>& conf,
+								double& avrg_J_Hf_1, double& avrg_J_Hf_2, const nufi::dim_1_half::config_t<double>& conf,
 								size_t stride_t)
 {
 	// nt is the next time-step for which one wants to compute avrg_J_Hf. For nt it is already given.
@@ -189,7 +189,7 @@ void backwards_iteration_avrg_J_Hf(size_t nt, double* coeffs_E_1, double* coeffs
 }
 
 void compute_E(size_t nt, double* coeffs_E_1, double* coeffs_E_2, double* coeffs_B_3, double* coeffs_J_Hf_1,
-				double* coeffs_J_Hf_2, double* avrg_J_Hf_1, double* avrg_J_Hf_2, const dergeraet::dim_1_half::config_t<double>& conf, size_t stride_t)
+				double* coeffs_J_Hf_2, double* avrg_J_Hf_1, double* avrg_J_Hf_2, const nufi::dim_1_half::config_t<double>& conf, size_t stride_t)
 {
 	// Given nt > 0 computes the coefficients of E_1(n_t) and E_2(n_t).
 
@@ -207,18 +207,18 @@ void compute_E(size_t nt, double* coeffs_E_1, double* coeffs_E_2, double* coeffs
 		double x = conf.x_min + i*conf.dx;
 
 		E_values_1[i] = eval_E_1(nt-1,x,coeffs_E_1,conf,stride_t)
-						- conf.dt*dergeraet::dim_1_half::eval<double,order>(x, coeffs_J_Hf_1 + (nt-1)*stride_t, conf);
+						- conf.dt*nufi::dim_1_half::eval<double,order>(x, coeffs_J_Hf_1 + (nt-1)*stride_t, conf);
 
 		E_values_2[i] = eval_E_2(nt-1,x,coeffs_E_2,conf,stride_t) - conf.dt*eval_B_3<1>(nt-1,x,coeffs_B_3,conf,stride_t)
 						+ conf.dt*conf.dt*eval_E_2<2>(nt-1,x,coeffs_E_2,conf,stride_t)
-						- conf.dt*dergeraet::dim_1_half::eval<double,order>(x, coeffs_J_Hf_2 + (nt-1)*stride_t, conf);
+						- conf.dt*nufi::dim_1_half::eval<double,order>(x, coeffs_J_Hf_2 + (nt-1)*stride_t, conf);
 	}
 
-	dergeraet::dim_1_half::interpolate<double,order>(coeffs_E_1 + nt*stride_t, E_values_1.data(), conf);
-	dergeraet::dim_1_half::interpolate<double,order>(coeffs_E_2 + nt*stride_t, E_values_2.data(), conf);
+	nufi::dim_1_half::interpolate<double,order>(coeffs_E_1 + nt*stride_t, E_values_1.data(), conf);
+	nufi::dim_1_half::interpolate<double,order>(coeffs_E_2 + nt*stride_t, E_values_2.data(), conf);
 }
 
-void compute_B(size_t nt, double* coeffs_E_2, double* coeffs_B_3, const dergeraet::dim_1_half::config_t<double>& conf,
+void compute_B(size_t nt, double* coeffs_E_2, double* coeffs_B_3, const nufi::dim_1_half::config_t<double>& conf,
 				size_t stride_t)
 {
 	// Given nt > 0 computes the coefficients of B_3(n_t). E_1(nt-1), E_2(nt-1) and B_3(nt-1) is known.
@@ -237,13 +237,13 @@ void compute_B(size_t nt, double* coeffs_E_2, double* coeffs_B_3, const dergerae
 		B_values[i] = eval_B_3(nt-1,x,coeffs_B_3,conf,stride_t) - conf.dt*eval_E_2<1>(nt-1,x,coeffs_E_2,conf,stride_t);
 	}
 
-	dergeraet::dim_1_half::interpolate<double,order>(coeffs_B_3 + nt*stride_t, B_values.data(), conf);
+	nufi::dim_1_half::interpolate<double,order>(coeffs_B_3 + nt*stride_t, B_values.data(), conf);
 }
 
 
 int main()
 {
-	dergeraet::dim_1_half::config_t<double> conf;
+	nufi::dim_1_half::config_t<double> conf;
 	//conf.Nt = 1;
 
     const size_t stride_t = conf.Nx + order - 1;
@@ -286,9 +286,9 @@ int main()
     elec_energy *= conf.dx;
     magn_energy *= conf.dx;
     // Interpolate E_0 and B_0.
-    dergeraet::dim_1_half::interpolate<double,order>(coeffs_E_1.get(), E_1.data(), conf);
-    dergeraet::dim_1_half::interpolate<double,order>(coeffs_E_2.get(), E_2.data(), conf);
-    dergeraet::dim_1_half::interpolate<double,order>(coeffs_B_3.get(), B_3.data(), conf);
+    nufi::dim_1_half::interpolate<double,order>(coeffs_E_1.get(), E_1.data(), conf);
+    nufi::dim_1_half::interpolate<double,order>(coeffs_E_2.get(), E_2.data(), conf);
+    nufi::dim_1_half::interpolate<double,order>(coeffs_B_3.get(), B_3.data(), conf);
 
     // Testing: rho.
     std::ofstream rho_0_str("rho_0.txt");
@@ -379,13 +379,13 @@ int main()
     	for(size_t i = 0; i < n_plot; i++)
     	{
     		double x = conf.x_min + i*dx_plot;
-    		double E1 = dergeraet::dim_1_half::eval<double,order>(x, coeffs_E_1.get() + nt*stride_t, conf);
-    		double E2 = dergeraet::dim_1_half::eval<double,order>(x, coeffs_E_2.get() + nt*stride_t, conf);
-    		double B3 = dergeraet::dim_1_half::eval<double,order>(x, coeffs_B_3.get() + nt*stride_t, conf);
+    		double E1 = nufi::dim_1_half::eval<double,order>(x, coeffs_E_1.get() + nt*stride_t, conf);
+    		double E2 = nufi::dim_1_half::eval<double,order>(x, coeffs_E_2.get() + nt*stride_t, conf);
+    		double B3 = nufi::dim_1_half::eval<double,order>(x, coeffs_B_3.get() + nt*stride_t, conf);
     		double rho = eval_E_1<1>(nt, x, coeffs_E_1.get(), conf, stride_t)
     	    				+ eval_E_2<1>(nt, x, coeffs_E_2.get(), conf, stride_t);
-    		double j1 = dergeraet::dim_1_half::eval<double,order>(x, coeffs_J_Hf_1.get() + (nt-1)*stride_t, conf);
-    		double j2 = dergeraet::dim_1_half::eval<double,order>(x, coeffs_J_Hf_2.get() + (nt-1)*stride_t, conf);
+    		double j1 = nufi::dim_1_half::eval<double,order>(x, coeffs_J_Hf_1.get() + (nt-1)*stride_t, conf);
+    		double j2 = nufi::dim_1_half::eval<double,order>(x, coeffs_J_Hf_2.get() + (nt-1)*stride_t, conf);
     		elec_energy += E1*E1 + E2*E2;
     		magn_energy += B3*B3;
 
