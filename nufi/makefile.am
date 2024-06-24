@@ -1,0 +1,3 @@
+noinst_LIBRARIES = libnufi.a
+
+libnufi_a_SOURCES = poisson.cpp lapack.cpp blas.cpp

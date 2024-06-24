@@ -1,4 +1,4 @@
-AC_INIT([dergeraet],[0.1])
+AC_INIT([nufi],[0.1])
 AC_CANONICAL_TARGET
 AC_CONFIG_MACRO_DIR([m4])
 
@@ -19,9 +19,9 @@ AX_BLAS
 
 AC_SUBST([AM_CPPFLAGS],['-I$(top_srcdir) -I/home/paul/Projekte/htlib'])
 
-AC_CONFIG_HEADERS([dergeraet/autoconfig.hpp])
+AC_CONFIG_HEADERS([nufi/autoconfig.hpp])
 AC_CONFIG_FILES([Makefile
-                 dergeraet/makefile
+                 nufi/makefile
                  bin/makefile])
 
 AC_OUTPUT

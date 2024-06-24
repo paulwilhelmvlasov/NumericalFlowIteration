@@ -1,29 +1,29 @@
 /*
  * Copyright (C) 2022 Matthias Kirchhart and Paul Wilhelm
  *
- * This file is part of Der Gerät, a solver for the Vlasov–Poisson equation.
+ * This file is part of NuFI, a solver for the Vlasov–Poisson equation.
  *
- * Der Gerät is free software; you can redistribute it and/or modify it under
+ * NuFI is free software; you can redistribute it and/or modify it under
  * the terms of the GNU General Public License as published by the Free
  * Software Foundation; either version 3, or (at your option) any later
  * version.
  *
- * Der Gerät is distributed in the hope that it will be useful, but WITHOUT ANY
+ * NuFI is distributed in the hope that it will be useful, but WITHOUT ANY
  * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
  * FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
  * details.
  *
  * You should have received a copy of the GNU General Public License along with
- * Der Gerät; see the file COPYING.  If not see http://www.gnu.org/licenses.
+ * NuFI; see the file COPYING.  If not see http://www.gnu.org/licenses.
  */
-#ifndef DERGERAET_MPI_HPP
-#define DERGERAET_MPI_HPP
+#ifndef NUFI_MPI_HPP
+#define NUFI_MPI_HPP
 
 #include <mpi.h>
 #include <stdexcept>
 #include <exception>
 
-namespace dergeraet
+namespace nufi
 {
 
 namespace mpi
@@ -41,7 +41,7 @@ struct programme
     {
         int errcode = MPI_Init(argc,argv);
         if ( errcode != MPI_SUCCESS )
-            throw std::runtime_error { "dergeraet::mpi::programme: Error initialising MPI." };
+            throw std::runtime_error { "nufi::mpi::programme: Error initialising MPI." };
     }
 
     ~programme()
@@ -49,7 +49,7 @@ struct programme
         int errcode = MPI_Finalize();
         if ( errcode != MPI_SUCCESS )
         {
-            std::cerr << "dergeraet::mpi::programme: Error finalizing MPI. Terminating.";
+            std::cerr << "nufi::mpi::programme: Error finalizing MPI. Terminating.";
             std::cerr.flush();
             std::terminate();
         }
@@ -67,7 +67,7 @@ void comm_size( MPI_Comm comm, int *size )
     {
         MPI_Error_string( errcode, buf, &len );
         buf[ len ] = '\0';
-        throw std::runtime_error {  std::string { "dergeraet::mpi::comm_size: " } +
+        throw std::runtime_error {  std::string { "nufi::mpi::comm_size: " } +
                                     std::string { buf } };
     }
     
@@ -84,7 +84,7 @@ void comm_rank( MPI_Comm comm, int *rank )
     {
         MPI_Error_string( errcode, buf, &len );
         buf[ len ] = '\0';
-        throw std::runtime_error {  std::string { "dergeraet::mpi::comm_rank: " } +
+        throw std::runtime_error {  std::string { "nufi::mpi::comm_rank: " } +
                                     std::string { buf } };
     }
 }
@@ -105,7 +105,7 @@ void allgatherv( const void  *sendbuf,       int sendcount,
     {
         MPI_Error_string( errcode, buf, &len );
         buf[ len ] = '\0';
-        throw std::runtime_error {  std::string { "dergeraet::mpi::allgatherv(float): " } +
+        throw std::runtime_error {  std::string { "nufi::mpi::allgatherv(float): " } +
                                     std::string { buf } };
     }
 }
@@ -126,7 +126,7 @@ void allgatherv( const void   *sendbuf,       int sendcount,
     {
         MPI_Error_string( errcode, buf, &len );
         buf[ len ] = '\0';
-        throw std::runtime_error {  std::string { "dergeraet::mpi::allgatherv(double): " } +
+        throw std::runtime_error {  std::string { "nufi::mpi::allgatherv(double): " } +
                                     std::string { buf } };
     }
 }
@@ -145,7 +145,7 @@ void allreduce_add( const void *sendbuf, float *recvbuf, int count,
     {
         MPI_Error_string( errcode, buf, &len );
         buf[ len ] = '\0';
-        throw std::runtime_error {  std::string { "dergeraet::mpi::allreduce_add(float): " } +
+        throw std::runtime_error {  std::string { "nufi::mpi::allreduce_add(float): " } +
                                     std::string { buf } };
     }
 }
@@ -164,7 +164,7 @@ void allreduce_add( const void *sendbuf, double *recvbuf, int count,
     {
         MPI_Error_string( errcode, buf, &len );
         buf[ len ] = '\0';
-        throw std::runtime_error {  std::string { "dergeraet::mpi::allreduce_add(float): " } +
+        throw std::runtime_error {  std::string { "nufi::mpi::allreduce_add(float): " } +
                                     std::string { buf } };
     }
 }
