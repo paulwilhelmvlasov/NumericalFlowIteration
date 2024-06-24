@@ -1,4 +1,4 @@
-The Numerical Flow Iteration is a numerical solver for the kinetic, non-lienar Vlasov-Poisson system 
+The Numerical Flow Iteration is a numerical solver for the kinetic, non-linear Vlasov-Poisson system 
 arising in the context of high temperature plasmas assuming the collisionless, electro-static limit.
 The aproach is based on a backwards-in-time iteration procedure making use of the solution structure
 through the Lagrangian formulation: the characteristic map can be evaluated on-the-fly via
