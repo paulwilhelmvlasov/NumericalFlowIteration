@@ -42,3 +42,6 @@ m4/lt~obsolete.m4
 .cproject
 .project
 test/*
+*.json
+*.DS_Store
+*.so
