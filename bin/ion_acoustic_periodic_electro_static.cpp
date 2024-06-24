@@ -1,20 +1,20 @@
 /*
  * Copyright (C) 2022 Matthias Kirchhart and Paul Wilhelm
  *
- * This file is part of Der Gerät, a solver for the Vlasov–Poisson equation.
+ * This file is part of NuFI, a solver for the Vlasov–Poisson equation.
  *
- * Der Gerät is free software; you can redistribute it and/or modify it under
+ * NuFI is free software; you can redistribute it and/or modify it under
  * the terms of the GNU General Public License as published by the Free
  * Software Foundation; either version 3, or (at your option) any later
  * version.
  *
- * Der Gerät is distributed in the hope that it will be useful, but WITHOUT ANY
+ * NuFI is distributed in the hope that it will be useful, but WITHOUT ANY
  * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
  * FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
  * details.
  *
  * You should have received a copy of the GNU General Public License along with
- * Der Gerät; see the file COPYING.  If not see http://www.gnu.org/licenses.
+ * NuFI; see the file COPYING.  If not see http://www.gnu.org/licenses.
  */
 
 #include <algorithm>
@@ -27,15 +27,15 @@
 #include <vector>
 
 
-#include <dergeraet/config.hpp>
-#include <dergeraet/random.hpp>
-#include <dergeraet/fields.hpp>
-#include <dergeraet/poisson.hpp>
-#include <dergeraet/rho.hpp>
-#include <dergeraet/stopwatch.hpp>
-#include <dergeraet/cuda_scheduler.hpp>
+#include <nufi/config.hpp>
+#include <nufi/random.hpp>
+#include <nufi/fields.hpp>
+#include <nufi/poisson.hpp>
+#include <nufi/rho.hpp>
+#include <nufi/stopwatch.hpp>
+#include <nufi/cuda_scheduler.hpp>
 
-namespace dergeraet
+namespace nufi
 {
 
 namespace dim1
@@ -142,7 +142,7 @@ void ion_acoustic_restart(const config_t<real>& conf_electron, const config_t<re
     double total_time = 0;
     for ( size_t n = old_n-10; n <= conf.Nt; ++n )
     {
-    	dergeraet::stopwatch<double> timer;
+    	nufi::stopwatch<double> timer;
     	// Compute rho:
 		#pragma omp parallel for
     	for(size_t i = 0; i<conf.Nx; i++)
@@ -281,7 +281,7 @@ void ion_acoustic()
     double total_time = 0;
     for ( size_t n = 0; n <= conf_electron.Nt; ++n )
     {
-    	dergeraet::stopwatch<double> timer;
+    	nufi::stopwatch<double> timer;
     	// Compute rho:
 		#pragma omp parallel for
     	for(size_t i = 0; i<conf_electron.Nx; i++)
@@ -435,11 +435,11 @@ void ion_acoustic()
 
 int main()
 {
-	dergeraet::dim1::ion_acoustic<double,4>();
+	nufi::dim1::ion_acoustic<double,4>();
 
 	/*
 	constexpr size_t order = 4;
-	dergeraet::dim1::config_t<double> conf_electron;
+	nufi::dim1::config_t<double> conf_electron;
     conf_electron.Nx = 128;
     conf_electron.x_min = 0;
     conf_electron.x_max = 40*M_PI;
@@ -456,7 +456,7 @@ int main()
     conf_electron.max_depth_integration = 3;
     conf_electron.Nu = 128;
 
-    dergeraet::dim1::config_t<double> conf_ion;
+    nufi::dim1::config_t<double> conf_ion;
     conf_ion.Nx = conf_electron.Nx;
     conf_ion.x_min = conf_electron.x_min;
     conf_ion.x_max = conf_electron.x_max;
@@ -476,8 +476,8 @@ int main()
     size_t old_n = 2000*8;
 
 	std::vector<double> coeffs_old((old_n+1)*stride_t);
-	dergeraet::dim1::read_coeffs<double,order>(conf_electron, coeffs_old, old_n, std::string("../coeffs_Nt_16000_Nx_ 128_stride_t_131.txt"));
-	dergeraet::dim1::ion_acoustic_restart<double,order>(conf_electron, conf_ion, coeffs_old, old_n);
+	nufi::dim1::read_coeffs<double,order>(conf_electron, coeffs_old, old_n, std::string("../coeffs_Nt_16000_Nx_ 128_stride_t_131.txt"));
+	nufi::dim1::ion_acoustic_restart<double,order>(conf_electron, conf_ion, coeffs_old, old_n);
 	*/
 }
 

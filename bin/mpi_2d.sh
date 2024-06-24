@@ -9,7 +9,7 @@
 #SBATCH --mem-per-cpu=3900M   #M is the default and can therefore be omitted, but could also be K(ilo)|G(iga)|T(era)
 
 # name the job
-#SBATCH --job-name=dergeraet_2d
+#SBATCH --job-name=nufi_2d
 
 # declare the merged STDOUT/STDERR file
 #SBATCH --output=output.%J.txt
@@ -23,5 +23,5 @@ module load openmpi/4.1.1
 
 export PSM2_CUDA=1
 
-$MPIEXEC $FLAGS_MPI_BATCH ./test_dergeraet_2d
+$MPIEXEC $FLAGS_MPI_BATCH ./test_nufi_2d
 

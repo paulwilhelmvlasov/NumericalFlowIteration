@@ -12,10 +12,10 @@
 
 #include <armadillo>
 
-#include <dergeraet/config.hpp>
-#include <dergeraet/fields.hpp>
-#include <dergeraet/poisson.hpp>
-#include <dergeraet/stopwatch.hpp>
+#include <nufi/config.hpp>
+#include <nufi/fields.hpp>
+#include <nufi/poisson.hpp>
+#include <nufi/stopwatch.hpp>
 
 inline double f0_1d(double x, double v)
 {
@@ -177,7 +177,7 @@ void ion_acoustic()
     const double dt = 1.0 / 8.0;
 
     // Init for FFT-Poisson solver:
-    dergeraet::dim1::config_t<double> conf;
+    nufi::dim1::config_t<double> conf;
     conf.Lx = L;
     conf.Lx_inv = 1/L;
     conf.x_min = 0;
@@ -188,7 +188,7 @@ void ion_acoustic()
     conf.Nx = Nx_poisson;
     constexpr size_t order = 4;
     const size_t stride_t = conf.Nx + order - 1;
-    dergeraet::dim1::poisson<double> poiss( conf );
+    nufi::dim1::poisson<double> poiss( conf );
     std::unique_ptr<double[]> coeffs { new double[ (conf.Nt+1)*stride_t ] {} };
     std::unique_ptr<double,decltype(std::free)*> rho { reinterpret_cast<double*>(std::aligned_alloc(64,sizeof(double)*conf.Nx)), std::free };
     if ( rho == nullptr ) throw std::bad_alloc {};
@@ -236,7 +236,7 @@ void ion_acoustic()
     double t_total = 0;
     for(size_t nt = 0; nt <= Nt; nt++)
     {
-    	dergeraet::stopwatch<double> timer;
+    	nufi::stopwatch<double> timer;
 
     	// Compute electron density.
 		#pragma omp parallel for
@@ -263,13 +263,13 @@ void ion_acoustic()
 
         // Solve for electric potential/field with FFT:
         double electric_energy = poiss.solve( rho.get() );
-        dergeraet::dim1::interpolate<double,order>( coeffs.get() + nt*stride_t, rho.get(), conf );
+        nufi::dim1::interpolate<double,order>( coeffs.get() + nt*stride_t, rho.get(), conf );
 
     	// Move electron particles.
 		#pragma omp parallel for
     	for(size_t k = 0; k < N_f_electron; k++ )
     	{
-    		double E = -dergeraet::dim1::eval<double,order,1>(xv_electron(k,0),coeffs.get()+nt*stride_t,conf);
+    		double E = -nufi::dim1::eval<double,order,1>(xv_electron(k,0),coeffs.get()+nt*stride_t,conf);
     		xv_electron(k, 1) -= dt * E;
     		xv_electron(k, 0) += dt * xv_electron(k,1);
     		xv_electron(k, 0) -= L*std::floor(xv_electron(k, 0)*L_inv);
@@ -279,7 +279,7 @@ void ion_acoustic()
 		#pragma omp parallel for
     	for(size_t k = 0; k < N_f_ion; k++ )
     	{
-    		double E = -dergeraet::dim1::eval<double,order,1>(xv_ion(k,0),coeffs.get()+nt*stride_t,conf);
+    		double E = -nufi::dim1::eval<double,order,1>(xv_ion(k,0),coeffs.get()+nt*stride_t,conf);
     		xv_ion(k, 1) += dt * E / Mr; // Additional 1/Mr factor due to mass difference between ions and electrons!
     		xv_ion(k, 0) += dt * xv_ion(k,1);
     		xv_ion(k, 0) -= L*std::floor(xv_ion(k, 0)*L_inv);
@@ -309,7 +309,7 @@ void ion_acoustic()
 				for ( size_t i = 0; i < plot_x; ++i )
 				{
 					double x = conf.x_min + i*dx_plot;
-					double E = -dergeraet::dim1::eval<double,order,1>(x,coeffs.get()+nt*stride_t,conf);
+					double E = -nufi::dim1::eval<double,order,1>(x,coeffs.get()+nt*stride_t,conf);
 					Emax = std::max( Emax, std::abs(E) );
 					E_l2 += E*E;
 
@@ -394,7 +394,7 @@ void ion_acoustic()
 				for ( size_t i = 0; i < plot_x; ++i )
 				{
 					double x = conf.x_min + i*dx_plot;
-					double E = -dergeraet::dim1::eval<double,order,1>(x,coeffs.get()+nt*stride_t,conf);
+					double E = -nufi::dim1::eval<double,order,1>(x,coeffs.get()+nt*stride_t,conf);
 					Emax = std::max( Emax, std::abs(E) );
 					E_l2 += E*E;
 				}
@@ -452,7 +452,7 @@ void single_species()
     }
 
     // Init for FFT-Poisson solver:
-    dergeraet::dim1::config_t<double> conf;
+    nufi::dim1::config_t<double> conf;
     conf.Lx = L;
     conf.Lx_inv = 1/L;
     conf.x_min = 0;
@@ -464,7 +464,7 @@ void single_species()
     conf.Nx = Nx_poisson;
     constexpr size_t order = 4;
     const size_t stride_t = conf.Nx + order - 1;
-    dergeraet::dim1::poisson<double> poiss( conf );
+    nufi::dim1::poisson<double> poiss( conf );
     std::unique_ptr<double[]> coeffs { new double[ (conf.Nt+1)*stride_t ] {} };
     std::unique_ptr<double,decltype(std::free)*> rho { reinterpret_cast<double*>(std::aligned_alloc(64,sizeof(double)*conf.Nx)), std::free };
     if ( rho == nullptr ) throw std::bad_alloc {};
@@ -475,7 +475,7 @@ void single_species()
     double t_total = 0;
     for(size_t nt = 0; nt <= Nt; nt++)
     {
-    	dergeraet::stopwatch<double> clock;
+    	nufi::stopwatch<double> clock;
 
     	// Compute electron density.
 		#pragma omp parallel for
@@ -503,13 +503,13 @@ void single_species()
 
         // Solve for electric potential/field with FFT:
         double electric_energy = poiss.solve( rho.get() );
-        dergeraet::dim1::interpolate<double,order>( coeffs.get() + nt*stride_t, rho.get(), conf );
+        nufi::dim1::interpolate<double,order>( coeffs.get() + nt*stride_t, rho.get(), conf );
 
     	// Move in particles.
 		#pragma omp parallel for
     	for(size_t k = 0; k < N_f; k++ )
     	{
-    		double E = -dergeraet::dim1::eval<double,order,1>(xv(k,0),coeffs.get()+nt*stride_t,conf);
+    		double E = -nufi::dim1::eval<double,order,1>(xv(k,0),coeffs.get()+nt*stride_t,conf);
     		xv(k, 1) -= dt * E;
     		xv(k, 0) += dt * xv(k,1);
     		xv(k, 0) -= L*std::floor(xv(k, 0)*L_inv);
@@ -536,7 +536,7 @@ void single_species()
     		for(size_t i = 0; i <= plot_x; i++)
     		{
     			double x = i*dx_plot;
-    			double E = -dergeraet::dim1::eval<double,order,1>(x,coeffs.get()+nt*stride_t,conf);
+    			double E = -nufi::dim1::eval<double,order,1>(x,coeffs.get()+nt*stride_t,conf);
 
     			E_str << x << " " << E << std::endl;
     		}

@@ -1,6 +1,6 @@
-noinst_LIBRARIES = libdergeraet.a
+noinst_LIBRARIES = libnufi.a
 
-libdergeraet_a_SOURCES = poisson.cpp lapack.cpp blas.cpp cuda_kernel.cu
+libnufi_a_SOURCES = poisson.cpp lapack.cpp blas.cpp cuda_kernel.cu
 
 # This includes the dependecies of cuda_kernel.cu and causes automatic
 # recompilaton if necessary. No more need to recompile everything.
