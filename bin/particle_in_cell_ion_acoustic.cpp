@@ -14,8 +14,11 @@
 
 #include <nufi/config.hpp>
 #include <nufi/fields.hpp>
+#include <nufi/finite_difference_poisson.hpp>
 #include <nufi/poisson.hpp>
 #include <nufi/stopwatch.hpp>
+
+/*
 
 namespace nufi
 {
@@ -308,7 +311,6 @@ void ion_acoustic()
 				double v_max_plot_ion = 0.4;
 				double dv_plot_ion = (v_max_plot_ion-v_min_plot_ion)/plot_v;
 
-				/*
 				std::ofstream f_electron_str("f_electon_" + std::to_string(t) + ".txt");
 				arma::mat f_plot;
 				f_plot.set_size(plot_x+1,plot_v+1);
@@ -362,7 +364,6 @@ void ion_acoustic()
 					}
 					f_ion_str << std::endl;
 				}
-				*/
 			} else {
 				for ( size_t i = 0; i < plot_x; ++i )
 				{
@@ -386,10 +387,47 @@ void ion_acoustic()
 }
 }
 }
+*/
+
+void test_mixed_neumann_dirichlet()
+{
+	nufi::dim1::dirichlet::config_t<double> param;
+	double x_min = 0;
+	double x_max = 2*M_PI;
+	param.Lx = x_max - x_min;
+	param.Nx = 32;
+	param.dx = param.Lx / param.Nx;
+
+	nufi::dim1::dirichlet::poisson_fd_mixed_neumann_dirichlet poisson_solver(param);
+
+	arma::vec rho(param.Nx,arma::fill::zeros);
+	for(size_t i = 0; i < param.Nx; i++){
+		double x = i*param.dx;
+		rho(i) = std::cos(x);
+	}
+
+	arma::vec phi(param.Nx, arma::fill::zeros);
+
+
+	poisson_solver.solve(rho, phi);
+
+	size_t Nx_plot = param.Nx;
+	double dx_plot = param.Lx/Nx_plot;
+	std::ofstream result("test_result.txt");
+	for(size_t i = 0; i < Nx_plot; i++){
+		double x = i*dx_plot;
+		double phi_exact = cos(x) - 1;
+		result << x << " " << phi(i) << " " << cos(x) - 1 << " "
+				<< phi(i) - phi_exact << std::endl;
+	}
+}
+
 
 int main() {
 	//single_species();
-	ion_acoustic();
+	//ion_acoustic();
+
+	test_mixed_neumann_dirichlet();
 
 	return 0;
 }
