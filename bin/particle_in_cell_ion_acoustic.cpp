@@ -18,8 +18,6 @@
 #include <nufi/poisson.hpp>
 #include <nufi/stopwatch.hpp>
 
-/*
-
 namespace nufi
 {
 
@@ -140,7 +138,8 @@ void ion_acoustic()
     std::unique_ptr<double,decltype(std::free)*> rho { reinterpret_cast<double*>(std::aligned_alloc(64,sizeof(double)*conf.Nx)), std::free };
     if ( rho == nullptr ) throw std::bad_alloc {};
 
-    std::unique_ptr<double,decltype(std::free)*> rho_dir { reinterpret_cast<real*>(std::aligned_alloc(64,sizeof(real)*(conf.Nx+1))), std::free };
+    std::unique_ptr<double,decltype(std::free)*> rho_dir { reinterpret_cast<double*>
+    						(std::aligned_alloc(64,sizeof(double)*(conf.Nx+1))), std::free };
     if ( rho == nullptr ) throw std::bad_alloc {};
     std::unique_ptr<double,decltype(std::free)*> phi_ext { reinterpret_cast<real*>(std::aligned_alloc(64,sizeof(real)*stride_t)), std::free };//rename, this is the rhs of the interpolation task, but with 2 additional entries.
 
@@ -387,7 +386,6 @@ void ion_acoustic()
 }
 }
 }
-*/
 
 void test_mixed_neumann_dirichlet()
 {
@@ -395,31 +393,39 @@ void test_mixed_neumann_dirichlet()
 	double x_min = 0;
 	double x_max = 2*M_PI;
 	param.Lx = x_max - x_min;
-	param.Nx = 32;
+	param.Nx = 5;
 	param.dx = param.Lx / param.Nx;
 
 	nufi::dim1::dirichlet::poisson_fd_mixed_neumann_dirichlet poisson_solver(param);
 
-	arma::vec rho(param.Nx,arma::fill::zeros);
-	for(size_t i = 0; i < param.Nx; i++){
+	arma::vec rho(param.Nx+1,arma::fill::zeros);
+	for(size_t i = 0; i <= param.Nx; i++){
 		double x = i*param.dx;
 		rho(i) = std::cos(x);
 	}
 
-	arma::vec phi(param.Nx, arma::fill::zeros);
-
+	arma::vec phi(param.Nx+1, arma::fill::zeros);
 
 	poisson_solver.solve(rho, phi);
+
 
 	size_t Nx_plot = param.Nx;
 	double dx_plot = param.Lx/Nx_plot;
 	std::ofstream result("test_result.txt");
-	for(size_t i = 0; i < Nx_plot; i++){
+	double l2_error = 0;
+	double max_error = 0;
+	for(size_t i = 0; i <= Nx_plot; i++){
 		double x = i*dx_plot;
 		double phi_exact = cos(x) - 1;
-		result << x << " " << phi(i) << " " << cos(x) - 1 << " "
-				<< phi(i) - phi_exact << std::endl;
+		double err = abs(phi(i) - phi_exact);
+		result << x << " " << phi(i) << " " << phi_exact << " " << err << std::endl;
+		l2_error += err*err;
+		max_error = std::max(max_error, err);
 	}
+	l2_error = dx_plot*std::sqrt(l2_error);
+
+	std::cout << "L2 error = " << l2_error << std::endl;
+	std::cout << "Max error = " << max_error << std::endl;
 }
 
 

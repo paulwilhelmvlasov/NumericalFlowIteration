@@ -26,6 +26,40 @@
 namespace nufi
 {
 
+namespace dirichlet_neumann_1d_splines
+{
+	class cubic_spline
+	{
+	public:
+		cubic_spline() = delete;
+		cubic_spline(const cubic_spline& rhs) = delete;
+		cubic_spline( cubic_spline&& rhs) = delete;
+		cubic_spline& operator=(const cubic_spline& rhs ) = delete;
+		cubic_spline& operator=(cubic_spline&& rhs ) = delete;
+		cubic_spline(size_t l, double hx, double a, double b);
+		~cubic_spline();
+
+		double N(double x, size_t j, size_t k);
+		double N_first_der(double x, size_t j, size_t k);
+		double N_second_der(double x, size_t j, size_t k);
+
+		void solve(const arma::vec& phi, double phi_a_der, double phi_b_der);
+
+		double eval(double x, const arma::vec& c);
+		double eval_first_der(double x, const arma::vec& c);
+		double eval_second_der(double x, const arma::vec& c);
+
+	private:
+		size_t l = 0;
+		size_t n = 0;
+		double hx = 0;
+		double a = 0;
+		double b = 1;
+
+		arma::mat A;
+	};
+}
+
 namespace splines1d
 {
 
