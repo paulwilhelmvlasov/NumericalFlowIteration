@@ -97,7 +97,7 @@ void nufi_two_species_ion_acoustic_with_reflecting_dirichlet_boundary()
         nufi::stopwatch<double> timer;
 
     	//Compute rho:
-    	//#pragma omp parallel for
+    	#pragma omp parallel for
     	for(size_t i = 0; i<conf.Nx; i++)
     	 {
     	 	rho.get()[i] = eval_rho_ion<real,order>(n, i, coeffs.get(), conf)
