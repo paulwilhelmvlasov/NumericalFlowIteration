@@ -20,8 +20,15 @@
 #ifndef NUFI_CONFIG_HPP
 #define NUFI_CONFIG_HPP
 
+#include <curand_kernel.h>
+
 #include <cmath>
+#include <iostream>
+#include <chrono>
+#include <random>
+#include <vector>
 #include <nufi/cuda_runtime.hpp>
+
 
 namespace nufi
 {
@@ -101,27 +108,39 @@ namespace dim1
 namespace dirichlet
 {
 
+
+
 template <typename real>
 struct config_t
 {
     // Ion Acoustic specific parameters:
-    constexpr static real lambda = 1;
-    constexpr static real m_e = 1, m_i = 1000;
-    constexpr static real q = 1;
-    constexpr static real c = 1;
-    constexpr static real n_c = 4*M_PI*m_e*c*c/(q*q*lambda*lambda);
-    constexpr static real T_e = 2, T_i = 100;
-    //constexpr static real K = 1.38*1e-23; // Boltzmann constant
-    constexpr static real K = 1; // Boltzmann constant
+	constexpr static real K = 1; // Boltzmann constant
+	constexpr static real c = 1;
+    constexpr static real T_e = 100, T_i = 1;
+    constexpr static real m_e = 1, m_i = 1836;
+    //static real v_e_th = std::sqrt(T_e/m_e);
+    //static real v_i_th = std::sqrt(T_i/m_i);
+    //static real q = 1;
+	//static real n_0 = 1;*/
+	//static real lambda = std::sqrt(T_e/(4*M_PI*q*q*n_0));
+    //static real omega_pe = std::sqrt(4*M_PI*q*q*n_0/m_e);
+    //static real E_0 = std::sqrt(4*M_PI*n_0*T_e);
+    //static real C_S = std::sqrt(T_e/m_i);
+    constexpr static real M_0 = 1.3;
+    //static real V_0 = M_0 * C_S;
 
-    __host__ __device__ static real initial_plasma_density( real x) noexcept;
-    __host__ __device__ static real boltzmann( real u, real T, real m) noexcept;
-    __host__ __device__ static real f0_electron( real x, real u ) noexcept;
-    __host__ __device__ static real f0_ion( real x, real u ) noexcept;
+    /*__host__ __device__*/ static real initial_plasma_density( real x) noexcept;
+    /*__host__ __device__*/ static real boltzmann( real u, real T, real m) noexcept;
+    /*__host__ __device__*/ static real f0_electron( real x, real u ) noexcept;
+    /*__host__ __device__*/ static real f0_ion( real x, real u ) noexcept;
+
+    /*__host__ __device__*/ static real generateGaussianNoise(double mu, double sigma) noexcept;
+    /*__host__ __device__*/ static real u_wall_electron( ) noexcept;
+    /*__host__ __device__*/ static real u_wall_ion( ) noexcept;
 
 
     // "Standard parameters"
-    static constexpr real x_min = 0*lambda, x_max = 16*lambda, epsilon = 0.5;
+    static constexpr real x_min = -100, x_max = 0, epsilon = 0.5;
 
 	size_t Nx;  // Number of grid points in physical space.
     size_t Nu;
@@ -167,12 +186,12 @@ config_t<real>::config_t() noexcept
     Nu_electron = 128;
     Nu_ion = Nu_electron;
 
-    u_electron_min = -100*m_e*c;
-    u_electron_max =  100*m_e*c;
-    u_ion_min = -200*m_i*c;
-    u_ion_max =  200*m_i*c;
+    u_electron_min = -100;
+    u_electron_max =  100;
+    u_ion_min = 0;
+    u_ion_max = 3;
 
-    dt = lambda/c * 1e-3;
+    dt = 0.05;
     Nt = 100/dt;
 
     Lx = x_max - x_min; Lx_inv = 1/Lx;
@@ -184,7 +203,7 @@ config_t<real>::config_t() noexcept
 }
 
 template <typename real>
-__host__ __device__
+//__host__ __device__
 real config_t<real>::initial_plasma_density( real x) noexcept
 {
 	/*
@@ -200,11 +219,12 @@ real config_t<real>::initial_plasma_density( real x) noexcept
 		return 0;
 	}
 	*/
+	//return n_0;
 	return 1;
 }
 
 template <typename real>
-__host__ __device__
+//__host__ __device__
 real config_t<real>::boltzmann( real u, real T, real m) noexcept
 {
 	// See Sonnendruecker lecture notes.
@@ -213,19 +233,66 @@ real config_t<real>::boltzmann( real u, real T, real m) noexcept
 
 
 template <typename real>
-__host__ __device__
+//__host__ __device__
 real config_t<real>::f0_electron( real x, real u ) noexcept
 {
-	real us = 0;
+	real us = M_0;
 	return initial_plasma_density(x)*boltzmann(u-us,T_e,m_e);
 }
 
 template <typename real>
-__host__ __device__
+//__host__ __device__
 real config_t<real>::f0_ion( real x, real u ) noexcept
 {
-	real us = -1;
+	real us = M_0;
 	return initial_plasma_density(x)*boltzmann(u-us,T_i,m_i);
+}
+
+template <typename real>
+//__host__ __device__
+real config_t<real>::generateGaussianNoise(double mu, double sigma) noexcept
+{
+	/*
+ 	constexpr real two_pi = 2.0 * M_PI;
+
+    std::srand(std::time(nullptr)); // use current time as seed for random generator
+    int random_int_1 = std::rand();
+    int random_int_2 = std::rand();
+    real u1 = random_int_1/RAND_MAX; // Random number in [0,1] sampled from a uniform distribution U(0,1).
+    real u2 = random_int_2/RAND_MAX; // Random number in [0,1] sampled from a uniform distribution U(0,1).
+
+    real mag = sigma * sqrt(-2.0 * log(u1));
+    real z0  = mag * cos(two_pi * u2) + mu; // Random number sampled from a normal distribution N(mu,sigma).
+    //real z1  = mag * sin(two_pi * u2) + mu; // Throw away second random number as it is unneeded.
+    return z0;
+    */
+
+    std::random_device rd{};
+    std::mt19937 gen{rd()};
+    std::normal_distribution<real> dist(mu,sigma);
+
+    return dist(gen);
+}
+
+template <typename real>
+//__host__ __device__
+real config_t<real>::u_wall_electron( ) noexcept
+{
+	real v_th_e = std::sqrt(T_e/m_e);
+	real u = -std::abs(generateGaussianNoise(0,v_th_e));
+
+	//std::cout << "electron: " << u << std::endl;
+	return u;
+}
+
+template <typename real>
+//__host__ __device__
+real config_t<real>::u_wall_ion( ) noexcept
+{
+	real v_th_i = std::sqrt(T_i/m_i);
+	real u = -std::abs(generateGaussianNoise(0,v_th_i));
+	//std::cout << "ion: " << u << std::endl;
+	return u;
 }
 
 
@@ -233,8 +300,14 @@ template <typename real>
 __host__ __device__
 real config_t<real>::f0( real x, real u ) noexcept
 {
-    return call_surface_model(surface_state(x), x, u);
+    constexpr real c = 1.0/M_PI;
+    if(x*x + u*u >= 1 )
+    {
+        return 0;
+    }
+    return c * 1.0/std::sqrt( 1 - x*x - u*u );
 }
+
 template <typename real>
 __host__ __device__
 bool config_t<real>::surface_state( real x) noexcept
@@ -245,9 +318,9 @@ bool config_t<real>::surface_state( real x) noexcept
         return 0; // 0: outside domain, 1: inside domain
     }
 
-    
+
         return 1;
-    
+
 }
 template <typename real>
 __host__ __device__

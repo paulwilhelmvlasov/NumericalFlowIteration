@@ -20,6 +20,9 @@
 #ifndef NUFI_RHO_HPP
 #define NUFI_RHO_HPP
 
+#include <iostream>
+#include <chrono>
+#include <random>
 #include <nufi/fields.hpp>
 
 namespace nufi
@@ -294,12 +297,14 @@ void eval_flow_map_ion_acoustic( size_t n, real& x, real& u,
 }
 
 template <typename real, size_t order>
-__host__ __device__
+//__host__ __device__
 real eval_ftilda_ion_acoustic( size_t n, real x, real u,
                   const real *coeffs, const config_t<real> &conf,
 				  bool electron = true, bool reflecting_boundary = true,
-				  bool relativistic = false, bool right_boundary_maxwellian = true)
+				  bool relativistic = false)
 {
+	// We assume now that the right boundary is a conducting and (perfectly) reflecting
+	// wall. The left boundary has an inflow from the left.
 	if ( n == 0 ){
 		if(electron){
 			return config_t<real>::f0_electron(x,u);
@@ -311,17 +316,18 @@ real eval_ftilda_ion_acoustic( size_t n, real x, real u,
 	if(reflecting_boundary){
 		// In this case we assume that f=0 outside the domain.
 		if(x < conf.x_min) {
-			return 0;
-		} else if(x > conf.x_max){
-			if(right_boundary_maxwellian){
-				x = conf.x_max;
-				if(electron){
-					return config_t<real>::f0_electron(x, u);
-				}else{
-					return config_t<real>::f0_ion(x, u);
-				}
+			if(electron){
+				return config_t<real>::f0_electron(x, u);
 			}else{
-				return 0;
+				return config_t<real>::f0_ion(x, u);
+			}
+		} else if(x > conf.x_max){
+			x = conf.x_max;
+			//u = -u;
+			if(electron){
+				u = conf.u_wall_electron();
+			}else{
+				u = conf.u_wall_ion();
 			}
 		}
 	}
@@ -350,23 +356,22 @@ real eval_ftilda_ion_acoustic( size_t n, real x, real u,
 
         // Reflecting boundaries:
         if(reflecting_boundary){
-			if(x < conf.x_min){
-				x = conf.x_min;
-				u = -u;
-			}else if(x > conf.x_max){
-				if(right_boundary_maxwellian){
-					x = conf.x_max;
-					if(electron){
-						return config_t<real>::f0_electron(x, u);
-					}else{
-						return config_t<real>::f0_ion(x, u);
-					}
+			if(x > conf.x_max){
+				x = conf.x_max;
+				//u = -u;
+				if(electron){
+					u = conf.u_wall_electron();
 				}else{
-					x = conf.x_max;
-					u = -u;
+					u = conf.u_wall_ion();
+				}
+			}else if(x < conf.x_min){
+				if(electron){
+					return config_t<real>::f0_electron(x, u);
+				}else{
+					return config_t<real>::f0_ion(x, u);
 				}
 			}
-        }
+		}
     }
 
     // The final half-step.
@@ -384,23 +389,22 @@ real eval_ftilda_ion_acoustic( size_t n, real x, real u,
 
     // Reflecting boundaries:
     if(reflecting_boundary){
-		if(x < conf.x_min){
-			x = conf.x_min;
-			u = -u;
-		}else if(x > conf.x_max){
-			if(right_boundary_maxwellian){
-				x = conf.x_max;
-				if(electron){
-					return config_t<real>::f0_electron(x, u);
-				}else{
-					return config_t<real>::f0_ion(x, u);
-				}
+		if(x > conf.x_max){
+			x = conf.x_max;
+			//u = -u;
+			if(electron){
+				u = conf.u_wall_electron();
 			}else{
-				x = conf.x_max;
-				u = -u;
+				u = conf.u_wall_ion();
+			}
+		}else if(x < conf.x_min){
+			if(electron){
+				return config_t<real>::f0_electron(x, u);
+			}else{
+				return config_t<real>::f0_ion(x, u);
 			}
 		}
-    }
+	}
 
 	if(electron){
 		return config_t<real>::f0_electron(x,u);
@@ -410,12 +414,13 @@ real eval_ftilda_ion_acoustic( size_t n, real x, real u,
 }
 
 template <typename real, size_t order>
-__host__ __device__
+//__host__ __device__
 real eval_f_ion_acoustic( size_t n, real x, real u,
              const real *coeffs, const config_t<real> &conf, bool electron = true,
-			 bool reflecting_boundary = true, bool relativistic = false,
-			 bool right_boundary_maxwellian = true)
+			 bool reflecting_boundary = true, bool relativistic = false)
 {
+	// We assume now that the right boundary is a conducting and (perfectly) reflecting
+	// wall. The left boundary has an inflow from the left.
 	if ( n == 0){
 		if(electron){
 			return config_t<real>::f0_electron(x,u);
@@ -423,20 +428,21 @@ real eval_f_ion_acoustic( size_t n, real x, real u,
 			return config_t<real>::f0_ion(x,u);
 		}
 	}
-	if(reflecting_boundary){
-		// In this case we assume that f=0 outside the domain.
-		if(x < conf.x_min) {
-			return 0;
-		} else if(x > conf.x_max){
-			if(right_boundary_maxwellian){
-				x = conf.x_max;
-				if(electron){
-					return config_t<real>::f0_electron(x, u);
-				}else{
-					return config_t<real>::f0_ion(x, u);
-				}
+
+    if(reflecting_boundary){
+		if(x > conf.x_max){
+			x = conf.x_max;
+			//u = -u;
+			if(electron){
+				u = conf.u_wall_electron();
 			}else{
-				return 0;
+				u = conf.u_wall_ion();
+			}
+		}else if(x < conf.x_min){
+			if(electron){
+				return config_t<real>::f0_electron(x, u);
+			}else{
+				return config_t<real>::f0_ion(x, u);
 			}
 		}
 	}
@@ -467,25 +473,23 @@ real eval_f_ion_acoustic( size_t n, real x, real u,
 		Ex = -eval<real,order,1>(x,c,conf);
 		u  += (electron/conf.m_e + (!electron)*(-1)/conf.m_i) * conf.dt*Ex;
 
-		// Reflecting boundaries:
-        if(reflecting_boundary){
-			if(x < conf.x_min){
-				x = conf.x_min;
-				u = -u;
-			}else if(x > conf.x_max){
-				if(right_boundary_maxwellian){
-					x = conf.x_max;
-					if(electron){
-						return config_t<real>::f0_electron(x, u);
-					}else{
-						return config_t<real>::f0_ion(x, u);
-					}
+	    if(reflecting_boundary){
+			if(x > conf.x_max){
+				x = conf.x_max;
+				//u = -u;
+				if(electron){
+					u = conf.u_wall_electron();
 				}else{
-					x = conf.x_max;
-					u = -u;
+					u = conf.u_wall_ion();
+				}
+			}else if(x < conf.x_min){
+				if(electron){
+					return config_t<real>::f0_electron(x, u);
+				}else{
+					return config_t<real>::f0_ion(x, u);
 				}
 			}
-        }
+		}
     }
 
     // The final half-step.
@@ -503,23 +507,22 @@ real eval_f_ion_acoustic( size_t n, real x, real u,
 
     // Reflecting boundaries:
     if(reflecting_boundary){
-		if(x < conf.x_min){
-			x = conf.x_min;
-			u = -u;
-		}else if(x > conf.x_max){
-			if(right_boundary_maxwellian){
-				x = conf.x_max;
-				if(electron){
-					return config_t<real>::f0_electron(x, u);
-				}else{
-					return config_t<real>::f0_ion(x, u);
-				}
+		if(x > conf.x_max){
+			x = conf.x_max;
+			//u = -u;
+			if(electron){
+				u = conf.u_wall_electron();
 			}else{
-				x = conf.x_max;
-				u = -u;
+				u = conf.u_wall_ion();
+			}
+		}else if(x < conf.x_min){
+			if(electron){
+				return config_t<real>::f0_electron(x, u);
+			}else{
+				return config_t<real>::f0_ion(x, u);
 			}
 		}
-    }
+	}
 
     if(electron){
 		return config_t<real>::f0_electron(x,u);

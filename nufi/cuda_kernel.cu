@@ -297,8 +297,8 @@ void cuda_kernel<real,order>::compute_rho( size_t n, size_t q_begin, size_t q_en
 
     cuda::set_device( device_number );
     cuda::memset( cu_rho, 0, rho_size );
-    //cuda_eval_rho<real,order><<<Nblocks,block_size>>>( n, cu_coeffs, conf, cu_rho, q_begin, q_end );
-    cuda_eval_rho_ion_acoustic<real,order><<<Nblocks,block_size>>>( n, cu_coeffs, conf, cu_rho, q_begin, q_end );
+    cuda_eval_rho<real,order><<<Nblocks,block_size>>>( n, cu_coeffs, conf, cu_rho, q_begin, q_end );
+    //cuda_eval_rho_ion_acoustic<real,order><<<Nblocks,block_size>>>( n, cu_coeffs, conf, cu_rho, q_begin, q_end );
 }
 
 template <typename real, size_t order>

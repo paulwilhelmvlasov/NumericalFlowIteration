@@ -123,6 +123,7 @@ forces.o: forces.cpp /usr/include/stdc-predef.h ../nufi/forces.hpp \
  /usr/include/c++/11/backward/auto_ptr.h \
  /usr/include/c++/11/pstl/glue_memory_defs.h \
  /usr/include/c++/11/pstl/execution_defs.h ../nufi/config.hpp \
+ /usr/include/curand_kernel.h /usr/include/c++/11/math.h \
  /usr/include/c++/11/cmath /usr/include/math.h \
  /usr/include/x86_64-linux-gnu/bits/math-vector.h \
  /usr/include/x86_64-linux-gnu/bits/libm-simd-decl-stubs.h \
@@ -158,28 +159,11 @@ forces.o: forces.cpp /usr/include/stdc-predef.h ../nufi/forces.hpp \
  /usr/include/c++/11/tr1/modified_bessel_func.tcc \
  /usr/include/c++/11/tr1/poly_hermite.tcc \
  /usr/include/c++/11/tr1/poly_laguerre.tcc \
- /usr/include/c++/11/tr1/riemann_zeta.tcc ../nufi/cuda_runtime.hpp \
- ../nufi/autoconfig.hpp /usr/include/c++/11/stdexcept \
- /usr/include/c++/11/string /usr/include/c++/11/bits/char_traits.h \
- /usr/include/c++/11/cstdint /usr/include/c++/11/bits/localefwd.h \
- /usr/include/x86_64-linux-gnu/c++/11/bits/c++locale.h \
- /usr/include/c++/11/clocale /usr/include/locale.h \
- /usr/include/x86_64-linux-gnu/bits/locale.h /usr/include/c++/11/cctype \
- /usr/include/ctype.h /usr/include/c++/11/bits/ostream_insert.h \
- /usr/include/c++/11/bits/cxxabi_forced.h \
- /usr/include/c++/11/bits/basic_string.h /usr/include/c++/11/string_view \
- /usr/include/c++/11/bits/string_view.tcc \
- /usr/include/c++/11/ext/string_conversions.h /usr/include/c++/11/cstdlib \
- /usr/include/c++/11/cstdio /usr/include/c++/11/cerrno \
- /usr/include/errno.h /usr/include/x86_64-linux-gnu/bits/errno.h \
- /usr/include/linux/errno.h /usr/include/x86_64-linux-gnu/asm/errno.h \
- /usr/include/asm-generic/errno.h /usr/include/asm-generic/errno-base.h \
- /usr/include/x86_64-linux-gnu/bits/types/error_t.h \
- /usr/include/c++/11/bits/charconv.h \
- /usr/include/c++/11/bits/basic_string.tcc /usr/include/cuda_runtime.h \
- /usr/include/crt/host_config.h /usr/include/builtin_types.h \
- /usr/include/device_types.h /usr/include/crt/host_defines.h \
- /usr/include/driver_types.h /usr/include/vector_types.h \
+ /usr/include/c++/11/tr1/riemann_zeta.tcc /usr/include/curand.h \
+ /usr/include/cuda_runtime.h /usr/include/crt/host_config.h \
+ /usr/include/builtin_types.h /usr/include/device_types.h \
+ /usr/include/crt/host_defines.h /usr/include/driver_types.h \
+ /usr/include/vector_types.h \
  /usr/lib/gcc/x86_64-linux-gnu/11/include/limits.h \
  /usr/lib/gcc/x86_64-linux-gnu/11/include/syslimits.h \
  /usr/include/limits.h /usr/include/x86_64-linux-gnu/bits/posix1_lim.h \
@@ -192,40 +176,78 @@ forces.o: forces.cpp /usr/include/stdc-predef.h ../nufi/forces.hpp \
  /usr/include/library_types.h /usr/include/channel_descriptor.h \
  /usr/include/cuda_runtime_api.h /usr/include/cuda_device_runtime_api.h \
  /usr/include/driver_functions.h /usr/include/vector_functions.h \
- /usr/include/vector_functions.hpp ../nufi/fields.hpp ../nufi/lsmr.hpp \
- /usr/include/c++/11/iomanip /usr/include/c++/11/bits/ios_base.h \
- /usr/include/c++/11/bits/locale_classes.h \
+ /usr/include/vector_functions.hpp /usr/include/curand_discrete.h \
+ /usr/include/curand_precalc.h /usr/include/curand_mrg32k3a.h \
+ /usr/include/curand_mtgp32_kernel.h /usr/include/cuda.h \
+ /usr/include/c++/11/stdlib.h /usr/include/c++/11/cstdlib \
+ /usr/include/memory.h /usr/include/string.h /usr/include/strings.h \
+ /usr/include/x86_64-linux-gnu/bits/strings_fortified.h \
+ /usr/include/x86_64-linux-gnu/bits/string_fortified.h \
+ /usr/include/curand_mtgp32.h /usr/include/curand_philox4x32_x.h \
+ /usr/include/curand_globals.h /usr/include/curand_uniform.h \
+ /usr/include/curand_normal.h /usr/include/curand_normal_static.h \
+ /usr/include/curand_lognormal.h /usr/include/curand_poisson.h \
+ /usr/include/curand_discrete2.h /usr/include/c++/11/iostream \
+ /usr/include/c++/11/ostream /usr/include/c++/11/ios \
+ /usr/include/c++/11/bits/char_traits.h /usr/include/c++/11/cstdint \
+ /usr/include/c++/11/bits/localefwd.h \
+ /usr/include/x86_64-linux-gnu/c++/11/bits/c++locale.h \
+ /usr/include/c++/11/clocale /usr/include/locale.h \
+ /usr/include/x86_64-linux-gnu/bits/locale.h /usr/include/c++/11/cctype \
+ /usr/include/ctype.h /usr/include/c++/11/bits/ios_base.h \
+ /usr/include/c++/11/bits/locale_classes.h /usr/include/c++/11/string \
+ /usr/include/c++/11/bits/ostream_insert.h \
+ /usr/include/c++/11/bits/cxxabi_forced.h \
+ /usr/include/c++/11/bits/basic_string.h /usr/include/c++/11/string_view \
+ /usr/include/c++/11/bits/string_view.tcc \
+ /usr/include/c++/11/ext/string_conversions.h /usr/include/c++/11/cstdio \
+ /usr/include/c++/11/cerrno /usr/include/errno.h \
+ /usr/include/x86_64-linux-gnu/bits/errno.h /usr/include/linux/errno.h \
+ /usr/include/x86_64-linux-gnu/asm/errno.h \
+ /usr/include/asm-generic/errno.h /usr/include/asm-generic/errno-base.h \
+ /usr/include/x86_64-linux-gnu/bits/types/error_t.h \
+ /usr/include/c++/11/bits/charconv.h \
+ /usr/include/c++/11/bits/basic_string.tcc \
  /usr/include/c++/11/bits/locale_classes.tcc \
  /usr/include/c++/11/system_error \
  /usr/include/x86_64-linux-gnu/c++/11/bits/error_constants.h \
- /usr/include/c++/11/locale /usr/include/c++/11/bits/locale_facets.h \
- /usr/include/c++/11/cwctype /usr/include/wctype.h \
- /usr/include/x86_64-linux-gnu/bits/wctype-wchar.h \
+ /usr/include/c++/11/stdexcept /usr/include/c++/11/streambuf \
+ /usr/include/c++/11/bits/streambuf.tcc \
+ /usr/include/c++/11/bits/basic_ios.h \
+ /usr/include/c++/11/bits/locale_facets.h /usr/include/c++/11/cwctype \
+ /usr/include/wctype.h /usr/include/x86_64-linux-gnu/bits/wctype-wchar.h \
  /usr/include/x86_64-linux-gnu/c++/11/bits/ctype_base.h \
- /usr/include/c++/11/streambuf /usr/include/c++/11/bits/streambuf.tcc \
  /usr/include/c++/11/bits/streambuf_iterator.h \
  /usr/include/x86_64-linux-gnu/c++/11/bits/ctype_inline.h \
  /usr/include/c++/11/bits/locale_facets.tcc \
- /usr/include/c++/11/bits/locale_facets_nonio.h /usr/include/c++/11/ctime \
+ /usr/include/c++/11/bits/basic_ios.tcc \
+ /usr/include/c++/11/bits/ostream.tcc /usr/include/c++/11/istream \
+ /usr/include/c++/11/bits/istream.tcc /usr/include/c++/11/chrono \
+ /usr/include/c++/11/ratio /usr/include/c++/11/ctime \
+ /usr/include/c++/11/bits/parse_numbers.h /usr/include/c++/11/random \
+ /usr/include/c++/11/bits/random.h /usr/include/c++/11/vector \
+ /usr/include/c++/11/bits/stl_vector.h \
+ /usr/include/c++/11/bits/stl_bvector.h \
+ /usr/include/c++/11/bits/vector.tcc \
+ /usr/include/c++/11/bits/uniform_int_dist.h \
+ /usr/include/x86_64-linux-gnu/c++/11/bits/opt_random.h \
+ /usr/include/c++/11/bits/random.tcc /usr/include/c++/11/numeric \
+ /usr/include/c++/11/bits/stl_numeric.h \
+ /usr/include/c++/11/pstl/glue_numeric_defs.h ../nufi/cuda_runtime.hpp \
+ ../nufi/autoconfig.hpp ../nufi/fields.hpp ../nufi/lsmr.hpp \
+ /usr/include/c++/11/iomanip /usr/include/c++/11/locale \
+ /usr/include/c++/11/bits/locale_facets_nonio.h \
  /usr/include/x86_64-linux-gnu/c++/11/bits/time_members.h \
  /usr/include/x86_64-linux-gnu/c++/11/bits/messages_members.h \
  /usr/include/libintl.h /usr/include/c++/11/bits/codecvt.h \
  /usr/include/c++/11/bits/locale_facets_nonio.tcc \
  /usr/include/c++/11/bits/locale_conv.h \
  /usr/include/c++/11/bits/quoted_string.h /usr/include/c++/11/sstream \
- /usr/include/c++/11/istream /usr/include/c++/11/ios \
- /usr/include/c++/11/bits/basic_ios.h \
- /usr/include/c++/11/bits/basic_ios.tcc /usr/include/c++/11/ostream \
- /usr/include/c++/11/bits/ostream.tcc \
- /usr/include/c++/11/bits/istream.tcc \
- /usr/include/c++/11/bits/sstream.tcc /usr/include/c++/11/iostream \
- ../nufi/blas.hpp /usr/include/c++/11/cstddef ../nufi/lsmr.tpp \
- ../nufi/gmres.hpp /usr/include/c++/11/cstring /usr/include/string.h \
- /usr/include/strings.h \
- /usr/include/x86_64-linux-gnu/bits/strings_fortified.h \
- /usr/include/x86_64-linux-gnu/bits/string_fortified.h ../nufi/lapack.hpp \
- ../nufi/gmres.tpp ../nufi/splines.hpp \
- ../nufi/finite_difference_poisson.hpp /usr/local/include/armadillo \
+ /usr/include/c++/11/bits/sstream.tcc ../nufi/blas.hpp \
+ /usr/include/c++/11/cstddef ../nufi/lsmr.tpp ../nufi/gmres.hpp \
+ /usr/include/c++/11/cstring ../nufi/lapack.hpp ../nufi/gmres.tpp \
+ ../nufi/splines.hpp ../nufi/finite_difference_poisson.hpp \
+ /usr/local/include/armadillo \
  /usr/local/include/armadillo_bits/config.hpp \
  /usr/local/include/armadillo_bits/compiler_check.hpp \
  /usr/include/c++/11/climits /usr/include/c++/11/fstream \
@@ -235,7 +257,6 @@ forces.o: forces.cpp /usr/include/stdc-predef.h ../nufi/forces.hpp \
  /usr/include/c++/11/bits/stl_algo.h \
  /usr/include/c++/11/bits/algorithmfwd.h \
  /usr/include/c++/11/bits/stl_heap.h \
- /usr/include/c++/11/bits/uniform_int_dist.h \
  /usr/include/c++/11/pstl/glue_algorithm_defs.h \
  /usr/include/c++/11/functional /usr/include/c++/11/bits/std_function.h \
  /usr/include/c++/11/unordered_map /usr/include/c++/11/bits/hashtable.h \
@@ -243,20 +264,11 @@ forces.o: forces.cpp /usr/include/stdc-predef.h ../nufi/forces.hpp \
  /usr/include/c++/11/bits/enable_special_members.h \
  /usr/include/c++/11/bits/node_handle.h \
  /usr/include/c++/11/bits/unordered_map.h \
- /usr/include/c++/11/bits/erase_if.h /usr/include/c++/11/vector \
- /usr/include/c++/11/bits/stl_vector.h \
- /usr/include/c++/11/bits/stl_bvector.h \
- /usr/include/c++/11/bits/vector.tcc /usr/include/c++/11/complex \
+ /usr/include/c++/11/bits/erase_if.h /usr/include/c++/11/complex \
  /usr/include/c++/11/map /usr/include/c++/11/bits/stl_tree.h \
  /usr/include/c++/11/bits/stl_map.h \
- /usr/include/c++/11/bits/stl_multimap.h /usr/include/c++/11/random \
- /usr/include/c++/11/bits/random.h \
- /usr/include/x86_64-linux-gnu/c++/11/bits/opt_random.h \
- /usr/include/c++/11/bits/random.tcc /usr/include/c++/11/numeric \
- /usr/include/c++/11/bits/stl_numeric.h \
- /usr/include/c++/11/pstl/glue_numeric_defs.h /usr/include/c++/11/chrono \
- /usr/include/c++/11/ratio /usr/include/c++/11/bits/parse_numbers.h \
- /usr/include/c++/11/mutex /usr/include/c++/11/bits/std_mutex.h \
+ /usr/include/c++/11/bits/stl_multimap.h /usr/include/c++/11/mutex \
+ /usr/include/c++/11/bits/std_mutex.h \
  /usr/include/c++/11/bits/unique_lock.h /usr/include/c++/11/atomic \
  /usr/include/unistd.h /usr/include/x86_64-linux-gnu/bits/posix_opt.h \
  /usr/include/x86_64-linux-gnu/bits/environments.h \
@@ -998,6 +1010,8 @@ forces.o: forces.cpp /usr/include/stdc-predef.h ../nufi/forces.hpp \
 /usr/include/c++/11/pstl/glue_memory_defs.h:
 /usr/include/c++/11/pstl/execution_defs.h:
 ../nufi/config.hpp:
+/usr/include/curand_kernel.h:
+/usr/include/c++/11/math.h:
 /usr/include/c++/11/cmath:
 /usr/include/math.h:
 /usr/include/x86_64-linux-gnu/bits/math-vector.h:
@@ -1039,37 +1053,7 @@ forces.o: forces.cpp /usr/include/stdc-predef.h ../nufi/forces.hpp \
 /usr/include/c++/11/tr1/poly_hermite.tcc:
 /usr/include/c++/11/tr1/poly_laguerre.tcc:
 /usr/include/c++/11/tr1/riemann_zeta.tcc:
-../nufi/cuda_runtime.hpp:
-../nufi/autoconfig.hpp:
-/usr/include/c++/11/stdexcept:
-/usr/include/c++/11/string:
-/usr/include/c++/11/bits/char_traits.h:
-/usr/include/c++/11/cstdint:
-/usr/include/c++/11/bits/localefwd.h:
-/usr/include/x86_64-linux-gnu/c++/11/bits/c++locale.h:
-/usr/include/c++/11/clocale:
-/usr/include/locale.h:
-/usr/include/x86_64-linux-gnu/bits/locale.h:
-/usr/include/c++/11/cctype:
-/usr/include/ctype.h:
-/usr/include/c++/11/bits/ostream_insert.h:
-/usr/include/c++/11/bits/cxxabi_forced.h:
-/usr/include/c++/11/bits/basic_string.h:
-/usr/include/c++/11/string_view:
-/usr/include/c++/11/bits/string_view.tcc:
-/usr/include/c++/11/ext/string_conversions.h:
-/usr/include/c++/11/cstdlib:
-/usr/include/c++/11/cstdio:
-/usr/include/c++/11/cerrno:
-/usr/include/errno.h:
-/usr/include/x86_64-linux-gnu/bits/errno.h:
-/usr/include/linux/errno.h:
-/usr/include/x86_64-linux-gnu/asm/errno.h:
-/usr/include/asm-generic/errno.h:
-/usr/include/asm-generic/errno-base.h:
-/usr/include/x86_64-linux-gnu/bits/types/error_t.h:
-/usr/include/c++/11/bits/charconv.h:
-/usr/include/c++/11/bits/basic_string.tcc:
+/usr/include/curand.h:
 /usr/include/cuda_runtime.h:
 /usr/include/crt/host_config.h:
 /usr/include/builtin_types.h:
@@ -1095,27 +1079,101 @@ forces.o: forces.cpp /usr/include/stdc-predef.h ../nufi/forces.hpp \
 /usr/include/driver_functions.h:
 /usr/include/vector_functions.h:
 /usr/include/vector_functions.hpp:
-../nufi/fields.hpp:
-../nufi/lsmr.hpp:
-/usr/include/c++/11/iomanip:
+/usr/include/curand_discrete.h:
+/usr/include/curand_precalc.h:
+/usr/include/curand_mrg32k3a.h:
+/usr/include/curand_mtgp32_kernel.h:
+/usr/include/cuda.h:
+/usr/include/c++/11/stdlib.h:
+/usr/include/c++/11/cstdlib:
+/usr/include/memory.h:
+/usr/include/string.h:
+/usr/include/strings.h:
+/usr/include/x86_64-linux-gnu/bits/strings_fortified.h:
+/usr/include/x86_64-linux-gnu/bits/string_fortified.h:
+/usr/include/curand_mtgp32.h:
+/usr/include/curand_philox4x32_x.h:
+/usr/include/curand_globals.h:
+/usr/include/curand_uniform.h:
+/usr/include/curand_normal.h:
+/usr/include/curand_normal_static.h:
+/usr/include/curand_lognormal.h:
+/usr/include/curand_poisson.h:
+/usr/include/curand_discrete2.h:
+/usr/include/c++/11/iostream:
+/usr/include/c++/11/ostream:
+/usr/include/c++/11/ios:
+/usr/include/c++/11/bits/char_traits.h:
+/usr/include/c++/11/cstdint:
+/usr/include/c++/11/bits/localefwd.h:
+/usr/include/x86_64-linux-gnu/c++/11/bits/c++locale.h:
+/usr/include/c++/11/clocale:
+/usr/include/locale.h:
+/usr/include/x86_64-linux-gnu/bits/locale.h:
+/usr/include/c++/11/cctype:
+/usr/include/ctype.h:
 /usr/include/c++/11/bits/ios_base.h:
 /usr/include/c++/11/bits/locale_classes.h:
+/usr/include/c++/11/string:
+/usr/include/c++/11/bits/ostream_insert.h:
+/usr/include/c++/11/bits/cxxabi_forced.h:
+/usr/include/c++/11/bits/basic_string.h:
+/usr/include/c++/11/string_view:
+/usr/include/c++/11/bits/string_view.tcc:
+/usr/include/c++/11/ext/string_conversions.h:
+/usr/include/c++/11/cstdio:
+/usr/include/c++/11/cerrno:
+/usr/include/errno.h:
+/usr/include/x86_64-linux-gnu/bits/errno.h:
+/usr/include/linux/errno.h:
+/usr/include/x86_64-linux-gnu/asm/errno.h:
+/usr/include/asm-generic/errno.h:
+/usr/include/asm-generic/errno-base.h:
+/usr/include/x86_64-linux-gnu/bits/types/error_t.h:
+/usr/include/c++/11/bits/charconv.h:
+/usr/include/c++/11/bits/basic_string.tcc:
 /usr/include/c++/11/bits/locale_classes.tcc:
 /usr/include/c++/11/system_error:
 /usr/include/x86_64-linux-gnu/c++/11/bits/error_constants.h:
-/usr/include/c++/11/locale:
+/usr/include/c++/11/stdexcept:
+/usr/include/c++/11/streambuf:
+/usr/include/c++/11/bits/streambuf.tcc:
+/usr/include/c++/11/bits/basic_ios.h:
 /usr/include/c++/11/bits/locale_facets.h:
 /usr/include/c++/11/cwctype:
 /usr/include/wctype.h:
 /usr/include/x86_64-linux-gnu/bits/wctype-wchar.h:
 /usr/include/x86_64-linux-gnu/c++/11/bits/ctype_base.h:
-/usr/include/c++/11/streambuf:
-/usr/include/c++/11/bits/streambuf.tcc:
 /usr/include/c++/11/bits/streambuf_iterator.h:
 /usr/include/x86_64-linux-gnu/c++/11/bits/ctype_inline.h:
 /usr/include/c++/11/bits/locale_facets.tcc:
-/usr/include/c++/11/bits/locale_facets_nonio.h:
+/usr/include/c++/11/bits/basic_ios.tcc:
+/usr/include/c++/11/bits/ostream.tcc:
+/usr/include/c++/11/istream:
+/usr/include/c++/11/bits/istream.tcc:
+/usr/include/c++/11/chrono:
+/usr/include/c++/11/ratio:
 /usr/include/c++/11/ctime:
+/usr/include/c++/11/bits/parse_numbers.h:
+/usr/include/c++/11/random:
+/usr/include/c++/11/bits/random.h:
+/usr/include/c++/11/vector:
+/usr/include/c++/11/bits/stl_vector.h:
+/usr/include/c++/11/bits/stl_bvector.h:
+/usr/include/c++/11/bits/vector.tcc:
+/usr/include/c++/11/bits/uniform_int_dist.h:
+/usr/include/x86_64-linux-gnu/c++/11/bits/opt_random.h:
+/usr/include/c++/11/bits/random.tcc:
+/usr/include/c++/11/numeric:
+/usr/include/c++/11/bits/stl_numeric.h:
+/usr/include/c++/11/pstl/glue_numeric_defs.h:
+../nufi/cuda_runtime.hpp:
+../nufi/autoconfig.hpp:
+../nufi/fields.hpp:
+../nufi/lsmr.hpp:
+/usr/include/c++/11/iomanip:
+/usr/include/c++/11/locale:
+/usr/include/c++/11/bits/locale_facets_nonio.h:
 /usr/include/x86_64-linux-gnu/c++/11/bits/time_members.h:
 /usr/include/x86_64-linux-gnu/c++/11/bits/messages_members.h:
 /usr/include/libintl.h:
@@ -1124,24 +1182,12 @@ forces.o: forces.cpp /usr/include/stdc-predef.h ../nufi/forces.hpp \
 /usr/include/c++/11/bits/locale_conv.h:
 /usr/include/c++/11/bits/quoted_string.h:
 /usr/include/c++/11/sstream:
-/usr/include/c++/11/istream:
-/usr/include/c++/11/ios:
-/usr/include/c++/11/bits/basic_ios.h:
-/usr/include/c++/11/bits/basic_ios.tcc:
-/usr/include/c++/11/ostream:
-/usr/include/c++/11/bits/ostream.tcc:
-/usr/include/c++/11/bits/istream.tcc:
 /usr/include/c++/11/bits/sstream.tcc:
-/usr/include/c++/11/iostream:
 ../nufi/blas.hpp:
 /usr/include/c++/11/cstddef:
 ../nufi/lsmr.tpp:
 ../nufi/gmres.hpp:
 /usr/include/c++/11/cstring:
-/usr/include/string.h:
-/usr/include/strings.h:
-/usr/include/x86_64-linux-gnu/bits/strings_fortified.h:
-/usr/include/x86_64-linux-gnu/bits/string_fortified.h:
 ../nufi/lapack.hpp:
 ../nufi/gmres.tpp:
 ../nufi/splines.hpp:
@@ -1158,7 +1204,6 @@ forces.o: forces.cpp /usr/include/stdc-predef.h ../nufi/forces.hpp \
 /usr/include/c++/11/bits/stl_algo.h:
 /usr/include/c++/11/bits/algorithmfwd.h:
 /usr/include/c++/11/bits/stl_heap.h:
-/usr/include/c++/11/bits/uniform_int_dist.h:
 /usr/include/c++/11/pstl/glue_algorithm_defs.h:
 /usr/include/c++/11/functional:
 /usr/include/c++/11/bits/std_function.h:
@@ -1169,25 +1214,11 @@ forces.o: forces.cpp /usr/include/stdc-predef.h ../nufi/forces.hpp \
 /usr/include/c++/11/bits/node_handle.h:
 /usr/include/c++/11/bits/unordered_map.h:
 /usr/include/c++/11/bits/erase_if.h:
-/usr/include/c++/11/vector:
-/usr/include/c++/11/bits/stl_vector.h:
-/usr/include/c++/11/bits/stl_bvector.h:
-/usr/include/c++/11/bits/vector.tcc:
 /usr/include/c++/11/complex:
 /usr/include/c++/11/map:
 /usr/include/c++/11/bits/stl_tree.h:
 /usr/include/c++/11/bits/stl_map.h:
 /usr/include/c++/11/bits/stl_multimap.h:
-/usr/include/c++/11/random:
-/usr/include/c++/11/bits/random.h:
-/usr/include/x86_64-linux-gnu/c++/11/bits/opt_random.h:
-/usr/include/c++/11/bits/random.tcc:
-/usr/include/c++/11/numeric:
-/usr/include/c++/11/bits/stl_numeric.h:
-/usr/include/c++/11/pstl/glue_numeric_defs.h:
-/usr/include/c++/11/chrono:
-/usr/include/c++/11/ratio:
-/usr/include/c++/11/bits/parse_numbers.h:
 /usr/include/c++/11/mutex:
 /usr/include/c++/11/bits/std_mutex.h:
 /usr/include/c++/11/bits/unique_lock.h:

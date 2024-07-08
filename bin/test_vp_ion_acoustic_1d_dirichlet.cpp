@@ -47,18 +47,18 @@ namespace dirichlet
 {
 
 template <typename real, size_t order>
-void test()
+void nufi_two_species_ion_acoustic_with_reflecting_dirichlet_boundary()
 {
 	config_t<real> conf;
+
 	conf.dt = 0.01;
 	conf.Nt = 1000/conf.dt;
-	//conf.Nt = 12;
 	conf.Nu_electron = 256;
 	conf.Nu_ion = conf.Nu_electron;
-    conf.u_electron_min = -10;
-    conf.u_electron_max =  10;
-    conf.u_ion_min = -4;
-    conf.u_ion_max =  4;
+    conf.u_electron_min = -80;
+    conf.u_electron_max =  80;
+    conf.u_ion_min = -3;
+    conf.u_ion_max =  3;
     conf.du_electron = (conf.u_electron_max - conf.u_electron_min)/conf.Nu_electron;
     conf.du_ion = (conf.u_ion_max - conf.u_ion_min)/conf.Nu_ion;
 
@@ -89,8 +89,6 @@ void test()
     std::cout << conf.dt << std::endl;
     std::cout << conf.Nt <<std::endl;
 
-    std::cout << "nc = " << conf.n_c << std::endl;
-
     double total_time = 0;
 
     std::ofstream stats_file( "stats.txt" );
@@ -99,18 +97,16 @@ void test()
         nufi::stopwatch<double> timer;
 
     	//Compute rho:
-        /*
-    	#pragma omp parallel for
+    	//#pragma omp parallel for
     	for(size_t i = 0; i<conf.Nx; i++)
     	 {
     	 	rho.get()[i] = eval_rho_ion<real,order>(n, i, coeffs.get(), conf)
     	 				  - eval_rho_electron<real,order>(n, i, coeffs.get(), conf);
     	 }
-         */
 
-		std::memset( rho.get(), 0, conf.Nx*sizeof(real) );
-        sched.compute_rho ( n, 0, conf.Nx*conf.Nu_electron );
-        sched.download_rho( rho.get() );
+		//std::memset( rho.get(), 0, conf.Nx*sizeof(real) );
+        //sched.compute_rho ( n, 0, conf.Nx*conf.Nu_electron ); // Works only if Nu_i=Nu_e !!!
+        //sched.download_rho( rho.get() );
 
     	// Set rho_dir:
     	rho_dir.get()[0] = 0; // Left phi value.
@@ -145,14 +141,14 @@ void test()
 
         // Output
         real t = n*conf.dt;
-        real x_min_plot = 0;
-        real x_max_plot = 16;
+        real x_min_plot = conf.x_min;
+        real x_max_plot = conf.x_max;
         real u_min_electron_plot = conf.u_electron_min;
         real u_max_electron_plot = conf.u_electron_max;
         real u_min_ion_plot = conf.u_ion_min;
         real u_max_ion_plot = conf.u_ion_max;
-        size_t plot_x = 1024;
-        size_t plot_u = 1024;
+        size_t plot_x = 256;
+        size_t plot_u = 256;
 
         real dx_plot = (x_max_plot - x_min_plot) / plot_x;
         real du_electron_plot = (u_max_electron_plot - u_min_electron_plot) / plot_u;
@@ -177,7 +173,7 @@ void test()
 					   << std::endl;
 
 
-			if(n % 500 == 0 && true)
+			if(n % 20 == 0 && true)
 			{
 				std::ofstream f_electron_file("f_electron_"+ std::to_string(t) + ".txt");
 				for(size_t i = 0; i <= plot_x; i++)
@@ -186,12 +182,12 @@ void test()
 					{
 						double x = x_min_plot + i*dx_plot;
 						double u = u_min_electron_plot + j*du_electron_plot;
-						double f = eval_f_ion_acoustic<real,order>(n, x, u, coeffs.get(), conf);
+						double f = eval_f_ion_acoustic<real,order>(n, x, u, coeffs.get(), conf,
+									true, true, false);
 						f_electron_file << x << " " << u << " " << f << std::endl;
 					}
 					f_electron_file << std::endl;
 				}
-				/*
 				std::ofstream f_ion_file("f_ion_"+ std::to_string(t) + ".txt");
 				for(size_t i = 0; i <= plot_x; i++)
 				{
@@ -199,12 +195,12 @@ void test()
 					{
 						double x = x_min_plot + i*dx_plot;
 						double u = u_min_ion_plot + j*du_ion_plot;
-						double f = eval_f_ion_acoustic<real,order>(n, x, u, coeffs.get(), conf, false);
+						double f = eval_f_ion_acoustic<real,order>(n, x, u, coeffs.get(), conf,
+									false, true, false);
 						f_ion_file << x << " " << u << " " << f << std::endl;
 					}
 					f_ion_file << std::endl;
 				}
-				*/
 				/*
 				std::ofstream flow_map_electron_file("flow_map_electron_"+ std::to_string(t) + ".txt");
 				for(size_t i = 0; i <= plot_x; i++)
@@ -238,10 +234,11 @@ void test()
 					flow_map_ion_file << std::endl;
 				}
 				*/
-				/*
+
 				std::ofstream E_file("E_"+ std::to_string(t) + ".txt");
 				std::ofstream rho_electron_file("rho_electron_"+ std::to_string(t) + ".txt");
 				std::ofstream rho_ion_file("rho_ion_"+ std::to_string(t) + ".txt");
+				std::ofstream rho_file("rho_"+ std::to_string(t) + ".txt");
 				std::ofstream phi_file("phi_"+ std::to_string(t) + ".txt");
 				for(size_t i = 0; i <= plot_x; i++)
 				{
@@ -250,13 +247,14 @@ void test()
 					real phi = dim1::dirichlet::eval<real,order>( x, coeffs.get() + n*stride_t, conf );
 					real rho_electron = eval_rho_electron<real,order>(n, x, coeffs.get(), conf);
 					real rho_ion = eval_rho_ion<real,order>(n, x, coeffs.get(), conf);
+					real rho = rho_ion - rho_electron;
 
 					E_file << x << " " << E << std::endl;
 					rho_electron_file << x << " " << rho_electron << std::endl;
 					rho_ion_file << x << " " << rho_ion << std::endl;
+					rho_file << x << " " << rho << std::endl;
 					phi_file << x << " " << phi << std::endl;
 				}
-				*/
 			}
         }
     }
@@ -268,7 +266,8 @@ void test()
 
 int main()
 {
-    nufi::dim1::dirichlet::test<double,4>();
+   nufi::dim1::dirichlet::nufi_two_species_ion_acoustic_with_reflecting_dirichlet_boundary<double,4>();
+
 }
 
 
