@@ -628,6 +628,99 @@ real eval_rho_ion( size_t n, real x, const real *coeffs, const config_t<real> &c
     return conf.du_ion*rho_ion;
 }
 
+template <typename real, size_t order>
+real sub_integral_eval_rho_adaptive_trapezoidal_rule( size_t n, real x, const real *coeffs,
+				const config_t<real> &conf, real u_left, real u_right, real f_left,
+				real f_right, size_t depth, bool is_electron = true, bool reflecting_boundary = true,
+				bool relativistic = false)
+{
+	real u_middle = 0.5 * (u_left + u_right);
+	real f_middle = eval_ftilda_ion_acoustic<real,order>( n, x, u_middle, coeffs, conf, is_electron,
+						reflecting_boundary, relativistic );
+	real du = u_right - u_left;
+
+	real QT = 0.5 * du * (f_left + f_right);
+	real QS = 1.0 / 6.0 * du * (f_left + 4 * f_middle + f_right);
+
+	if(QS < 1e-10){
+		// If QS=0, then also QT=0 as f>=0 everywhere. Thus we can return the value here.
+		return QS;
+	}
+
+	if(std::abs(QT - QS)/QS < conf.tol_integral || depth >= conf.max_depth_integration){
+		// If relative integration error is lower than tolerance or maximum depth is reached return value
+		// computed using Simpson quadrature rule.
+		return QS;
+	} else{
+		// Else split integral once more.
+		return sub_integral_eval_rho_adaptive_trapezoidal_rule<real,order>( n, x, coeffs, conf, u_left,
+				u_middle, f_left, f_middle, depth+1, is_electron, reflecting_boundary, relativistic)
+			+ sub_integral_eval_rho_adaptive_trapezoidal_rule<real,order>( n, x, coeffs, conf, u_middle,
+				u_right, f_middle, f_right, depth+1, is_electron, reflecting_boundary, relativistic);
+	}
+}
+
+template <typename real, size_t order>
+real eval_rho_adaptive_trapezoidal_rule( size_t n, real x, const real *coeffs, const config_t<real> &conf,
+								//			real& u_min, real& u_max, // If velocity boundaries are checked
+								// for feasibality comment this back in.
+								real u_min, real u_max,
+								bool is_electron = true, bool reflecting_boundary = true, bool relativistic = false)
+{
+    const size_t stride_x = 1;
+    const size_t stride_t = stride_x*(conf.Nx + order - 1);
+	real f_left = eval_ftilda_ion_acoustic<real,order>( n, x, u_min, coeffs, conf, is_electron );
+	real f_right = eval_ftilda_ion_acoustic<real,order>( n, x, u_max, coeffs, conf, is_electron );
+
+	// Check u_min and u_max for feasibility. If need be extend boundaries and re-check
+	// until value of f again under tolerance. Note that the support should at most extend by the (maximum)
+	// value of E at x in between this and the previous time-step.
+	/*
+	if(n>0){
+		// Don't test for initial time-step.
+		const real *c;
+		c  = coeffs + (n-1)*stride_t;
+		real E_abs = std::abs(eval<real,order,1>( x, c, conf ));
+
+		while(f_left > conf.tol_cut_off_velocity_supp){
+			u_min -= 1.1 * conf.dt * E_abs;
+			f_left = eval_ftilda_ion_acoustic<real,order>( n, x, u_min, coeffs, conf, is_electron );
+		}
+		while(f_right > conf.tol_cut_off_velocity_supp){
+			u_max += 1.1 * conf.dt * E_abs;
+			f_right = eval_ftilda_ion_acoustic<real,order>( n, x, u_max, coeffs, conf, is_electron );
+		}
+	}
+	*/
+
+	// Compute integral.
+	// The interval is divided in at least Nu subintervals and in each a adaptive integration is
+	// started, which halts if either the tolerance (tol_integral) or the maximum depth (max_depth_integration)
+	// is reached.
+	real rho = 0;
+	real du = (u_max - u_min) / conf.Nu;
+	real u_left = u_min;
+	real u_right = u_min + du;
+	real fl = f_left;
+	real fr = eval_ftilda_ion_acoustic<real,order>( n, x, u_right, coeffs, conf, is_electron );
+	rho += sub_integral_eval_rho_adaptive_trapezoidal_rule<real,order>( n, x, coeffs, conf, u_left, u_right,
+					fl, fr, 1, is_electron, reflecting_boundary, relativistic);
+	for(size_t i  = 1; i < conf.Nu-1; i++){
+		u_left = u_min + i * du;
+		u_right = u_left + du;
+		fl = fr;
+		fr = eval_ftilda_ion_acoustic<real,order>( n, x, u_right, coeffs, conf, is_electron );
+		rho += sub_integral_eval_rho_adaptive_trapezoidal_rule<real,order>( n, x, coeffs, conf, u_left, u_right,
+						fl, fr, 1, is_electron, reflecting_boundary, relativistic);
+	}
+	fl = fr;
+	fr = f_right;
+	rho += sub_integral_eval_rho_adaptive_trapezoidal_rule<real,order>( n, x, coeffs, conf, u_left, u_right,
+						fl, fr, 1, is_electron, reflecting_boundary, relativistic);
+
+	return rho;
+}
+
 }
 }
 

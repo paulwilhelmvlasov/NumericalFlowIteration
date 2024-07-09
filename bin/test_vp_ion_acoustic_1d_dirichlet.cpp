@@ -51,10 +51,10 @@ void nufi_two_species_ion_acoustic_with_reflecting_dirichlet_boundary()
 {
 	config_t<real> conf;
 
-	conf.dt = 0.01;
+	conf.dt = 0.05;
 	conf.Nt = 1000/conf.dt;
-	conf.Nu_electron = 256;
-	conf.Nu_ion = conf.Nu_electron;
+	conf.Nu_electron = 32;
+	conf.Nu_ion = 32;
     conf.u_electron_min = -80;
     conf.u_electron_max =  80;
     conf.u_ion_min = -3;
@@ -89,6 +89,10 @@ void nufi_two_species_ion_acoustic_with_reflecting_dirichlet_boundary()
     std::cout << conf.dt << std::endl;
     std::cout << conf.Nt <<std::endl;
 
+    arma::vec rho_tot(conf.Nx,arma::fill::zeros);
+    arma::vec rho_e(conf.Nx,arma::fill::zeros);
+    arma::vec rho_i(conf.Nx,arma::fill::zeros);
+
     double total_time = 0;
 
     std::ofstream stats_file( "stats.txt" );
@@ -100,8 +104,23 @@ void nufi_two_species_ion_acoustic_with_reflecting_dirichlet_boundary()
     	#pragma omp parallel for
     	for(size_t i = 0; i<conf.Nx; i++)
     	 {
+    		/*
     	 	rho.get()[i] = eval_rho_ion<real,order>(n, i, coeffs.get(), conf)
     	 				  - eval_rho_electron<real,order>(n, i, coeffs.get(), conf);
+    		*/
+    		real x = conf.x_min + i*conf.dx;
+    		rho_e(i) = eval_rho_adaptive_trapezoidal_rule<real,order>(n,x,coeffs.get(),conf,conf.u_electron_min,
+					conf.u_electron_max, true, true, false);
+    		rho_i(i) = eval_rho_adaptive_trapezoidal_rule<real,order>(n,x,coeffs.get(),conf,conf.u_ion_min,
+					conf.u_ion_max, false, true, false);
+    		rho_tot(i) = rho_i(i) - rho_e(i);
+    		rho.get()[i] = rho_tot(i);
+    		/*
+    		rho.get()[i] = eval_rho_adaptive_trapezoidal_rule<real,order>(n,x,coeffs.get(),conf,conf.u_ion_min,
+    											conf.u_ion_max, false, true, false)
+						- eval_rho_adaptive_trapezoidal_rule<real,order>(n,x,coeffs.get(),conf,conf.u_electron_min,
+								conf.u_electron_max, true, true, false);
+    		 */
     	 }
 
 		//std::memset( rho.get(), 0, conf.Nx*sizeof(real) );
@@ -137,7 +156,7 @@ void nufi_two_species_ion_acoustic_with_reflecting_dirichlet_boundary()
         double time_elapsed = timer.elapsed();
         total_time += time_elapsed;
 
-        std::cout << "Iteration " << n << " Time for step: " << time_elapsed << " and total time s.f.: " << total_time << std::endl;
+        std::cout << "t = " << n*conf.dt << " Iteration " << n << " Time for step: " << time_elapsed << " and total time s.f.: " << total_time << std::endl;
 
         // Output
         real t = n*conf.dt;
@@ -173,7 +192,7 @@ void nufi_two_species_ion_acoustic_with_reflecting_dirichlet_boundary()
 					   << std::endl;
 
 
-			if(n % 20 == 0 && true)
+			if(n % (20*25) == 0 && true)
 			{
 				std::ofstream f_electron_file("f_electron_"+ std::to_string(t) + ".txt");
 				for(size_t i = 0; i <= plot_x; i++)
@@ -245,15 +264,23 @@ void nufi_two_species_ion_acoustic_with_reflecting_dirichlet_boundary()
 					real x = x_min_plot + i*dx_plot;
 					real E = -dim1::dirichlet::eval<real,order,1>( x, coeffs.get() + n*stride_t, conf );
 					real phi = dim1::dirichlet::eval<real,order>( x, coeffs.get() + n*stride_t, conf );
-					real rho_electron = eval_rho_electron<real,order>(n, x, coeffs.get(), conf);
-					real rho_ion = eval_rho_ion<real,order>(n, x, coeffs.get(), conf);
-					real rho = rho_ion - rho_electron;
+					//real rho_electron = eval_rho_electron<real,order>(n, x, coeffs.get(), conf);
+					//real rho_ion = eval_rho_ion<real,order>(n, x, coeffs.get(), conf);
+					//real rho = rho_ion - rho_electron;
 
 					E_file << x << " " << E << std::endl;
-					rho_electron_file << x << " " << rho_electron << std::endl;
-					rho_ion_file << x << " " << rho_ion << std::endl;
-					rho_file << x << " " << rho << std::endl;
+					//rho_electron_file << x << " " << rho_electron << std::endl;
+					//rho_ion_file << x << " " << rho_ion << std::endl;
+					//rho_file << x << " " << rho << std::endl;
 					phi_file << x << " " << phi << std::endl;
+				}
+
+				for(size_t i = 0; i < conf.Nx; i++)
+				{
+					real x = x_min_plot + i*conf.dx;
+					rho_electron_file << x << " " << rho_e(i) << std::endl;
+					rho_ion_file << x << " " << rho_i(i) << std::endl;
+					rho_file << x << " " << rho_tot(i) << std::endl;
 				}
 			}
         }

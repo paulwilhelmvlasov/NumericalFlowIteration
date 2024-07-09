@@ -150,7 +150,8 @@ struct config_t
 
     // Dimensions of physical domain.
     //real x_min, x_max;
-    real tolerance;
+    real tol_integral;
+    size_t max_depth_integration;
     // Integration limits for velocity space.
     real u_min, u_max;
     real u_electron_min, u_electron_max;
@@ -175,7 +176,6 @@ struct config_t
 template <typename real>
 config_t<real>::config_t() noexcept
 {
-    tolerance = 10e-6;
     Nx = 64;
     Nu = 16;
     u_min = -1;
@@ -200,6 +200,9 @@ config_t<real>::config_t() noexcept
 
     du_electron = (u_electron_max - u_electron_min)/Nu_electron;
     du_ion = (u_ion_max - u_ion_min)/Nu_ion;
+
+    tol_integral = 1e-3;
+    max_depth_integration = 5;
 }
 
 template <typename real>
