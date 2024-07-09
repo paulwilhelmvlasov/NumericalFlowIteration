@@ -45,27 +45,41 @@ poisson_fd_mixed_neumann_dirichlet::~poisson_fd_mixed_neumann_dirichlet()
 poisson_fd_mixed_neumann_dirichlet::poisson_fd_mixed_neumann_dirichlet
 		( const config_t<double> &p_param ): param { p_param }
 {
-	A = arma::mat(param.Nx + 1, param.Nx + 1, arma::fill::zeros);
+	A = arma::mat(param.Nx + 2, param.Nx + 1, arma::fill::zeros);
 	A(0,0) = -1;
+	A(0,1) = 1;
 	for(size_t i = 1; i < param.Nx; i++){
 		A(i,i-1) = -1;
 		A(i,i) = 2;
 		A(i,i+1) = -1;
 	}
-	A(param.Nx,param.Nx-1) = -2;
-	A(param.Nx,param.Nx) = 2;
+	A(param.Nx,param.Nx-1) = -1;
+	A(param.Nx,param.Nx) = 1;
 
-	std::cout << arma::cond(A) << std::endl;
-	//std::cout << A << std::endl;
+	for(size_t i = 0; i < param.Nx + 1; i++){
+		A(param.Nx + 1, i) = 1;
+	}
+
+	/*
+	std::cout << A << std::endl;
+	std::cout << "n_row = " << A.n_rows << std::endl;
+	std::cout << "n_cols = " << A.n_cols << std::endl;
+	*/
 }
 
-void poisson_fd_mixed_neumann_dirichlet::solve(const arma::vec& rho, arma::vec& phi){
-	arma::vec rhs = rho;
+void poisson_fd_mixed_neumann_dirichlet::solve(arma::vec& rho_phi){
+//	std::cout << rho_phi << std::endl;
+//	std::cout << "N_rows = " << rho_phi.n_elem << std::endl;
+	arma::vec rhs(param.Nx+2,arma::fill::zeros);
+	rhs.subvec(0,param.Nx) = param.dx*param.dx*rho_phi;
 	rhs(0) = 0;
+	rhs(param.Nx-1) = 0;
+	rhs(param.Nx) = 0;
 
-	rhs *= param.dx*param.dx;
+//	std::cout << rhs << std::endl;
+//	std::cout << "N_rows = " << rhs.n_elem << std::endl;
 
-	arma::solve(phi, A, rhs);
+	arma::solve(rho_phi, A, rhs);
 }
 
 poisson_fd_dirichlet<double>::poisson_fd_dirichlet()

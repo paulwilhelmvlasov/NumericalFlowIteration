@@ -424,7 +424,7 @@ void pic_ion_acoustic()
 }
 
 
-
+/*
 void test_mixed_neumann_dirichlet()
 {
 	nufi::dim1::dirichlet::config_t<double> param;
@@ -465,7 +465,7 @@ void test_mixed_neumann_dirichlet()
 	std::cout << "L2 error = " << l2_error << std::endl;
 	std::cout << "Max error = " << max_error << std::endl;
 }
-
+*/
 
 
 int main() {

@@ -61,6 +61,9 @@ void nufi_two_species_ion_acoustic_with_reflecting_dirichlet_boundary()
     conf.u_ion_max =  3;
     conf.du_electron = (conf.u_electron_max - conf.u_electron_min)/conf.Nu_electron;
     conf.du_ion = (conf.u_ion_max - conf.u_ion_min)/conf.Nu_ion;
+    conf.Nx = 128;
+    conf.dx = (conf.x_max - conf.x_min)/conf.Nx;
+    conf.dx_inv = 1.0/conf.dx;
 
     const size_t stride_x = 1;
     const size_t stride_t = conf.Nx + order - 2; // conf.Nx = l+2, therefore: conf.Nx +order-2 = order+l
@@ -72,9 +75,10 @@ void nufi_two_species_ion_acoustic_with_reflecting_dirichlet_boundary()
     std::unique_ptr<real,decltype(std::free)*> phi_ext { reinterpret_cast<real*>(std::aligned_alloc(64,sizeof(real)*stride_t)), std::free };//rename, this is the rhs of the interpolation task, but with 2 additional entries.
 
 
-    poisson_fd_dirichlet<double> poiss(conf);
-	//cuda_scheduler<real,order> sched { conf };
-    cuda_scheduler<real,order> sched { conf }; // Unused atm.!
+    //poisson_fd_dirichlet<double> poiss(conf);
+    poisson_fd_mixed_neumann_dirichlet poiss(conf);
+
+    //cuda_scheduler<real,order> sched { conf };
 
     std::cout << "u_electron_min = " <<  conf.u_electron_min << std::endl;
     std::cout << "u_electron_max = " <<  conf.u_electron_max << std::endl;
@@ -85,13 +89,14 @@ void nufi_two_species_ion_acoustic_with_reflecting_dirichlet_boundary()
     std::cout << "Nu_ion = " << conf.Nu_ion <<std::endl;
     std::cout << "du_ion = " << conf.du_ion <<std::endl;
     std::cout << "x_min = " << conf.x_min << " x_max = " << conf.x_max << std::endl;
-    std::cout << conf.Nx <<std::endl;
-    std::cout << conf.dt << std::endl;
-    std::cout << conf.Nt <<std::endl;
+    std::cout << "Nx = " << conf.Nx <<std::endl;
+    std::cout << "dt = " << conf.dt << std::endl;
+    std::cout << "Nt = " << conf.Nt <<std::endl;
 
     arma::vec rho_tot(conf.Nx,arma::fill::zeros);
     arma::vec rho_e(conf.Nx,arma::fill::zeros);
     arma::vec rho_i(conf.Nx,arma::fill::zeros);
+    arma::vec rho_phi(conf.Nx+1,arma::fill::zeros);
 
     double total_time = 0;
 
@@ -114,6 +119,7 @@ void nufi_two_species_ion_acoustic_with_reflecting_dirichlet_boundary()
     		rho_i(i) = eval_rho_adaptive_trapezoidal_rule<real,order>(n,x,coeffs.get(),conf,conf.u_ion_min,
 					conf.u_ion_max, false, true, false);
     		rho_tot(i) = rho_i(i) - rho_e(i);
+    		rho_phi(i) = rho_tot(i);
     		rho.get()[i] = rho_tot(i);
     		/*
     		rho.get()[i] = eval_rho_adaptive_trapezoidal_rule<real,order>(n,x,coeffs.get(),conf,conf.u_ion_min,
@@ -128,15 +134,19 @@ void nufi_two_species_ion_acoustic_with_reflecting_dirichlet_boundary()
         //sched.download_rho( rho.get() );
 
     	// Set rho_dir:
+    	/*
     	rho_dir.get()[0] = 0; // Left phi value.
     	for(size_t i = 1; i < conf.Nx; i++)
     	{
     		rho_dir.get()[i] = rho.get()[i];
     	}
     	rho_dir.get()[conf.Nx] = 0; // Left phi value.
+    	*/
 
     	// Solve for phi:
-    	poiss.solve(rho_dir.get());
+    	//poiss.solve(rho_dir.get());
+    	poiss.solve(rho_phi);
+
 
         // this is the value to the left of a.
         phi_ext.get()[0]=0;
@@ -147,12 +157,12 @@ void nufi_two_species_ion_acoustic_with_reflecting_dirichlet_boundary()
         }
         //these are all values in [a,b]
         for(size_t i = 1; i<conf.Nx+1;i++){
-            phi_ext.get()[i] = rho_dir.get()[i-1];
-
+            //phi_ext.get()[i] = rho_dir.get()[i-1];
+        	phi_ext.get()[i] = rho_phi(i-1);
         }
 
         dim1::dirichlet::interpolate<real,order>( coeffs.get() + n*stride_t,phi_ext.get(), conf );
-        sched.upload_phi( n, coeffs.get() );
+        //sched.upload_phi( n, coeffs.get() );
         double time_elapsed = timer.elapsed();
         total_time += time_elapsed;
 

@@ -48,7 +48,7 @@ namespace dirichlet
 		config_t<double> conf() const noexcept { return param; }
 		void             conf( const config_t<double> &new_param );
 
-		void solve( const arma::vec& rho, arma::vec& phi); //const noexcept;
+		void solve( arma::vec& rho_phi); //const noexcept;
 
 	private:
 		arma::mat A;
