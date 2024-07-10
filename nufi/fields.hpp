@@ -201,8 +201,8 @@ void interpolate( real *coeffs, const real *values, const config_t<real> &config
 }
 
 namespace dirichlet{
-    
-    template <typename real, size_t order, size_t dx = 0>
+
+template <typename real, size_t order, size_t dx = 0>
 __host__ __device__
 real eval( real x, const real *coeffs, const config_t<real> &config ) noexcept
 {
@@ -226,11 +226,39 @@ real eval( real x, const real *coeffs, const config_t<real> &config ) noexcept
     // Convert x to reference coordinates.
     x = x*config.dx_inv - x_knot;
 
-    // Scale according to derivative.
     real factor = 1;
     for ( size_t i = 0; i < dx; ++i ) factor *= config.dx_inv;
 
     return factor*splines1d::eval<real,order,dx>( x, coeffs + ii );
+}
+
+template <typename real, size_t order>
+real eval_E(real x, const real *coeffs, const config_t<real> &config ) noexcept
+{
+	// For some reason the computation of E with eval(...) doesn't work
+	// properly. In particular there are huge errors at the boundaries.
+	// Therefore this is a work-around using finite differences. A proper
+	// implementation is needed asap.
+	// Note: E(x) = - d/dx phi(x).
+
+	if(x <= config.x_min || x >= config.x_max ){
+		return 0;
+	}
+
+	real x_mid = (config.x_max - config.x_min)/2.0;
+	if(x < x_mid){
+		real f0 = eval<real,order>(x,coeffs,config);
+		real f1 = eval<real,order>(x+config.dx,coeffs,config);
+		real f2 = eval<real,order>(x+2*config.dx,coeffs,config);
+
+		return -config.dx_inv*(-1.5*f0+2*f1-0.5*f2);
+	}
+
+	real f0 = eval<real,order>(x,coeffs,config);
+	real f1 = eval<real,order>(x-config.dx,coeffs,config);
+	real f2 = eval<real,order>(x-2*config.dx,coeffs,config);
+
+	return -config.dx_inv*(1.5*f0-2*f1+0.5*f2);
 }
 
 template <typename real, size_t order>
@@ -246,8 +274,6 @@ void interpolate( real *coeffs, const real *values, const config_t<real> &config
         tmp[ i ] = coeffs[ i ];
         
     }
-    
-    
 
     struct mat_t
     {

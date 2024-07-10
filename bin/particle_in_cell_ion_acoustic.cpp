@@ -424,27 +424,24 @@ void pic_ion_acoustic()
 }
 
 
-/*
-void test_mixed_neumann_dirichlet()
+void test_pure_neumann_dirichlet()
 {
 	nufi::dim1::dirichlet::config_t<double> param;
 	double x_min = 0;
 	double x_max = 2*M_PI;
 	param.Lx = x_max - x_min;
-	param.Nx = 5;
+	param.Nx = 64;
 	param.dx = param.Lx / param.Nx;
 
-	nufi::dim1::dirichlet::poisson_fd_mixed_neumann_dirichlet poisson_solver(param);
+	nufi::dim1::dirichlet::poisson_fd_pure_neumann_dirichlet poisson_solver(param);
 
-	arma::vec rho(param.Nx+1,arma::fill::zeros);
+	arma::vec rho_phi(param.Nx+1,arma::fill::zeros);
 	for(size_t i = 0; i <= param.Nx; i++){
 		double x = i*param.dx;
-		rho(i) = std::cos(x);
+		rho_phi(i) = (x-M_PI)*(x-M_PI);
 	}
 
-	arma::vec phi(param.Nx+1, arma::fill::zeros);
-
-	poisson_solver.solve(rho, phi);
+	poisson_solver.solve(rho_phi);
 
 
 	size_t Nx_plot = param.Nx;
@@ -455,8 +452,8 @@ void test_mixed_neumann_dirichlet()
 	for(size_t i = 0; i <= Nx_plot; i++){
 		double x = i*dx_plot;
 		double phi_exact = cos(x) - 1;
-		double err = abs(phi(i) - phi_exact);
-		result << x << " " << phi(i) << " " << phi_exact << " " << err << std::endl;
+		double err = abs(rho_phi(i) - phi_exact);
+		result << x << " " << rho_phi(i) << " " << phi_exact << " " << err << std::endl;
 		l2_error += err*err;
 		max_error = std::max(max_error, err);
 	}
@@ -465,13 +462,13 @@ void test_mixed_neumann_dirichlet()
 	std::cout << "L2 error = " << l2_error << std::endl;
 	std::cout << "Max error = " << max_error << std::endl;
 }
-*/
+
 
 
 int main() {
-	nufi::dim1::dirichlet::pic_ion_acoustic();
+//	nufi::dim1::dirichlet::pic_ion_acoustic();
 
-	//test_mixed_neumann_dirichlet();
+	test_pure_neumann_dirichlet();
 
 
     return 0;

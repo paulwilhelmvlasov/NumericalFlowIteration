@@ -36,13 +36,13 @@ namespace dim1
 namespace dirichlet
 {
 
-poisson_fd_mixed_neumann_dirichlet::poisson_fd_mixed_neumann_dirichlet()
+poisson_fd_pure_neumann_dirichlet::poisson_fd_pure_neumann_dirichlet()
 { }
 
-poisson_fd_mixed_neumann_dirichlet::~poisson_fd_mixed_neumann_dirichlet()
+poisson_fd_pure_neumann_dirichlet::~poisson_fd_pure_neumann_dirichlet()
 { }
 
-poisson_fd_mixed_neumann_dirichlet::poisson_fd_mixed_neumann_dirichlet
+poisson_fd_pure_neumann_dirichlet::poisson_fd_pure_neumann_dirichlet
 		( const config_t<double> &p_param ): param { p_param }
 {
 	A = arma::mat(param.Nx + 2, param.Nx + 1, arma::fill::zeros);
@@ -67,7 +67,7 @@ poisson_fd_mixed_neumann_dirichlet::poisson_fd_mixed_neumann_dirichlet
 	*/
 }
 
-void poisson_fd_mixed_neumann_dirichlet::solve(arma::vec& rho_phi){
+void poisson_fd_pure_neumann_dirichlet::solve(arma::vec& rho_phi){
 //	std::cout << rho_phi << std::endl;
 //	std::cout << "N_rows = " << rho_phi.n_elem << std::endl;
 	arma::vec rhs(param.Nx+2,arma::fill::zeros);

@@ -34,16 +34,16 @@ namespace dim1
 namespace dirichlet
 {
 
-	class poisson_fd_mixed_neumann_dirichlet
+	class poisson_fd_pure_neumann_dirichlet
 	{
 	public:
-		poisson_fd_mixed_neumann_dirichlet();
-		poisson_fd_mixed_neumann_dirichlet( const poisson_fd_mixed_neumann_dirichlet  &rhs ) = delete;
-		poisson_fd_mixed_neumann_dirichlet(       poisson_fd_mixed_neumann_dirichlet &&rhs ) = delete;
-		poisson_fd_mixed_neumann_dirichlet& operator=( const poisson_fd_mixed_neumann_dirichlet &rhs ) = delete;
-		poisson_fd_mixed_neumann_dirichlet& operator=(       poisson_fd_mixed_neumann_dirichlet &&rhs ) = delete;
-		poisson_fd_mixed_neumann_dirichlet(const config_t<double> &param );
-		~poisson_fd_mixed_neumann_dirichlet();
+		poisson_fd_pure_neumann_dirichlet();
+		poisson_fd_pure_neumann_dirichlet( const poisson_fd_pure_neumann_dirichlet  &rhs ) = delete;
+		poisson_fd_pure_neumann_dirichlet(       poisson_fd_pure_neumann_dirichlet &&rhs ) = delete;
+		poisson_fd_pure_neumann_dirichlet& operator=( const poisson_fd_pure_neumann_dirichlet &rhs ) = delete;
+		poisson_fd_pure_neumann_dirichlet& operator=(       poisson_fd_pure_neumann_dirichlet &&rhs ) = delete;
+		poisson_fd_pure_neumann_dirichlet(const config_t<double> &param );
+		~poisson_fd_pure_neumann_dirichlet();
 
 		config_t<double> conf() const noexcept { return param; }
 		void             conf( const config_t<double> &new_param );

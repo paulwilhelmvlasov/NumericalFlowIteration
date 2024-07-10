@@ -354,7 +354,8 @@ real eval_ftilda_ion_acoustic( size_t n, real x, real u,
     	}
 
         c  = coeffs + n*stride_t;
-        Ex = -eval<real,order,1>(x,c,conf);
+        //Ex = -eval<real,order,1>(x,c,conf);
+        Ex = eval_E<real,order>(x,c,conf);
         u  += (electron/conf.m_e + (!electron)*(-1)/conf.m_i) * conf.dt*Ex;
 
         // Reflecting boundaries:
@@ -390,7 +391,8 @@ real eval_ftilda_ion_acoustic( size_t n, real x, real u,
     x  -= conf.dt*u;
 
     c  = coeffs + n*stride_t;
-    Ex = -eval<real,order,1>(x,c,conf);
+    //Ex = -eval<real,order,1>(x,c,conf);
+    Ex = eval_E<real,order>(x,c,conf);
     u  += (electron/conf.m_e + (!electron)*(-1)/conf.m_i) * conf.dt*Ex;
 
     // Reflecting boundaries:
@@ -467,7 +469,8 @@ real eval_f_ion_acoustic( size_t n, real x, real u,
 
     // Initial half-step.
     c  = coeffs + n*stride_t;
-    Ex = -eval<real,order,1>( x, c, conf );
+    //Ex = -eval<real,order,1>( x, c, conf );
+    Ex = eval_E<real,order>(x,c,conf);
     u += (electron/conf.m_e + (!electron)*(-1)/conf.m_i) * 0.5*conf.dt*Ex;
 
     while ( --n )
@@ -482,7 +485,8 @@ real eval_f_ion_acoustic( size_t n, real x, real u,
     	}
 
     	c  = coeffs + n*stride_t;
-		Ex = -eval<real,order,1>(x,c,conf);
+		//Ex = -eval<real,order,1>(x,c,conf);
+    	Ex = eval_E<real,order>(x,c,conf);
 		u  += (electron/conf.m_e + (!electron)*(-1)/conf.m_i) * conf.dt*Ex;
 
 	    if(reflecting_boundary){
@@ -517,7 +521,8 @@ real eval_f_ion_acoustic( size_t n, real x, real u,
 		x  -= conf.dt*u;
     }
     c  = coeffs + n*stride_t;
-    Ex = -eval<real,order,1>(x,c,conf);
+    //Ex = -eval<real,order,1>(x,c,conf);
+    Ex = eval_E<real,order>(x,c,conf);
     u  += (electron/conf.m_e + (!electron)*(-1)/conf.m_i) * conf.dt*Ex;
 
     // Reflecting boundaries:

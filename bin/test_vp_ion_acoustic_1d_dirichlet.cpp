@@ -52,16 +52,17 @@ void nufi_two_species_ion_acoustic_with_reflecting_dirichlet_boundary()
 	config_t<real> conf;
 
 	conf.dt = 0.05;
-	conf.Nt = 1000/conf.dt;
-	conf.Nu_electron = 32;
-	conf.Nu_ion = 32;
-    conf.u_electron_min = -80;
-    conf.u_electron_max =  80;
-    conf.u_ion_min = -3;
-    conf.u_ion_max =  3;
+	conf.Nt = 50/conf.dt;
+	conf.Nu_electron = 128;
+	conf.Nu_ion = 1024;
+    conf.u_electron_min = -50;
+    conf.u_electron_max =  50;
+    conf.u_ion_min = -0.6;
+    conf.u_ion_max =  0.6;
     conf.du_electron = (conf.u_electron_max - conf.u_electron_min)/conf.Nu_electron;
     conf.du_ion = (conf.u_ion_max - conf.u_ion_min)/conf.Nu_ion;
-    conf.Nx = 128;
+    conf.Nx = 1024;
+    conf.l = conf.Nx - 1;
     conf.dx = (conf.x_max - conf.x_min)/conf.Nx;
     conf.dx_inv = 1.0/conf.dx;
 
@@ -76,7 +77,7 @@ void nufi_two_species_ion_acoustic_with_reflecting_dirichlet_boundary()
 
 
     //poisson_fd_dirichlet<double> poiss(conf);
-    poisson_fd_mixed_neumann_dirichlet poiss(conf);
+    poisson_fd_pure_neumann_dirichlet poiss(conf);
 
     //cuda_scheduler<real,order> sched { conf };
 
@@ -101,6 +102,8 @@ void nufi_two_species_ion_acoustic_with_reflecting_dirichlet_boundary()
     double total_time = 0;
 
     std::ofstream stats_file( "stats.txt" );
+    std::ofstream coeffs_str( "coeffs_Nt_" + std::to_string(conf.dt) + "_Nx_ "
+				+ std::to_string(conf.Nx) + "_stride_t_" + std::to_string(stride_t) + ".txt" );
     for ( size_t n = 0; n <= conf.Nt; n++ )
     {
         nufi::stopwatch<double> timer;
@@ -114,10 +117,15 @@ void nufi_two_species_ion_acoustic_with_reflecting_dirichlet_boundary()
     	 				  - eval_rho_electron<real,order>(n, i, coeffs.get(), conf);
     		*/
     		real x = conf.x_min + i*conf.dx;
+    		/*
     		rho_e(i) = eval_rho_adaptive_trapezoidal_rule<real,order>(n,x,coeffs.get(),conf,conf.u_electron_min,
 					conf.u_electron_max, true, true, false);
+					*/
+    		rho_e(i) = 1;
     		rho_i(i) = eval_rho_adaptive_trapezoidal_rule<real,order>(n,x,coeffs.get(),conf,conf.u_ion_min,
 					conf.u_ion_max, false, true, false);
+
+    		//rho_i(i) = 1;
     		rho_tot(i) = rho_i(i) - rho_e(i);
     		rho_phi(i) = rho_tot(i);
     		rho.get()[i] = rho_tot(i);
@@ -149,11 +157,11 @@ void nufi_two_species_ion_acoustic_with_reflecting_dirichlet_boundary()
 
 
         // this is the value to the left of a.
-        phi_ext.get()[0]=0;
+        phi_ext.get()[0]=rho_phi(0);
 
         // this is the value to the right of b.
         for(size_t i = 0; i<order-3;i++){
-            phi_ext.get()[stride_t-1-i] = 0;
+            phi_ext.get()[stride_t-1-i] = rho_phi(conf.Nx);
         }
         //these are all values in [a,b]
         for(size_t i = 1; i<conf.Nx+1;i++){
@@ -162,6 +170,11 @@ void nufi_two_species_ion_acoustic_with_reflecting_dirichlet_boundary()
         }
 
         dim1::dirichlet::interpolate<real,order>( coeffs.get() + n*stride_t,phi_ext.get(), conf );
+        // Output coeffs to reproduce results later.
+        for(size_t i = 0; i < stride_t; i++){
+        	coeffs_str << coeffs.get()[n*stride_t + i] << std::endl;
+        }
+
         //sched.upload_phi( n, coeffs.get() );
         double time_elapsed = timer.elapsed();
         total_time += time_elapsed;
@@ -176,8 +189,8 @@ void nufi_two_species_ion_acoustic_with_reflecting_dirichlet_boundary()
         real u_max_electron_plot = conf.u_electron_max;
         real u_min_ion_plot = conf.u_ion_min;
         real u_max_ion_plot = conf.u_ion_max;
-        size_t plot_x = 256;
-        size_t plot_u = 256;
+        size_t plot_x = 512;
+        size_t plot_u = 512;
 
         real dx_plot = (x_max_plot - x_min_plot) / plot_x;
         real du_electron_plot = (u_max_electron_plot - u_min_electron_plot) / plot_u;
@@ -190,7 +203,8 @@ void nufi_two_species_ion_acoustic_with_reflecting_dirichlet_boundary()
 			for(size_t i = 0; i < plot_x; i++)
 			{
 				real x = x_min_plot + (i+0.5)*dx_plot;
-				real E = -dim1::dirichlet::eval<real,order,1>( x, coeffs.get() + n*stride_t, conf );
+				//real E = -dim1::dirichlet::eval<real,order,1>( x, coeffs.get() + n*stride_t, conf );
+				real E = -dim1::dirichlet::eval_E<real,order>( x, coeffs.get() + n*stride_t, conf );
 
 				E_max = std::max( E_max, abs(E) );
 				E_l2 += E*E;
@@ -202,7 +216,7 @@ void nufi_two_species_ion_acoustic_with_reflecting_dirichlet_boundary()
 					   << std::endl;
 
 
-			if(n % (20*25) == 0 && true)
+			if(n % (20*5) == 0 && true)
 			{
 				std::ofstream f_electron_file("f_electron_"+ std::to_string(t) + ".txt");
 				for(size_t i = 0; i <= plot_x; i++)
@@ -230,39 +244,6 @@ void nufi_two_species_ion_acoustic_with_reflecting_dirichlet_boundary()
 					}
 					f_ion_file << std::endl;
 				}
-				/*
-				std::ofstream flow_map_electron_file("flow_map_electron_"+ std::to_string(t) + ".txt");
-				for(size_t i = 0; i <= plot_x; i++)
-				{
-					for(size_t j = 0; j <= plot_u; j++)
-					{
-						double x = x_min_plot + i*dx_plot;
-						double u = u_min_ion_plot + j*du_ion_plot;
-						double x_0 = x;
-						double u_0 = u;
-						eval_flow_map_ion_acoustic<real,order>(n, x_0, u_0, coeffs.get(),
-																conf, true);
-						flow_map_electron_file << x << " " << u << " " << x_0 << " " << u_0 << std::endl;
-					}
-					flow_map_electron_file << std::endl;
-				}
-
-				std::ofstream flow_map_ion_file("flow_map_ion_"+ std::to_string(t) + ".txt");
-				for(size_t i = 0; i <= plot_x; i++)
-				{
-					for(size_t j = 0; j <= plot_u; j++)
-					{
-						double x = x_min_plot + i*dx_plot;
-						double u = u_min_ion_plot + j*du_ion_plot;
-						double x_0 = x;
-						double u_0 = u;
-						eval_flow_map_ion_acoustic<real,order>(n, x_0, u_0, coeffs.get(),
-																conf, false);
-						flow_map_ion_file << x << " " << u << " " << x_0 << " " << u_0 << std::endl;
-					}
-					flow_map_ion_file << std::endl;
-				}
-				*/
 
 				std::ofstream E_file("E_"+ std::to_string(t) + ".txt");
 				std::ofstream rho_electron_file("rho_electron_"+ std::to_string(t) + ".txt");
@@ -272,7 +253,8 @@ void nufi_two_species_ion_acoustic_with_reflecting_dirichlet_boundary()
 				for(size_t i = 0; i <= plot_x; i++)
 				{
 					real x = x_min_plot + i*dx_plot;
-					real E = -dim1::dirichlet::eval<real,order,1>( x, coeffs.get() + n*stride_t, conf );
+					//real E = -dim1::dirichlet::eval<real,order,1>( x, coeffs.get() + n*stride_t, conf );
+					real E = -dim1::dirichlet::eval_E<real,order>( x, coeffs.get() + n*stride_t, conf );
 					real phi = dim1::dirichlet::eval<real,order>( x, coeffs.get() + n*stride_t, conf );
 					//real rho_electron = eval_rho_electron<real,order>(n, x, coeffs.get(), conf);
 					//real rho_ion = eval_rho_ion<real,order>(n, x, coeffs.get(), conf);

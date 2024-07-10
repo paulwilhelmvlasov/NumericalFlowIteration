@@ -116,7 +116,7 @@ struct config_t
     // Ion Acoustic specific parameters:
 	constexpr static real K = 1; // Boltzmann constant
 	constexpr static real c = 1;
-    constexpr static real T_e = 100, T_i = 1;
+    constexpr static real T_e = 10, T_i = 0.1;
     constexpr static real m_e = 1, m_i = 1836;
     //static real v_e_th = std::sqrt(T_e/m_e);
     //static real v_i_th = std::sqrt(T_i/m_i);
@@ -140,7 +140,7 @@ struct config_t
 
 
     // "Standard parameters"
-    static constexpr real x_min = -100, x_max = 0, epsilon = 0.5;
+    static constexpr real x_min = -5, x_max = 0, epsilon = 0.5;
 
 	size_t Nx;  // Number of grid points in physical space.
     size_t Nu;
@@ -183,7 +183,7 @@ config_t<real>::config_t() noexcept
     l = Nx -1;
 //    dt = 1./8.; Nt = 5/dt;
 
-    Nu_electron = 128;
+    Nu_electron = 512;
     Nu_ion = Nu_electron;
 
     u_electron_min = -100;
@@ -239,7 +239,8 @@ template <typename real>
 //__host__ __device__
 real config_t<real>::f0_electron( real x, real u ) noexcept
 {
-	real us = M_0;
+	//real us = M_0;
+	real us = 0;
 	return initial_plasma_density(x)*boltzmann(u-us,T_e,m_e);
 }
 
@@ -247,7 +248,8 @@ template <typename real>
 //__host__ __device__
 real config_t<real>::f0_ion( real x, real u ) noexcept
 {
-	real us = M_0;
+	//real us = M_0;
+	real us = 0.4;
 	return initial_plasma_density(x)*boltzmann(u-us,T_i,m_i);
 }
 
