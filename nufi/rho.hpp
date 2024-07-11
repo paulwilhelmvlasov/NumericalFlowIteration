@@ -322,8 +322,9 @@ real eval_ftilda_ion_acoustic( size_t n, real x, real u,
 				return config_t<real>::f0_ion(x, u);
 			}
 		} else if(x > conf.x_max){
-			//x = conf.x_max;
-			//u = -u;
+			x = conf.x_max;
+			u = -u;
+			/*
 			u = -std::abs(u);
 			if(electron){
 				//u = conf.u_wall_electron();
@@ -332,6 +333,7 @@ real eval_ftilda_ion_acoustic( size_t n, real x, real u,
 				//u = conf.u_wall_ion();
 				return conf.boltzmann(u, conf.T_i, conf.m_i);
 			}
+			*/
 		}
 	}
 
@@ -361,8 +363,9 @@ real eval_ftilda_ion_acoustic( size_t n, real x, real u,
         // Reflecting boundaries:
         if(reflecting_boundary){
 			if(x > conf.x_max){
-				//x = conf.x_max;
-				//u = -u;
+				x = conf.x_max;
+				u = -u;
+				/*
 				u = -std::abs(u);
 				if(electron){
 					//u = conf.u_wall_electron();
@@ -371,6 +374,7 @@ real eval_ftilda_ion_acoustic( size_t n, real x, real u,
 					//u = conf.u_wall_ion();
 					return conf.boltzmann(u, conf.T_i, conf.m_i);
 				}
+				*/
 			}else if(x < conf.x_min){
 				if(electron){
 					return config_t<real>::f0_electron(x, u);
@@ -398,8 +402,9 @@ real eval_ftilda_ion_acoustic( size_t n, real x, real u,
     // Reflecting boundaries:
     if(reflecting_boundary){
 		if(x > conf.x_max){
-			//x = conf.x_max;
-			//u = -u;
+			x = conf.x_max;
+			u = -u;
+			/*
 			u = -std::abs(u);
 			if(electron){
 				//u = conf.u_wall_electron();
@@ -408,6 +413,7 @@ real eval_ftilda_ion_acoustic( size_t n, real x, real u,
 				//u = conf.u_wall_ion();
 				return conf.boltzmann(u, conf.T_i, conf.m_i);
 			}
+			*/
 		}else if(x < conf.x_min){
 			if(electron){
 				return config_t<real>::f0_electron(x, u);
@@ -442,8 +448,9 @@ real eval_f_ion_acoustic( size_t n, real x, real u,
 
     if(reflecting_boundary){
 		if(x > conf.x_max){
-			//x = conf.x_max;
-			//u = -u;
+			x = conf.x_max;
+			u = -u;
+			/*
 			u = -std::abs(u);
 			if(electron){
 				//u = conf.u_wall_electron();
@@ -452,6 +459,7 @@ real eval_f_ion_acoustic( size_t n, real x, real u,
 				//u = conf.u_wall_ion();
 				return conf.boltzmann(u, conf.T_i, conf.m_i);
 			}
+			*/
 		}else if(x < conf.x_min){
 			if(electron){
 				return config_t<real>::f0_electron(x, u);
@@ -491,8 +499,9 @@ real eval_f_ion_acoustic( size_t n, real x, real u,
 
 	    if(reflecting_boundary){
 			if(x > conf.x_max){
-				//x = conf.x_max;
-				//u = -u;
+				x = conf.x_max;
+				u = -u;
+				/*
 				u = -std::abs(u);
 				if(electron){
 					//u = conf.u_wall_electron();
@@ -501,6 +510,7 @@ real eval_f_ion_acoustic( size_t n, real x, real u,
 					//u = conf.u_wall_ion();
 					return conf.boltzmann(u, conf.T_i, conf.m_i);
 				}
+				*/
 			}else if(x < conf.x_min){
 				if(electron){
 					return config_t<real>::f0_electron(x, u);
@@ -528,8 +538,9 @@ real eval_f_ion_acoustic( size_t n, real x, real u,
     // Reflecting boundaries:
     if(reflecting_boundary){
 		if(x > conf.x_max){
-			//x = conf.x_max;
-			//u = -u;
+			x = conf.x_max;
+			u = -u;
+			/*
 			u = -std::abs(u);
 			if(electron){
 				//u = conf.u_wall_electron();
@@ -538,6 +549,7 @@ real eval_f_ion_acoustic( size_t n, real x, real u,
 				//u = conf.u_wall_ion();
 				return conf.boltzmann(u, conf.T_i, conf.m_i);
 			}
+			*/
 		}else if(x < conf.x_min){
 			if(electron){
 				return config_t<real>::f0_electron(x, u);

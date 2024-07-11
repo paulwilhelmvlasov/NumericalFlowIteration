@@ -126,7 +126,7 @@ struct config_t
     //static real omega_pe = std::sqrt(4*M_PI*q*q*n_0/m_e);
     //static real E_0 = std::sqrt(4*M_PI*n_0*T_e);
     //static real C_S = std::sqrt(T_e/m_i);
-    constexpr static real M_0 = 1.3;
+    constexpr static real M_0 = 0.4;
     //static real V_0 = M_0 * C_S;
 
     /*__host__ __device__*/ static real initial_plasma_density( real x) noexcept;
@@ -140,7 +140,7 @@ struct config_t
 
 
     // "Standard parameters"
-    static constexpr real x_min = -5, x_max = 0, epsilon = 0.5;
+    static constexpr real x_min = -40, x_max = 0, epsilon = 0.5;
 
 	size_t Nx;  // Number of grid points in physical space.
     size_t Nu;
@@ -248,8 +248,7 @@ template <typename real>
 //__host__ __device__
 real config_t<real>::f0_ion( real x, real u ) noexcept
 {
-	//real us = M_0;
-	real us = 0.4;
+	real us = M_0;
 	return initial_plasma_density(x)*boltzmann(u-us,T_i,m_i);
 }
 

@@ -24,6 +24,7 @@
 #include <sstream>
 #include <random>
 #include <math.h>
+#include <thread>
 #include <vector>
 
 #include <armadillo>
@@ -47,21 +48,171 @@ namespace dirichlet
 {
 
 template <typename real, size_t order>
+void read_coeff_and_plot(const std::string& i_str)
+{
+	config_t<real> conf;
+
+	conf.dt = 0.05;
+	conf.Nt = 1000/conf.dt;
+	conf.Nu_electron = 64;
+	conf.Nu_ion = 1024;
+    conf.u_electron_min = -50;
+    conf.u_electron_max =  50;
+    conf.u_ion_min = -0.7;
+    conf.u_ion_max =  0.7;
+    conf.du_electron = (conf.u_electron_max - conf.u_electron_min)/conf.Nu_electron;
+    conf.du_ion = (conf.u_ion_max - conf.u_ion_min)/conf.Nu_ion;
+    conf.Nx = 2048;
+    conf.l = conf.Nx - 1;
+    conf.dx = (conf.x_max - conf.x_min)/conf.Nx;
+    conf.dx_inv = 1.0/conf.dx;
+
+    const size_t stride_x = 1;
+    const size_t stride_t = conf.Nx + order - 2; // conf.Nx = l+2, therefore: conf.Nx +order-2 = order+l
+
+    std::unique_ptr<real[]> coeffs {new real[ (conf.Nt+1)*stride_t ] {} };
+
+    size_t Nt_plot = 100*20;
+
+	std::ifstream coeff_str(i_str);
+	for(size_t i = 0; i <= Nt_plot*stride_t; i++){
+		coeff_str >> coeffs[i];
+	}
+
+	// Plotting:
+    for ( size_t n = 0; n <= Nt_plot; n+=20 )
+    {
+    	real t = n*conf.dt;
+
+    	std::cout << "Plot t = " << t << "." << std::endl;
+
+    	real x_min_plot = conf.x_min;
+        real x_max_plot = conf.x_max;
+        real u_min_electron_plot = conf.u_electron_min;
+        real u_max_electron_plot = conf.u_electron_max;
+        real u_min_ion_plot = conf.u_ion_min;
+        real u_max_ion_plot = conf.u_ion_max;
+        size_t plot_x = 512;
+        size_t plot_u = 512;
+
+        real dx_plot = (x_max_plot - x_min_plot) / plot_x;
+        real du_electron_plot = (u_max_electron_plot - u_min_electron_plot) / plot_u;
+        real du_ion_plot = (u_max_ion_plot - u_min_ion_plot) / plot_u;
+
+        auto loop1 = [&]() {
+			std::ofstream f_electron_file("f_electron_"+ std::to_string(t) + ".txt");
+			for(size_t i = 0; i <= plot_x; i++)
+			{
+				for(size_t j = 0; j <= plot_u; j++)
+				{
+					double x = x_min_plot + i*dx_plot;
+					double u = u_min_electron_plot + j*du_electron_plot;
+					double f = eval_f_ion_acoustic<real,order>(n, x, u, coeffs.get(), conf,
+								true, true, false);
+					f_electron_file << x << " " << u << " " << f << std::endl;
+				}
+				f_electron_file << std::endl;
+			}
+        };
+        auto loop2 = [&]() {
+			std::ofstream f_ion_file("f_ion_"+ std::to_string(t) + ".txt");
+			for(size_t i = 0; i <= plot_x; i++)
+			{
+				for(size_t j = 0; j <= plot_u; j++)
+				{
+					double x = x_min_plot + i*dx_plot;
+					double u = u_min_ion_plot + j*du_ion_plot;
+					double f = eval_f_ion_acoustic<real,order>(n, x, u, coeffs.get(), conf,
+								false, true, false);
+					f_ion_file << x << " " << u << " " << f << std::endl;
+				}
+				f_ion_file << std::endl;
+			}
+        };
+
+        auto loop3 = [&]() {
+			std::ofstream phi_file("phi_"+ std::to_string(t) + ".txt");
+			for(size_t i = 0; i <= plot_x; i++)
+			{
+				real x = x_min_plot + i*dx_plot;
+				real phi = dim1::dirichlet::eval<real,order>( x, coeffs.get() + n*stride_t, conf );
+
+				phi_file << x << " " << phi << std::endl;
+			}
+        };
+
+        auto loop4 = [&]() {
+			std::ofstream E_file("E_"+ std::to_string(t) + ".txt");
+			for(size_t i = 0; i <= plot_x; i++)
+			{
+				real x = x_min_plot + i*dx_plot;
+				real E = -dim1::dirichlet::eval_E<real,order>( x, coeffs.get() + n*stride_t, conf );
+
+				E_file << x << " " << E << std::endl;
+			}
+        };
+
+        auto loop5 = [&]() {
+			std::ofstream rho_ion_file("rho_ion_"+ std::to_string(t) + ".txt");
+			size_t plot_x_rho = 2048;
+			real plot_dx_rho = (conf.x_max - conf.x_min)/plot_x_rho;
+			for(size_t i = 0; i <= plot_x_rho; i++)
+			{
+				real x = conf.x_min + i*plot_dx_rho;
+
+				real rho_ion = eval_rho_adaptive_trapezoidal_rule<real,order>(n,x,coeffs.get(),conf,conf.u_ion_min,
+						conf.u_ion_max, false, true, false);
+
+				rho_ion_file << x << " " << rho_ion << std::endl;
+			}
+        };
+
+        auto loop6 = [&]() {
+			std::ofstream rho_electron_file("rho_electron_"+ std::to_string(t) + ".txt");
+			size_t plot_x_rho = 2048;
+			real plot_dx_rho = (conf.x_max - conf.x_min)/plot_x_rho;
+			for(size_t i = 0; i <= plot_x_rho; i++)
+			{
+				real x = conf.x_min + i*plot_dx_rho;
+				real rho_electron = eval_rho_adaptive_trapezoidal_rule<real,order>(n,x,coeffs.get(),conf,conf.u_electron_min,
+						conf.u_electron_max, true, true, false);
+
+				rho_electron_file << x << " " << rho_electron << std::endl;
+			}
+        };
+
+        std::thread t1(loop1);
+        std::thread t2(loop2);
+        std::thread t3(loop3);
+        std::thread t4(loop4);
+        std::thread t5(loop5);
+        std::thread t6(loop6);
+
+        t1.join();
+        t2.join();
+        t3.join();
+        t4.join();
+        t5.join();
+        t6.join();
+    }
+}
+
+template <typename real, size_t order>
 void nufi_two_species_ion_acoustic_with_reflecting_dirichlet_boundary()
 {
 	config_t<real> conf;
 
 	conf.dt = 0.05;
-	conf.Nt = 50/conf.dt;
-	conf.Nu_electron = 128;
+	conf.Nt = 1000/conf.dt;
+	conf.Nu_electron = 64;
 	conf.Nu_ion = 1024;
     conf.u_electron_min = -50;
     conf.u_electron_max =  50;
-    conf.u_ion_min = -0.6;
-    conf.u_ion_max =  0.6;
+    conf.u_ion_min = -0.7;
+    conf.u_ion_max =  0.7;
     conf.du_electron = (conf.u_electron_max - conf.u_electron_min)/conf.Nu_electron;
     conf.du_ion = (conf.u_ion_max - conf.u_ion_min)/conf.Nu_ion;
-    conf.Nx = 1024;
+    conf.Nx = 2048;
     conf.l = conf.Nx - 1;
     conf.dx = (conf.x_max - conf.x_min)/conf.Nx;
     conf.dx_inv = 1.0/conf.dx;
@@ -117,11 +268,8 @@ void nufi_two_species_ion_acoustic_with_reflecting_dirichlet_boundary()
     	 				  - eval_rho_electron<real,order>(n, i, coeffs.get(), conf);
     		*/
     		real x = conf.x_min + i*conf.dx;
-    		/*
     		rho_e(i) = eval_rho_adaptive_trapezoidal_rule<real,order>(n,x,coeffs.get(),conf,conf.u_electron_min,
 					conf.u_electron_max, true, true, false);
-					*/
-    		rho_e(i) = 1;
     		rho_i(i) = eval_rho_adaptive_trapezoidal_rule<real,order>(n,x,coeffs.get(),conf,conf.u_ion_min,
 					conf.u_ion_max, false, true, false);
 
@@ -218,6 +366,7 @@ void nufi_two_species_ion_acoustic_with_reflecting_dirichlet_boundary()
 
 			if(n % (20*5) == 0 && true)
 			{
+				/*
 				std::ofstream f_electron_file("f_electron_"+ std::to_string(t) + ".txt");
 				for(size_t i = 0; i <= plot_x; i++)
 				{
@@ -244,6 +393,7 @@ void nufi_two_species_ion_acoustic_with_reflecting_dirichlet_boundary()
 					}
 					f_ion_file << std::endl;
 				}
+				*/
 
 				std::ofstream E_file("E_"+ std::to_string(t) + ".txt");
 				std::ofstream rho_electron_file("rho_electron_"+ std::to_string(t) + ".txt");
@@ -285,7 +435,9 @@ void nufi_two_species_ion_acoustic_with_reflecting_dirichlet_boundary()
 
 int main()
 {
-   nufi::dim1::dirichlet::nufi_two_species_ion_acoustic_with_reflecting_dirichlet_boundary<double,4>();
+	//nufi::dim1::dirichlet::nufi_two_species_ion_acoustic_with_reflecting_dirichlet_boundary<double,4>();
+
+	nufi::dim1::dirichlet::read_coeff_and_plot<double,4>(std::string("../coeffs_Nt_0.050000_Nx_ 2048_stride_t_2050.txt"));
 
 }
 
