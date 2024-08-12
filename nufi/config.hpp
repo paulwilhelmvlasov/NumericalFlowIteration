@@ -49,7 +49,8 @@ struct config_t
     // throughout the simulation.
     real Mr;
     real tol_cut_off_velocity_supp;
-    real tol_integral;
+    real tol_integral_1;
+    real tol_integral_2;
     size_t max_depth_integration;
 
     // Grid-sizes and their reciprocals.
@@ -82,7 +83,8 @@ config_t<real>::config_t() noexcept
     // For periodic, electro-static ion-acoustic instability:
     Mr = 1000;
     tol_cut_off_velocity_supp = 1e-8;
-    tol_integral = 1e-3;
+    tol_integral_1 = 1e-10;
+    tol_integral_2 = 1e-5;
     max_depth_integration = 20;
     Nu = 16;
 }

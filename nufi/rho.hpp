@@ -219,28 +219,14 @@ real sub_integral_eval_rho_adaptive_trapezoidal_rule( size_t n, real x, const re
 	real QT = 0.5 * du * (f_left + f_right);
 	real QS = 1.0 / 6.0 * du * (f_left + 4 * f_middle + f_right);
 
-	if(QS < 1e-10){
-		/*
-		if(n>=5*8 && !is_electron){
-			std::cout << "QS = 0" << std::endl;
-		}
-		*/
+	if(QS < conf.tol_integral_1){
 		// If QS=0, then also QT=0 as f>=0 everywhere. Thus we can return the value here.
 		return QS;
 	}
 
-	if(std::abs(QT - QS)/QS < conf.tol_integral || depth >= conf.max_depth_integration){
+	if(std::abs(QT - QS)/QS < conf.tol_integral_2 || depth >= conf.max_depth_integration){
 		// If relative integration error is lower than tolerance or maximum depth is reached return value
 		// computed using Simpson quadrature rule.
-		/*
-		if(n>=5*8 && !is_electron){
-			if(std::abs(QT - QS)/QS < conf.tol_integral){
-				std::cout << "Relative error = " << std::abs(QT - QS)/QS << ". QS = " << QS << ". QT =  " << QT << ". depth = " << depth <<std::endl;
-			}else{
-				std::cout << ". depth = " << depth <<  "Relative error = " << std::abs(QT - QS)/QS << ". QS = " << QS << ". QT =  " << QT << std::endl;
-			}
-		}
-		*/
 		return QS;
 	} else{
 		// Else split integral once more.

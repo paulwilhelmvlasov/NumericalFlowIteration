@@ -142,16 +142,24 @@ double eval_f(double x, double v, const arma::mat& xv, const arma::vec& Q, doubl
 	return f;
 }
 
-void ion_acoustic()
+void ion_acoustic(bool plot = false)
 {
 	// This is an implementation of Wang et.al. 2nd-order PIC (see section 3.2).
 	// Set parameters.
     const double L  = 4*3.14159265358979323846;
 	//const double L  = 40*3.14159265358979323846;
+    const size_t N = 512; // For scaling test purposes.
+    /*
     const size_t Nx_f = 128;
     const size_t Nx_poisson = Nx_f;
     const size_t Nv_f_electron = 512;
     const size_t Nv_f_ion = Nv_f_electron;
+    */
+    // For scaling test purposes:
+    const size_t Nx_f = N;
+    const size_t Nx_poisson = Nx_f;
+    const size_t Nv_f_electron = N*16;
+    const size_t Nv_f_ion = N*4;
     const size_t N_f_electron = Nx_f*Nv_f_electron;
     const size_t N_f_ion = Nx_f*Nv_f_ion;
     const double v_min_electron = -8;
@@ -172,7 +180,7 @@ void ion_acoustic()
     const double delta_x_inv = 1/delta_x;
     const double L_inv  = 1/L;
 
-    const size_t Nt = 2000 * 8;
+    const size_t Nt = 100 * 8;
     //const double dt = 1.0 / 16.0;
     const double dt = 1.0 / 8.0;
 
@@ -291,7 +299,7 @@ void ion_acoustic()
     	std::cout << t << "  " << elapsed << " " << t_total << std::endl;
 
         // Plotting:
-        if(nt % 1 == 0)
+        if(nt % 1 == 0 && plot)
         {
 			size_t plot_x = 1024;
 			size_t plot_v = plot_x;
@@ -563,8 +571,8 @@ void single_species()
 }
 
 int main() {
-	single_species();
-	//ion_acoustic();
+	//single_species();
+	ion_acoustic();
 
 	return 0;
 }
