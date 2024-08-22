@@ -225,7 +225,6 @@ void ion_acoustic(bool plot = true, bool only_stats = true)
     // ions, i.e., one needs higher resolution for electrons than ions.
     // However, be careful to keep Lx, Nx, dt, Nt, etc. the same for
     // electrons and ions to not break the method.
-    size_t N = 256;
     config_t<real> conf_electron;
     //conf_electron.Nx = N;
     conf_electron.Nx = 128;
