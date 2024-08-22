@@ -68,6 +68,10 @@ void gemv( const char trans, size_t m, size_t n,
 		   float alpha, const float *a, size_t lda,
            const float *x, size_t incx, float beta,
            float *y, size_t incy );
+
+double nrm2( size_t n, const double *x, size_t incx );
+float nrm2( size_t n, const float  *x, size_t incx );
+
 }
 
 }

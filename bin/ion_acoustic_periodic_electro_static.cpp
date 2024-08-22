@@ -34,6 +34,7 @@
 #include <nufi/rho.hpp>
 #include <nufi/stopwatch.hpp>
 #include <nufi/cuda_scheduler.hpp>
+#include <nufi/mpi.hpp>
 
 namespace nufi
 {
@@ -286,12 +287,19 @@ void ion_acoustic(bool plot = true, bool only_stats = true)
     std::ofstream stats_file( "stats.txt" );
     std::ofstream coeffs_str( "coeffs_Nt_" + std::to_string(conf_electron.Nt) + "_Nx_ "
     						+ std::to_string(conf_electron.Nx) + "_stride_t_" + std::to_string(stride_t) + ".txt" );
+
+	// Start critical path tool
+	int mpi_err_start = MPI_Pcontrol(1);
     double total_time = 0;
     for ( size_t n = 0; n <= conf_electron.Nt; ++n )
     {
     	nufi::stopwatch<double> timer;
     	// Compute rho:
+#ifdef USE_DYNAMIC_SCHEDULE
+		#pragma omp parallel for schedule(dynamic)
+#else
 		#pragma omp parallel for
+#endif
     	for(size_t i = 0; i<conf_electron.Nx; i++)
     	{
     		real x = conf_electron.x_min + i*conf_electron.dx;
@@ -306,6 +314,7 @@ void ion_acoustic(bool plot = true, bool only_stats = true)
     	// min/max after each time-step to stop "folding" of the distribution function
     	// from producing wholes in the integration domain which cannot be detected by the current
     	// algorithm.
+		/*
         typename std::vector<real>::iterator result_el;
         result_el = std::min_element(velocity_support_electron_lower_bound.begin(), velocity_support_electron_lower_bound.end());
     	real electron_lower_bound = *result_el;
@@ -322,6 +331,7 @@ void ion_acoustic(bool plot = true, bool only_stats = true)
     	typename std::vector<real>::iterator result_iu = std::max_element(velocity_support_ion_upper_bound.begin(), velocity_support_ion_upper_bound.end());
     	real ion_upper_bound = *result_iu;
     	std::fill(velocity_support_ion_upper_bound.begin(), velocity_support_ion_upper_bound.end(), ion_upper_bound);
+		*/
 
     	// Solve Poisson's equation:
         poiss.solve( rho.get() );
@@ -429,10 +439,14 @@ void ion_acoustic(bool plot = true, bool only_stats = true)
         std::cout << std::setw(15) << t << " Comp-time: " << timer_elapsed << " Total time: " << total_time << std::endl;
 
 		// Write coeffs to disc:
+#ifdef WRITE_COEFFS
         for(size_t i = 0; i < stride_t; i++){
         	coeffs_str << coeffs.get()[n*stride_t + i] << std::endl;
         }
+#endif
     }
+	// critical path tool end
+    int mpi_err_end = MPI_Pcontrol(0);
 }
 
 
@@ -443,7 +457,7 @@ void ion_acoustic(bool plot = true, bool only_stats = true)
 
 int main()
 {
-	nufi::dim1::ion_acoustic<double,4>(true,true);
+	nufi::dim1::ion_acoustic<double,4>(false,false);
 
 	/*
 	constexpr size_t order = 4;

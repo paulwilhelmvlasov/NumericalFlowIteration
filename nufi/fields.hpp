@@ -110,9 +110,11 @@ void interpolate( real *coeffs, const real *values, const config_t<real> &config
 
         void operator()( const real *in, real *out ) const
         {
+            #pragma omp parallel for 
             for ( size_t i = 0; i < config.Nx; ++i )
                 out[ i ] = 0;
 
+            #pragma omp parallel for 
             for ( size_t i = 0; i < config.Nx; ++i )
             {
                 if ( i + order <= config.Nx )
@@ -252,9 +254,11 @@ void interpolate( real *coeffs, const real *values, const config_t<real> &config
 
         void operator()( const real *in, real *out ) const
         {
+            #pragma omp parallel for 
             for ( size_t l = 0; l < config.Nx*config.Ny; ++l )
                 out[ l ] = 0;
 
+            #pragma omp parallel for 
             for ( size_t l = 0; l < config.Nx*config.Ny; ++l )
             {
                 size_t j =  l / config.Nx;
@@ -434,11 +438,14 @@ void interpolate( real *coeffs, const real *values, const config_t<real> &config
             splines1d::N<real,order>(0,N);
         }
 
+        
         void operator()( const real *in, real *out ) const
         {
+            #pragma omp parallel for 
             for ( size_t l = 0; l < config.Nx*config.Ny*config.Nz; ++l )
                 out[ l ] = 0;
 
+            #pragma omp parallel for 
             for ( size_t l = 0; l < config.Nx*config.Ny*config.Nz; ++l )
             {
                 size_t k   = l   / (config.Nx*config.Ny);

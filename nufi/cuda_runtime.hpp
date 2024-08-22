@@ -61,7 +61,7 @@ public:
     autoptr( autoptr&& rhs ) noexcept;
 
     autoptr& operator=( autoptr&& rhs ) noexcept;
-    autoptr& operator=( nullptr_t );
+    autoptr& operator=( std::nullptr_t );
     ~autoptr();
 
     autoptr( const autoptr &rhs ) = delete;
@@ -128,7 +128,7 @@ autoptr& autoptr::operator=( autoptr&& rhs ) noexcept
 }
 
 inline
-autoptr& autoptr::operator=( nullptr_t )
+autoptr& autoptr::operator=( std::nullptr_t )
 {
     reset( nullptr, -1 );
     return *this;

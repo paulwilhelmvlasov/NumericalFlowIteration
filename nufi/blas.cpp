@@ -114,6 +114,16 @@ void gemv( const char trans, size_t m, size_t n,
     }
 }
 
+double nrm2( size_t n, const double *x, size_t incx )
+{
+    return cblas_dnrm2(n, x, incx);
+}
+
+float nrm2( size_t n, const float *x, size_t incx )
+{
+    return cblas_snrm2(n, x, incx);
+}
+
 }
 
 }

@@ -26,13 +26,19 @@ namespace lsmr_impl
 template <typename real>
 real norm( size_t n, const real *x )
 {
+    /*
     using std::hypot;
 
     real result = 0;
     for ( size_t i = 0; i < n; ++i )
         result = hypot(result,x[i]);
 
+    
     return result;
+    */
+
+    using blas::nrm2;
+    return nrm2(n, x, 1);
 }
 
 // Reorthognalise u with respect to the previous vectors in buffer,
