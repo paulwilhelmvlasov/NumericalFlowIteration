@@ -1,7 +1,10 @@
-noinst_PROGRAMS = test_poisson test_gmres test_fields test_nufi_gpu_1d \
-					test_nufi_gpu_2d test_nufi_gpu_3d test_nufi_cpu_1d \
+noinst_PROGRAMS = test_poisson test_gmres test_fields \
+					 test_nufi_cpu_1d \
 					 test_nufi_cpu_2d test_nufi_cpu_3d test_nufi_cpu_3d_isolated \
-					 ion_acoustic_periodic_electro_static particle_in_cell
+					 ion_acoustic_periodic_electro_static \ 
+					 ion_acoustic_periodic_electro_static_noIO \
+					 ion_acoustic_periodic_electro_static_noIO_dynamic \ 
+					 #particle_in_cell
 
 test_poisson_SOURCES = test_poisson.cpp
 test_poisson_LDADD   = $(top_builddir)/nufi/libnufi.a
@@ -21,33 +24,45 @@ test_nufi_gpu_1d_LDADD  += $(CUDA_LDFLAGS) $(BLAS_LIBS) -lfftw3 -lfftw3f
 
 test_nufi_gpu_2d_SOURCES = test_nufi_gpu_2d.cpp
 test_nufi_gpu_2d_LDADD   = $(top_builddir)/nufi/libnufi.a 
-test_nufi_gpu_2d_LDADD  += $(CUDA_LDFLAGS) $(BLAS_LIBS) -lfftw3 -lfftw3f -lmpi -lmpi_cxx
+test_nufi_gpu_2d_LDADD  += $(CUDA_LDFLAGS) $(BLAS_LIBS) -lfftw3 -lfftw3f #-lmpi -lmpi_cxx
 
 test_nufi_gpu_3d_SOURCES = test_nufi_gpu_3d.cpp
 test_nufi_gpu_3d_LDADD   = $(top_builddir)/nufi/libnufi.a 
-test_nufi_gpu_3d_LDADD  += $(CUDA_LDFLAGS) $(BLAS_LIBS) -lfftw3 -lfftw3f -lmpi -lmpi_cxx
+test_nufi_gpu_3d_LDADD  += $(CUDA_LDFLAGS) $(BLAS_LIBS) -lfftw3 -lfftw3f #-lmpi -lmpi_cxx
 
 test_nufi_cpu_1d_SOURCES = test_nufi_cpu_1d.cpp
 test_nufi_cpu_1d_LDADD   = $(top_builddir)/nufi/libnufi.a 
-test_nufi_cpu_1d_LDADD  += $(CUDA_LDFLAGS) $(BLAS_LIBS) -lfftw3 -lfftw3f -lmpi -lmpi_cxx
+test_nufi_cpu_1d_LDADD  += $(CUDA_LDFLAGS) $(BLAS_LIBS) -lfftw3 -lfftw3f #-lmpi -lmpi_cxx
 
 test_nufi_cpu_2d_SOURCES = test_nufi_cpu_2d.cpp
 test_nufi_cpu_2d_LDADD   = $(top_builddir)/nufi/libnufi.a 
-test_nufi_cpu_2d_LDADD  += $(CUDA_LDFLAGS) $(BLAS_LIBS) -lfftw3 -lfftw3f -lmpi -lmpi_cxx
+test_nufi_cpu_2d_LDADD  += $(CUDA_LDFLAGS) $(BLAS_LIBS) -lfftw3 -lfftw3f #-lmpi -lmpi_cxx
 
 test_nufi_cpu_3d_SOURCES = test_nufi_cpu_3d.cpp
 test_nufi_cpu_3d_LDADD   = $(top_builddir)/nufi/libnufi.a 
-test_nufi_cpu_3d_LDADD  += $(CUDA_LDFLAGS) $(BLAS_LIBS) -lfftw3 -lfftw3f -lmpi -lmpi_cxx
+test_nufi_cpu_3d_LDADD  += $(CUDA_LDFLAGS) $(BLAS_LIBS) -lfftw3 -lfftw3f #-lmpi -lmpi_cxx
 
 test_nufi_cpu_3d_isolated_SOURCES = test_nufi_cpu_3d_isolated.cpp
 test_nufi_cpu_3d_isolated_LDADD   = $(top_builddir)/nufi/libnufi.a 
-test_nufi_cpu_3d_isolated_LDADD  += $(CUDA_LDFLAGS) $(BLAS_LIBS) -lfftw3 -lfftw3f -lmpi -lmpi_cxx
+test_nufi_cpu_3d_isolated_LDADD  += $(CUDA_LDFLAGS) $(BLAS_LIBS) -lfftw3 -lfftw3f #-lmpi -lmpi_cxx
 
 ion_acoustic_periodic_electro_static_SOURCES = ion_acoustic_periodic_electro_static.cpp
 ion_acoustic_periodic_electro_static_LDADD   = $(top_builddir)/nufi/libnufi.a 
-ion_acoustic_periodic_electro_static_LDADD  += $(CUDA_LDFLAGS) $(BLAS_LIBS) -lfftw3 -lfftw3f -lmpi -lmpi_cxx
+#ion_acoustic_periodic_electro_static_LDADD  += $(CUDA_LDFLAGS) $(BLAS_LIBS) -lfftw3 -lfftw3f #-lmpi -lmpi_cxx
+ion_acoustic_periodic_electro_static_LDADD  += $(CUDA_LDFLAGS) -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core -lfftw3xc_intel -lfftw3xf_intel -liomp5 -lpthread -lm -ldl 
+ion_acoustic_periodic_electro_static_LDFLAGS = -DWRITE_COEFFS
+
+ion_acoustic_periodic_electro_static_noIO_SOURCES = ion_acoustic_periodic_electro_static.cpp
+ion_acoustic_periodic_electro_static_noIO_LDADD   = $(top_builddir)/nufi/libnufi.a 
+ion_acoustic_periodic_electro_static_noIO_LDADD  += $(CUDA_LDFLAGS) -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core -lfftw3xc_intel -lfftw3xf_intel -liomp5 -lpthread -lm -ldl
+
+ion_acoustic_periodic_electro_static_noIO_dynamic_SOURCES = ion_acoustic_periodic_electro_static.cpp
+ion_acoustic_periodic_electro_static_noIO_dynamic_LDADD   = $(top_builddir)/nufi/libnufi.a 
+#ion_acoustic_periodic_electro_static_noIO_dynamic_LDADD  += $(CUDA_LDFLAGS) $(BLAS_LIBS) -lfftw3 -lfftw3f #-lmpi -lmpi_cxx
+ion_acoustic_periodic_electro_static_noIO_dynamic_LDADD  += $(CUDA_LDFLAGS) -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core -lfftw3xc_intel -lfftw3xf_intel -liomp5 -lpthread -lm -ldl 
+ion_acoustic_periodic_electro_static_noIO_dynamic_LDFLAGS = -DUSE_DYNAMIC_SCHEDULE
 
 particle_in_cell_SOURCES = particle_in_cell.cpp
 particle_in_cell_LDADD   = $(top_builddir)/nufi/libnufi.a 
-particle_in_cell_LDADD  += $(CUDA_LDFLAGS) $(BLAS_LIBS) -lfftw3 -lfftw3f -lmpi -lmpi_cxx
+particle_in_cell_LDADD  += $(CUDA_LDFLAGS) $(BLAS_LIBS) -lfftw3 -lfftw3f #-lmpi -lmpi_cxx
 

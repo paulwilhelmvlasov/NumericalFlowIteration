@@ -1,92 +1,113 @@
 blas.o: blas.cpp /usr/include/stdc-predef.h ../nufi/blas.hpp \
- /usr/include/c++/11/cstddef \
- /usr/include/x86_64-linux-gnu/c++/11/bits/c++config.h \
- /usr/include/x86_64-linux-gnu/c++/11/bits/os_defines.h \
- /usr/include/features.h /usr/include/features-time64.h \
- /usr/include/x86_64-linux-gnu/bits/wordsize.h \
- /usr/include/x86_64-linux-gnu/bits/timesize.h \
- /usr/include/x86_64-linux-gnu/sys/cdefs.h \
- /usr/include/x86_64-linux-gnu/bits/long-double.h \
- /usr/include/x86_64-linux-gnu/gnu/stubs.h \
- /usr/include/x86_64-linux-gnu/gnu/stubs-64.h \
- /usr/include/x86_64-linux-gnu/c++/11/bits/cpu_defines.h \
- /usr/include/c++/11/pstl/pstl_config.h \
- /usr/lib/gcc/x86_64-linux-gnu/11/include/stddef.h \
- /usr/local/include/cblas.h /usr/local/include/openblas_config.h \
- /usr/lib/gcc/x86_64-linux-gnu/11/include/stdint.h /usr/include/stdint.h \
- /usr/include/x86_64-linux-gnu/bits/libc-header-start.h \
- /usr/include/x86_64-linux-gnu/bits/types.h \
- /usr/include/x86_64-linux-gnu/bits/typesizes.h \
- /usr/include/x86_64-linux-gnu/bits/time64.h \
- /usr/include/x86_64-linux-gnu/bits/wchar.h \
- /usr/include/x86_64-linux-gnu/bits/stdint-intn.h \
- /usr/include/x86_64-linux-gnu/bits/stdint-uintn.h /usr/include/stdio.h \
- /usr/lib/gcc/x86_64-linux-gnu/11/include/stdarg.h \
- /usr/include/x86_64-linux-gnu/bits/types/__fpos_t.h \
- /usr/include/x86_64-linux-gnu/bits/types/__mbstate_t.h \
- /usr/include/x86_64-linux-gnu/bits/types/__fpos64_t.h \
- /usr/include/x86_64-linux-gnu/bits/types/__FILE.h \
- /usr/include/x86_64-linux-gnu/bits/types/FILE.h \
- /usr/include/x86_64-linux-gnu/bits/types/struct_FILE.h \
- /usr/include/x86_64-linux-gnu/bits/types/cookie_io_functions_t.h \
- /usr/include/x86_64-linux-gnu/bits/stdio_lim.h \
- /usr/include/x86_64-linux-gnu/bits/floatn.h \
- /usr/include/x86_64-linux-gnu/bits/floatn-common.h \
- /usr/include/x86_64-linux-gnu/bits/stdio.h \
- /usr/include/x86_64-linux-gnu/bits/stdio2.h /usr/include/sched.h \
- /usr/include/x86_64-linux-gnu/bits/types/time_t.h \
- /usr/include/x86_64-linux-gnu/bits/types/struct_timespec.h \
- /usr/include/x86_64-linux-gnu/bits/endian.h \
- /usr/include/x86_64-linux-gnu/bits/endianness.h \
- /usr/include/x86_64-linux-gnu/bits/sched.h \
- /usr/include/x86_64-linux-gnu/bits/types/struct_sched_param.h \
- /usr/include/x86_64-linux-gnu/bits/cpu-set.h
+ /cvmfs/software.hpc.rwth.de/Linux/RH8/x86_64/intel/sapphirerapids/software/GCCcore/12.3.0/include/c++/12.3.0/cstddef \
+ /cvmfs/software.hpc.rwth.de/Linux/RH8/x86_64/intel/sapphirerapids/software/GCCcore/12.3.0/include/c++/12.3.0/x86_64-pc-linux-gnu/bits/c++config.h \
+ /cvmfs/software.hpc.rwth.de/Linux/RH8/x86_64/intel/sapphirerapids/software/GCCcore/12.3.0/include/c++/12.3.0/x86_64-pc-linux-gnu/bits/os_defines.h \
+ /usr/include/features.h /usr/include/sys/cdefs.h /usr/include/bits/wordsize.h \
+ /usr/include/bits/long-double.h /usr/include/gnu/stubs.h \
+ /usr/include/gnu/stubs-64.h \
+ /cvmfs/software.hpc.rwth.de/Linux/RH8/x86_64/intel/sapphirerapids/software/GCCcore/12.3.0/include/c++/12.3.0/x86_64-pc-linux-gnu/bits/cpu_defines.h \
+ /cvmfs/software.hpc.rwth.de/Linux/RH8/x86_64/intel/sapphirerapids/software/GCCcore/12.3.0/include/c++/12.3.0/pstl/pstl_config.h \
+ /cvmfs/software.hpc.rwth.de/Linux/RH8/x86_64/intel/sapphirerapids/software/intel-compilers/2023.1.0/compiler/2023.1.0/linux/bin/intel64/../../compiler/include/icc/stddef.h \
+ /work/rwth1573/NuFI-adaptive/dergeraet/include/cblas.h \
+ /work/rwth1573/NuFI-adaptive/dergeraet/include/openblas_config.h \
+ /cvmfs/software.hpc.rwth.de/Linux/RH8/x86_64/intel/sapphirerapids/software/intel-compilers/2023.1.0/compiler/2023.1.0/linux/bin/intel64/../../compiler/include/icc/stdint.h \
+ /cvmfs/software.hpc.rwth.de/Linux/RH8/x86_64/intel/sapphirerapids/software/GCCcore/12.3.0/lib/gcc/x86_64-pc-linux-gnu/12.3.0/include/stdint.h \
+ /usr/include/stdint.h /usr/include/bits/libc-header-start.h \
+ /usr/include/bits/types.h /usr/include/bits/typesizes.h \
+ /usr/include/bits/wchar.h /usr/include/bits/stdint-intn.h \
+ /usr/include/bits/stdint-uintn.h /usr/include/stdio.h \
+ /cvmfs/software.hpc.rwth.de/Linux/RH8/x86_64/intel/sapphirerapids/software/intel-compilers/2023.1.0/compiler/2023.1.0/linux/bin/intel64/../../compiler/include/icc/stdarg.h \
+ /usr/include/bits/types/__fpos_t.h /usr/include/bits/types/__mbstate_t.h \
+ /usr/include/bits/types/__fpos64_t.h /usr/include/bits/types/__FILE.h \
+ /usr/include/bits/types/FILE.h /usr/include/bits/types/struct_FILE.h \
+ /usr/include/bits/types/cookie_io_functions_t.h /usr/include/bits/stdio_lim.h \
+ /usr/include/bits/sys_errlist.h /usr/include/bits/stdio.h /usr/include/sched.h \
+ /usr/include/bits/types/time_t.h /usr/include/bits/types/struct_timespec.h \
+ /usr/include/bits/sched.h /usr/include/bits/types/struct_sched_param.h \
+ /usr/include/bits/cpu-set.h
+
 /usr/include/stdc-predef.h:
+
 ../nufi/blas.hpp:
-/usr/include/c++/11/cstddef:
-/usr/include/x86_64-linux-gnu/c++/11/bits/c++config.h:
-/usr/include/x86_64-linux-gnu/c++/11/bits/os_defines.h:
+
+/cvmfs/software.hpc.rwth.de/Linux/RH8/x86_64/intel/sapphirerapids/software/GCCcore/12.3.0/include/c++/12.3.0/cstddef:
+
+/cvmfs/software.hpc.rwth.de/Linux/RH8/x86_64/intel/sapphirerapids/software/GCCcore/12.3.0/include/c++/12.3.0/x86_64-pc-linux-gnu/bits/c++config.h:
+
+/cvmfs/software.hpc.rwth.de/Linux/RH8/x86_64/intel/sapphirerapids/software/GCCcore/12.3.0/include/c++/12.3.0/x86_64-pc-linux-gnu/bits/os_defines.h:
+
 /usr/include/features.h:
-/usr/include/features-time64.h:
-/usr/include/x86_64-linux-gnu/bits/wordsize.h:
-/usr/include/x86_64-linux-gnu/bits/timesize.h:
-/usr/include/x86_64-linux-gnu/sys/cdefs.h:
-/usr/include/x86_64-linux-gnu/bits/long-double.h:
-/usr/include/x86_64-linux-gnu/gnu/stubs.h:
-/usr/include/x86_64-linux-gnu/gnu/stubs-64.h:
-/usr/include/x86_64-linux-gnu/c++/11/bits/cpu_defines.h:
-/usr/include/c++/11/pstl/pstl_config.h:
-/usr/lib/gcc/x86_64-linux-gnu/11/include/stddef.h:
-/usr/local/include/cblas.h:
-/usr/local/include/openblas_config.h:
-/usr/lib/gcc/x86_64-linux-gnu/11/include/stdint.h:
+
+/usr/include/sys/cdefs.h:
+
+/usr/include/bits/wordsize.h:
+
+/usr/include/bits/long-double.h:
+
+/usr/include/gnu/stubs.h:
+
+/usr/include/gnu/stubs-64.h:
+
+/cvmfs/software.hpc.rwth.de/Linux/RH8/x86_64/intel/sapphirerapids/software/GCCcore/12.3.0/include/c++/12.3.0/x86_64-pc-linux-gnu/bits/cpu_defines.h:
+
+/cvmfs/software.hpc.rwth.de/Linux/RH8/x86_64/intel/sapphirerapids/software/GCCcore/12.3.0/include/c++/12.3.0/pstl/pstl_config.h:
+
+/cvmfs/software.hpc.rwth.de/Linux/RH8/x86_64/intel/sapphirerapids/software/intel-compilers/2023.1.0/compiler/2023.1.0/linux/bin/intel64/../../compiler/include/icc/stddef.h:
+
+/work/rwth1573/NuFI-adaptive/dergeraet/include/cblas.h:
+
+/work/rwth1573/NuFI-adaptive/dergeraet/include/openblas_config.h:
+
+/cvmfs/software.hpc.rwth.de/Linux/RH8/x86_64/intel/sapphirerapids/software/intel-compilers/2023.1.0/compiler/2023.1.0/linux/bin/intel64/../../compiler/include/icc/stdint.h:
+
+/cvmfs/software.hpc.rwth.de/Linux/RH8/x86_64/intel/sapphirerapids/software/GCCcore/12.3.0/lib/gcc/x86_64-pc-linux-gnu/12.3.0/include/stdint.h:
+
 /usr/include/stdint.h:
-/usr/include/x86_64-linux-gnu/bits/libc-header-start.h:
-/usr/include/x86_64-linux-gnu/bits/types.h:
-/usr/include/x86_64-linux-gnu/bits/typesizes.h:
-/usr/include/x86_64-linux-gnu/bits/time64.h:
-/usr/include/x86_64-linux-gnu/bits/wchar.h:
-/usr/include/x86_64-linux-gnu/bits/stdint-intn.h:
-/usr/include/x86_64-linux-gnu/bits/stdint-uintn.h:
+
+/usr/include/bits/libc-header-start.h:
+
+/usr/include/bits/types.h:
+
+/usr/include/bits/typesizes.h:
+
+/usr/include/bits/wchar.h:
+
+/usr/include/bits/stdint-intn.h:
+
+/usr/include/bits/stdint-uintn.h:
+
 /usr/include/stdio.h:
-/usr/lib/gcc/x86_64-linux-gnu/11/include/stdarg.h:
-/usr/include/x86_64-linux-gnu/bits/types/__fpos_t.h:
-/usr/include/x86_64-linux-gnu/bits/types/__mbstate_t.h:
-/usr/include/x86_64-linux-gnu/bits/types/__fpos64_t.h:
-/usr/include/x86_64-linux-gnu/bits/types/__FILE.h:
-/usr/include/x86_64-linux-gnu/bits/types/FILE.h:
-/usr/include/x86_64-linux-gnu/bits/types/struct_FILE.h:
-/usr/include/x86_64-linux-gnu/bits/types/cookie_io_functions_t.h:
-/usr/include/x86_64-linux-gnu/bits/stdio_lim.h:
-/usr/include/x86_64-linux-gnu/bits/floatn.h:
-/usr/include/x86_64-linux-gnu/bits/floatn-common.h:
-/usr/include/x86_64-linux-gnu/bits/stdio.h:
-/usr/include/x86_64-linux-gnu/bits/stdio2.h:
+
+/cvmfs/software.hpc.rwth.de/Linux/RH8/x86_64/intel/sapphirerapids/software/intel-compilers/2023.1.0/compiler/2023.1.0/linux/bin/intel64/../../compiler/include/icc/stdarg.h:
+
+/usr/include/bits/types/__fpos_t.h:
+
+/usr/include/bits/types/__mbstate_t.h:
+
+/usr/include/bits/types/__fpos64_t.h:
+
+/usr/include/bits/types/__FILE.h:
+
+/usr/include/bits/types/FILE.h:
+
+/usr/include/bits/types/struct_FILE.h:
+
+/usr/include/bits/types/cookie_io_functions_t.h:
+
+/usr/include/bits/stdio_lim.h:
+
+/usr/include/bits/sys_errlist.h:
+
+/usr/include/bits/stdio.h:
+
 /usr/include/sched.h:
-/usr/include/x86_64-linux-gnu/bits/types/time_t.h:
-/usr/include/x86_64-linux-gnu/bits/types/struct_timespec.h:
-/usr/include/x86_64-linux-gnu/bits/endian.h:
-/usr/include/x86_64-linux-gnu/bits/endianness.h:
-/usr/include/x86_64-linux-gnu/bits/sched.h:
-/usr/include/x86_64-linux-gnu/bits/types/struct_sched_param.h:
-/usr/include/x86_64-linux-gnu/bits/cpu-set.h:
+
+/usr/include/bits/types/time_t.h:
+
+/usr/include/bits/types/struct_timespec.h:
+
+/usr/include/bits/sched.h:
+
+/usr/include/bits/types/struct_sched_param.h:
+
+/usr/include/bits/cpu-set.h:
