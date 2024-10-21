@@ -27,8 +27,8 @@ const size_t dim = 2;
 const double L = 4*M_PI;
 const double vmin = -6;
 const double vmax = 6;
-const size_t Nx = 512;
-const size_t Nv = Nx;
+const size_t Nx = 64;
+const size_t Nv = 128;
 const double dx = L/Nx;
 const double dv = (vmax-vmin)/Nv;
 
@@ -66,8 +66,6 @@ namespace dim1 {
 		}
 	}
 
-	size_t counter = 0;
-
 	void nufi_interface_for_fortran(int** ind, double &val)
 	{
 		// Fortran starts indexing at 1:
@@ -82,7 +80,6 @@ namespace dim1 {
 		double v = vmin + j*dv;
 
 		val = periodic::eval_f<double,order>(nt, x, v, coeffs.get(), conf);
-		counter++;
 	}
 
 	void test_interface(int** ind, double &val)
@@ -92,7 +89,6 @@ namespace dim1 {
 		size_t j = ind[0][0] - 1;
 
 		val = mat[i + Nx*j];
-		counter++;
 	}
 }
 }
@@ -115,8 +111,8 @@ int main(int argc, char **argv)
 
 	//auto fctPtr = &test_function_1;
 	nufi::dim1::read_in_coeffs();
-	//auto fctPtr = &nufi::dim1::nufi_interface_for_fortran;
-	auto fctPtr = &nufi::dim1::test_interface;
+	auto fctPtr = &nufi::dim1::nufi_interface_for_fortran;
+	//auto fctPtr = &nufi::dim1::test_interface;
 
 	nufi::stopwatch<double> timer_nufi_eval;
 	for(size_t i = 0; i < Nx; i++) {
@@ -183,17 +179,17 @@ int main(int argc, char **argv)
 			double x = i*dx;
 			double v = vmin + j*dv;
 
-			arr[0] = j;
-			arr[1] = i;
+			arr[0] = j + 1;
+			arr[1] = i + 1;
 			//double f = vec[0][k];
 			double f = 0;
-			chtl_s_htensor_point_eval(htensorPtr,arrPtr,f);
-			std::cout << "Did I reach here?" << std::endl;
+			chtl_s_htensor_point_eval(htensorPtr,arrPtr,f,dPtr);
 			nufi::stopwatch<double> timer_mem_access;
 			double f_exact = mat[i+j*Nx];
 			time_mem_access += timer_mem_access.elapsed();
-					/*nufi::dim1::periodic::eval_f<double,nufi::dim1::order>
-						(nufi::dim1::nt, x, v, nufi::dim1::coeffs.get(),nufi::dim1::conf);*/
+			
+			/*nufi::dim1::periodic::eval_f<double,nufi::dim1::order>
+				(nufi::dim1::nt, x, v, nufi::dim1::coeffs.get(),nufi::dim1::conf);*/
 
 			double err = std::abs(f - f_exact);
 			total_l1_error += err;
@@ -213,8 +209,4 @@ int main(int argc, char **argv)
 
 	std::cout << "All mem access took " << time_mem_access << " s." << std::endl;
 	std::cout << "One mem access takes on average " << time_mem_access/size << " s." << std::endl;
-
-
-	std::cout << "Counter = " << nufi::dim1::counter << std::endl; // Probably very
-	// inaccurate. Should only be used as a rough estimate for the order of magnitude.
 }

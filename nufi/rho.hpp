@@ -76,6 +76,7 @@ real eval_f( size_t n, real x, real u,
     Ex = -eval<real,order,1>( x, c, conf );
     u += 0.5*conf.dt*Ex;
 
+
     while ( --n )
     {
         x -= conf.dt*u;
@@ -83,6 +84,7 @@ real eval_f( size_t n, real x, real u,
         Ex = -eval<real,order,1>( x, c, conf );
         u += conf.dt*Ex;
     }
+
 
     // Final half-step.
     x -= conf.dt*u;
