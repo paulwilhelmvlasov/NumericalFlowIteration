@@ -56,7 +56,7 @@ real lin_interpol(real x , real y, real x1, real x2, real y1, real y2, real f_11
 	real f_x_y1 = ((x2-x)*f_11 + (x-x1)*f_21)/(x2-x1);
 	real f_x_y2 = ((x2-x)*f_12 + (x-x1)*f_22)/(x2-x1);
 
-	return ((y2-y)*f_x_y1 * (y-y1)*f_x_y2) / (y2-y1);
+	return ((y2-y)*f_x_y1 + (y-y1)*f_x_y2) / (y2-y1);
 }
 
 arma::mat f0_r;
@@ -110,11 +110,11 @@ void run_restarted_simulation()
     omp_set_num_threads(1);
 
     size_t Nx = 64;  // Number of grid points in physical space.
-    size_t Nu = 128;  // Number of quadrature points in velocity space.
+    size_t Nu = 2*Nx;  // Number of quadrature points in velocity space.
     double   dt = 0.1;  // Time-step size.
     size_t Nt = 10/dt;  // Number of time-steps.
 
-	size_t nx_r = 128;
+	size_t nx_r = 64;
 	size_t nu_r = nx_r;
 
     // Dimensions of physical domain.
@@ -158,9 +158,18 @@ void run_restarted_simulation()
     	{
     		rho.get()[i] = periodic::eval_rho<double,order>(nt_r_curr, i, coeffs_restart.get(), conf);
     	}
-        std::cout << n << " " << nt_r_curr << " here 2" << std::endl;
+
+        std::ofstream rho_str("rho_restart_" + std::to_string(n) + ".txt");
+        for(size_t i = 0; i < conf.Nx; i++){
+            rho_str << i*conf.dx << " " << rho.get()[i] << std::endl;
+        }
 
         poiss.solve( rho.get() );
+
+        std::ofstream phi_str("phi_restart_" + std::to_string(n) + ".txt");
+        for(size_t i = 0; i < conf.Nx; i++){
+            phi_str << i*conf.dx << " " << rho.get()[i] << std::endl;
+        }
 
         // Interpolation of Poisson solution.
         periodic::interpolate<double,order>( coeffs_restart.get() + nt_r_curr*stride_t, rho.get(), conf );
@@ -188,9 +197,8 @@ void run_restarted_simulation()
 
 	    double t = n*conf.dt;
         Emax_file << std::setw(15) << t << std::setw(15) << std::setprecision(5) << std::scientific << Emax << std::endl;
-        std::cout << std::setw(15) << t << std::setw(15) << std::setprecision(5) << std::scientific << Emax << " Comp-time: " << timer_elapsed << std::endl;
+        std::cout << std::setw(15) << t << std::setw(15) << std::setprecision(5) << std::scientific << Emax << " Comp-time: " << timer_elapsed << std::endl; 
 
-        std::cout << n << " " << nt_r_curr << " here 3" << std::endl;
         if(nt_r_curr == nt_restart)
     	{
             std::ofstream f_str("f_restart" + std::to_string(n) + ".txt");
@@ -216,10 +224,9 @@ void run_restarted_simulation()
                 coeffs_restart.get()[i] = coeffs_restart.get()[nt_r_curr*stride_t + i];
             }
 
-            std::cout << n << " " << nt_r_curr << std::endl;
+            std::cout << n << " " << nt_r_curr << " restart " << std::endl;
             nt_r_curr = 1;
     	} else {
-            std::cout << n << " " << nt_r_curr << "here 3.1" << std::endl;
             //std::ofstream f_str("f_normal_full" + std::to_string(n) + ".txt");
             std::ofstream f_str("f_normal" + std::to_string(n) + ".txt");
     		for(size_t i = 0; i <= nx_r; i++ ){
@@ -235,7 +242,6 @@ void run_restarted_simulation()
 
             nt_r_curr++;
         }
-        std::cout << n << " " << nt_r_curr << " here 4" << std::endl;
     }
     std::cout << "Total time: " << total_time << std::endl;
     
@@ -335,5 +341,49 @@ int main()
 {
 	//nufi::dim1::run_simulation<double,4>();
 	nufi::dim1::run_restarted_simulation<4>();
+
+    // Let's test the linear interpolation scheme.
+
+/*     size_t Nx = 128;
+    size_t Nu = 256;
+    double x_min = 0, x_max = 4*M_PI;
+    double u_min = -5, u_max = 5;
+    double dx = x_max/Nx;
+    double du = (u_max - u_min) / Nu;
+
+
+    std::ofstream f_correct("f_correct.txt");
+    for(size_t i = 0; i < Nx; i++){
+        for(size_t j = 0; j < Nu; j++){
+            double x = i*dx;
+            double u = u_min + j*du;
+            double f = nufi::dim1::f0<double>(x,u);
+
+            f_correct << x << " " << u << " " << f << std::endl;
+        }
+        f_correct << std::endl;
+    }
+
+    std::ofstream f_test("f_test.txt");
+    for(size_t i = 0; i < Nx; i++){
+        for(size_t j = 0; j < Nu; j++){
+
+            double x = i*dx;
+            double u = u_min + j*du;
+            
+            double x1 = x - dx, x2 = x + dx;
+            double u1 = u - du, u2 = u + du;
+
+            double f11 = nufi::dim1::f0<double>(x1,u1);
+            double f12 = nufi::dim1::f0<double>(x1,u2);
+            double f21 = nufi::dim1::f0<double>(x2,u1);
+            double f22 = nufi::dim1::f0<double>(x2,u2);
+
+            double f = nufi::dim1::lin_interpol(x, u, x1, x2, u1, u2, f11, f12, f21, f22);
+
+            f_test << x << " " << u << " " << f << std::endl;
+        }
+        f_test << std::endl;
+    } */
 }
 
