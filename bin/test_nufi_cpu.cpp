@@ -75,37 +75,26 @@ double f_t(double x, double u) noexcept
 	double du_r = (conf.u_max - conf.u_min)/nu_r;
 
 	// Compute periodic reference position of x. Assume x_min = 0 to this end.
-	x -= conf.Lx * std::floor(x*conf.Lx_inv);
+     if(x < 0 || x > conf.x_max){
+	    x -= conf.Lx * std::floor(x*conf.Lx_inv);
+    } 
 
 	size_t x_ref_pos = std::floor(x/dx_r);
+    x_ref_pos = x_ref_pos % nx_r;
 	size_t u_ref_pos = std::floor((u-conf.u_min)/du_r);
-
-    //std::cout << u << " " << conf.u_min << " " << du_r << " " << u_ref_pos << std::endl;
-    //std::cout << (u-conf.u_min) << " " << (u-conf.u_min)*du_r << " " << std::floor((u-conf.u_min)*du_r) << std::endl;
 
 	double x1 = x_ref_pos*dx_r;
 	double x2 = x1+dx_r;
 	double u1 = conf.u_min + u_ref_pos*du_r;
 	double u2 = u1 + du_r;
-    /*
-    std::cout << nx_r << " " << nu_r << " " << f0_r.n_rows  << " " << f0_r.n_cols << " " << x_ref_pos << " " << u_ref_pos << std::endl;
-    std::cout << conf.x_min << " " << conf.x_max << " " << dx_r << std::endl;
-    std::cout << conf.u_min << " " << conf.u_max << " " << du_r << std::endl;
-    std::cout << x << " " << x1 << " " << x2 << std::endl;
-    std::cout << u << " " << u1 << " " << u2 << std::endl;
-    */
 
 	double f_11 = f0_r(x_ref_pos, u_ref_pos);
 	double f_21 = f0_r(x_ref_pos+1, u_ref_pos);
 	double f_12 = f0_r(x_ref_pos, u_ref_pos+1);
 	double f_22 = f0_r(x_ref_pos+1, u_ref_pos+1);
 
-    double value = lin_interpol<double>(x, u, x1, x2, u1, u2, f_11, f_21, f_12, f_22);
+    double value = lin_interpol<double>(x, u, x1, x2, u1, u2, f_11, f_12, f_21, f_22);
 
-/*
-    std::cout << f_11 << " " << f_21 << " " << f_12 << " " << f_22 << std::endl;
-    std::cout << x << " " << u << " " << value << std::endl;
-*/
     return value;
 }
 
@@ -123,7 +112,7 @@ void run_restarted_simulation()
     size_t Nx = 64;  // Number of grid points in physical space.
     size_t Nu = 128;  // Number of quadrature points in velocity space.
     double   dt = 0.1;  // Time-step size.
-    size_t Nt = 5/dt;  // Number of time-steps.
+    size_t Nt = 10/dt;  // Number of time-steps.
 
 	size_t nx_r = 128;
 	size_t nu_r = nx_r;
@@ -137,7 +126,7 @@ void run_restarted_simulation()
     double u_max = 10;
 
     // We use conf.Nt as restart timer for now.
-    size_t nt_restart = 10;
+    size_t nt_restart = 30;
     double dx_r = conf.Lx / nx_r;
     double du_r = (conf.u_max - conf.u_min)/ nu_r;
     f0_r.resize(nx_r+1, nu_r+1);
@@ -145,33 +134,43 @@ void run_restarted_simulation()
     const size_t stride_t = conf.Nx + order - 1;
 
     std::unique_ptr<double[]> coeffs { new double[ (conf.Nt+1)*stride_t ] {} };
+    std::unique_ptr<double[]> coeffs_restart { new double[ (nt_restart+1)*stride_t ] {} };
     std::unique_ptr<double,decltype(std::free)*> rho { reinterpret_cast<double*>(std::aligned_alloc(64,sizeof(double)*conf.Nx)), std::free };
     if ( rho == nullptr ) throw std::bad_alloc {};
 
     poisson<double> poiss( conf );
 
-/*
-    std::cout << f0_r << std::endl;
     std::cout << f0_r.n_rows << " " << f0_r.n_cols << std::endl;
     std::cout << nx_r << " " << nu_r << std::endl;
-*/
+
     std::ofstream Emax_file( "Emax.txt" );
+    std::ofstream coeff_str("coeff_full_restart.txt");
     double total_time = 0;
     size_t nt_r_curr = 0;
     for ( size_t n = 0; n <= Nt; ++n )
     {
     	nufi::stopwatch<double> timer;
 
+        std::cout << n << " " << nt_r_curr << " here 1" << std::endl; 
     	// Compute rho:
 		#pragma omp parallel for
     	for(size_t i = 0; i<conf.Nx; i++)
     	{
-    		rho.get()[i] = periodic::eval_rho<double,order>(nt_r_curr, i, coeffs.get(), conf);
+    		rho.get()[i] = periodic::eval_rho<double,order>(nt_r_curr, i, coeffs_restart.get(), conf);
     	}
+        std::cout << n << " " << nt_r_curr << " here 2" << std::endl;
 
         poiss.solve( rho.get() );
 
-        periodic::interpolate<double,order>( coeffs.get() + nt_r_curr*stride_t, rho.get(), conf );
+        // Interpolation of Poisson solution.
+        periodic::interpolate<double,order>( coeffs_restart.get() + nt_r_curr*stride_t, rho.get(), conf );
+        // Copy solution also into global coeffs-vector.
+        //#pragma omp parallel for
+        coeff_str << n << std::endl;
+        for(size_t i = 0; i < stride_t; i++){
+            coeffs.get()[n*stride_t + i ] = coeffs_restart.get()[nt_r_curr*stride_t + i];
+            coeff_str << i << " " << coeffs.get()[n*stride_t + i ] << std::endl;
+        }
 
         double timer_elapsed = timer.elapsed();
         total_time += timer_elapsed;
@@ -181,7 +180,7 @@ void run_restarted_simulation()
         for ( size_t i = 0; i < conf.Nx; ++i )
         {
             double x = conf.x_min + i*conf.dx;
-            double E_abs = abs( periodic::eval<double,order,1>(x,coeffs.get()+nt_r_curr*stride_t,conf));
+            double E_abs = abs( periodic::eval<double,order,1>(x,coeffs_restart.get()+nt_r_curr*stride_t,conf));
             Emax = max( Emax, E_abs );
 	        E_l2 += E_abs*E_abs;
         }
@@ -191,32 +190,63 @@ void run_restarted_simulation()
         Emax_file << std::setw(15) << t << std::setw(15) << std::setprecision(5) << std::scientific << Emax << std::endl;
         std::cout << std::setw(15) << t << std::setw(15) << std::setprecision(5) << std::scientific << Emax << " Comp-time: " << timer_elapsed << std::endl;
 
+        std::cout << n << " " << nt_r_curr << " here 3" << std::endl;
         if(nt_r_curr == nt_restart)
     	{
+            std::ofstream f_str("f_restart" + std::to_string(n) + ".txt");
     		for(size_t i = 0; i <= nx_r; i++ ){
     			for(size_t j = 0; j <= nu_r; j++){
     				double x = i*dx_r;
     				double u = conf.u_min + j*du_r;
-                    //std::cout << i << " " << j << " ";
-                    //std::cout << x << " " << u << " ";
-                    //std::cout << nt_r_curr << " ";
-                    double f = periodic::eval_f<double,order>(nt_r_curr,x,u,coeffs.get(),conf);
-                    //std::cout << f << std::endl;
-     				//f0_r(i,j) = periodic::eval_f<double,order>(nt_r_curr,x,u,coeffs.get(),conf);
+                    double f = periodic::eval_f<double,order>(nt_r_curr,x,u,coeffs_restart.get(),conf);
+
                     f0_r(i,j) = f;
+                    f_str << x << " " << u << " " << f << std::endl;
     			}
+                f_str << std::endl;
     		}
     		//std::cout << f0_r << std::endl;
     		
             conf = config_t<double>(Nx, Nu, nt_restart, dt, x_min, x_max,
     				u_min, u_max, &f_t);
 
-            nt_r_curr = 0;
+            // Copy last entry of coeff vector into restarted coeff vector.
+            #pragma omp parallel for
+            for(size_t i = 0; i < stride_t; i++){
+                coeffs_restart.get()[i] = coeffs_restart.get()[nt_r_curr*stride_t + i];
+            }
+
+            std::cout << n << " " << nt_r_curr << std::endl;
+            nt_r_curr = 1;
     	} else {
+            std::cout << n << " " << nt_r_curr << "here 3.1" << std::endl;
+            //std::ofstream f_str("f_normal_full" + std::to_string(n) + ".txt");
+            std::ofstream f_str("f_normal" + std::to_string(n) + ".txt");
+    		for(size_t i = 0; i <= nx_r; i++ ){
+    			for(size_t j = 0; j <= nu_r; j++){
+    				double x = i*dx_r;
+    				double u = conf.u_min + j*du_r;
+                    double f = periodic::eval_f<double,order>(nt_r_curr,x,u,coeffs_restart.get(),conf);
+                    f_str << x << " " << u << " " << f << std::endl;
+    			}
+                f_str << std::endl;
+    		}
+            
+
             nt_r_curr++;
         }
+        std::cout << n << " " << nt_r_curr << " here 4" << std::endl;
     }
     std::cout << "Total time: " << total_time << std::endl;
+    
+/*     std::ofstream coeff_str("coeff_full.txt");
+    for(size_t n = 0; n <= conf.Nt; n++){
+        coeff_str << n << std::endl;
+        for (size_t i = 0; i < stride_t; i++){
+            coeff_str << i << " " <<  coeffs.get()[n*stride_t + i] << std::endl;
+        }        
+    }
+ */
 
 }
 
