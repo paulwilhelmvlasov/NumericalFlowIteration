@@ -107,14 +107,14 @@ void run_restarted_simulation()
     using std::abs;
     using std::max;
 
-    omp_set_num_threads(1);
+    //omp_set_num_threads(6);
 
     size_t Nx = 64;  // Number of grid points in physical space.
     size_t Nu = 2*Nx;  // Number of quadrature points in velocity space.
     double   dt = 0.1;  // Time-step size.
-    size_t Nt = 10/dt;  // Number of time-steps.
+    size_t Nt = 50/dt;  // Number of time-steps.
 
-	size_t nx_r = 64;
+	size_t nx_r = 128;
 	size_t nu_r = nx_r;
 
     // Dimensions of physical domain.
@@ -126,7 +126,7 @@ void run_restarted_simulation()
     double u_max = 10;
 
     // We use conf.Nt as restart timer for now.
-    size_t nt_restart = 30;
+    size_t nt_restart = 100;
     double dx_r = conf.Lx / nx_r;
     double du_r = (conf.u_max - conf.u_min)/ nu_r;
     f0_r.resize(nx_r+1, nu_r+1);
@@ -143,7 +143,7 @@ void run_restarted_simulation()
     std::cout << f0_r.n_rows << " " << f0_r.n_cols << std::endl;
     std::cout << nx_r << " " << nu_r << std::endl;
 
-    std::ofstream Emax_file( "Emax.txt" );
+    std::ofstream Emax_file( "Emax_restart.txt" );
     std::ofstream coeff_str("coeff_full_restart.txt");
     double total_time = 0;
     size_t nt_r_curr = 0;
@@ -151,7 +151,7 @@ void run_restarted_simulation()
     {
     	nufi::stopwatch<double> timer;
 
-        std::cout << n << " " << nt_r_curr << " here 1" << std::endl; 
+        std::cout << " start of time step "<< n << " " << nt_r_curr  << std::endl; 
     	// Compute rho:
 		#pragma omp parallel for
     	for(size_t i = 0; i<conf.Nx; i++)
@@ -159,28 +159,29 @@ void run_restarted_simulation()
     		rho.get()[i] = periodic::eval_rho<double,order>(nt_r_curr, i, coeffs_restart.get(), conf);
     	}
 
-        std::ofstream rho_str("rho_restart_" + std::to_string(n) + ".txt");
+/*         std::ofstream rho_str("rho_restart_" + std::to_string(n) + ".txt");
         for(size_t i = 0; i < conf.Nx; i++){
             rho_str << i*conf.dx << " " << rho.get()[i] << std::endl;
-        }
+        } */
 
         poiss.solve( rho.get() );
 
-        std::ofstream phi_str("phi_restart_" + std::to_string(n) + ".txt");
+/*         std::ofstream phi_str("phi_restart_" + std::to_string(n) + ".txt");
         for(size_t i = 0; i < conf.Nx; i++){
             phi_str << i*conf.dx << " " << rho.get()[i] << std::endl;
-        }
+        } */
 
         // Interpolation of Poisson solution.
         periodic::interpolate<double,order>( coeffs_restart.get() + nt_r_curr*stride_t, rho.get(), conf );
         // Copy solution also into global coeffs-vector.
         //#pragma omp parallel for
-        coeff_str << n << std::endl;
+/*         coeff_str << n << std::endl;
+        std::cout << n << " " << nt_r_curr << " " << stride_t << std::endl;
         for(size_t i = 0; i < stride_t; i++){
             coeffs.get()[n*stride_t + i ] = coeffs_restart.get()[nt_r_curr*stride_t + i];
             coeff_str << i << " " << coeffs.get()[n*stride_t + i ] << std::endl;
         }
-
+ */
         double timer_elapsed = timer.elapsed();
         total_time += timer_elapsed;
 
@@ -227,32 +228,23 @@ void run_restarted_simulation()
             std::cout << n << " " << nt_r_curr << " restart " << std::endl;
             nt_r_curr = 1;
     	} else {
-            //std::ofstream f_str("f_normal_full" + std::to_string(n) + ".txt");
-            std::ofstream f_str("f_normal" + std::to_string(n) + ".txt");
-    		for(size_t i = 0; i <= nx_r; i++ ){
-    			for(size_t j = 0; j <= nu_r; j++){
-    				double x = i*dx_r;
-    				double u = conf.u_min + j*du_r;
-                    double f = periodic::eval_f<double,order>(nt_r_curr,x,u,coeffs_restart.get(),conf);
-                    f_str << x << " " << u << " " << f << std::endl;
-    			}
-                f_str << std::endl;
-    		}
-            
-
+            if((n % 10) == 0){
+                //std::ofstream f_str("f_normal_correct" + std::to_string(n) + ".txt");
+                std::ofstream f_str("f_normal_restart" + std::to_string(n) + ".txt");
+                for(size_t i = 0; i <= nx_r; i++ ){
+                    for(size_t j = 0; j <= nu_r; j++){
+                        double x = i*dx_r;
+                        double u = conf.u_min + j*du_r;
+                        double f = periodic::eval_f<double,order>(nt_r_curr,x,u,coeffs_restart.get(),conf);
+                        f_str << x << " " << u << " " << f << std::endl;
+                    }
+                    f_str << std::endl;
+                }
+            }
             nt_r_curr++;
         }
     }
     std::cout << "Total time: " << total_time << std::endl;
-    
-/*     std::ofstream coeff_str("coeff_full.txt");
-    for(size_t n = 0; n <= conf.Nt; n++){
-        coeff_str << n << std::endl;
-        for (size_t i = 0; i < stride_t; i++){
-            coeff_str << i << " " <<  coeffs.get()[n*stride_t + i] << std::endl;
-        }        
-    }
- */
 
 }
 
