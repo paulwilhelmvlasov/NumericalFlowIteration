@@ -59,6 +59,9 @@ real lin_interpol(real x , real y, real x1, real x2, real y1, real y2, real f_11
 	return ((y2-y)*f_x_y1 + (y-y1)*f_x_y2) / (y2-y1);
 }
 
+bool debug = false;
+bool write = false;
+
 arma::mat f0_r;
 config_t<double> conf(64, 128, 500, 0.1, 0, 4*M_PI, -10, 10, &f0);
 
@@ -79,14 +82,26 @@ double f_t(double x, double u) noexcept
 	    x -= conf.Lx * std::floor(x*conf.Lx_inv);
     } 
 
+    if(debug && write){
+        std::cout << x << " " << u << " ";
+    }
+
 	size_t x_ref_pos = std::floor(x/dx_r);
     x_ref_pos = x_ref_pos % nx_r;
 	size_t u_ref_pos = std::floor((u-conf.u_min)/du_r);
+
+    if(debug && write){
+        std::cout << x_ref_pos << " " << u_ref_pos << " ";
+    }
 
 	double x1 = x_ref_pos*dx_r;
 	double x2 = x1+dx_r;
 	double u1 = conf.u_min + u_ref_pos*du_r;
 	double u2 = u1 + du_r;
+
+    if(debug && write){
+        std::cout << x1 << " " << x2 << " " << u1 << " " << u2 << " ";
+    }
 
 	double f_11 = f0_r(x_ref_pos, u_ref_pos);
 	double f_21 = f0_r(x_ref_pos+1, u_ref_pos);
@@ -94,6 +109,10 @@ double f_t(double x, double u) noexcept
 	double f_22 = f0_r(x_ref_pos+1, u_ref_pos+1);
 
     double value = lin_interpol<double>(x, u, x1, x2, u1, u2, f_11, f_12, f_21, f_22);
+
+    if(debug && write){
+        std::cout << value << std::endl;
+    }
 
     return value;
 }
@@ -109,12 +128,13 @@ void run_restarted_simulation()
 
     //omp_set_num_threads(6);
 
-    size_t Nx = 64;  // Number of grid points in physical space.
+    size_t Nx = 32;  // Number of grid points in physical space.
     size_t Nu = 2*Nx;  // Number of quadrature points in velocity space.
+    //double   dt = 0.0625;  // Time-step size.
     double   dt = 0.1;  // Time-step size.
-    size_t Nt = 50/dt;  // Number of time-steps.
+    size_t Nt = 2.1/dt;  // Number of time-steps.
 
-	size_t nx_r = 128;
+	size_t nx_r = 64;
 	size_t nu_r = nx_r;
 
     // Dimensions of physical domain.
@@ -126,11 +146,11 @@ void run_restarted_simulation()
     double u_max = 10;
 
     // We use conf.Nt as restart timer for now.
-    size_t nt_restart = 100;
+    size_t nt_restart = 10;
     double dx_r = conf.Lx / nx_r;
     double du_r = (conf.u_max - conf.u_min)/ nu_r;
     f0_r.resize(nx_r+1, nu_r+1);
-    conf = config_t<double>(Nx, Nu, nt_restart, dt, x_min, x_max, u_min, u_max, &f0);
+    conf = config_t<double>(Nx, Nu, Nt, dt, x_min, x_max, u_min, u_max, &f0);
     const size_t stride_t = conf.Nx + order - 1;
 
     std::unique_ptr<double[]> coeffs { new double[ (conf.Nt+1)*stride_t ] {} };
@@ -143,12 +163,16 @@ void run_restarted_simulation()
     std::cout << f0_r.n_rows << " " << f0_r.n_cols << std::endl;
     std::cout << nx_r << " " << nu_r << std::endl;
 
+    
+/*     std::ofstream Emax_file( "Emax_correct.txt" );
+    std::ofstream coeff_str("coeff_correct.txt"); */
     std::ofstream Emax_file( "Emax_restart.txt" );
-    std::ofstream coeff_str("coeff_full_restart.txt");
+    std::ofstream coeff_str("coeff_restart.txt");
     double total_time = 0;
     size_t nt_r_curr = 0;
     for ( size_t n = 0; n <= Nt; ++n )
     {
+        debug = false;
     	nufi::stopwatch<double> timer;
 
         std::cout << " start of time step "<< n << " " << nt_r_curr  << std::endl; 
@@ -159,29 +183,31 @@ void run_restarted_simulation()
     		rho.get()[i] = periodic::eval_rho<double,order>(nt_r_curr, i, coeffs_restart.get(), conf);
     	}
 
-/*         std::ofstream rho_str("rho_restart_" + std::to_string(n) + ".txt");
+        std::ofstream rho_str("rho_restart_" + std::to_string(n) + ".txt");
+        //std::ofstream rho_str("rho_correct_" + std::to_string(n) + ".txt");
         for(size_t i = 0; i < conf.Nx; i++){
             rho_str << i*conf.dx << " " << rho.get()[i] << std::endl;
-        } */
+        } 
 
         poiss.solve( rho.get() );
 
-/*         std::ofstream phi_str("phi_restart_" + std::to_string(n) + ".txt");
+        //std::ofstream phi_str("phi_correct_" + std::to_string(n) + ".txt");
+        std::ofstream phi_str("phi_restart_" + std::to_string(n) + ".txt");
         for(size_t i = 0; i < conf.Nx; i++){
             phi_str << i*conf.dx << " " << rho.get()[i] << std::endl;
-        } */
+        }
 
         // Interpolation of Poisson solution.
         periodic::interpolate<double,order>( coeffs_restart.get() + nt_r_curr*stride_t, rho.get(), conf );
         // Copy solution also into global coeffs-vector.
         //#pragma omp parallel for
-/*         coeff_str << n << std::endl;
+        coeff_str << n << std::endl;
         std::cout << n << " " << nt_r_curr << " " << stride_t << std::endl;
         for(size_t i = 0; i < stride_t; i++){
             coeffs.get()[n*stride_t + i ] = coeffs_restart.get()[nt_r_curr*stride_t + i];
             coeff_str << i << " " << coeffs.get()[n*stride_t + i ] << std::endl;
         }
- */
+
         double timer_elapsed = timer.elapsed();
         total_time += timer_elapsed;
 
@@ -202,6 +228,8 @@ void run_restarted_simulation()
 
         if(nt_r_curr == nt_restart)
     	{
+            debug = true;
+
             std::ofstream f_str("f_restart" + std::to_string(n) + ".txt");
     		for(size_t i = 0; i <= nx_r; i++ ){
     			for(size_t j = 0; j <= nu_r; j++){
@@ -211,12 +239,17 @@ void run_restarted_simulation()
 
                     f0_r(i,j) = f;
                     f_str << x << " " << u << " " << f << std::endl;
+                    if(u > -2 && u < 2){
+                        write = true;
+                        std::cout << x << " " << u << " ";
+                    }else{
+                        write = false;
+                    }
     			}
                 f_str << std::endl;
     		}
-    		//std::cout << f0_r << std::endl;
     		
-            conf = config_t<double>(Nx, Nu, nt_restart, dt, x_min, x_max,
+            conf = config_t<double>(Nx, Nu, Nt, dt, x_min, x_max,
     				u_min, u_max, &f_t);
 
             // Copy last entry of coeff vector into restarted coeff vector.
@@ -228,8 +261,8 @@ void run_restarted_simulation()
             std::cout << n << " " << nt_r_curr << " restart " << std::endl;
             nt_r_curr = 1;
     	} else {
-            if((n % 10) == 0){
-                //std::ofstream f_str("f_normal_correct" + std::to_string(n) + ".txt");
+            if((n % (1)) == 0){
+                //std::ofstream f_str("f_normal_correct" + std::to_string(n*dt) + ".txt");
                 std::ofstream f_str("f_normal_restart" + std::to_string(n) + ".txt");
                 for(size_t i = 0; i <= nx_r; i++ ){
                     for(size_t j = 0; j <= nu_r; j++){
@@ -246,6 +279,60 @@ void run_restarted_simulation()
     }
     std::cout << "Total time: " << total_time << std::endl;
 
+}
+
+void read_in_coeff()
+{
+    std::ifstream coeff_str("coeff_correct.txt");
+    //std::ifstream coeff_str("coeff_restart.txt");
+    
+    size_t Nx = 32;  // Number of grid points in physical space.
+    size_t Nu = 2*Nx;  // Number of quadrature points in velocity space.
+    double   dt = 0.1;  // Time-step size.
+    size_t Nt = 5/dt;  // Number of time-steps.
+
+	size_t nx_r = 64;
+	size_t nu_r = nx_r;
+
+    // Dimensions of physical domain.
+    double x_min = 0;
+    double x_max = 4*M_PI;
+
+    // Integration limits for velocity space.
+    double u_min = -10;
+    double u_max = 10;
+
+    // We use conf.Nt as restart timer for now.
+    double dx_r = conf.Lx / nx_r;
+    double du_r = (conf.u_max - conf.u_min)/ nu_r;
+
+    conf = config_t<double>(Nx, Nu, Nt, dt, x_min, x_max, u_min, u_max, &f0);
+
+    const size_t order = 4;
+    const size_t stride_t = conf.Nx + order - 1;
+    std::unique_ptr<double[]> coeffs { new double[ (Nt+1)*stride_t ] {} };
+
+    double a, b;
+    for(size_t n = 0; n <= 30; n++){
+        coeff_str >> a;
+        for(size_t i = 0; i < stride_t; i++){
+            coeff_str >> a >> b;
+            coeffs.get()[n*stride_t + i] = b;
+        }
+    }
+    double x = 0;
+    double u = -1.875;
+
+    std::cout << x << " " << u << std::endl;
+
+    for(int n = 20; n >= 10; n--){
+        u -= 0.5*dt*periodic::eval<double,order,1>( x, coeffs.get()+n*stride_t, conf );
+        x -= dt*u;
+        u -= 0.5*dt*periodic::eval<double,order,1>( x, coeffs.get()+n*stride_t, conf );
+        std::cout << x << " " << u << std::endl;
+    }
+
+    //std::cout << x << " " << u << std::endl;
 }
 
 template <typename real, size_t order>
@@ -324,7 +411,6 @@ void run_simulation()
 }
 
 
-
 }
 }
 
@@ -332,50 +418,8 @@ void run_simulation()
 int main()
 {
 	//nufi::dim1::run_simulation<double,4>();
-	nufi::dim1::run_restarted_simulation<4>();
+	//nufi::dim1::run_restarted_simulation<4>();
 
-    // Let's test the linear interpolation scheme.
-
-/*     size_t Nx = 128;
-    size_t Nu = 256;
-    double x_min = 0, x_max = 4*M_PI;
-    double u_min = -5, u_max = 5;
-    double dx = x_max/Nx;
-    double du = (u_max - u_min) / Nu;
-
-
-    std::ofstream f_correct("f_correct.txt");
-    for(size_t i = 0; i < Nx; i++){
-        for(size_t j = 0; j < Nu; j++){
-            double x = i*dx;
-            double u = u_min + j*du;
-            double f = nufi::dim1::f0<double>(x,u);
-
-            f_correct << x << " " << u << " " << f << std::endl;
-        }
-        f_correct << std::endl;
-    }
-
-    std::ofstream f_test("f_test.txt");
-    for(size_t i = 0; i < Nx; i++){
-        for(size_t j = 0; j < Nu; j++){
-
-            double x = i*dx;
-            double u = u_min + j*du;
-            
-            double x1 = x - dx, x2 = x + dx;
-            double u1 = u - du, u2 = u + du;
-
-            double f11 = nufi::dim1::f0<double>(x1,u1);
-            double f12 = nufi::dim1::f0<double>(x1,u2);
-            double f21 = nufi::dim1::f0<double>(x2,u1);
-            double f22 = nufi::dim1::f0<double>(x2,u2);
-
-            double f = nufi::dim1::lin_interpol(x, u, x1, x2, u1, u2, f11, f12, f21, f22);
-
-            f_test << x << " " << u << " " << f << std::endl;
-        }
-        f_test << std::endl;
-    } */
+    nufi::dim1::read_in_coeff();
 }
 
