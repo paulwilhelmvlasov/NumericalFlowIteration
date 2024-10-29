@@ -71,11 +71,14 @@ real eval_f( size_t n, real x, real u,
     real Ex;
     const real *c;
 
+    //std::cout << " In: " << x << " " << u << std::endl;
+
     // Initial half-step.
     c  = coeffs + n*stride_t;
     Ex = -eval<real,order,1>( x, c, conf );
     u += 0.5*conf.dt*Ex;
 
+   //std::cout << "First Step " << n << " " << x << " " << u << std::endl;
 
     while ( --n )
     {
@@ -83,6 +86,8 @@ real eval_f( size_t n, real x, real u,
         c  = coeffs + n*stride_t;
         Ex = -eval<real,order,1>( x, c, conf );
         u += conf.dt*Ex;
+
+        //std::cout << "Back loop " << n << " " << x << " " << u << std::endl;
     }
 
 
@@ -92,7 +97,11 @@ real eval_f( size_t n, real x, real u,
     Ex = -eval<real,order,1>( x, c, conf );
     u += 0.5*conf.dt*Ex;
 
-    return conf.f0(x,u);
+    double value = conf.f0(x,u);
+    
+    //std::cout << "Last Step " << n << " " << x << " " << u << " " << value << std::endl;
+
+    return value;
 }
 
 template <typename real, size_t order>

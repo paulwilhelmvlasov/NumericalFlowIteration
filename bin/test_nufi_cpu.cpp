@@ -82,27 +82,27 @@ double f_t(double x, double u) noexcept
 	    x -= conf.Lx * std::floor(x*conf.Lx_inv);
     } 
 
-    if(debug && write){
-        std::cout << x << " " << u << " ";
-    }
+/*     if(debug && write){
+        std::cout << "ft: " << x << " " << u << " ";
+    } */
 
 	size_t x_ref_pos = std::floor(x/dx_r);
     x_ref_pos = x_ref_pos % nx_r;
 	size_t u_ref_pos = std::floor((u-conf.u_min)/du_r);
 
-    if(debug && write){
+/*     if(debug && write){
         std::cout << x_ref_pos << " " << u_ref_pos << " ";
     }
-
+ */
 	double x1 = x_ref_pos*dx_r;
 	double x2 = x1+dx_r;
 	double u1 = conf.u_min + u_ref_pos*du_r;
 	double u2 = u1 + du_r;
 
-    if(debug && write){
+/*     if(debug && write){
         std::cout << x1 << " " << x2 << " " << u1 << " " << u2 << " ";
     }
-
+ */
 	double f_11 = f0_r(x_ref_pos, u_ref_pos);
 	double f_21 = f0_r(x_ref_pos+1, u_ref_pos);
 	double f_12 = f0_r(x_ref_pos, u_ref_pos+1);
@@ -110,9 +110,9 @@ double f_t(double x, double u) noexcept
 
     double value = lin_interpol<double>(x, u, x1, x2, u1, u2, f_11, f_12, f_21, f_22);
 
-    if(debug && write){
+/*     if(debug && write){
         std::cout << value << std::endl;
-    }
+    } */
 
     return value;
 }
@@ -126,15 +126,15 @@ void run_restarted_simulation()
     using std::abs;
     using std::max;
 
-    //omp_set_num_threads(6);
+    //omp_set_num_threads(1);
 
-    size_t Nx = 32;  // Number of grid points in physical space.
+    size_t Nx = 64;  // Number of grid points in physical space.
     size_t Nu = 2*Nx;  // Number of quadrature points in velocity space.
     //double   dt = 0.0625;  // Time-step size.
     double   dt = 0.1;  // Time-step size.
-    size_t Nt = 2.1/dt;  // Number of time-steps.
+    size_t Nt = 30/dt;  // Number of time-steps.
 
-	size_t nx_r = 64;
+	size_t nx_r = 128;
 	size_t nu_r = nx_r;
 
     // Dimensions of physical domain.
@@ -151,6 +151,7 @@ void run_restarted_simulation()
     double du_r = (conf.u_max - conf.u_min)/ nu_r;
     f0_r.resize(nx_r+1, nu_r+1);
     conf = config_t<double>(Nx, Nu, Nt, dt, x_min, x_max, u_min, u_max, &f0);
+    config_t<double> conf_full(Nx, Nu, Nt, dt, x_min, x_max, u_min, u_max, &f0);
     const size_t stride_t = conf.Nx + order - 1;
 
     std::unique_ptr<double[]> coeffs { new double[ (conf.Nt+1)*stride_t ] {} };
@@ -168,7 +169,9 @@ void run_restarted_simulation()
     std::ofstream coeff_str("coeff_correct.txt"); */
     std::ofstream Emax_file( "Emax_restart.txt" );
     std::ofstream coeff_str("coeff_restart.txt");
+    std::ofstream coeff_r_str("coeff_r_restart.txt");
     double total_time = 0;
+    size_t restart_counter = 0;
     size_t nt_r_curr = 0;
     for ( size_t n = 0; n <= Nt; ++n )
     {
@@ -202,9 +205,11 @@ void run_restarted_simulation()
         // Copy solution also into global coeffs-vector.
         //#pragma omp parallel for
         coeff_str << n << std::endl;
+        coeff_r_str << n << std::endl;
         std::cout << n << " " << nt_r_curr << " " << stride_t << std::endl;
         for(size_t i = 0; i < stride_t; i++){
             coeffs.get()[n*stride_t + i ] = coeffs_restart.get()[nt_r_curr*stride_t + i];
+            coeff_r_str << i << " " << coeffs_restart.get()[nt_r_curr*stride_t + i] << std::endl;
             coeff_str << i << " " << coeffs.get()[n*stride_t + i ] << std::endl;
         }
 
@@ -229,28 +234,38 @@ void run_restarted_simulation()
         if(nt_r_curr == nt_restart)
     	{
             debug = true;
+            std::cout << "Restart" << std::endl;
 
+            arma::mat f0_r_copy(nx_r + 1, nu_r + 1);
             std::ofstream f_str("f_restart" + std::to_string(n) + ".txt");
     		for(size_t i = 0; i <= nx_r; i++ ){
     			for(size_t j = 0; j <= nu_r; j++){
     				double x = i*dx_r;
     				double u = conf.u_min + j*du_r;
-                    double f = periodic::eval_f<double,order>(nt_r_curr,x,u,coeffs_restart.get(),conf);
 
-                    f0_r(i,j) = f;
+                    double f = periodic::eval_f<double,order>(nt_r_curr,x,u,coeffs_restart.get(),conf);
+                    //double f = periodic::eval_f<double,order>(n,x,u,coeffs.get(),conf_full);
+
+                    f0_r_copy(i,j) = f;
                     f_str << x << " " << u << " " << f << std::endl;
-                    if(u > -2 && u < 2){
-                        write = true;
-                        std::cout << x << " " << u << " ";
-                    }else{
-                        write = false;
-                    }
     			}
                 f_str << std::endl;
     		}
+
+            f0_r = f0_r_copy;
+
+            std::ofstream f_restart_str("f_restart_matrix" + std::to_string(n) + ".txt");
+            f_restart_str << f0_r;
     		
-            conf = config_t<double>(Nx, Nu, Nt, dt, x_min, x_max,
-    				u_min, u_max, &f_t);
+            
+            std::ofstream test_plot_phi("phi_restart_test" + std::to_string(restart_counter) + ".txt" );
+            for(size_t i = 0; i < nx_r; i++){
+                double x = i*dx_r;
+                double value = periodic::eval<double,order>( x, coeffs_restart.get()+0*stride_t, conf );
+                test_plot_phi << x << " " << value << std::endl;
+            }
+
+            conf = config_t<double>(Nx, Nu, Nt, dt, x_min, x_max, u_min, u_max, &f_t);
 
             // Copy last entry of coeff vector into restarted coeff vector.
             #pragma omp parallel for
@@ -260,8 +275,9 @@ void run_restarted_simulation()
 
             std::cout << n << " " << nt_r_curr << " restart " << std::endl;
             nt_r_curr = 1;
+            restart_counter++;
     	} else {
-            if((n % (1)) == 0){
+            if((n % (5)) == 0){
                 //std::ofstream f_str("f_normal_correct" + std::to_string(n*dt) + ".txt");
                 std::ofstream f_str("f_normal_restart" + std::to_string(n) + ".txt");
                 for(size_t i = 0; i <= nx_r; i++ ){
@@ -325,10 +341,10 @@ void read_in_coeff()
 
     std::cout << x << " " << u << std::endl;
 
-    for(int n = 20; n >= 10; n--){
+    for(int n = 20; n > 10; n--){
         u -= 0.5*dt*periodic::eval<double,order,1>( x, coeffs.get()+n*stride_t, conf );
         x -= dt*u;
-        u -= 0.5*dt*periodic::eval<double,order,1>( x, coeffs.get()+n*stride_t, conf );
+        u -= 0.5*dt*periodic::eval<double,order,1>( x, coeffs.get()+(n-1)*stride_t, conf );
         std::cout << x << " " << u << std::endl;
     }
 
@@ -418,7 +434,7 @@ void run_simulation()
 int main()
 {
 	//nufi::dim1::run_simulation<double,4>();
-	//nufi::dim1::run_restarted_simulation<4>();
+	nufi::dim1::run_restarted_simulation<4>();
 
     nufi::dim1::read_in_coeff();
 }
