@@ -1,4 +1,4 @@
-noinst_PROGRAMS = test_nufi_cpu test_nufi_cpu_2d test_cpp_interface
+noinst_PROGRAMS = test_nufi_cpu test_nufi_cpu_2d test_cpp_interface restarted_nufi_1d_with_htensor
 
 test_nufi_cpu_SOURCES = test_nufi_cpu.cpp
 test_nufi_cpu_LDADD   = $(top_builddir)/nufi/libnufi.a 
@@ -15,5 +15,13 @@ test_cpp_interface_LDADD  += /home/paul/Projekte/htlib/build/cpp_interface/libch
 test_cpp_interface_LDADD  += /home/paul/Projekte/htlib/build/htens/libhtl_m_htensor.a /home/paul/Projekte/htlib/build/timer/libhtl_timer.a 
 test_cpp_interface_LDADD  += /home/paul/Projekte/htlib/build/linalg/libhtl_linalg.a /home/paul/Projekte/htlib/build/precision/libhtl_m_precision.a /usr/local/lib/libopenblas.so
 test_cpp_interface_LDADD  += $(BLAS_LIBS) -lgfortran -lfftw3 -lfftw3f
+
+restarted_nufi_1d_with_htensor_SOURCES = restarted_nufi_1d_with_htensor.cpp
+restarted_nufi_1d_with_htensor_LDADD   = $(top_builddir)/nufi/libnufi.a 
+restarted_nufi_1d_with_htensor_LDADD  += /home/paul/Projekte/htlib/build/package/libhtl.a 
+restarted_nufi_1d_with_htensor_LDADD  += /home/paul/Projekte/htlib/build/cpp_interface/libchtlib.a /home/paul/Projekte/htlib/build/cross/libhtl_cross.a 
+restarted_nufi_1d_with_htensor_LDADD  += /home/paul/Projekte/htlib/build/htens/libhtl_m_htensor.a /home/paul/Projekte/htlib/build/timer/libhtl_timer.a 
+restarted_nufi_1d_with_htensor_LDADD  += /home/paul/Projekte/htlib/build/linalg/libhtl_linalg.a /home/paul/Projekte/htlib/build/precision/libhtl_m_precision.a /usr/local/lib/libopenblas.so
+restarted_nufi_1d_with_htensor_LDADD  += $(BLAS_LIBS) -lgfortran -lfftw3 -lfftw3f
 
 # Blas is linked twice. Check if this is really necessary.

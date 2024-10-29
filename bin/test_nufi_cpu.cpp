@@ -128,13 +128,13 @@ void run_restarted_simulation()
 
     //omp_set_num_threads(1);
 
-    size_t Nx = 64;  // Number of grid points in physical space.
+    size_t Nx = 256;  // Number of grid points in physical space.
     size_t Nu = 2*Nx;  // Number of quadrature points in velocity space.
-    //double   dt = 0.0625;  // Time-step size.
-    double   dt = 0.1;  // Time-step size.
-    size_t Nt = 30/dt;  // Number of time-steps.
+    double   dt = 0.0625;  // Time-step size.
+    //double   dt = 0.1;  // Time-step size.
+    size_t Nt = 100/dt;  // Number of time-steps.
 
-	size_t nx_r = 128;
+	size_t nx_r = 1024;
 	size_t nu_r = nx_r;
 
     // Dimensions of physical domain.
@@ -146,7 +146,7 @@ void run_restarted_simulation()
     double u_max = 10;
 
     // We use conf.Nt as restart timer for now.
-    size_t nt_restart = 10;
+    size_t nt_restart = 100;
     double dx_r = conf.Lx / nx_r;
     double du_r = (conf.u_max - conf.u_min)/ nu_r;
     f0_r.resize(nx_r+1, nu_r+1);
@@ -186,31 +186,31 @@ void run_restarted_simulation()
     		rho.get()[i] = periodic::eval_rho<double,order>(nt_r_curr, i, coeffs_restart.get(), conf);
     	}
 
-        std::ofstream rho_str("rho_restart_" + std::to_string(n) + ".txt");
+/*         std::ofstream rho_str("rho_restart_" + std::to_string(n) + ".txt");
         //std::ofstream rho_str("rho_correct_" + std::to_string(n) + ".txt");
         for(size_t i = 0; i < conf.Nx; i++){
             rho_str << i*conf.dx << " " << rho.get()[i] << std::endl;
-        } 
+        }  */
 
         poiss.solve( rho.get() );
 
         //std::ofstream phi_str("phi_correct_" + std::to_string(n) + ".txt");
-        std::ofstream phi_str("phi_restart_" + std::to_string(n) + ".txt");
+/*         std::ofstream phi_str("phi_restart_" + std::to_string(n) + ".txt");
         for(size_t i = 0; i < conf.Nx; i++){
             phi_str << i*conf.dx << " " << rho.get()[i] << std::endl;
-        }
+        } */
 
         // Interpolation of Poisson solution.
         periodic::interpolate<double,order>( coeffs_restart.get() + nt_r_curr*stride_t, rho.get(), conf );
         // Copy solution also into global coeffs-vector.
-        //#pragma omp parallel for
-        coeff_str << n << std::endl;
-        coeff_r_str << n << std::endl;
-        std::cout << n << " " << nt_r_curr << " " << stride_t << std::endl;
+        
+/*         coeff_str << n << std::endl;
+        coeff_r_str << n << std::endl; */
+        #pragma omp parallel for
         for(size_t i = 0; i < stride_t; i++){
             coeffs.get()[n*stride_t + i ] = coeffs_restart.get()[nt_r_curr*stride_t + i];
-            coeff_r_str << i << " " << coeffs_restart.get()[nt_r_curr*stride_t + i] << std::endl;
-            coeff_str << i << " " << coeffs.get()[n*stride_t + i ] << std::endl;
+/*             coeff_r_str << i << " " << coeffs_restart.get()[nt_r_curr*stride_t + i] << std::endl;
+            coeff_str << i << " " << coeffs.get()[n*stride_t + i ] << std::endl; */
         }
 
         double timer_elapsed = timer.elapsed();
@@ -254,17 +254,6 @@ void run_restarted_simulation()
 
             f0_r = f0_r_copy;
 
-            std::ofstream f_restart_str("f_restart_matrix" + std::to_string(n) + ".txt");
-            f_restart_str << f0_r;
-    		
-            
-            std::ofstream test_plot_phi("phi_restart_test" + std::to_string(restart_counter) + ".txt" );
-            for(size_t i = 0; i < nx_r; i++){
-                double x = i*dx_r;
-                double value = periodic::eval<double,order>( x, coeffs_restart.get()+0*stride_t, conf );
-                test_plot_phi << x << " " << value << std::endl;
-            }
-
             conf = config_t<double>(Nx, Nu, Nt, dt, x_min, x_max, u_min, u_max, &f_t);
 
             // Copy last entry of coeff vector into restarted coeff vector.
@@ -277,7 +266,7 @@ void run_restarted_simulation()
             nt_r_curr = 1;
             restart_counter++;
     	} else {
-            if((n % (5)) == 0){
+/*             if((n % (5)) == 0){
                 //std::ofstream f_str("f_normal_correct" + std::to_string(n*dt) + ".txt");
                 std::ofstream f_str("f_normal_restart" + std::to_string(n) + ".txt");
                 for(size_t i = 0; i <= nx_r; i++ ){
@@ -289,7 +278,7 @@ void run_restarted_simulation()
                     }
                     f_str << std::endl;
                 }
-            }
+            } */
             nt_r_curr++;
         }
     }
