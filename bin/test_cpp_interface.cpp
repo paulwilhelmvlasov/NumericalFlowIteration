@@ -27,8 +27,8 @@ const size_t dim = 2;
 const double L = 4*M_PI;
 const double vmin = -6;
 const double vmax = 6;
-const size_t Nx = 64;
-const size_t Nv = 128;
+const size_t Nx = 512;
+const size_t Nv = Nx;
 const double dx = L/Nx;
 const double dv = (vmax-vmin)/Nv;
 
@@ -58,9 +58,9 @@ namespace dim1 {
 
 	void read_in_coeffs()
 	{
-		//std::ifstream coeff_str(std::string("weak_landau_coeff_vmax_6/coeffs_Nt_1000_Nx_128_stride_t_131.txt"));
-		//std::ifstream coeff_str(std::string("two_stream_coeff_vmax_6/coeffs_Nt_1000_Nx_128_stride_t_131.txt"));
-		std::ifstream coeff_str(std::string("strong_landau_coeff_vmax_6/coeffs_Nt_1000_Nx_128_stride_t_131.txt"));
+		//std::ifstream coeff_str(std::string("../weak_landau_coeff_vmax_6/coeffs_Nt_1000_Nx_128_stride_t_131.txt"));
+		//std::ifstream coeff_str(std::string("../two_stream_coeff_vmax_6/coeffs_Nt_1000_Nx_128_stride_t_131.txt"));
+		std::ifstream coeff_str(std::string("../strong_landau_coeff_vmax_6/coeffs_Nt_1000_Nx_128_stride_t_131.txt"));
 		for(size_t i = 0; i <= conf.Nt*stride_t; i++){
 			coeff_str >> coeffs.get()[i];
 		}

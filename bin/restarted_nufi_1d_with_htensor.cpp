@@ -25,9 +25,9 @@ const size_t dim = 2;
 int32_t d = dim;
 auto dPtr = &d;
 const size_t nx_r = 512;
-const size_t size_tensor_x = nx_r + 1;
+const size_t size_tensor_x = nx_r;
 const size_t nu_r = nx_r;
-const size_t size_tensor_u = nu_r + 1;
+const size_t size_tensor_u = nu_r;
 
 void* htensor;
 auto htensorPtr = &htensor;
@@ -37,10 +37,12 @@ auto htensorPtr_copy = &htensor_copy;
 
 
 const double Lx = 4*M_PI;
-const double umin = -10;
-const double umax = 10;
+const double umin = -6;
+const double umax = 6;
 const double dx_r = Lx/ nx_r;
 const double du_r = (umax - umin)/nu_r;
+
+std::vector<double> mat(nx_r*nu_r);
 }
 
 namespace nufi
@@ -69,10 +71,47 @@ real lin_interpol(real x , real y, real x1, real x2, real y1, real y2, real f_11
 	return ((y2-y)*f_x_y1 + (y-y1)*f_x_y2) / (y2-y1);
 }
 
-bool debug = false;
-bool write = false;
+size_t restart_counter = 0;
+bool restarted = false;
 
-config_t<double> conf(64, 128, 500, 0.1, 0, 4*M_PI, -10, 10, &f0);
+const size_t order = 4;
+const size_t Nx = 128;  // Number of grid points in physical space.
+const size_t Nu = 2*Nx;  // Number of quadrature points in velocity space.
+//double   dt = 0.0625;  // Time-step size.
+const double   dt = 0.1;  // Time-step size.
+const size_t Nt = 100/dt;  // Number of time-steps.
+config_t<double> conf(Nx, Nu, Nt, dt, 0, htensor::Lx, htensor::umin, 
+                            htensor::umax, &f0);
+const size_t stride_t = conf.Nx + order - 1;
+size_t nt_restart = 100;
+std::unique_ptr<double[]> coeffs_full { new double[ (Nt+1)*stride_t ] {} };
+std::unique_ptr<double[]> coeffs_restart { new double[ (nt_restart+1)*stride_t ] {} };
+std::unique_ptr<double,decltype(std::free)*> rho { reinterpret_cast<double*>
+                            (std::aligned_alloc(64,sizeof(double)*conf.Nx)), std::free };
+
+void read_in_coeffs()
+{
+	//std::ifstream coeff_str(std::string("../weak_landau_coeff_vmax_6/coeffs_Nt_1000_Nx_128_stride_t_131.txt"));
+	//std::ifstream coeff_str(std::string("../two_stream_coeff_vmax_6/coeffs_Nt_1000_Nx_128_stride_t_131.txt"));
+	std::ifstream coeff_str(std::string("../strong_landau_coeff_vmax_6/coeffs_Nt_1000_Nx_128_stride_t_131.txt"));
+	for(size_t i = 0; i <= conf.Nt*stride_t; i++){
+		coeff_str >> coeffs_full.get()[i];
+	}
+}
+
+void test_interface(int** ind, double &val)
+{
+	// Fortran starts indexing at 1:
+	size_t i = ind[0][1] - 1;
+	size_t j = ind[0][0] - 1;
+
+	// Allow higher plot res than the simulation was initially run with.
+	double x = i*htensor::nx_r;
+	double v = htensor::umin + j*htensor::du_r;
+
+	val = periodic::eval_f<double,order>(nt_restart*(restart_counter+1), x, v, coeffs_full.get(), conf);
+}
+
 
 double f_t(double x, double u) noexcept
 {
@@ -94,7 +133,7 @@ double f_t(double x, double u) noexcept
 	double u1 = conf.u_min + u_ref_pos*htensor::du_r;
 	double u2 = u1 + htensor::du_r;
 
-
+    /* std::cout << " f_t " << x_ref_pos << " " << u_ref_pos << std::endl; */
     // Does htensor contain the right boundary?
 
     int* arr = new int[2];
@@ -103,22 +142,22 @@ double f_t(double x, double u) noexcept
     arr[0] = u_ref_pos + 1;
 	arr[1] = x_ref_pos + 1;
 	double f_11 = 0;
-    chtl_s_htensor_point_eval(htensor::htensorPtr_copy,arrPtr,f_11,htensor::dPtr); 
+    chtl_s_htensor_point_eval(htensor::htensorPtr,arrPtr,f_11,htensor::dPtr); 
 
     arr[0] = u_ref_pos + 1;
 	arr[1] = x_ref_pos + 2;
 	double f_21 = 0;
-    chtl_s_htensor_point_eval(htensor::htensorPtr_copy,arrPtr,f_21,htensor::dPtr); 
+    chtl_s_htensor_point_eval(htensor::htensorPtr,arrPtr,f_21,htensor::dPtr); 
 
     arr[0] = u_ref_pos + 2;
 	arr[1] = x_ref_pos + 1;
 	double f_12 = 0;
-    chtl_s_htensor_point_eval(htensor::htensorPtr_copy,arrPtr,f_12,htensor::dPtr); 
+    chtl_s_htensor_point_eval(htensor::htensorPtr,arrPtr,f_12,htensor::dPtr); 
 
     arr[0] = u_ref_pos + 2;
 	arr[1] = x_ref_pos + 2;
 	double f_22 = 0;
-    chtl_s_htensor_point_eval(htensor::htensorPtr_copy,arrPtr,f_22,htensor::dPtr); 
+    chtl_s_htensor_point_eval(htensor::htensorPtr,arrPtr,f_22,htensor::dPtr); 
 
     double value = lin_interpol<double>(x, u, x1, x2, u1, u2, f_11, f_12, f_21, f_22);
 
@@ -127,17 +166,20 @@ double f_t(double x, double u) noexcept
 
 void nufi_interface_for_fortran(int** ind, double &val)
 {
-	// Fortran starts indexing at 1:
-	size_t i = ind[0][1] - 1;
-	size_t j = ind[0][0] - 1;
+        // Fortran starts indexing at 1:
+        size_t i = ind[0][1] - 1;
+        size_t j = ind[0][0] - 1;
 
-	double x = i*htensor::dx_r;
-	double u = htensor::umin + j*htensor::du_r;
+        double x = i*htensor::dx_r;
+        double u = htensor::umin + j*htensor::du_r;
 
-	val = f_t(x, u);
+        if(restarted){
+            val = f_t(x, u);
+        } else {
+            val = periodic::eval_f<double,order>(nt_restart, x, u, coeffs_restart.get(), conf);
+        }
 }
 
-template <size_t order>
 void run_restarted_simulation()
 {
 	using std::exp;
@@ -148,56 +190,39 @@ void run_restarted_simulation()
 
     //omp_set_num_threads(1);
 
-    size_t Nx = 128;  // Number of grid points in physical space.
-    size_t Nu = 2*Nx;  // Number of quadrature points in velocity space.
-    double   dt = 0.0625;  // Time-step size.
-    //double   dt = 0.1;  // Time-step size.
-    size_t Nt = 100/dt;  // Number of time-steps.
-
-    // We use conf.Nt as restart timer for now.
-    size_t nt_restart = 100;
-    double dx_r = conf.Lx / htensor::nx_r;
-    double du_r = (htensor::umax - htensor::umin)/ htensor::nu_r;
-    conf = config_t<double>(Nx, Nu, Nt, dt, 0, htensor::Lx, htensor::umin, 
-                            htensor::umax, &f0);
-
-    const size_t stride_t = conf.Nx + order - 1;
-
-    std::unique_ptr<double[]> coeffs_restart { new double[ (nt_restart+1)*stride_t ] {} };
-    std::unique_ptr<double,decltype(std::free)*> rho { reinterpret_cast<double*>
-                            (std::aligned_alloc(64,sizeof(double)*conf.Nx)), std::free };
-    if ( rho == nullptr ) throw std::bad_alloc {};
-
     poisson<double> poiss( conf );
 
     // Htensor stuff.
-   	int32_t n[htensor::dim]{htensor::size_tensor_u, htensor::size_tensor_x};
-	int32_t* nPtr1 = &n[0];
+   	int32_t dim_arr[htensor::dim]{htensor::size_tensor_u, htensor::size_tensor_x};
+	int32_t* nPtr1 = &dim_arr[0];
     int32_t size = htensor::size_tensor_x*htensor::size_tensor_u;
 	auto sizePtr = &size;
 
-    bool is_rand = false;
+	bool is_rand = false;
 
-    void* opts;
-    auto optsPtr = &opts;
-    double tol = 1e-5;
-    int32_t tcase = 1;
+	void* opts;
+	auto optsPtr = &opts;
 
-    int32_t cross_no_loops = 1;
-    int32_t nNodes = 3;
-    int32_t rank = 40;
-    int32_t rank_rand_row = 100;
-    int32_t rank_rand_col = rank_rand_row;
+	double tol = 1e-5;
+	int32_t tcase = 1;
+
+	int32_t cross_no_loops = 1;
+	int32_t nNodes = 3;
+	int32_t rank = 40;
+	int32_t rank_rand_row = 100;
+	int32_t rank_rand_col = rank_rand_row;
 
     chtl_s_init_truncation_option(optsPtr, &tcase, &tol, &cross_no_loops, &nNodes, &rank, &rank_rand_row, &rank_rand_col);
 	chtl_s_htensor_init_balanced(htensor::htensorPtr, htensor::dPtr, nPtr1);
-    // Can I make a copy of an existing htensor?
+    chtl_s_htensor_init_balanced(htensor::htensorPtr_copy, htensor::dPtr, nPtr1);
 
-    auto fctPtr = &nufi::dim1::nufi_interface_for_fortran;
+    auto fctPtr = &nufi_interface_for_fortran;
+
+    /* read_in_coeffs();
+    auto fctPtr = &test_interface; */
 
     std::ofstream Emax_file( "Emax_restart.txt" );
     double total_time = 0;
-    size_t restart_counter = 0;
     size_t nt_r_curr = 0;
     for ( size_t n = 0; n <= Nt; ++n )
     {
@@ -237,12 +262,13 @@ void run_restarted_simulation()
 
         if(nt_r_curr == nt_restart)
     	{
-            debug = true;
             std::cout << "Restart" << std::endl;
 
             // htensor_cross here to compute the new htensor_copy.
+            std::cout << " chtl cross " << std::endl;
             chtl_s_cross(fctPtr, htensor::htensorPtr_copy, optsPtr, &is_rand);
 
+            std::cout << " copy htensor " << std::endl;
             htensor::htensor = htensor::htensor_copy; // Does this work?
 
             conf = config_t<double>(Nx, Nu, Nt, dt, 0, htensor::Lx, htensor::umin, 
@@ -257,6 +283,7 @@ void run_restarted_simulation()
             std::cout << n << " " << nt_r_curr << " restart " << std::endl;
             nt_r_curr = 1;
             restart_counter++;
+            restarted = true;
     	} else {
             nt_r_curr++;
         }
@@ -271,5 +298,5 @@ void run_restarted_simulation()
 
 int main()
 {
-    nufi::dim1::run_restarted_simulation<4>();
+    nufi::dim1::run_restarted_simulation();
 }
