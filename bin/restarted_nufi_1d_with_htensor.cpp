@@ -32,10 +32,6 @@ const size_t size_tensor_u = nu_r;
 void* htensor;
 auto htensorPtr = &htensor;
 
-void* htensor_copy;
-auto htensorPtr_copy = &htensor_copy;
-
-
 const double Lx = 4*M_PI;
 const double umin = -6;
 const double umax = 6;
@@ -214,7 +210,6 @@ void run_restarted_simulation()
 
     chtl_s_init_truncation_option(optsPtr, &tcase, &tol, &cross_no_loops, &nNodes, &rank, &rank_rand_row, &rank_rand_col);
 	chtl_s_htensor_init_balanced(htensor::htensorPtr, htensor::dPtr, nPtr1);
-    chtl_s_htensor_init_balanced(htensor::htensorPtr_copy, htensor::dPtr, nPtr1);
 
     auto fctPtr = &nufi_interface_for_fortran;
 
@@ -264,12 +259,17 @@ void run_restarted_simulation()
     	{
             std::cout << "Restart" << std::endl;
 
+            // Init copy.
+            std::cout << " init copy " << std::endl;
+            void* htensor_copy;
+            auto htensorPtr_copy = &htensor_copy;
+            chtl_s_htensor_init_balanced(htensorPtr_copy, htensor::dPtr, nPtr1);
             // htensor_cross here to compute the new htensor_copy.
             std::cout << " chtl cross " << std::endl;
-            chtl_s_cross(fctPtr, htensor::htensorPtr_copy, optsPtr, &is_rand);
+            chtl_s_cross(fctPtr, htensorPtr_copy, optsPtr, &is_rand);
 
             std::cout << " copy htensor " << std::endl;
-            htensor::htensor = htensor::htensor_copy; // Does this work?
+            htensor::htensor = htensor_copy; 
 
             conf = config_t<double>(Nx, Nu, Nt, dt, 0, htensor::Lx, htensor::umin, 
                                     htensor::umax, &f_t);
