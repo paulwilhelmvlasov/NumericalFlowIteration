@@ -228,12 +228,12 @@ void ion_acoustic(bool plot = true, bool only_stats = true)
     // electrons and ions to not break the method.
     config_t<real> conf_electron;
     //conf_electron.Nx = N;
-    conf_electron.Nx = 128;
+    conf_electron.Nx = 512;
     conf_electron.x_min = 0;
     //conf_electron.x_max = 40*M_PI;
     conf_electron.x_max = 4*M_PI;
-    conf_electron.dt = 1./4.0;
-    conf_electron.Nt = 200.0 / conf_electron.dt;
+    conf_electron.dt = 1./32.0;
+    conf_electron.Nt = 20.0 / conf_electron.dt;
     conf_electron.Lx = conf_electron.x_max - conf_electron.x_min;
     conf_electron.Lx_inv = 1/conf_electron.Lx;
     conf_electron.dx = conf_electron.Lx/conf_electron.Nx;
@@ -242,10 +242,10 @@ void ion_acoustic(bool plot = true, bool only_stats = true)
     conf_electron.tol_cut_off_velocity_supp = 1e-7;
     conf_electron.tol_integral_1 = 1e-10;
     conf_electron.tol_integral_2 = 1e-5;
-    conf_electron.max_depth_integration = 5;
-    //conf_electron.max_depth_integration = 1;
+    //conf_electron.max_depth_integration = 5;
+    conf_electron.max_depth_integration = 1;
     //conf_electron.Nu = N*16;
-    conf_electron.Nu = 32;
+    conf_electron.Nu = conf_electron.Nx;
 
     config_t<real> conf_ion;
     conf_ion.Nx = conf_electron.Nx;
@@ -261,10 +261,10 @@ void ion_acoustic(bool plot = true, bool only_stats = true)
     conf_ion.tol_cut_off_velocity_supp = 1e-7;
     conf_ion.tol_integral_1 = conf_electron.tol_integral_1;
     conf_ion.tol_integral_2 = conf_electron.tol_integral_2;
-    conf_ion.max_depth_integration = 3;
-    //conf_ion.max_depth_integration = 1;
+    //conf_ion.max_depth_integration = 3;
+    conf_ion.max_depth_integration = 1;
     //conf_ion.Nu = N*4;
-    conf_ion.Nu = 32;
+    conf_ion.Nu = conf_electron.Nu;
 
     const size_t stride_t = conf_electron.Nx + order - 1;
 
@@ -288,7 +288,7 @@ void ion_acoustic(bool plot = true, bool only_stats = true)
     						+ std::to_string(conf_electron.Nx) + "_stride_t_" + std::to_string(stride_t) + ".txt" );
 
 	// Start critical path tool
-	int mpi_err_start = MPI_Pcontrol(1);
+	//int mpi_err_start = MPI_Pcontrol(1);
     double total_time = 0;
     for ( size_t n = 0; n <= conf_electron.Nt; ++n )
     {
@@ -302,18 +302,19 @@ void ion_acoustic(bool plot = true, bool only_stats = true)
     	for(size_t i = 0; i<conf_electron.Nx; i++)
     	{
     		real x = conf_electron.x_min + i*conf_electron.dx;
-    		rho_ion[i] = eval_rho_adaptive_trapezoidal_rule<real,order>(n, x, coeffs.get(), conf_ion, velocity_support_ion_lower_bound[i],
-					velocity_support_ion_upper_bound[i], false);
+    		/* rho_ion[i] = eval_rho_adaptive_trapezoidal_rule<real,order>(n, x, coeffs.get(), conf_ion, velocity_support_ion_lower_bound[i],
+					velocity_support_ion_upper_bound[i], false); */
     		rho_electron[i] = eval_rho_adaptive_trapezoidal_rule<real,order>(n, x, coeffs.get(), conf_electron, velocity_support_electron_lower_bound[i],
 					velocity_support_electron_upper_bound[i], true);
-    		rho.get()[i] = rho_ion[i] - rho_electron[i];
+    		//rho.get()[i] = rho_ion[i] - rho_electron[i];
+			rho.get()[i] = 1 - rho_electron[i];
     	}
 
     	// Let's try out setting the minimum and maximum velocity bound to their respective
     	// min/max after each time-step to stop "folding" of the distribution function
     	// from producing wholes in the integration domain which cannot be detected by the current
     	// algorithm.
-		/*
+		
         typename std::vector<real>::iterator result_el;
         result_el = std::min_element(velocity_support_electron_lower_bound.begin(), velocity_support_electron_lower_bound.end());
     	real electron_lower_bound = *result_el;
@@ -330,7 +331,7 @@ void ion_acoustic(bool plot = true, bool only_stats = true)
     	typename std::vector<real>::iterator result_iu = std::max_element(velocity_support_ion_upper_bound.begin(), velocity_support_ion_upper_bound.end());
     	real ion_upper_bound = *result_iu;
     	std::fill(velocity_support_ion_upper_bound.begin(), velocity_support_ion_upper_bound.end(), ion_upper_bound);
-		*/
+		
 
     	// Solve Poisson's equation:
         poiss.solve( rho.get() );
@@ -341,15 +342,15 @@ void ion_acoustic(bool plot = true, bool only_stats = true)
 
 		real t = n*conf_electron.dt;
         // Plotting:
-        if(n % 1 == 0 && plot)
+        if(n % 4 == 0 && plot)
         {
-			size_t plot_x = 256;
+			size_t plot_x = 512;
 			size_t plot_v = plot_x;
 			real dx_plot = conf_electron.Lx/plot_x;
 			real Emax = 0;
 			real E_l2 = 0;
 
-			if(n % (5*4) == 0 && (!only_stats))
+			if(n % (5*32) == 0 && (!only_stats))
 			{
 				/*
 				std::ofstream file_v_min_max( "v_min_max_" + std::to_string(t) + ".txt" );
@@ -445,7 +446,7 @@ void ion_acoustic(bool plot = true, bool only_stats = true)
 #endif
     }
 	// critical path tool end
-    int mpi_err_end = MPI_Pcontrol(0);
+    //int mpi_err_end = MPI_Pcontrol(0);
 }
 
 
@@ -456,7 +457,7 @@ void ion_acoustic(bool plot = true, bool only_stats = true)
 
 int main()
 {
-	nufi::dim1::ion_acoustic<double,4>(false,false);
+	nufi::dim1::ion_acoustic<double,4>(true,false);
 
 	/*
 	constexpr size_t order = 4;
