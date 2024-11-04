@@ -134,13 +134,13 @@ int main(int argc, char **argv)
 	void* opts;
 	auto optsPtr = &opts;
 
-	double tol = 1e-5;
+	double tol = 1e-3;
 	int32_t tcase = 1;
 
-	int32_t cross_no_loops = 1;
+	int32_t cross_no_loops = 3;
 	int32_t nNodes = 3;
-	int32_t rank = 40;
-	int32_t rank_rand_row = 100;
+	int32_t rank = 100;
+	int32_t rank_rand_row = 200;
 	int32_t rank_rand_col = rank_rand_row;
 
 	double time = 0;
