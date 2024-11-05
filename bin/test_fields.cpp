@@ -19,7 +19,10 @@
 
 #include <cmath>
 #include <memory>
+#include <iostream>
 #include <iomanip>
+#include <fstream>
+#include <sstream>
 #include <nufi/config.hpp>
 #include <nufi/random.hpp>
 #include <nufi/fields.hpp>
@@ -202,12 +205,94 @@ void test_2d()
     std::cout << "Avg error: " << err_sum/(4096*4096) << std::endl;
 }
 
+template <typename real, size_t order>
+void test_1d()
+{
+    using std::abs;
+    using std::max;
+    using std::hypot;
+
+    std::ofstream error_stream("error_stream_order" + std::to_string(order) + ".txt");
+    std::ofstream diff_error_stream("diff_error_stream_order" + std::to_string(order) + ".txt");
+    std::cout << "Testing dim = 1.\n";
+    for(size_t N = 0; N <= 8; N++){
+        dim1::config_t<real> conf;
+        conf.Nx     = 16*std::pow(2,N);
+        conf.x_min  = 0; conf.x_max = 4*M_PI;
+        conf.Lx     = conf.x_max - conf.x_min;
+        conf.Lx_inv = 1 / conf.Lx;
+        conf.dx     = real(conf.Lx) / conf.Nx;
+        conf.dx_inv = real(1) / conf.dx;
+        
+        std::unique_ptr<real[]> values { new real[ conf.Nx ] };
+        std::unique_ptr<real[]> coeffs { new real[ (conf.Nx + order - 1)] };
+
+        for ( size_t i = 0; i < conf.Nx; i++ )
+        {
+            real x = conf.x_min + i*conf.dx;
+
+            values[ i ] = f(x);
+        }
+
+
+        dim1::interpolate<real,order>( coeffs.get(), values.get(), conf ); 
+
+        double l2_error = 0;
+        double max_error = 0;
+        double diff_l2_error = 0;
+        double diff_max_error = 0;
+        size_t plot_x = 2048;
+        double dx_plot = conf.Lx/plot_x;
+        for(size_t i = 0; i < plot_x; i++){
+            double x = conf.x_min + i*dx_plot;
+
+            double f_exact = f(x);
+            double f_num = dim1::eval<real,order>(x, coeffs.get(), conf);
+
+            double diff_f_exact = 3*cos(3*x);
+            double diff_f_num = dim1::eval<real,order,1>(x, coeffs.get(), conf);
+
+            double dist = abs(f_exact - f_num);
+            double dist_diff = abs(diff_f_exact - diff_f_num);
+
+            l2_error += dist*dist;
+            max_error = max(dist, max_error);
+
+            diff_l2_error += dist_diff*dist_diff;
+            diff_max_error = max(dist_diff, diff_max_error);
+        }
+
+        l2_error = dx_plot*sqrt(l2_error);
+        diff_l2_error = dx_plot*sqrt(diff_l2_error);
+
+/*         std::cout << "L2 error = " << l2_error << std::endl;
+        std::cout << "Max error = " << max_error << std::endl; */
+
+        error_stream << N << " " << l2_error << " " << max_error << std::endl;
+        diff_error_stream << N << " " << diff_l2_error << " " << diff_max_error << std::endl;
+    }
+}
+
+
 }
 
 int main()
 {
     std::cout << std::scientific;
-    nufi::test_2d<double,4>();
-    nufi::test_3d<double,4>();
+
+    std::cout << 2 << std::endl;
+    nufi::test_1d<double,2>();
+
+    std::cout << 3 << std::endl;
+    nufi::test_1d<double,3>();
+
+    std::cout << 4 << std::endl;
+    nufi::test_1d<double,4>();
+
+    std::cout << 6 << std::endl;
+    nufi::test_1d<double,6>();
+
+    std::cout << 8 << std::endl;
+    nufi::test_1d<double,8>();
 }
 

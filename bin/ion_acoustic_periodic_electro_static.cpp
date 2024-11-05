@@ -227,12 +227,14 @@ void ion_acoustic(bool plot = true, bool only_stats = true)
     // electrons and ions to not break the method.
     config_t<real> conf_electron;
     //conf_electron.Nx = N;
-    conf_electron.Nx = 128;
+    conf_electron.Nx = 256;
     conf_electron.x_min = 0;
     //conf_electron.x_max = 40*M_PI;
     conf_electron.x_max = 4*M_PI;
-    conf_electron.dt = 1./4.0;
-    conf_electron.Nt = 200.0 / conf_electron.dt;
+	size_t N = 32;
+    //conf_electron.dt = 1./32.0;
+	conf_electron.dt = 1./N;
+    conf_electron.Nt = 50.0 / conf_electron.dt;
     conf_electron.Lx = conf_electron.x_max - conf_electron.x_min;
     conf_electron.Lx_inv = 1/conf_electron.Lx;
     conf_electron.dx = conf_electron.Lx/conf_electron.Nx;
@@ -241,10 +243,10 @@ void ion_acoustic(bool plot = true, bool only_stats = true)
     conf_electron.tol_cut_off_velocity_supp = 1e-7;
     conf_electron.tol_integral_1 = 1e-10;
     conf_electron.tol_integral_2 = 1e-5;
-    conf_electron.max_depth_integration = 5;
-    //conf_electron.max_depth_integration = 1;
+    //conf_electron.max_depth_integration = 5;
+    conf_electron.max_depth_integration = 1;
     //conf_electron.Nu = N*16;
-    conf_electron.Nu = 32;
+    conf_electron.Nu = 256;
 
     config_t<real> conf_ion;
     conf_ion.Nx = conf_electron.Nx;
@@ -260,10 +262,11 @@ void ion_acoustic(bool plot = true, bool only_stats = true)
     conf_ion.tol_cut_off_velocity_supp = 1e-7;
     conf_ion.tol_integral_1 = conf_electron.tol_integral_1;
     conf_ion.tol_integral_2 = conf_electron.tol_integral_2;
-    conf_ion.max_depth_integration = 3;
-    //conf_ion.max_depth_integration = 1;
+    //conf_ion.max_depth_integration = 3;
+    conf_ion.max_depth_integration = 1;
     //conf_ion.Nu = N*4;
-    conf_ion.Nu = 32;
+    //conf_ion.Nu = 32;
+	conf_ion.Nu = conf_electron.Nu;
 
     const size_t stride_t = conf_electron.Nx + order - 1;
 
@@ -333,13 +336,13 @@ void ion_acoustic(bool plot = true, bool only_stats = true)
         // Plotting:
         if(n % 1 == 0 && plot)
         {
-			size_t plot_x = 256;
+			size_t plot_x = 512;
 			size_t plot_v = plot_x;
 			real dx_plot = conf_electron.Lx/plot_x;
 			real Emax = 0;
 			real E_l2 = 0;
 
-			if(n % (5*4) == 0 && (!only_stats))
+			if(n % (5*N) == 0 && (!only_stats))
 			{
 				/*
 				std::ofstream file_v_min_max( "v_min_max_" + std::to_string(t) + ".txt" );
@@ -442,7 +445,7 @@ void ion_acoustic(bool plot = true, bool only_stats = true)
 
 int main()
 {
-	nufi::dim1::ion_acoustic<double,4>(true,true);
+	nufi::dim1::ion_acoustic<double,6>(true,false);
 
 	/*
 	constexpr size_t order = 4;
