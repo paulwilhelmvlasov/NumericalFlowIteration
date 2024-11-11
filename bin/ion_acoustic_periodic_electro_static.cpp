@@ -227,14 +227,14 @@ void ion_acoustic(bool plot = true, bool only_stats = true)
     // electrons and ions to not break the method.
     config_t<real> conf_electron;
     //conf_electron.Nx = N;
-    conf_electron.Nx = 256;
+    conf_electron.Nx = 1024;
     conf_electron.x_min = 0;
     //conf_electron.x_max = 40*M_PI;
     conf_electron.x_max = 4*M_PI;
-	size_t N = 32;
+	size_t N = 64;
     //conf_electron.dt = 1./32.0;
 	conf_electron.dt = 1./N;
-    conf_electron.Nt = 50.0 / conf_electron.dt;
+    conf_electron.Nt = 10.0 / conf_electron.dt;
     conf_electron.Lx = conf_electron.x_max - conf_electron.x_min;
     conf_electron.Lx_inv = 1/conf_electron.Lx;
     conf_electron.dx = conf_electron.Lx/conf_electron.Nx;
@@ -246,7 +246,7 @@ void ion_acoustic(bool plot = true, bool only_stats = true)
     //conf_electron.max_depth_integration = 5;
     conf_electron.max_depth_integration = 1;
     //conf_electron.Nu = N*16;
-    conf_electron.Nu = 256;
+    conf_electron.Nu = 1024;
 
     config_t<real> conf_ion;
     conf_ion.Nx = conf_electron.Nx;
@@ -297,8 +297,8 @@ void ion_acoustic(bool plot = true, bool only_stats = true)
     	for(size_t i = 0; i<conf_electron.Nx; i++)
     	{
     		real x = conf_electron.x_min + i*conf_electron.dx;
-    		rho_ion[i] = eval_rho_adaptive_trapezoidal_rule<real,order>(n, x, coeffs.get(), conf_ion, velocity_support_ion_lower_bound[i],
-					velocity_support_ion_upper_bound[i], false);
+     		rho_ion[i] = eval_rho_adaptive_trapezoidal_rule<real,order>(n, x, coeffs.get(), conf_ion, velocity_support_ion_lower_bound[i],
+					velocity_support_ion_upper_bound[i], false); 
     		rho_electron[i] = eval_rho_adaptive_trapezoidal_rule<real,order>(n, x, coeffs.get(), conf_electron, velocity_support_electron_lower_bound[i],
 					velocity_support_electron_upper_bound[i], true);
     		rho.get()[i] = rho_ion[i] - rho_electron[i];
@@ -370,16 +370,14 @@ void ion_acoustic(bool plot = true, bool only_stats = true)
 				stats_file << std::setw(20) << t << std::setw(20) << std::setprecision(8) << std::scientific << Emax
 							<< std::setw(20) << std::setprecision(8) << std::scientific << E_l2 << std::endl;
 
-				std::ofstream file_rho_ion( "rho_ion_" + std::to_string(t) + ".txt" );
+/* 				std::ofstream file_rho_ion( "rho_ion_" + std::to_string(t) + ".txt" );
 				std::ofstream file_rho_electron( "rho_electron_" + std::to_string(t) + ".txt" );
 				for ( size_t i = 0; i < conf_electron.Nx; ++i )
 				{
 					real x = conf_electron.x_min + i*conf_electron.dx;
 					file_rho_ion << std::setw(20) << x << std::setw(20) << std::setprecision(8) << std::scientific << rho_ion[i] << std::endl;
 					file_rho_electron << std::setw(20) <<  x << std::setw(20) << std::setprecision(8) << std::scientific << rho_electron[i] << std::endl;
-				}
-
-
+				} */
 
 				real v_min_electron = -10;
 				real v_max_electron = 10;
@@ -401,7 +399,7 @@ void ion_acoustic(bool plot = true, bool only_stats = true)
 					file_f_electron << std::endl;
 				}
 
-				std::ofstream file_f_ion( "f_ion_" + std::to_string(t) + ".txt" );
+/* 				std::ofstream file_f_ion( "f_ion_" + std::to_string(t) + ".txt" );
 				for ( size_t i = 0; i <= plot_x; ++i )
 				{
 					for ( size_t j = 0; j <= plot_v; ++j )
@@ -413,7 +411,7 @@ void ion_acoustic(bool plot = true, bool only_stats = true)
 						file_f_ion << x << " " << v << " " << f << std::endl;
 					}
 					file_f_ion << std::endl;
-				}
+				} */
 
 			} else {
 				for ( size_t i = 0; i < plot_x; ++i )
