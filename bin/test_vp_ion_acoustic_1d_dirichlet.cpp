@@ -435,9 +435,9 @@ void nufi_two_species_ion_acoustic_with_reflecting_dirichlet_boundary()
 
 int main()
 {
-	//nufi::dim1::dirichlet::nufi_two_species_ion_acoustic_with_reflecting_dirichlet_boundary<double,4>();
+	nufi::dim1::dirichlet::nufi_two_species_ion_acoustic_with_reflecting_dirichlet_boundary<double,4>();
 
-	nufi::dim1::dirichlet::read_coeff_and_plot<double,4>(std::string("../coeffs_Nt_0.050000_Nx_ 2048_stride_t_2050.txt"));
+	//nufi::dim1::dirichlet::read_coeff_and_plot<double,4>(std::string("../coeffs_Nt_0.050000_Nx_ 2048_stride_t_2050.txt"));
 
 }
 
