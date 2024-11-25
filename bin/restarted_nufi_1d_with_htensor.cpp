@@ -24,7 +24,7 @@ namespace htensor
 const size_t dim = 2;
 int32_t d = dim;
 auto dPtr = &d;
-const size_t nx_r = 512;
+const size_t nx_r = 1024;
 const size_t size_tensor_x = nx_r;
 const size_t nu_r = nx_r;
 const size_t size_tensor_u = nu_r;
@@ -50,11 +50,11 @@ namespace dim1
 template <typename real>
 real f0(real x, real u) noexcept
 {
-	//real alpha = 1e-2;
-	real alpha = 0.5; // Strong Landau Damping
+	real alpha = 1e-2;
+	//real alpha = 0.5; // Strong Landau Damping
 	real k = 0.5;
-    //return 1.0 / std::sqrt(2.0 * M_PI) * u*u * exp(-0.5 * u*u) * (1 + alpha * cos(k*x));
-	return 1.0 / std::sqrt(2.0 * M_PI) * exp(-0.5 * u*u) * (1 + alpha * cos(k*x));
+    return 1.0 / std::sqrt(2.0 * M_PI) * u*u * exp(-0.5 * u*u) * (1 + alpha * cos(k*x));
+	//return 1.0 / std::sqrt(2.0 * M_PI) * exp(-0.5 * u*u) * (1 + alpha * cos(k*x));
 }
 
 template <typename real>
@@ -71,7 +71,7 @@ size_t restart_counter = 0;
 bool restarted = false;
 
 const size_t order = 4;
-const size_t Nx = 128;  // Number of grid points in physical space.
+const size_t Nx = 64;  // Number of grid points in physical space.
 const size_t Nu = 2*Nx;  // Number of quadrature points in velocity space.
 const double   dt = 0.0625;  // Time-step size.
 //const double   dt = 0.1;  // Time-step size.
@@ -79,7 +79,7 @@ const size_t Nt = 500/dt;  // Number of time-steps.
 config_t<double> conf(Nx, Nu, Nt, dt, 0, htensor::Lx, htensor::umin, 
                             htensor::umax, &f0);
 const size_t stride_t = conf.Nx + order - 1;
-const size_t nt_restart = 50*16;
+const size_t nt_restart = 400;
 std::unique_ptr<double[]> coeffs_full { new double[ (Nt+1)*stride_t ] {} };
 std::unique_ptr<double[]> coeffs_restart { new double[ (nt_restart+1)*stride_t ] {} };
 std::unique_ptr<double,decltype(std::free)*> rho { reinterpret_cast<double*>
@@ -199,13 +199,13 @@ void run_restarted_simulation()
 	void* opts;
 	auto optsPtr = &opts;
 
-	double tol = 1e-3;
-	int32_t tcase = 1;
+	double tol = 1e-5;
+	int32_t tcase = 2;
 
-	int32_t cross_no_loops = 2;
-	int32_t nNodes = 3;
-	int32_t rank = 70;
-	int32_t rank_rand_row = 70;
+	int32_t cross_no_loops = 3;
+	int32_t nNodes = 100;
+	int32_t rank = 100;
+	int32_t rank_rand_row = 100;
 	int32_t rank_rand_col = rank_rand_row;
 
     chtl_s_init_truncation_option(optsPtr, &tcase, &tol, &cross_no_loops, &nNodes, &rank, &rank_rand_row, &rank_rand_col);
@@ -216,7 +216,7 @@ void run_restarted_simulation()
     /* read_in_coeffs();
     auto fctPtr = &test_interface; */
 
-    std::ofstream Emax_file( "Emax_restart.txt" );
+    std::ofstream stat_file( "stats.txt" );
     double total_time = 0;
     double restart_time = 0;
     size_t nt_r_curr = 0;
@@ -242,19 +242,22 @@ void run_restarted_simulation()
         total_time += timer_elapsed;
 
         double Emax = 0;
-	    double E_l2 = 0;
-        for ( size_t i = 0; i < conf.Nx; ++i )
+	    double E_l2 = 0; // Electric energy
+        size_t plot_n_x = 256;
+        double dx_plot = conf.Lx / plot_n_x;
+        for ( size_t i = 0; i < plot_n_x; ++i )
         {
-            double x = conf.x_min + i*conf.dx;
+            double x = conf.x_min + i*dx_plot;
             double E_abs = abs( periodic::eval<double,order,1>(x,coeffs_restart.get()+nt_r_curr*stride_t,conf));
             Emax = max( Emax, E_abs );
 	        E_l2 += E_abs*E_abs;
         }
-	    E_l2 *=  conf.dx;
+	    E_l2 =  0.5*dx_plot*E_l2;
 
 	    double t = n*conf.dt;
-        Emax_file << std::setw(15) << t << std::setw(15) << std::setprecision(5) << std::scientific << Emax << std::endl;
-        std::cout << std::setw(15) << t << std::setw(15) << std::setprecision(5) << std::scientific << Emax << " Comp-time: " << timer_elapsed << std::endl; 
+        stat_file << std::setw(15) << t << std::setw(15) << std::setprecision(5) << std::scientific << Emax  << " " << E_l2 << std::endl;
+        std::cout << std::setw(15) << t << std::setw(15) << std::setprecision(5) << std::scientific << Emax << " Comp-time: " << timer_elapsed;
+        std::cout << " Total comp time s.f.: " << total_time << std::endl; 
 
         
         if(nt_r_curr == nt_restart)
@@ -290,7 +293,8 @@ void run_restarted_simulation()
             
             timer_elapsed = timer.elapsed();
             restart_time += timer_elapsed;
-            std::cout << "Restart took: " << timer_elapsed << std::endl;
+            total_time += timer_elapsed;
+            std::cout << "Restart took: " << timer_elapsed << ". Total comp time s.f.: " << total_time << std::endl;
     	} else {
             nt_r_curr++;
         }
@@ -298,7 +302,6 @@ void run_restarted_simulation()
     std::cout << "Total time: " << total_time << std::endl;
     std::cout << "Total restart time: " << restart_time << std::endl;
     std::cout << "Average restart time: " << restart_time/restart_counter << std::endl;
-    std::cout << "Total time including restart: " << total_time + restart_time << std::endl;
 }
 
 

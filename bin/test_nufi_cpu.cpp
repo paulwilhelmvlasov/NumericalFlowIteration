@@ -42,11 +42,11 @@ namespace dim1
 template <typename real>
 real f0(real x, real u) noexcept
 {
-	//real alpha = 1e-2;
-	real alpha = 0.5; // Strong Landau Damping
+	real alpha = 1e-2;
+	//real alpha = 0.5; // Strong Landau Damping
 	real k = 0.5;
-    //return 1.0 / std::sqrt(2.0 * M_PI) * u*u * exp(-0.5 * u*u) * (1 + alpha * cos(k*x));
-	return 1.0 / std::sqrt(2.0 * M_PI) * exp(-0.5 * u*u) * (1 + alpha * cos(k*x));
+    return 1.0 / std::sqrt(2.0 * M_PI) * u*u * exp(-0.5 * u*u) * (1 + alpha * cos(k*x));
+	//return 1.0 / std::sqrt(2.0 * M_PI) * exp(-0.5 * u*u) * (1 + alpha * cos(k*x));
 }
 
 template <typename real>
@@ -128,25 +128,29 @@ void run_restarted_simulation()
 
     //omp_set_num_threads(1);
 
-    size_t Nx = 256;  // Number of grid points in physical space.
+    size_t Nx = 64;  // Number of grid points in physical space.
     size_t Nu = 2*Nx;  // Number of quadrature points in velocity space.
     double   dt = 0.0625;  // Time-step size.
     //double   dt = 0.1;  // Time-step size.
-    size_t Nt = 100/dt;  // Number of time-steps.
+    size_t Nt = 500/dt;  // Number of time-steps.
 
-	size_t nx_r = 1024;
+	size_t nx_r = 2048;
 	size_t nu_r = nx_r;
 
     // Dimensions of physical domain.
     double x_min = 0;
     double x_max = 4*M_PI;
+    conf.x_min = x_min;
+    conf.x_max = x_max; // Actually I should also set Lx etc.
 
     // Integration limits for velocity space.
-    double u_min = -10;
-    double u_max = 10;
+    double u_min = -8;
+    double u_max = 8;
+    conf.u_min = u_min;
+    conf.u_max = u_max;
 
     // We use conf.Nt as restart timer for now.
-    size_t nt_restart = 100;
+    size_t nt_restart = 1600;
     double dx_r = conf.Lx / nx_r;
     double du_r = (conf.u_max - conf.u_min)/ nu_r;
     f0_r.resize(nx_r+1, nu_r+1);
@@ -167,7 +171,7 @@ void run_restarted_simulation()
     
 /*     std::ofstream Emax_file( "Emax_correct.txt" );
     std::ofstream coeff_str("coeff_correct.txt"); */
-    std::ofstream Emax_file( "Emax_restart.txt" );
+    std::ofstream stat_file( "stats.txt" );
     std::ofstream coeff_str("coeff_restart.txt");
     std::ofstream coeff_r_str("coeff_r_restart.txt");
     double total_time = 0;
@@ -217,27 +221,31 @@ void run_restarted_simulation()
         total_time += timer_elapsed;
 
         double Emax = 0;
-	    double E_l2 = 0;
-        for ( size_t i = 0; i < conf.Nx; ++i )
+	    double E_l2 = 0; // Electric energy
+        size_t plot_n_x = 256;
+        double dx_plot = conf.Lx / plot_n_x;
+        for ( size_t i = 0; i < plot_n_x; ++i )
         {
-            double x = conf.x_min + i*conf.dx;
+            double x = conf.x_min + i*dx_plot;
             double E_abs = abs( periodic::eval<double,order,1>(x,coeffs_restart.get()+nt_r_curr*stride_t,conf));
             Emax = max( Emax, E_abs );
 	        E_l2 += E_abs*E_abs;
         }
-	    E_l2 *=  conf.dx;
+	    E_l2 =  0.5*dx_plot*E_l2;
 
 	    double t = n*conf.dt;
-        Emax_file << std::setw(15) << t << std::setw(15) << std::setprecision(5) << std::scientific << Emax << std::endl;
-        std::cout << std::setw(15) << t << std::setw(15) << std::setprecision(5) << std::scientific << Emax << " Comp-time: " << timer_elapsed << std::endl; 
+        stat_file << std::setw(15) << t << std::setw(15) << std::setprecision(5) << std::scientific << Emax  << " " << E_l2 << std::endl;
+        std::cout << std::setw(15) << t << std::setw(15) << std::setprecision(5) << std::scientific << Emax << " Comp-time: " << timer_elapsed;
+        std::cout << " Total comp time s.f.: " << total_time << std::endl; 
 
         if(nt_r_curr == nt_restart)
     	{
             debug = true;
             std::cout << "Restart" << std::endl;
-
+            nufi::stopwatch<double> timer_restart;
             arma::mat f0_r_copy(nx_r + 1, nu_r + 1);
-            std::ofstream f_str("f_restart" + std::to_string(n) + ".txt");
+            //std::ofstream f_str("f_restart" + std::to_string(n) + ".txt");
+            #pragma omp parallel for
     		for(size_t i = 0; i <= nx_r; i++ ){
     			for(size_t j = 0; j <= nu_r; j++){
     				double x = i*dx_r;
@@ -247,9 +255,9 @@ void run_restarted_simulation()
                     //double f = periodic::eval_f<double,order>(n,x,u,coeffs.get(),conf_full);
 
                     f0_r_copy(i,j) = f;
-                    f_str << x << " " << u << " " << f << std::endl;
+                    //f_str << x << " " << u << " " << f << std::endl;
     			}
-                f_str << std::endl;
+                //f_str << std::endl;
     		}
 
             f0_r = f0_r_copy;
@@ -265,6 +273,9 @@ void run_restarted_simulation()
             std::cout << n << " " << nt_r_curr << " restart " << std::endl;
             nt_r_curr = 1;
             restart_counter++;
+            double restart_time = timer_restart.elapsed();
+            total_time += restart_time;
+            std::cout << "Restart took: " << restart_time << ". Total comp time s.f.: " << total_time << std::endl;
     	} else {
 /*             if((n % (5)) == 0){
                 //std::ofstream f_str("f_normal_correct" + std::to_string(n*dt) + ".txt");
@@ -425,6 +436,6 @@ int main()
 	//nufi::dim1::run_simulation<double,4>();
 	nufi::dim1::run_restarted_simulation<4>();
 
-    nufi::dim1::read_in_coeff();
+    //nufi::dim1::read_in_coeff();
 }
 
