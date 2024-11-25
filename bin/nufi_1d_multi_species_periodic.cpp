@@ -56,7 +56,7 @@ real f0_ion(real x, real u) noexcept
     real M_r = 1000;
 	real alpha = 0;
 	real k = 0.5;
-    return std::sqrt( M_r / 2.0 * M_PI) * exp(-0.5*M_r*u*u) * (1 + alpha * cos(k*x));
+    return std::sqrt( M_r / (2.0 * M_PI)) * exp(-0.5*M_r*u*u) * (1 + alpha * cos(k*x));
 }
 
 template <typename real>
@@ -176,10 +176,12 @@ void run_restarted_simulation()
     double u_min_ion = -0.4;
     double u_max_ion = 0.4;
 
-    conf_electron = config_t<double>(Nx, Nu_electron, Nt, dt, x_min, x_max, u_min_electron, u_max_electron, &f0_electron);
-    conf_ion = config_t<double>(Nx, Nu_ion, Nt, dt, x_min, x_max, u_min_ion, u_max_ion, &f0_ion);
+    conf_electron = config_t<double>(Nx, Nu_electron, Nt, dt, x_min, x_max, 
+                                        u_min_electron, u_max_electron, &f0_electron);
+    conf_ion = config_t<double>(Nx, Nu_ion, Nt, dt, x_min, x_max, u_min_ion, 
+                                        u_max_ion, &f0_ion);
 
-    const size_t stride_t = conf_electron.Nx + order - 1;
+    const size_t stride_t = Nx + order - 1;
 
     // Restart parameters.
     size_t nx_r = 2048;
@@ -304,9 +306,34 @@ void run_restarted_simulation()
             nt_r_curr++;
         }
 
-    std::cout << "Total time: " << total_time << std::endl; 
+        if(n % (5*16) == 0){
+            size_t nx_plot = 512;
+            size_t nv_plot = nx_plot;
+            double dx_plot = (x_max - x_min)/nx_plot;
+            double dv_plot_electron = (u_max_electron - u_min_electron) / nv_plot;
+            double dv_plot_ion = (u_max_ion - u_min_ion) / nv_plot;
 
+            std::ofstream f_electron_str("f_electron_" + std::to_string(t) + ".txt");
+            std::ofstream f_ion_str("f_ion_" + std::to_string(t) + ".txt");
+            for(size_t i = 0; i <= nx_plot; i++){
+                for(size_t j = 0; j <= nv_plot; j++){
+                    double x = i*dx_plot;
+                    double u_elec = u_min_electron + j*dv_plot_electron;
+                    double u_ion = u_min_ion + j*dv_plot_ion;
+
+                    double f_elec = periodic::eval_f<double,order>(nt_r_curr,x,u_elec,coeffs_restart.get(),conf_electron,true); 
+                    double f_ion = periodic::eval_f<double,order>(nt_r_curr,x,u_ion,coeffs_restart.get(),conf_ion,false); 
+
+                    f_electron_str << x << " " << u_elec << " " << f_elec << std::endl;
+                    f_ion_str << x << " " << u_ion << " " << f_ion << std::endl;
+                }
+                f_electron_str << std::endl;
+                f_ion_str << std::endl;
+            } 
+        }
     }
+    
+    std::cout << "Total time: " << total_time << std::endl; 
 }
 
 
