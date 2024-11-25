@@ -1,8 +1,12 @@
-noinst_PROGRAMS = test_nufi_cpu test_nufi_cpu_2d test_cpp_interface restarted_nufi_1d_with_htensor
+noinst_PROGRAMS = test_nufi_cpu nufi_1d_multi_species_periodic test_nufi_cpu_2d test_cpp_interface restarted_nufi_1d_with_htensor
 
 test_nufi_cpu_SOURCES = test_nufi_cpu.cpp
 test_nufi_cpu_LDADD   = $(top_builddir)/nufi/libnufi.a 
 test_nufi_cpu_LDADD  += $(BLAS_LIBS) -lfftw3 -lfftw3f
+
+nufi_1d_multi_species_periodic_SOURCES = nufi_1d_multi_species_periodic.cpp
+nufi_1d_multi_species_periodic_LDADD   = $(top_builddir)/nufi/libnufi.a 
+nufi_1d_multi_species_periodic_LDADD  += $(BLAS_LIBS) -lfftw3 -lfftw3f
 
 test_nufi_cpu_2d_SOURCES = test_nufi_cpu_2d.cpp
 test_nufi_cpu_2d_LDADD   = $(top_builddir)/nufi/libnufi.a 

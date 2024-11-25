@@ -79,7 +79,7 @@ const size_t Nt = 500/dt;  // Number of time-steps.
 config_t<double> conf(Nx, Nu, Nt, dt, 0, htensor::Lx, htensor::umin, 
                             htensor::umax, &f0);
 const size_t stride_t = conf.Nx + order - 1;
-const size_t nt_restart = 400;
+const size_t nt_restart = 300;
 std::unique_ptr<double[]> coeffs_full { new double[ (Nt+1)*stride_t ] {} };
 std::unique_ptr<double[]> coeffs_restart { new double[ (nt_restart+1)*stride_t ] {} };
 std::unique_ptr<double,decltype(std::free)*> rho { reinterpret_cast<double*>
@@ -202,10 +202,10 @@ void run_restarted_simulation()
 	double tol = 1e-5;
 	int32_t tcase = 2;
 
-	int32_t cross_no_loops = 3;
-	int32_t nNodes = 100;
-	int32_t rank = 100;
-	int32_t rank_rand_row = 100;
+	int32_t cross_no_loops = 1;
+	int32_t nNodes = 30;
+	int32_t rank = 50;
+	int32_t rank_rand_row = 30;
 	int32_t rank_rand_col = rank_rand_row;
 
     chtl_s_init_truncation_option(optsPtr, &tcase, &tol, &cross_no_loops, &nNodes, &rank, &rank_rand_row, &rank_rand_col);

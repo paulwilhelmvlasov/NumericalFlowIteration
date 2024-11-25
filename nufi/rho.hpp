@@ -30,7 +30,8 @@ namespace periodic
 {
 template <typename real, size_t order>
 real eval_ftilda( size_t n, real x, real u,
-                  const real *coeffs, const config_t<real> &conf )
+                  const real *coeffs, const config_t<real> &conf, 
+                  bool is_electron = true )
 {
     if ( n == 0 ) return conf.f0(x,u);
 
@@ -39,6 +40,8 @@ real eval_ftilda( size_t n, real x, real u,
 
     real Ex;
     const real *c;
+
+    real q = (-1)*(is_electron) + (!is_electron)/conf.Mr;
 
     // We omit the initial half-step.
 
@@ -46,14 +49,14 @@ real eval_ftilda( size_t n, real x, real u,
     {
         x  = x - conf.dt*u;
         c  = coeffs + n*stride_t;
-        Ex = -eval<real,order,1>(x,c,conf);
+        Ex = q*eval<real,order,1>(x,c,conf);
         u  = u + conf.dt*Ex;
     }
 
     // The final half-step.
     x -= conf.dt*u;
     c  = coeffs + n*stride_t;
-    Ex = -eval<real,order,1>(x,c,conf);
+    Ex = q*eval<real,order,1>(x,c,conf);
     u += 0.5*conf.dt*Ex;
 
     return conf.f0(x,u);
@@ -61,7 +64,8 @@ real eval_ftilda( size_t n, real x, real u,
 
 template <typename real, size_t order>
 real eval_f( size_t n, real x, real u, 
-             const real *coeffs, const config_t<real> &conf )
+             const real *coeffs, const config_t<real> &conf, 
+             bool is_electron = true )
 {
     if ( n == 0 ) return conf.f0(x,u);
 
@@ -71,42 +75,33 @@ real eval_f( size_t n, real x, real u,
     real Ex;
     const real *c;
 
-    //std::cout << " In: " << x << " " << u << std::endl;
+    real q = (-1)*(is_electron) + (!is_electron)/conf.Mr;
 
     // Initial half-step.
     c  = coeffs + n*stride_t;
-    Ex = -eval<real,order,1>( x, c, conf );
+    Ex = q*eval<real,order,1>( x, c, conf );
     u += 0.5*conf.dt*Ex;
-
-   //std::cout << "First Step " << n << " " << x << " " << u << std::endl;
 
     while ( --n )
     {
         x -= conf.dt*u;
         c  = coeffs + n*stride_t;
-        Ex = -eval<real,order,1>( x, c, conf );
+        Ex = q*eval<real,order,1>( x, c, conf );
         u += conf.dt*Ex;
-
-        //std::cout << "Back loop " << n << " " << x << " " << u << std::endl;
     }
-
 
     // Final half-step.
     x -= conf.dt*u;
     c  = coeffs + n*stride_t;
-    Ex = -eval<real,order,1>( x, c, conf );
+    Ex = q*eval<real,order,1>( x, c, conf );
     u += 0.5*conf.dt*Ex;
 
-    double value = conf.f0(x,u);
-    
-    //std::cout << "Last Step " << n << " " << x << " " << u << " " << value << std::endl;
-
-    return value;
+    return conf.f0(x,u);
 }
 
 template <typename real, size_t order>
 real eval_f_on_grid( size_t n, size_t index_x, size_t index_u,
-             const real *coeffs, const config_t<real> &conf )
+             const real *coeffs, const config_t<real> &conf, bool is_electron = true )
 {
 	real x = conf.x_min + index_x*conf.dx;
 	real u = conf.u_min + index_u*conf.du;
@@ -119,23 +114,25 @@ real eval_f_on_grid( size_t n, size_t index_x, size_t index_u,
     real Ex;
     const real *c;
 
+    real q = (-1)*(is_electron) + (!is_electron)/conf.Mr;
+
     // Initial half-step.
     c  = coeffs + n*stride_t;
-    Ex = -eval<real,order,1>( x, c, conf );
+    Ex = q*eval<real,order,1>( x, c, conf );
     u += 0.5*conf.dt*Ex;
 
     while ( --n )
     {
         x -= conf.dt*u;
         c  = coeffs + n*stride_t;
-        Ex = -eval<real,order,1>( x, c, conf );
+        Ex = q*eval<real,order,1>( x, c, conf );
         u += conf.dt*Ex;
     }
 
     // Final half-step.
     x -= conf.dt*u;
     c  = coeffs + n*stride_t;
-    Ex = -eval<real,order,1>( x, c, conf );
+    Ex = q*eval<real,order,1>( x, c, conf );
     u += 0.5*conf.dt*Ex;
 
     return conf.f0(x,u);
@@ -153,6 +150,24 @@ real eval_rho( size_t n, size_t i, const real *coeffs, const config_t<real> &con
     for ( size_t ii = 0; ii < conf.Nu; ++ii )
         rho += eval_ftilda<real,order>( n, x, u_min + ii*du, coeffs, conf );
     rho = 1 - du*rho; 
+
+    return rho;
+}
+
+template <typename real, size_t order>
+real eval_rho_single_species( size_t n, size_t i, const real *coeffs, const config_t<real> &conf, 
+                                bool is_electron = true )
+{
+    const real x = conf.x_min + i*conf.dx; 
+    const real du = (conf.u_max-conf.u_min) / conf.Nu;
+    const real u_min = conf.u_min + 0.5*du;
+
+    real rho = 0;
+    for ( size_t ii = 0; ii < conf.Nu; ++ii )
+    {
+        rho += eval_ftilda<real,order>( n, x, u_min + ii*du, coeffs, conf, is_electron );
+    }
+    rho *= du; 
 
     return rho;
 }

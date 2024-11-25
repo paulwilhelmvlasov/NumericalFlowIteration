@@ -134,9 +134,6 @@ void run_restarted_simulation()
     //double   dt = 0.1;  // Time-step size.
     size_t Nt = 500/dt;  // Number of time-steps.
 
-	size_t nx_r = 2048;
-	size_t nu_r = nx_r;
-
     // Dimensions of physical domain.
     double x_min = 0;
     double x_max = 4*M_PI;
@@ -150,6 +147,8 @@ void run_restarted_simulation()
     conf.u_max = u_max;
 
     // We use conf.Nt as restart timer for now.
+    size_t nx_r = 2048;
+	size_t nu_r = nx_r;
     size_t nt_restart = 1600;
     double dx_r = conf.Lx / nx_r;
     double du_r = (conf.u_max - conf.u_min)/ nu_r;

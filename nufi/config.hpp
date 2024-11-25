@@ -46,6 +46,8 @@ struct config_t
     real dx, dx_inv, Lx, Lx_inv;
     real du;
 
+    real Mr = 1000; // Mass ratio. Only needed for multi-species.
+
     config_t(size_t nx, size_t nu, size_t nt, real dt, real xmin, real xmax,
     		real umin, real umax, real(*init_data)(real,real)) noexcept;
 
