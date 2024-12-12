@@ -36,7 +36,6 @@ namespace fd_dirichlet
 {
 
 template <typename real, size_t order, size_t dx = 0>
-__host__ __device__
 real eval( real x, const real *coeffs, const config_t<real> &config ) noexcept
 {
     using std::floor;
@@ -84,7 +83,6 @@ namespace periodic
 {
 
 template <typename real, size_t order, size_t dx = 0>
-__host__ __device__
 real eval( real x, const real *coeffs, const config_t<real> &config ) noexcept
 {
     using std::floor;
@@ -203,7 +201,6 @@ void interpolate( real *coeffs, const real *values, const config_t<real> &config
 namespace dirichlet{
 
 template <typename real, size_t order, size_t dx = 0>
-__host__ __device__
 real eval( real x, const real *coeffs, const config_t<real> &config ) noexcept
 {
     using std::floor;
@@ -395,7 +392,6 @@ namespace dim2
 {
 
 template <typename real, size_t order, size_t dx = 0, size_t dy = 0>
-__host__ __device__
 real eval( real x, real y, const real *coeffs, const config_t<real> &config )
 {
     using std::floor;
@@ -549,7 +545,6 @@ void interpolate( real *coeffs, const real *values, const config_t<real> &config
 
 namespace dirichlet{
 template <typename real, size_t order, size_t dx = 0, size_t dy = 0>
-__host__ __device__
 real eval( real x, real y, const real *coeffs, const config_t<real> &config )
 {
     using std::floor;
@@ -858,7 +853,6 @@ namespace dim3
 {
 
 template <typename real, size_t order, size_t dx = 0, size_t dy = 0, size_t dz = 0>
-__host__ __device__
 real eval( real x, real y, real z, const real *coeffs, const config_t<real> &config )
 {
     using std::floor;

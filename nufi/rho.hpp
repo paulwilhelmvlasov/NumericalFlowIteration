@@ -34,7 +34,6 @@ namespace dim1
 namespace periodic
 {
 template <typename real, size_t order>
-__host__ __device__
 real eval_ftilda( size_t n, real x, real u,
                   const real *coeffs, const config_t<real> &conf )
 {
@@ -66,7 +65,6 @@ real eval_ftilda( size_t n, real x, real u,
 }
 
 template <typename real, size_t order>
-__host__ __device__
 real eval_f( size_t n, real x, real u, 
              const real *coeffs, const config_t<real> &conf )
 {
@@ -121,13 +119,12 @@ namespace dirichlet
 {
 
 template <typename real, size_t order>
-__host__ __device__
 real eval_ftilda( size_t n, real x, real u,
                   const real *coeffs, const config_t<real> &conf )
 {
     if ( n == 0 ) return config_t<real>::f0(x,u);
-    bool state = config_t<real>::surface_state(x);
-    if (state != 1) return config_t<real>::call_surface_model(state, x, u);
+/*     bool state = config_t<real>::surface_state(x);
+    if (state != 1) return config_t<real>::call_surface_model(state, x, u); */
 
 
     const size_t stride_x = 1;
@@ -145,9 +142,9 @@ real eval_ftilda( size_t n, real x, real u,
         c  = coeffs + n*stride_t;
         Ex = -eval<real,order,1>(x,c,conf);
         u  = u + conf.dt*Ex;
-        state = config_t<real>::surface_state(x);
+/*         state = config_t<real>::surface_state(x);
         if (state != 1) return config_t<real>::call_surface_model(state, x, u);
-
+ */
     }
 
     // The final half-step.
@@ -160,14 +157,13 @@ real eval_ftilda( size_t n, real x, real u,
 }
 
 template <typename real, size_t order>
-__host__ __device__
 real eval_f( size_t n, real x, real u,
              const real *coeffs, const config_t<real> &conf )
 {
     if ( n == 0 ) return config_t<real>::f0(x,u);
-    bool state = config_t<real>::surface_state(x);
+/*     bool state = config_t<real>::surface_state(x);
     if (state != 1) return config_t<real>::call_surface_model(state,x,u);
-
+ */
     const size_t stride_x = 1;
     const size_t stride_t = stride_x*(conf.l + order);
 
@@ -185,8 +181,8 @@ real eval_f( size_t n, real x, real u,
         c  = coeffs + n*stride_t;
         Ex = -eval<real,order,1>( x, c, conf );
         u += conf.dt*Ex;
-        state = config_t<real>::surface_state(x);
-        if (state != 1) return config_t<real>::call_surface_model(state, x, u);
+/*         state = config_t<real>::surface_state(x);
+        if (state != 1) return config_t<real>::call_surface_model(state, x, u); */
 
     }
 
@@ -216,7 +212,6 @@ real eval_rho( size_t n, size_t i, const real *coeffs, const config_t<real> &con
 }
 
 template <typename real, size_t order>
-__host__ __device__
 void eval_flow_map_ion_acoustic( size_t n, real& x, real& u,
                   const real *coeffs, const config_t<real> &conf,
 				  bool electron = true, bool reflecting_boundary = true,
@@ -297,7 +292,6 @@ void eval_flow_map_ion_acoustic( size_t n, real& x, real& u,
 }
 
 template <typename real, size_t order>
-//__host__ __device__
 real eval_ftilda_ion_acoustic( size_t n, real x, real u,
                   const real *coeffs, const config_t<real> &conf,
 				  bool electron = true, bool reflecting_boundary = true,
@@ -307,9 +301,9 @@ real eval_ftilda_ion_acoustic( size_t n, real x, real u,
 	// wall. The left boundary has an inflow from the left.
 	if ( n == 0 ){
 		if(electron){
-			return config_t<real>::f0_electron(x,u);
+			return config_t<real>.f0_electron(x,u);
 		} else {
-			return config_t<real>::f0_ion(x,u);
+			return config_t<real>.f0_ion(x,u);
 		}
 	}
 
@@ -317,23 +311,13 @@ real eval_ftilda_ion_acoustic( size_t n, real x, real u,
 		// In this case we assume that f=0 outside the domain.
 		if(x < conf.x_min) {
 			if(electron){
-				return config_t<real>::f0_electron(x, u);
+				return config_t<real>.f0_electron(x, u);
 			}else{
-				return config_t<real>::f0_ion(x, u);
+				return config_t<real>.f0_ion(x, u);
 			}
 		} else if(x > conf.x_max){
 			x = conf.x_max;
 			u = -u;
-			/*
-			u = -std::abs(u);
-			if(electron){
-				//u = conf.u_wall_electron();
-				return conf.boltzmann(u, conf.T_e, conf.m_e);
-			}else{
-				//u = conf.u_wall_ion();
-				return conf.boltzmann(u, conf.T_i, conf.m_i);
-			}
-			*/
 		}
 	}
 
@@ -365,21 +349,11 @@ real eval_ftilda_ion_acoustic( size_t n, real x, real u,
 			if(x > conf.x_max){
 				x = conf.x_max;
 				u = -u;
-				/*
-				u = -std::abs(u);
-				if(electron){
-					//u = conf.u_wall_electron();
-					return conf.boltzmann(u, conf.T_e, conf.m_e);
-				}else{
-					//u = conf.u_wall_ion();
-					return conf.boltzmann(u, conf.T_i, conf.m_i);
-				}
-				*/
 			}else if(x < conf.x_min){
 				if(electron){
-					return config_t<real>::f0_electron(x, u);
+					return config_t<real>.f0_electron(x, u);
 				}else{
-					return config_t<real>::f0_ion(x, u);
+					return config_t<real>.f0_ion(x, u);
 				}
 			}
 		}
@@ -404,34 +378,23 @@ real eval_ftilda_ion_acoustic( size_t n, real x, real u,
 		if(x > conf.x_max){
 			x = conf.x_max;
 			u = -u;
-			/*
-			u = -std::abs(u);
-			if(electron){
-				//u = conf.u_wall_electron();
-				return conf.boltzmann(u, conf.T_e, conf.m_e);
-			}else{
-				//u = conf.u_wall_ion();
-				return conf.boltzmann(u, conf.T_i, conf.m_i);
-			}
-			*/
 		}else if(x < conf.x_min){
 			if(electron){
-				return config_t<real>::f0_electron(x, u);
+				return config_t<real>.f0_electron(x, u);
 			}else{
-				return config_t<real>::f0_ion(x, u);
+				return config_t<real>.f0_ion(x, u);
 			}
 		}
 	}
 
 	if(electron){
-		return config_t<real>::f0_electron(x,u);
+		return config_t<real>.f0_electron(x,u);
 	} else {
-		return config_t<real>::f0_ion(x,u);
+		return config_t<real>.f0_ion(x,u);
 	}
 }
 
 template <typename real, size_t order>
-//__host__ __device__
 real eval_f_ion_acoustic( size_t n, real x, real u,
              const real *coeffs, const config_t<real> &conf, bool electron = true,
 			 bool reflecting_boundary = true, bool relativistic = false)
@@ -440,9 +403,9 @@ real eval_f_ion_acoustic( size_t n, real x, real u,
 	// wall. The left boundary has an inflow from the left.
 	if ( n == 0){
 		if(electron){
-			return config_t<real>::f0_electron(x,u);
+			return config_t<real>.f0_electron(x,u);
 		} else {
-			return config_t<real>::f0_ion(x,u);
+			return config_t<real>.f0_ion(x,u);
 		}
 	}
 
@@ -450,21 +413,11 @@ real eval_f_ion_acoustic( size_t n, real x, real u,
 		if(x > conf.x_max){
 			x = conf.x_max;
 			u = -u;
-			/*
-			u = -std::abs(u);
-			if(electron){
-				//u = conf.u_wall_electron();
-				return conf.boltzmann(u, conf.T_e, conf.m_e);
-			}else{
-				//u = conf.u_wall_ion();
-				return conf.boltzmann(u, conf.T_i, conf.m_i);
-			}
-			*/
 		}else if(x < conf.x_min){
 			if(electron){
-				return config_t<real>::f0_electron(x, u);
+				return config_t<real>.f0_electron(x, u);
 			}else{
-				return config_t<real>::f0_ion(x, u);
+				return config_t<real>.f0_ion(x, u);
 			}
 		}
 	}
@@ -501,21 +454,11 @@ real eval_f_ion_acoustic( size_t n, real x, real u,
 			if(x > conf.x_max){
 				x = conf.x_max;
 				u = -u;
-				/*
-				u = -std::abs(u);
-				if(electron){
-					//u = conf.u_wall_electron();
-					return conf.boltzmann(u, conf.T_e, conf.m_e);
-				}else{
-					//u = conf.u_wall_ion();
-					return conf.boltzmann(u, conf.T_i, conf.m_i);
-				}
-				*/
 			}else if(x < conf.x_min){
 				if(electron){
-					return config_t<real>::f0_electron(x, u);
+					return config_t<real>.f0_electron(x, u);
 				}else{
-					return config_t<real>::f0_ion(x, u);
+					return config_t<real>.f0_ion(x, u);
 				}
 			}
 		}
@@ -540,29 +483,19 @@ real eval_f_ion_acoustic( size_t n, real x, real u,
 		if(x > conf.x_max){
 			x = conf.x_max;
 			u = -u;
-			/*
-			u = -std::abs(u);
-			if(electron){
-				//u = conf.u_wall_electron();
-				return conf.boltzmann(u, conf.T_e, conf.m_e);
-			}else{
-				//u = conf.u_wall_ion();
-				return conf.boltzmann(u, conf.T_i, conf.m_i);
-			}
-			*/
 		}else if(x < conf.x_min){
 			if(electron){
-				return config_t<real>::f0_electron(x, u);
+				return config_t<real>.f0_electron(x, u);
 			}else{
-				return config_t<real>::f0_ion(x, u);
+				return config_t<real>.f0_ion(x, u);
 			}
 		}
 	}
 
     if(electron){
-		return config_t<real>::f0_electron(x,u);
+		return config_t<real>.f0_electron(x,u);
 	} else {
-		return config_t<real>::f0_ion(x,u);
+		return config_t<real>.f0_ion(x,u);
 	}
 }
 
@@ -747,7 +680,6 @@ namespace dim2
 
 
 template <typename real, size_t order>
-__host__ __device__
 real eval_ftilda( size_t n, real x, real y, real u, real v,
                   const real *coeffs, const config_t<real> &conf )
 {
@@ -833,7 +765,6 @@ real eval_ftilda( size_t n, real x, real y, real u, real v,
 }
 
 template <typename real, size_t order>
-__host__ __device__
 real eval_f( size_t n, real x, real y, real u, real v,
              const real *coeffs, const config_t<real> &conf )
 {
@@ -1082,9 +1013,7 @@ real eval_rho( size_t n, size_t l, const real *coeffs, const config_t<real> &con
 namespace dim3
 {
 
-
 template <typename real, size_t order>
-__host__ __device__
 real eval_ftilda( size_t n, real x, real y, real z,
                             real u, real v, real w,
                   const real *coeffs, const config_t<real> &conf )
@@ -1135,7 +1064,6 @@ real eval_ftilda( size_t n, real x, real y, real z,
 }
 
 template <typename real, size_t order>
-__host__ __device__
 real eval_f( size_t n, real x, real y, real z,
                        real u, real v, real w,
              const real *coeffs, const config_t<real> &conf )

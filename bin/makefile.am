@@ -1,55 +1,5 @@
-noinst_PROGRAMS = test_poisson test_gmres test_fields test_vp_dirichlet_1d \
-				  test_vp_ion_acoustic_1d_dirichlet \
-				  test_nufi_cpu_1d test_nufi_cpu_2d  \
-  				  test_nufi_gpu_1d test_nufi_gpu_2d test_nufi_gpu_3d particle_in_cell_ion_acoustic #test_spline
-					 
-
-test_poisson_SOURCES = test_poisson.cpp
-test_poisson_LDADD   = $(top_builddir)/nufi/libnufi.a
-test_poisson_LDADD  += $(CUDA_LDFLAGS) $(BLAS_LIBS) -lfftw3 -lfftw3f
-
-test_gmres_SOURCES = test_gmres.cpp
-test_gmres_LDADD   = $(top_builddir)/nufi/libnufi.a
-test_gmres_LDADD  += $(CUDA_LDFLAGS) $(BLAS_LIBS) -lfftw3 -lfftw3f
-
-test_fields_SOURCES = test_fields.cpp
-test_fields_LDADD   = $(top_builddir)/nufi/libnufi.a
-test_fields_LDADD  += $(CUDA_LDFLAGS) $(BLAS_LIBS) -lfftw3 -lfftw3f
-
-test_vp_dirichlet_1d_SOURCES = test_vp_dirichlet_1d.cpp
-test_vp_dirichlet_1d_LDADD   = $(top_builddir)/nufi/libnufi.a 
-test_vp_dirichlet_1d_LDADD  += $(CUDA_LDFLAGS) $(BLAS_LIBS) -lfftw3 -lfftw3f
+noinst_PROGRAMS = test_vp_ion_acoustic_1d_dirichlet 
 
 test_vp_ion_acoustic_1d_dirichlet_SOURCES = test_vp_ion_acoustic_1d_dirichlet.cpp
 test_vp_ion_acoustic_1d_dirichlet_LDADD   = $(top_builddir)/nufi/libnufi.a 
-test_vp_ion_acoustic_1d_dirichlet_LDADD  += $(CUDA_LDFLAGS) $(BLAS_LIBS) -lfftw3 -lfftw3f
-
-test_nufi_cpu_1d_SOURCES = test_nufi_cpu_1d.cpp
-test_nufi_cpu_1d_LDADD   = $(top_builddir)/nufi/libnufi.a 
-test_nufi_cpu_1d_LDADD  += $(CUDA_LDFLAGS) $(BLAS_LIBS) -lfftw3 -lfftw3f -lmpi -lmpi_cxx
-
-test_nufi_cpu_2d_SOURCES = test_nufi_cpu_2d.cpp
-test_nufi_cpu_2d_LDADD   = $(top_builddir)/nufi/libnufi.a 
-test_nufi_cpu_2d_LDADD  += $(CUDA_LDFLAGS) $(BLAS_LIBS) -lfftw3 -lfftw3f -lmpi -lmpi_cxx
-
-test_nufi_gpu_1d_SOURCES = test_nufi_gpu_1d.cpp
-test_nufi_gpu_1d_LDADD   = $(top_builddir)/nufi/libnufi.a 
-test_nufi_gpu_1d_LDADD  += $(CUDA_LDFLAGS) $(BLAS_LIBS) -lfftw3 -lfftw3f -lmpi -lmpi_cxx
-
-test_nufi_gpu_2d_SOURCES = test_nufi_gpu_2d.cpp
-test_nufi_gpu_2d_LDADD   = $(top_builddir)/nufi/libnufi.a 
-test_nufi_gpu_2d_LDADD  += $(CUDA_LDFLAGS) $(BLAS_LIBS) -lfftw3 -lfftw3f -lmpi -lmpi_cxx
-
-test_nufi_gpu_3d_SOURCES = test_nufi_gpu_3d.cpp
-test_nufi_gpu_3d_LDADD   = $(top_builddir)/nufi/libnufi.a 
-test_nufi_gpu_3d_LDADD  += $(CUDA_LDFLAGS) $(BLAS_LIBS) -lfftw3 -lfftw3f -lmpi -lmpi_cxx
-
-particle_in_cell_ion_acoustic_SOURCES = particle_in_cell_ion_acoustic.cpp
-particle_in_cell_ion_acoustic_LDADD   = $(top_builddir)/nufi/libnufi.a 
-particle_in_cell_ion_acoustic_LDADD  += $(CUDA_LDFLAGS) $(BLAS_LIBS) 
-particle_in_cell_ion_acoustic_LDADD  += -lfftw3 -lfftw3f -lmpi -lmpi_cxx
-
-#test_spline_SOURCES = test_spline.cpp
-#test_spline_LDADD   = $(top_builddir)/nufi/libnufi.a
-#test_spline_LDADD  += $(CUDA_LDFLAGS) $(BLAS_LIBS) -lfftw3 -lfftw3f -lgsl -lgslcblas -lm
-
+test_vp_ion_acoustic_1d_dirichlet_LDADD  += $(BLAS_LIBS) -lfftw3 -lfftw3f

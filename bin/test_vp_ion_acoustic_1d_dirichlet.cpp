@@ -35,7 +35,6 @@
 #include <nufi/poisson.hpp>
 #include <nufi/rho.hpp>
 #include <nufi/stopwatch.hpp>
-#include <nufi/cuda_scheduler.hpp>
 #include <nufi/finite_difference_poisson.hpp>
 
 namespace nufi

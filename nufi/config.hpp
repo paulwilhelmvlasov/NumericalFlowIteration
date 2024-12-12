@@ -20,14 +20,10 @@
 #ifndef NUFI_CONFIG_HPP
 #define NUFI_CONFIG_HPP
 
-#include <curand_kernel.h>
-
 #include <cmath>
 #include <iostream>
 #include <chrono>
-#include <random>
 #include <vector>
-#include <nufi/cuda_runtime.hpp>
 
 
 namespace nufi
@@ -59,7 +55,7 @@ struct config_t
     // Or write a class (interface) which can offers an
     // operator() overload, i.e., can be called like a
     // function.
-    __host__ __device__ static real f0( real x, real u ) noexcept;
+    static real f0( real x, real u ) noexcept;
 
 };
 
@@ -81,23 +77,14 @@ config_t<real>::config_t() noexcept
 }
 
 template <typename real>
-__host__ __device__
 real config_t<real>::f0( real x, real u ) noexcept
 {
-            using std::sin;
-            using std::cos;
-            using std::exp;
-            constexpr real alpha = 1e-2;//0.05;
-            constexpr real k     = 0.5;
-            return 0.39894228040143267793994 * ( 1. + alpha*cos(k*x) ) * exp( -u*u/2. ) * u*u;
-			//return 0.1329807601338108926466486866447939561586195437216448858886419432
-			//		* ( 1. + alpha*cos(k*x) ) * exp( -u*u/2. ) * u*u*u*u;
-
-
-			//return 0.0037994502895374540756185339041369701759605583920469967396754840
-			//		* ( 1. + alpha*cos(k*x) ) * exp( -u*u/2. ) * u*u*u*u*u*u*u*u;
-
-
+    using std::sin;
+    using std::cos;
+    using std::exp;
+    constexpr real alpha = 1e-2;//0.05;
+    constexpr real k     = 0.5;
+    return 0.39894228040143267793994 * ( 1. + alpha*cos(k*x) ) * exp( -u*u/2. ) * u*u;
     //return 0.39894228040143267793994 * ( 1. + alpha*cos(k*x) ) * exp( -u*u/2 );
 }
 }
@@ -107,8 +94,6 @@ namespace dim1
 
 namespace dirichlet
 {
-
-
 
 template <typename real>
 struct config_t
@@ -129,15 +114,11 @@ struct config_t
     constexpr static real M_0 = 0.4;
     //static real V_0 = M_0 * C_S;
 
-    /*__host__ __device__*/ static real initial_plasma_density( real x) noexcept;
-    /*__host__ __device__*/ static real boltzmann( real u, real T, real m) noexcept;
-    /*__host__ __device__*/ static real f0_electron( real x, real u ) noexcept;
-    /*__host__ __device__*/ static real f0_ion( real x, real u ) noexcept;
+    //static real f0_electron( real x, real u ) noexcept;
+    //static real f0_ion( real x, real u ) noexcept;
 
-    /*__host__ __device__*/ static real generateGaussianNoise(double mu, double sigma) noexcept;
-    /*__host__ __device__*/ static real u_wall_electron( ) noexcept;
-    /*__host__ __device__*/ static real u_wall_ion( ) noexcept;
-
+    real (*f0_electron)( real x, real u );
+    real (*f0_ion)( real x, real u );
 
     // "Standard parameters"
     static constexpr real x_min = -40, x_max = 0, epsilon = 0.5;
@@ -162,19 +143,11 @@ struct config_t
     real du, du_electron, du_ion;
     size_t l;
 
-    config_t() noexcept;
-
-    // Maybe we could subs this with a function pointer?
-    // Or write a class (interface) which can offers an
-    // operator() overload, i.e., can be called like a
-    // function.
-    __host__ __device__ static real f0( real x, real u ) noexcept;
-    __host__ __device__ static bool surface_state( real x) noexcept;
-    __host__ __device__ static real call_surface_model( bool state, real x, real u) noexcept;
+    config_t(real(*init_electron)(real,real), real(*init_ion)(real,real)) noexcept;
 };
 
 template <typename real>
-config_t<real>::config_t() noexcept
+config_t<real>::config_t(real(*init_electron)(real,real), real(*init_ion)(real,real)) noexcept
 {
     Nx = 64;
     Nu = 16;
@@ -203,144 +176,15 @@ config_t<real>::config_t() noexcept
 
     tol_integral = 1e-3;
     max_depth_integration = 5;
-}
 
-template <typename real>
-//__host__ __device__
-real config_t<real>::initial_plasma_density( real x) noexcept
-{
-	/*
-	if(x < 3*lambda) {
-		return 0;
-	} else if(x < 4*lambda) {
-		return 2*n_c/lambda*x - 6*n_c;
-	} else if(x < 12*lambda) {
-		return 2*n_c;
-	} else if(x < 13*lambda){
-		return -2*n_c/lambda*x + 26*n_c;
-	} else {
-		return 0;
-	}
-	*/
-	//return n_0;
-	return 1;
-}
-
-template <typename real>
-//__host__ __device__
-real config_t<real>::boltzmann( real u, real T, real m) noexcept
-{
-	// See Sonnendruecker lecture notes.
-	return 1/std::sqrt(2*M_PI*T/m) * std::exp(-u*u /(2*T/m));
-}
-
-
-template <typename real>
-//__host__ __device__
-real config_t<real>::f0_electron( real x, real u ) noexcept
-{
-	//real us = M_0;
-	real us = 0;
-	return initial_plasma_density(x)*boltzmann(u-us,T_e,m_e);
-}
-
-template <typename real>
-//__host__ __device__
-real config_t<real>::f0_ion( real x, real u ) noexcept
-{
-	real us = M_0;
-	return initial_plasma_density(x)*boltzmann(u-us,T_i,m_i);
-}
-
-template <typename real>
-//__host__ __device__
-real config_t<real>::generateGaussianNoise(double mu, double sigma) noexcept
-{
-	/*
- 	constexpr real two_pi = 2.0 * M_PI;
-
-    std::srand(std::time(nullptr)); // use current time as seed for random generator
-    int random_int_1 = std::rand();
-    int random_int_2 = std::rand();
-    real u1 = random_int_1/RAND_MAX; // Random number in [0,1] sampled from a uniform distribution U(0,1).
-    real u2 = random_int_2/RAND_MAX; // Random number in [0,1] sampled from a uniform distribution U(0,1).
-
-    real mag = sigma * sqrt(-2.0 * log(u1));
-    real z0  = mag * cos(two_pi * u2) + mu; // Random number sampled from a normal distribution N(mu,sigma).
-    //real z1  = mag * sin(two_pi * u2) + mu; // Throw away second random number as it is unneeded.
-    return z0;
-    */
-
-    std::random_device rd{};
-    std::mt19937 gen{rd()};
-    std::normal_distribution<real> dist(mu,sigma);
-
-    return dist(gen);
-}
-
-template <typename real>
-//__host__ __device__
-real config_t<real>::u_wall_electron( ) noexcept
-{
-	real v_th_e = std::sqrt(T_e/m_e);
-	real u = -std::abs(generateGaussianNoise(0,v_th_e));
-
-	//std::cout << "electron: " << u << std::endl;
-	return u;
-}
-
-template <typename real>
-//__host__ __device__
-real config_t<real>::u_wall_ion( ) noexcept
-{
-	real v_th_i = std::sqrt(T_i/m_i);
-	real u = -std::abs(generateGaussianNoise(0,v_th_i));
-	//std::cout << "ion: " << u << std::endl;
-	return u;
-}
-
-
-template <typename real>
-__host__ __device__
-real config_t<real>::f0( real x, real u ) noexcept
-{
-    constexpr real c = 1.0/M_PI;
-    if(x*x + u*u >= 1 )
-    {
-        return 0;
-    }
-    return c * 1.0/std::sqrt( 1 - x*x - u*u );
-}
-
-template <typename real>
-__host__ __device__
-bool config_t<real>::surface_state( real x) noexcept
-{
-    // Check if the particle is outside the domain
-    if (x < x_min || x > x_max)
-    {
-        return 0; // 0: outside domain, 1: inside domain
-    }
-
-
-        return 1;
-
-}
-template <typename real>
-__host__ __device__
-real config_t<real>::call_surface_model( bool state, real x, real u) noexcept
-{
-    constexpr real c = 1.0/M_PI;
-    if(x*x + u*u >= 1 )
-    {
-        return 0;
-    }
-    return c * 1.0/std::sqrt( 1 - x*x - u*u );
+    f0_electron = init_electron;
+    f0_ion = init_ion;
 }
 
 }
 
 }
+
 
 namespace dim2
 {
@@ -368,7 +212,7 @@ struct config_t
     real du, dv;
 
     config_t() noexcept;
-    __host__ __device__ static real f0( real x, real y, real u, real v ) noexcept;
+    static real f0( real x, real y, real u, real v ) noexcept;
 };
 
 
@@ -397,32 +241,18 @@ config_t<real>::config_t() noexcept
 }
 
 template <typename real>
-__host__ __device__
 real config_t<real>::f0( real x, real y, real u, real v ) noexcept
 {
     using std::sin;
     using std::cos;
     using std::exp;
     return 1.0 / (2.0 * M_PI) * exp(-0.5 * (u*u + v*v)); //* (1 + 0.5 * (cos(0.5*x) + cos(0.5*y)) );
-    
-//    constexpr real alpha = 1e-3;
-//    constexpr real v0 = 2.4;
-//    constexpr real pi    = real(M_PI);
-//    constexpr real k  = 0.2;
-//    constexpr real c = 1.0 / (8.0 * M_PI);
-//    real pertube = 1.0 + alpha*(cos(k*x)+cos(k*y));
-//    real feq = ( exp(-0.5*(v-v0)*(v-v0)) + exp(-0.5*(v+v0)*(v+v0)) ) * ( exp(-0.5*(u-v0)*(u-v0)) + exp(-0.5*(u+v0)*(u+v0)) );
-//    return c * pertube  * feq;
 }
 
 }
 
 namespace dim3
 {
-
-// We should either edit this to have separate configs for
-// Poisson and Maxwell, i.e., separate namespaces or change
-// the interfaces for the respective force-classes.
 
 template <typename real>
 struct config_t
@@ -455,7 +285,7 @@ struct config_t
     real light_speed_inv = std::sqrt(eps0*mu0);
 
     config_t() noexcept;
-    __host__ __device__ static real f0( real x, real y, real z, real u, real v, real w ) noexcept;
+    static real f0( real x, real y, real z, real u, real v, real w ) noexcept;
 };
 
 
@@ -484,7 +314,6 @@ config_t<real>::config_t() noexcept
 }
 
 template <typename real>
-__host__ __device__
 real config_t<real>::f0( real x, real y, real z, real u, real v, real w ) noexcept
 {
     using std::sin;
@@ -507,7 +336,9 @@ real config_t<real>::f0( real x, real y, real z, real u, real v, real w ) noexce
 
 }
 
+
 }
+
 
 #endif 
 
