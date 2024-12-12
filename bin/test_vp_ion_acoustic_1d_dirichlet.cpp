@@ -46,29 +46,51 @@ namespace dim1
 namespace dirichlet
 {
 
+template <typename real>
+real boltzmann( real u, real T, real m) noexcept
+{
+	// See Sonnendruecker lecture notes.
+	return 1/std::sqrt(2*M_PI*T/m) * std::exp(-u*u /(2*T/m));
+}
 
-arma::mat f0_r_electron;
-arma::mat f0_r_ion;
-config_t<double> conf(&f0_electron, &f0_ion);
 
+template <typename real>
+real initial_plasma_density( real x) noexcept
+{
+	/*
+	if(x < 3*lambda) {
+		return 0;
+	} else if(x < 4*lambda) {
+		return 2*n_c/lambda*x - 6*n_c;
+	} else if(x < 12*lambda) {
+		return 2*n_c;
+	} else if(x < 13*lambda){
+		return -2*n_c/lambda*x + 26*n_c;
+	} else {
+		return 0;
+	}
+	*/
+	//return n_0;
+	return 1;
+}
+
+constexpr double T_e = 10;
+constexpr double T_i = 0.1;
+constexpr double m_e = 1;
+constexpr double m_i = 1836;
 
 template <typename real>
 real f0_electron(real x, real u) noexcept
 {
-    real M_r = 1000;
-    real U_e = -2;
-	real alpha = 0.5;
-	real k = 0.5;
-	return 1.0 / std::sqrt(2.0 * M_PI) * exp(-0.5*(u-U_e)*(u-U_e)) * (1 + alpha * cos(k*x));
+	real us = 0;
+	return initial_plasma_density(x)*boltzmann(u-us,T_e,m_e);
 }
 
 template <typename real>
 real f0_ion(real x, real u) noexcept
 {
-    real M_r = 1000;
-	real alpha = 0;
-	real k = 0.5;
-    return std::sqrt( M_r / (2.0 * M_PI)) * exp(-0.5*M_r*u*u) * (1 + alpha * cos(k*x));
+	real us = 0.4;
+	return initial_plasma_density(x)*boltzmann(u-us,T_i,m_i);
 }
 
 template <typename real>
@@ -80,6 +102,10 @@ real lin_interpol(real x , real y, real x1, real x2, real y1, real y2, real f_11
 
 	return ((y2-y)*f_x_y1 + (y-y1)*f_x_y2) / (y2-y1);
 }
+
+arma::mat f0_r_electron;
+arma::mat f0_r_ion;
+config_t<double> conf(&f0_electron, &f0_ion);
 
 double f_t_electron(double x, double u) noexcept
 {
@@ -168,9 +194,9 @@ void nufi_two_species_ion_acoustic_with_reflecting_dirichlet_boundary(bool plot 
     size_t nx_r = 8192;
 	size_t nu_r = nx_r;
     size_t nt_restart = 400;
-    double dx_r = conf_electron.Lx / nx_r;
-    double du_r_electron = (conf_electron.u_max - conf_electron.u_min)/ nu_r;
-    double du_r_ion = (conf_ion.u_max - conf_ion.u_min)/ nu_r;
+    double dx_r = conf.Lx / nx_r;
+    double du_r_electron = (conf.u_electron_max - conf.u_electron_min)/ nu_r;
+    double du_r_ion = (conf.u_ion_max - conf.u_ion_min)/ nu_r;
     f0_r_electron.resize(nx_r+1, nu_r+1);
     f0_r_ion.resize(nx_r+1, nu_r+1);
 
@@ -288,7 +314,7 @@ void nufi_two_species_ion_acoustic_with_reflecting_dirichlet_boundary(bool plot 
     		for(size_t i = 0; i <= nx_r; i++ ){
     			for(size_t j = 0; j <= nu_r; j++){
     				double x = i*dx_r;
-    				double u = conf_ion.u_min + j*du_r_ion;
+    				double u = conf.u_ion_min + j*du_r_ion;
 
                     double f = eval_f_ion_acoustic<double,order>(nt_r_curr,x,u,coeffs_restart.get(),conf,false);
 
@@ -303,7 +329,7 @@ void nufi_two_species_ion_acoustic_with_reflecting_dirichlet_boundary(bool plot 
     		for(size_t i = 0; i <= nx_r; i++ ){
     			for(size_t j = 0; j <= nu_r; j++){
     				double x = i*dx_r;
-    				double u = conf_electron.u_min + j*du_r_electron;
+    				double u = conf.u_electron_min + j*du_r_electron;
 
                     double f = eval_f_ion_acoustic<double,order>(nt_r_curr,x,u,coeffs_restart.get(),conf,true);
 

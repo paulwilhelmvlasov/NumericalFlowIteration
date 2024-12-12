@@ -301,9 +301,9 @@ real eval_ftilda_ion_acoustic( size_t n, real x, real u,
 	// wall. The left boundary has an inflow from the left.
 	if ( n == 0 ){
 		if(electron){
-			return config_t<real>.f0_electron(x,u);
+			return conf.f0_electron(x,u);
 		} else {
-			return config_t<real>.f0_ion(x,u);
+			return conf.f0_ion(x,u);
 		}
 	}
 
@@ -311,9 +311,9 @@ real eval_ftilda_ion_acoustic( size_t n, real x, real u,
 		// In this case we assume that f=0 outside the domain.
 		if(x < conf.x_min) {
 			if(electron){
-				return config_t<real>.f0_electron(x, u);
+				return conf.f0_electron(x, u);
 			}else{
-				return config_t<real>.f0_ion(x, u);
+				return conf.f0_ion(x, u);
 			}
 		} else if(x > conf.x_max){
 			x = conf.x_max;
@@ -351,9 +351,9 @@ real eval_ftilda_ion_acoustic( size_t n, real x, real u,
 				u = -u;
 			}else if(x < conf.x_min){
 				if(electron){
-					return config_t<real>.f0_electron(x, u);
+					return conf.f0_electron(x, u);
 				}else{
-					return config_t<real>.f0_ion(x, u);
+					return conf.f0_ion(x, u);
 				}
 			}
 		}
@@ -380,17 +380,17 @@ real eval_ftilda_ion_acoustic( size_t n, real x, real u,
 			u = -u;
 		}else if(x < conf.x_min){
 			if(electron){
-				return config_t<real>.f0_electron(x, u);
+				return conf.f0_electron(x, u);
 			}else{
-				return config_t<real>.f0_ion(x, u);
+				return conf.f0_ion(x, u);
 			}
 		}
 	}
 
 	if(electron){
-		return config_t<real>.f0_electron(x,u);
+		return conf.f0_electron(x,u);
 	} else {
-		return config_t<real>.f0_ion(x,u);
+		return conf.f0_ion(x,u);
 	}
 }
 
@@ -403,9 +403,9 @@ real eval_f_ion_acoustic( size_t n, real x, real u,
 	// wall. The left boundary has an inflow from the left.
 	if ( n == 0){
 		if(electron){
-			return config_t<real>.f0_electron(x,u);
+			return conf.f0_electron(x,u);
 		} else {
-			return config_t<real>.f0_ion(x,u);
+			return conf.f0_ion(x,u);
 		}
 	}
 
@@ -415,9 +415,9 @@ real eval_f_ion_acoustic( size_t n, real x, real u,
 			u = -u;
 		}else if(x < conf.x_min){
 			if(electron){
-				return config_t<real>.f0_electron(x, u);
+				return conf.f0_electron(x, u);
 			}else{
-				return config_t<real>.f0_ion(x, u);
+				return conf.f0_ion(x, u);
 			}
 		}
 	}
@@ -456,9 +456,9 @@ real eval_f_ion_acoustic( size_t n, real x, real u,
 				u = -u;
 			}else if(x < conf.x_min){
 				if(electron){
-					return config_t<real>.f0_electron(x, u);
+					return conf.f0_electron(x, u);
 				}else{
-					return config_t<real>.f0_ion(x, u);
+					return conf.f0_ion(x, u);
 				}
 			}
 		}
@@ -485,17 +485,17 @@ real eval_f_ion_acoustic( size_t n, real x, real u,
 			u = -u;
 		}else if(x < conf.x_min){
 			if(electron){
-				return config_t<real>.f0_electron(x, u);
+				return conf.f0_electron(x, u);
 			}else{
-				return config_t<real>.f0_ion(x, u);
+				return conf.f0_ion(x, u);
 			}
 		}
 	}
 
     if(electron){
-		return config_t<real>.f0_electron(x,u);
+		return conf.f0_electron(x,u);
 	} else {
-		return config_t<real>.f0_ion(x,u);
+		return conf.f0_ion(x,u);
 	}
 }
 
@@ -654,19 +654,19 @@ real eval_rho_adaptive_trapezoidal_rule( size_t n, real x, const real *coeffs, c
 	real fl = f_left;
 	real fr = eval_ftilda_ion_acoustic<real,order>( n, x, u_right, coeffs, conf, is_electron );
 	rho += sub_integral_eval_rho_adaptive_trapezoidal_rule<real,order>( n, x, coeffs, conf, u_left, u_right,
-					fl, fr, 1, is_electron, reflecting_boundary, relativistic);
+					fl, fr, conf.max_depth_integration, is_electron, reflecting_boundary, relativistic);
 	for(size_t i  = 1; i < conf.Nu-1; i++){
 		u_left = u_min + i * du;
 		u_right = u_left + du;
 		fl = fr;
 		fr = eval_ftilda_ion_acoustic<real,order>( n, x, u_right, coeffs, conf, is_electron );
 		rho += sub_integral_eval_rho_adaptive_trapezoidal_rule<real,order>( n, x, coeffs, conf, u_left, u_right,
-						fl, fr, 1, is_electron, reflecting_boundary, relativistic);
+						fl, fr, conf.max_depth_integration, is_electron, reflecting_boundary, relativistic);
 	}
 	fl = fr;
 	fr = f_right;
 	rho += sub_integral_eval_rho_adaptive_trapezoidal_rule<real,order>( n, x, coeffs, conf, u_left, u_right,
-						fl, fr, 1, is_electron, reflecting_boundary, relativistic);
+						fl, fr, conf.max_depth_integration, is_electron, reflecting_boundary, relativistic);
 
 	return rho;
 }

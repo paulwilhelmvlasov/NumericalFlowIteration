@@ -144,7 +144,14 @@ struct config_t
     size_t l;
 
     config_t(real(*init_electron)(real,real), real(*init_ion)(real,real)) noexcept;
+    config_t() noexcept;
 };
+
+template <typename real>
+config_t<real>::config_t() noexcept
+{
+    // This is a work-around for FD_Poisson_Solver to work. Fix this asap.
+}
 
 template <typename real>
 config_t<real>::config_t(real(*init_electron)(real,real), real(*init_ion)(real,real)) noexcept
@@ -175,7 +182,7 @@ config_t<real>::config_t(real(*init_electron)(real,real), real(*init_ion)(real,r
     du_ion = (u_ion_max - u_ion_min)/Nu_ion;
 
     tol_integral = 1e-3;
-    max_depth_integration = 5;
+    max_depth_integration = 1;
 
     f0_electron = init_electron;
     f0_ion = init_ion;

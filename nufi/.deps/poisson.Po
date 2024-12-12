@@ -25,12 +25,12 @@ poisson.o: poisson.cpp /usr/include/stdc-predef.h ../nufi/poisson.hpp \
  /usr/include/x86_64-linux-gnu/bits/floatn-common.h \
  /usr/include/x86_64-linux-gnu/bits/stdio.h \
  /usr/include/x86_64-linux-gnu/bits/stdio2.h ../nufi/config.hpp \
- /usr/include/curand_kernel.h /usr/include/c++/11/type_traits \
+ /usr/include/c++/11/cmath \
  /usr/include/x86_64-linux-gnu/c++/11/bits/c++config.h \
  /usr/include/x86_64-linux-gnu/c++/11/bits/os_defines.h \
  /usr/include/x86_64-linux-gnu/c++/11/bits/cpu_defines.h \
- /usr/include/c++/11/pstl/pstl_config.h /usr/include/c++/11/math.h \
- /usr/include/c++/11/cmath /usr/include/c++/11/bits/cpp_type_traits.h \
+ /usr/include/c++/11/pstl/pstl_config.h \
+ /usr/include/c++/11/bits/cpp_type_traits.h \
  /usr/include/c++/11/ext/type_traits.h /usr/include/math.h \
  /usr/include/x86_64-linux-gnu/bits/math-vector.h \
  /usr/include/x86_64-linux-gnu/bits/libm-simd-decl-stubs.h \
@@ -78,6 +78,7 @@ poisson.o: poisson.cpp /usr/include/stdc-predef.h ../nufi/poisson.hpp \
  /usr/include/c++/11/bits/exception_defines.h \
  /usr/include/c++/11/ext/numeric_traits.h \
  /usr/include/c++/11/bits/stl_pair.h /usr/include/c++/11/bits/move.h \
+ /usr/include/c++/11/type_traits \
  /usr/include/c++/11/bits/stl_iterator_base_types.h \
  /usr/include/c++/11/bits/stl_iterator_base_funcs.h \
  /usr/include/c++/11/bits/concept_check.h \
@@ -96,43 +97,12 @@ poisson.o: poisson.cpp /usr/include/stdc-predef.h ../nufi/poisson.hpp \
  /usr/include/c++/11/tr1/modified_bessel_func.tcc \
  /usr/include/c++/11/tr1/poly_hermite.tcc \
  /usr/include/c++/11/tr1/poly_laguerre.tcc \
- /usr/include/c++/11/tr1/riemann_zeta.tcc /usr/include/curand.h \
- /usr/include/cuda_runtime.h /usr/include/crt/host_config.h \
- /usr/include/builtin_types.h /usr/include/device_types.h \
- /usr/include/crt/host_defines.h /usr/include/driver_types.h \
- /usr/include/vector_types.h \
- /usr/lib/gcc/x86_64-linux-gnu/11/include/limits.h \
- /usr/lib/gcc/x86_64-linux-gnu/11/include/syslimits.h \
- /usr/include/limits.h /usr/include/x86_64-linux-gnu/bits/posix1_lim.h \
- /usr/include/x86_64-linux-gnu/bits/local_lim.h \
- /usr/include/linux/limits.h \
- /usr/include/x86_64-linux-gnu/bits/pthread_stack_min-dynamic.h \
- /usr/include/x86_64-linux-gnu/bits/posix2_lim.h \
- /usr/include/x86_64-linux-gnu/bits/xopen_lim.h \
- /usr/include/x86_64-linux-gnu/bits/uio_lim.h \
- /usr/include/surface_types.h /usr/include/texture_types.h \
- /usr/include/library_types.h /usr/include/channel_descriptor.h \
- /usr/include/cuda_runtime_api.h /usr/include/cuda_device_runtime_api.h \
- /usr/include/driver_functions.h /usr/include/vector_functions.h \
- /usr/include/vector_functions.hpp /usr/include/curand_discrete.h \
- /usr/include/curand_precalc.h /usr/include/curand_mrg32k3a.h \
- /usr/include/curand_mtgp32_kernel.h /usr/include/cuda.h \
- /usr/include/c++/11/stdlib.h /usr/include/c++/11/cstdlib \
- /usr/lib/gcc/x86_64-linux-gnu/11/include/stdint.h /usr/include/stdint.h \
- /usr/include/x86_64-linux-gnu/bits/wchar.h \
- /usr/include/x86_64-linux-gnu/bits/stdint-uintn.h /usr/include/memory.h \
- /usr/include/string.h /usr/include/strings.h \
- /usr/include/x86_64-linux-gnu/bits/strings_fortified.h \
- /usr/include/x86_64-linux-gnu/bits/string_fortified.h \
- /usr/include/curand_mtgp32.h /usr/include/curand_philox4x32_x.h \
- /usr/include/curand_globals.h /usr/include/curand_uniform.h \
- /usr/include/curand_normal.h /usr/include/curand_normal_static.h \
- /usr/include/curand_lognormal.h /usr/include/curand_poisson.h \
- /usr/include/curand_discrete2.h /usr/include/c++/11/iostream \
+ /usr/include/c++/11/tr1/riemann_zeta.tcc /usr/include/c++/11/iostream \
  /usr/include/c++/11/ostream /usr/include/c++/11/ios \
  /usr/include/c++/11/iosfwd /usr/include/c++/11/bits/stringfwd.h \
  /usr/include/c++/11/bits/memoryfwd.h /usr/include/c++/11/bits/postypes.h \
  /usr/include/c++/11/cwchar /usr/include/wchar.h \
+ /usr/include/x86_64-linux-gnu/bits/wchar.h \
  /usr/include/x86_64-linux-gnu/bits/types/wint_t.h \
  /usr/include/x86_64-linux-gnu/bits/types/mbstate_t.h \
  /usr/include/x86_64-linux-gnu/bits/wchar2.h \
@@ -142,6 +112,8 @@ poisson.o: poisson.cpp /usr/include/stdc-predef.h ../nufi/poisson.hpp \
  /usr/include/c++/11/typeinfo /usr/include/c++/11/bits/hash_bytes.h \
  /usr/include/c++/11/new /usr/include/c++/11/bits/nested_exception.h \
  /usr/include/c++/11/bits/char_traits.h /usr/include/c++/11/cstdint \
+ /usr/lib/gcc/x86_64-linux-gnu/11/include/stdint.h /usr/include/stdint.h \
+ /usr/include/x86_64-linux-gnu/bits/stdint-uintn.h \
  /usr/include/c++/11/bits/localefwd.h \
  /usr/include/x86_64-linux-gnu/c++/11/bits/c++locale.h \
  /usr/include/c++/11/clocale /usr/include/locale.h \
@@ -160,6 +132,7 @@ poisson.o: poisson.cpp /usr/include/stdc-predef.h ../nufi/poisson.hpp \
  /usr/include/x86_64-linux-gnu/bits/types/struct_itimerspec.h \
  /usr/include/x86_64-linux-gnu/bits/setjmp.h \
  /usr/include/x86_64-linux-gnu/bits/types/struct___jmp_buf_tag.h \
+ /usr/include/x86_64-linux-gnu/bits/pthread_stack_min-dynamic.h \
  /usr/include/x86_64-linux-gnu/c++/11/bits/atomic_word.h \
  /usr/include/x86_64-linux-gnu/sys/single_threaded.h \
  /usr/include/c++/11/bits/locale_classes.h /usr/include/c++/11/string \
@@ -178,10 +151,10 @@ poisson.o: poisson.cpp /usr/include/stdc-predef.h ../nufi/poisson.hpp \
  /usr/include/c++/11/bits/stl_construct.h /usr/include/c++/11/string_view \
  /usr/include/c++/11/bits/functional_hash.h \
  /usr/include/c++/11/bits/string_view.tcc \
- /usr/include/c++/11/ext/string_conversions.h /usr/include/c++/11/cstdio \
- /usr/include/c++/11/cerrno /usr/include/errno.h \
- /usr/include/x86_64-linux-gnu/bits/errno.h /usr/include/linux/errno.h \
- /usr/include/x86_64-linux-gnu/asm/errno.h \
+ /usr/include/c++/11/ext/string_conversions.h /usr/include/c++/11/cstdlib \
+ /usr/include/c++/11/cstdio /usr/include/c++/11/cerrno \
+ /usr/include/errno.h /usr/include/x86_64-linux-gnu/bits/errno.h \
+ /usr/include/linux/errno.h /usr/include/x86_64-linux-gnu/asm/errno.h \
  /usr/include/asm-generic/errno.h /usr/include/asm-generic/errno-base.h \
  /usr/include/x86_64-linux-gnu/bits/types/error_t.h \
  /usr/include/c++/11/bits/charconv.h \
@@ -202,22 +175,14 @@ poisson.o: poisson.cpp /usr/include/stdc-predef.h ../nufi/poisson.hpp \
  /usr/include/c++/11/bits/ostream.tcc /usr/include/c++/11/istream \
  /usr/include/c++/11/bits/istream.tcc /usr/include/c++/11/chrono \
  /usr/include/c++/11/ratio /usr/include/c++/11/ctime \
- /usr/include/c++/11/bits/parse_numbers.h /usr/include/c++/11/random \
- /usr/include/c++/11/bits/random.h /usr/include/c++/11/vector \
+ /usr/include/c++/11/bits/parse_numbers.h /usr/include/c++/11/vector \
  /usr/include/c++/11/bits/stl_uninitialized.h \
  /usr/include/c++/11/bits/stl_vector.h \
  /usr/include/c++/11/bits/stl_bvector.h \
- /usr/include/c++/11/bits/vector.tcc \
- /usr/include/c++/11/bits/uniform_int_dist.h \
- /usr/include/x86_64-linux-gnu/c++/11/bits/opt_random.h \
- /usr/include/c++/11/bits/random.tcc /usr/include/c++/11/numeric \
- /usr/include/c++/11/bits/stl_numeric.h /usr/include/c++/11/bit \
- /usr/include/c++/11/pstl/glue_numeric_defs.h \
- /usr/include/c++/11/pstl/execution_defs.h ../nufi/cuda_runtime.hpp \
- ../nufi/autoconfig.hpp /usr/include/c++/11/memory \
+ /usr/include/c++/11/bits/vector.tcc /usr/include/c++/11/memory \
  /usr/include/c++/11/bits/stl_tempbuf.h \
  /usr/include/c++/11/bits/stl_raw_storage_iter.h \
- /usr/include/c++/11/bits/align.h \
+ /usr/include/c++/11/bits/align.h /usr/include/c++/11/bit \
  /usr/include/c++/11/bits/uses_allocator.h \
  /usr/include/c++/11/bits/unique_ptr.h /usr/include/c++/11/utility \
  /usr/include/c++/11/bits/stl_relops.h /usr/include/c++/11/tuple \
@@ -232,7 +197,8 @@ poisson.o: poisson.cpp /usr/include/stdc-predef.h ../nufi/poisson.hpp \
  /usr/include/c++/11/bits/atomic_base.h \
  /usr/include/c++/11/bits/atomic_lockfree_defines.h \
  /usr/include/c++/11/backward/auto_ptr.h \
- /usr/include/c++/11/pstl/glue_memory_defs.h
+ /usr/include/c++/11/pstl/glue_memory_defs.h \
+ /usr/include/c++/11/pstl/execution_defs.h
 /usr/include/stdc-predef.h:
 ../nufi/poisson.hpp:
 /usr/include/fftw3.h:
@@ -264,14 +230,11 @@ poisson.o: poisson.cpp /usr/include/stdc-predef.h ../nufi/poisson.hpp \
 /usr/include/x86_64-linux-gnu/bits/stdio.h:
 /usr/include/x86_64-linux-gnu/bits/stdio2.h:
 ../nufi/config.hpp:
-/usr/include/curand_kernel.h:
-/usr/include/c++/11/type_traits:
+/usr/include/c++/11/cmath:
 /usr/include/x86_64-linux-gnu/c++/11/bits/c++config.h:
 /usr/include/x86_64-linux-gnu/c++/11/bits/os_defines.h:
 /usr/include/x86_64-linux-gnu/c++/11/bits/cpu_defines.h:
 /usr/include/c++/11/pstl/pstl_config.h:
-/usr/include/c++/11/math.h:
-/usr/include/c++/11/cmath:
 /usr/include/c++/11/bits/cpp_type_traits.h:
 /usr/include/c++/11/ext/type_traits.h:
 /usr/include/math.h:
@@ -325,6 +288,7 @@ poisson.o: poisson.cpp /usr/include/stdc-predef.h ../nufi/poisson.hpp \
 /usr/include/c++/11/ext/numeric_traits.h:
 /usr/include/c++/11/bits/stl_pair.h:
 /usr/include/c++/11/bits/move.h:
+/usr/include/c++/11/type_traits:
 /usr/include/c++/11/bits/stl_iterator_base_types.h:
 /usr/include/c++/11/bits/stl_iterator_base_funcs.h:
 /usr/include/c++/11/bits/concept_check.h:
@@ -346,58 +310,6 @@ poisson.o: poisson.cpp /usr/include/stdc-predef.h ../nufi/poisson.hpp \
 /usr/include/c++/11/tr1/poly_hermite.tcc:
 /usr/include/c++/11/tr1/poly_laguerre.tcc:
 /usr/include/c++/11/tr1/riemann_zeta.tcc:
-/usr/include/curand.h:
-/usr/include/cuda_runtime.h:
-/usr/include/crt/host_config.h:
-/usr/include/builtin_types.h:
-/usr/include/device_types.h:
-/usr/include/crt/host_defines.h:
-/usr/include/driver_types.h:
-/usr/include/vector_types.h:
-/usr/lib/gcc/x86_64-linux-gnu/11/include/limits.h:
-/usr/lib/gcc/x86_64-linux-gnu/11/include/syslimits.h:
-/usr/include/limits.h:
-/usr/include/x86_64-linux-gnu/bits/posix1_lim.h:
-/usr/include/x86_64-linux-gnu/bits/local_lim.h:
-/usr/include/linux/limits.h:
-/usr/include/x86_64-linux-gnu/bits/pthread_stack_min-dynamic.h:
-/usr/include/x86_64-linux-gnu/bits/posix2_lim.h:
-/usr/include/x86_64-linux-gnu/bits/xopen_lim.h:
-/usr/include/x86_64-linux-gnu/bits/uio_lim.h:
-/usr/include/surface_types.h:
-/usr/include/texture_types.h:
-/usr/include/library_types.h:
-/usr/include/channel_descriptor.h:
-/usr/include/cuda_runtime_api.h:
-/usr/include/cuda_device_runtime_api.h:
-/usr/include/driver_functions.h:
-/usr/include/vector_functions.h:
-/usr/include/vector_functions.hpp:
-/usr/include/curand_discrete.h:
-/usr/include/curand_precalc.h:
-/usr/include/curand_mrg32k3a.h:
-/usr/include/curand_mtgp32_kernel.h:
-/usr/include/cuda.h:
-/usr/include/c++/11/stdlib.h:
-/usr/include/c++/11/cstdlib:
-/usr/lib/gcc/x86_64-linux-gnu/11/include/stdint.h:
-/usr/include/stdint.h:
-/usr/include/x86_64-linux-gnu/bits/wchar.h:
-/usr/include/x86_64-linux-gnu/bits/stdint-uintn.h:
-/usr/include/memory.h:
-/usr/include/string.h:
-/usr/include/strings.h:
-/usr/include/x86_64-linux-gnu/bits/strings_fortified.h:
-/usr/include/x86_64-linux-gnu/bits/string_fortified.h:
-/usr/include/curand_mtgp32.h:
-/usr/include/curand_philox4x32_x.h:
-/usr/include/curand_globals.h:
-/usr/include/curand_uniform.h:
-/usr/include/curand_normal.h:
-/usr/include/curand_normal_static.h:
-/usr/include/curand_lognormal.h:
-/usr/include/curand_poisson.h:
-/usr/include/curand_discrete2.h:
 /usr/include/c++/11/iostream:
 /usr/include/c++/11/ostream:
 /usr/include/c++/11/ios:
@@ -407,6 +319,7 @@ poisson.o: poisson.cpp /usr/include/stdc-predef.h ../nufi/poisson.hpp \
 /usr/include/c++/11/bits/postypes.h:
 /usr/include/c++/11/cwchar:
 /usr/include/wchar.h:
+/usr/include/x86_64-linux-gnu/bits/wchar.h:
 /usr/include/x86_64-linux-gnu/bits/types/wint_t.h:
 /usr/include/x86_64-linux-gnu/bits/types/mbstate_t.h:
 /usr/include/x86_64-linux-gnu/bits/wchar2.h:
@@ -420,6 +333,9 @@ poisson.o: poisson.cpp /usr/include/stdc-predef.h ../nufi/poisson.hpp \
 /usr/include/c++/11/bits/nested_exception.h:
 /usr/include/c++/11/bits/char_traits.h:
 /usr/include/c++/11/cstdint:
+/usr/lib/gcc/x86_64-linux-gnu/11/include/stdint.h:
+/usr/include/stdint.h:
+/usr/include/x86_64-linux-gnu/bits/stdint-uintn.h:
 /usr/include/c++/11/bits/localefwd.h:
 /usr/include/x86_64-linux-gnu/c++/11/bits/c++locale.h:
 /usr/include/c++/11/clocale:
@@ -443,6 +359,7 @@ poisson.o: poisson.cpp /usr/include/stdc-predef.h ../nufi/poisson.hpp \
 /usr/include/x86_64-linux-gnu/bits/types/struct_itimerspec.h:
 /usr/include/x86_64-linux-gnu/bits/setjmp.h:
 /usr/include/x86_64-linux-gnu/bits/types/struct___jmp_buf_tag.h:
+/usr/include/x86_64-linux-gnu/bits/pthread_stack_min-dynamic.h:
 /usr/include/x86_64-linux-gnu/c++/11/bits/atomic_word.h:
 /usr/include/x86_64-linux-gnu/sys/single_threaded.h:
 /usr/include/c++/11/bits/locale_classes.h:
@@ -464,6 +381,7 @@ poisson.o: poisson.cpp /usr/include/stdc-predef.h ../nufi/poisson.hpp \
 /usr/include/c++/11/bits/functional_hash.h:
 /usr/include/c++/11/bits/string_view.tcc:
 /usr/include/c++/11/ext/string_conversions.h:
+/usr/include/c++/11/cstdlib:
 /usr/include/c++/11/cstdio:
 /usr/include/c++/11/cerrno:
 /usr/include/errno.h:
@@ -498,27 +416,16 @@ poisson.o: poisson.cpp /usr/include/stdc-predef.h ../nufi/poisson.hpp \
 /usr/include/c++/11/ratio:
 /usr/include/c++/11/ctime:
 /usr/include/c++/11/bits/parse_numbers.h:
-/usr/include/c++/11/random:
-/usr/include/c++/11/bits/random.h:
 /usr/include/c++/11/vector:
 /usr/include/c++/11/bits/stl_uninitialized.h:
 /usr/include/c++/11/bits/stl_vector.h:
 /usr/include/c++/11/bits/stl_bvector.h:
 /usr/include/c++/11/bits/vector.tcc:
-/usr/include/c++/11/bits/uniform_int_dist.h:
-/usr/include/x86_64-linux-gnu/c++/11/bits/opt_random.h:
-/usr/include/c++/11/bits/random.tcc:
-/usr/include/c++/11/numeric:
-/usr/include/c++/11/bits/stl_numeric.h:
-/usr/include/c++/11/bit:
-/usr/include/c++/11/pstl/glue_numeric_defs.h:
-/usr/include/c++/11/pstl/execution_defs.h:
-../nufi/cuda_runtime.hpp:
-../nufi/autoconfig.hpp:
 /usr/include/c++/11/memory:
 /usr/include/c++/11/bits/stl_tempbuf.h:
 /usr/include/c++/11/bits/stl_raw_storage_iter.h:
 /usr/include/c++/11/bits/align.h:
+/usr/include/c++/11/bit:
 /usr/include/c++/11/bits/uses_allocator.h:
 /usr/include/c++/11/bits/unique_ptr.h:
 /usr/include/c++/11/utility:
@@ -537,3 +444,4 @@ poisson.o: poisson.cpp /usr/include/stdc-predef.h ../nufi/poisson.hpp \
 /usr/include/c++/11/bits/atomic_lockfree_defines.h:
 /usr/include/c++/11/backward/auto_ptr.h:
 /usr/include/c++/11/pstl/glue_memory_defs.h:
+/usr/include/c++/11/pstl/execution_defs.h:
