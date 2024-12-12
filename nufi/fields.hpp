@@ -151,6 +151,8 @@ void interpolate( real *coeffs, const real *values, const config_t<real> &config
 }
 }
 
+
+
 }
 
 namespace dim2

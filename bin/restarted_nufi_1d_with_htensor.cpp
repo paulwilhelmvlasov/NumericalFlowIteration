@@ -50,11 +50,11 @@ namespace dim1
 template <typename real>
 real f0(real x, real u) noexcept
 {
-	real alpha = 1e-2;
-	//real alpha = 0.5; // Strong Landau Damping
+	//real alpha = 1e-2; // Weak Landau or Two Stream Instability
+	real alpha = 0.5; // Strong Landau Damping
 	real k = 0.5;
-    return 1.0 / std::sqrt(2.0 * M_PI) * u*u * exp(-0.5 * u*u) * (1 + alpha * cos(k*x));
-	//return 1.0 / std::sqrt(2.0 * M_PI) * exp(-0.5 * u*u) * (1 + alpha * cos(k*x));
+    //return 1.0 / std::sqrt(2.0 * M_PI) * u*u * exp(-0.5 * u*u) * (1 + alpha * cos(k*x));
+	return 1.0 / std::sqrt(2.0 * M_PI) * exp(-0.5 * u*u) * (1 + alpha * cos(k*x));
 }
 
 template <typename real>
@@ -71,15 +71,15 @@ size_t restart_counter = 0;
 bool restarted = false;
 
 const size_t order = 4;
-const size_t Nx = 64;  // Number of grid points in physical space.
+const size_t Nx = 256;  // Number of grid points in physical space.
 const size_t Nu = 2*Nx;  // Number of quadrature points in velocity space.
-const double   dt = 0.0625;  // Time-step size.
-//const double   dt = 0.1;  // Time-step size.
+//const double   dt = 0.0625;  // Time-step size.
+const double   dt = 0.1;  // Time-step size.
 const size_t Nt = 500/dt;  // Number of time-steps.
 config_t<double> conf(Nx, Nu, Nt, dt, 0, htensor::Lx, htensor::umin, 
                             htensor::umax, &f0);
 const size_t stride_t = conf.Nx + order - 1;
-const size_t nt_restart = 300;
+const size_t nt_restart = 500;
 std::unique_ptr<double[]> coeffs_full { new double[ (Nt+1)*stride_t ] {} };
 std::unique_ptr<double[]> coeffs_restart { new double[ (nt_restart+1)*stride_t ] {} };
 std::unique_ptr<double,decltype(std::free)*> rho { reinterpret_cast<double*>
@@ -203,9 +203,9 @@ void run_restarted_simulation()
 	int32_t tcase = 2;
 
 	int32_t cross_no_loops = 1;
-	int32_t nNodes = 30;
-	int32_t rank = 50;
-	int32_t rank_rand_row = 30;
+	int32_t nNodes = 2 * (htensor::nx_r + htensor::nu_r ) - 1;
+	int32_t rank = 30;
+	int32_t rank_rand_row = 20;  
 	int32_t rank_rand_col = rank_rand_row;
 
     chtl_s_init_truncation_option(optsPtr, &tcase, &tol, &cross_no_loops, &nNodes, &rank, &rank_rand_row, &rank_rand_col);
@@ -217,6 +217,7 @@ void run_restarted_simulation()
     auto fctPtr = &test_interface; */
 
     std::ofstream stat_file( "stats.txt" );
+    std::ofstream coeff_file( "coeffs.txt" );
     double total_time = 0;
     double restart_time = 0;
     size_t nt_r_curr = 0;
@@ -258,6 +259,12 @@ void run_restarted_simulation()
         stat_file << std::setw(15) << t << std::setw(15) << std::setprecision(5) << std::scientific << Emax  << " " << E_l2 << std::endl;
         std::cout << std::setw(15) << t << std::setw(15) << std::setprecision(5) << std::scientific << Emax << " Comp-time: " << timer_elapsed;
         std::cout << " Total comp time s.f.: " << total_time << std::endl; 
+
+        // Print coefficients to file.
+        coeff_file << n << std::endl;
+        for(size_t i = 0; i < stride_t; i++){
+            coeff_file << i << " " << coeffs_restart.get()[n*stride_t + i ] << std::endl;
+        }
 
         
         if(nt_r_curr == nt_restart)

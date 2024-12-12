@@ -42,11 +42,11 @@ namespace dim1
 template <typename real>
 real f0(real x, real u) noexcept
 {
-	real alpha = 1e-2;
-	//real alpha = 0.5; // Strong Landau Damping
+	//real alpha = 1e-2; // Linear Landau Damping or Two Stream instability
+	real alpha = 0.5; // Strong Landau Damping
 	real k = 0.5;
-    return 1.0 / std::sqrt(2.0 * M_PI) * u*u * exp(-0.5 * u*u) * (1 + alpha * cos(k*x));
-	//return 1.0 / std::sqrt(2.0 * M_PI) * exp(-0.5 * u*u) * (1 + alpha * cos(k*x));
+    //return 1.0 / std::sqrt(2.0 * M_PI) * u*u * exp(-0.5 * u*u) * (1 + alpha * cos(k*x)); // Two Stream Instability
+	return 1.0 / std::sqrt(2.0 * M_PI) * exp(-0.5 * u*u) * (1 + alpha * cos(k*x)); // Landau Damping
 }
 
 template <typename real>
@@ -58,9 +58,6 @@ real lin_interpol(real x , real y, real x1, real x2, real y1, real y2, real f_11
 
 	return ((y2-y)*f_x_y1 + (y-y1)*f_x_y2) / (y2-y1);
 }
-
-bool debug = false;
-bool write = false;
 
 arma::mat f0_r;
 config_t<double> conf(64, 128, 500, 0.1, 0, 4*M_PI, -10, 10, &f0);
@@ -81,38 +78,21 @@ double f_t(double x, double u) noexcept
      if(x < 0 || x > conf.x_max){
 	    x -= conf.Lx * std::floor(x*conf.Lx_inv);
     } 
-
-/*     if(debug && write){
-        std::cout << "ft: " << x << " " << u << " ";
-    } */
-
 	size_t x_ref_pos = std::floor(x/dx_r);
     x_ref_pos = x_ref_pos % nx_r;
 	size_t u_ref_pos = std::floor((u-conf.u_min)/du_r);
 
-/*     if(debug && write){
-        std::cout << x_ref_pos << " " << u_ref_pos << " ";
-    }
- */
 	double x1 = x_ref_pos*dx_r;
 	double x2 = x1+dx_r;
 	double u1 = conf.u_min + u_ref_pos*du_r;
 	double u2 = u1 + du_r;
 
-/*     if(debug && write){
-        std::cout << x1 << " " << x2 << " " << u1 << " " << u2 << " ";
-    }
- */
 	double f_11 = f0_r(x_ref_pos, u_ref_pos);
 	double f_21 = f0_r(x_ref_pos+1, u_ref_pos);
 	double f_12 = f0_r(x_ref_pos, u_ref_pos+1);
 	double f_22 = f0_r(x_ref_pos+1, u_ref_pos+1);
 
     double value = lin_interpol<double>(x, u, x1, x2, u1, u2, f_11, f_12, f_21, f_22);
-
-/*     if(debug && write){
-        std::cout << value << std::endl;
-    } */
 
     return value;
 }
@@ -130,8 +110,8 @@ void run_restarted_simulation()
 
     size_t Nx = 64;  // Number of grid points in physical space.
     size_t Nu = 2*Nx;  // Number of quadrature points in velocity space.
-    double   dt = 0.0625;  // Time-step size.
-    //double   dt = 0.1;  // Time-step size.
+    //double   dt = 0.0625;  // Time-step size.
+    double   dt = 0.1;  // Time-step size.
     size_t Nt = 500/dt;  // Number of time-steps.
 
     // Dimensions of physical domain.
@@ -141,15 +121,15 @@ void run_restarted_simulation()
     conf.x_max = x_max; // Actually I should also set Lx etc.
 
     // Integration limits for velocity space.
-    double u_min = -8;
-    double u_max = 8;
+    double u_min = -6;
+    double u_max = 6;
     conf.u_min = u_min;
     conf.u_max = u_max;
 
     // We use conf.Nt as restart timer for now.
     size_t nx_r = 2048;
 	size_t nu_r = nx_r;
-    size_t nt_restart = 1600;
+    size_t nt_restart = 1000;
     double dx_r = conf.Lx / nx_r;
     double du_r = (conf.u_max - conf.u_min)/ nu_r;
     f0_r.resize(nx_r+1, nu_r+1);
@@ -178,7 +158,6 @@ void run_restarted_simulation()
     size_t nt_r_curr = 0;
     for ( size_t n = 0; n <= Nt; ++n )
     {
-        debug = false;
     	nufi::stopwatch<double> timer;
 
         std::cout << " start of time step "<< n << " " << nt_r_curr  << std::endl; 
@@ -239,7 +218,6 @@ void run_restarted_simulation()
 
         if(nt_r_curr == nt_restart)
     	{
-            debug = true;
             std::cout << "Restart" << std::endl;
             nufi::stopwatch<double> timer_restart;
             arma::mat f0_r_copy(nx_r + 1, nu_r + 1);

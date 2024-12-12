@@ -160,11 +160,11 @@ void run_restarted_simulation()
 
     //omp_set_num_threads(1);
 
-    size_t Nx = 128;  // Number of grid points in physical space. Same for both species!
-    size_t Nu_electron = 512;
-    size_t Nu_ion = 512;
+    size_t Nx = 256;  // Number of grid points in physical space. Same for both species!
+    size_t Nu_electron = 1024;
+    size_t Nu_ion = 1024;
     double dt = 0.0625;  // Time-step size.
-    size_t Nt = 500/dt;  // Number of time-steps.
+    size_t Nt = 5000/dt;  // Number of time-steps.
 
     // Dimensions of physical domain.
     double x_min = 0;
@@ -306,7 +306,7 @@ void run_restarted_simulation()
             nt_r_curr++;
         }
 
-        if(n % (5*16) == 0){
+        if(n % (50*16) == 0){
             size_t nx_plot = 512;
             size_t nv_plot = nx_plot;
             double dx_plot = (x_max - x_min)/nx_plot;
