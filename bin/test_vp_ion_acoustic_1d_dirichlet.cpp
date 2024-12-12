@@ -46,161 +46,106 @@ namespace dim1
 namespace dirichlet
 {
 
-template <typename real, size_t order>
-void read_coeff_and_plot(const std::string& i_str)
+
+arma::mat f0_r_electron;
+arma::mat f0_r_ion;
+config_t<double> conf(&f0_electron, &f0_ion);
+
+
+template <typename real>
+real f0_electron(real x, real u) noexcept
 {
-	config_t<real> conf;
+    real M_r = 1000;
+    real U_e = -2;
+	real alpha = 0.5;
+	real k = 0.5;
+	return 1.0 / std::sqrt(2.0 * M_PI) * exp(-0.5*(u-U_e)*(u-U_e)) * (1 + alpha * cos(k*x));
+}
 
-	conf.dt = 0.05;
-	conf.Nt = 1000/conf.dt;
-	conf.Nu_electron = 64;
-	conf.Nu_ion = 1024;
-    conf.u_electron_min = -50;
-    conf.u_electron_max =  50;
-    conf.u_ion_min = -0.7;
-    conf.u_ion_max =  0.7;
-    conf.du_electron = (conf.u_electron_max - conf.u_electron_min)/conf.Nu_electron;
-    conf.du_ion = (conf.u_ion_max - conf.u_ion_min)/conf.Nu_ion;
-    conf.Nx = 2048;
-    conf.l = conf.Nx - 1;
-    conf.dx = (conf.x_max - conf.x_min)/conf.Nx;
-    conf.dx_inv = 1.0/conf.dx;
+template <typename real>
+real f0_ion(real x, real u) noexcept
+{
+    real M_r = 1000;
+	real alpha = 0;
+	real k = 0.5;
+    return std::sqrt( M_r / (2.0 * M_PI)) * exp(-0.5*M_r*u*u) * (1 + alpha * cos(k*x));
+}
 
-    const size_t stride_x = 1;
-    const size_t stride_t = conf.Nx + order - 2; // conf.Nx = l+2, therefore: conf.Nx +order-2 = order+l
+template <typename real>
+real lin_interpol(real x , real y, real x1, real x2, real y1, real y2, real f_11,
+		real f_12, real f_21, real f_22) noexcept
+{
+	real f_x_y1 = ((x2-x)*f_11 + (x-x1)*f_21)/(x2-x1);
+	real f_x_y2 = ((x2-x)*f_12 + (x-x1)*f_22)/(x2-x1);
 
-    std::unique_ptr<real[]> coeffs {new real[ (conf.Nt+1)*stride_t ] {} };
+	return ((y2-y)*f_x_y1 + (y-y1)*f_x_y2) / (y2-y1);
+}
 
-    size_t Nt_plot = 100*20;
-
-	std::ifstream coeff_str(i_str);
-	for(size_t i = 0; i <= Nt_plot*stride_t; i++){
-		coeff_str >> coeffs[i];
+double f_t_electron(double x, double u) noexcept
+{
+	if(u > conf.u_electron_max || u < conf.u_electron_min){
+		return 0;
 	}
 
-	// Plotting:
-    for ( size_t n = 0; n <= Nt_plot; n+=20 )
-    {
-    	real t = n*conf.dt;
+	size_t nx_r = f0_r_electron.n_rows - 1;
+	size_t nu_r = f0_r_electron.n_cols - 1;
 
-    	std::cout << "Plot t = " << t << "." << std::endl;
+	double dx_r = conf.Lx / nx_r;
+	double du_r = (conf.u_electron_max - conf.u_electron_min)/nu_r;
 
-    	real x_min_plot = conf.x_min;
-        real x_max_plot = conf.x_max;
-        real u_min_electron_plot = conf.u_electron_min;
-        real u_max_electron_plot = conf.u_electron_max;
-        real u_min_ion_plot = conf.u_ion_min;
-        real u_max_ion_plot = conf.u_ion_max;
-        size_t plot_x = 512;
-        size_t plot_u = 512;
+	size_t x_ref_pos = std::floor((x-conf.x_min)/dx_r);
+    x_ref_pos = x_ref_pos % nx_r;
+	size_t u_ref_pos = std::floor((u-conf.u_electron_min)/du_r);
 
-        real dx_plot = (x_max_plot - x_min_plot) / plot_x;
-        real du_electron_plot = (u_max_electron_plot - u_min_electron_plot) / plot_u;
-        real du_ion_plot = (u_max_ion_plot - u_min_ion_plot) / plot_u;
+	double x1 = x_ref_pos*dx_r;
+	double x2 = x1+dx_r;
+	double u1 = conf.u_electron_min + u_ref_pos*du_r;
+	double u2 = u1 + du_r;
 
-        auto loop1 = [&]() {
-			std::ofstream f_electron_file("f_electron_"+ std::to_string(t) + ".txt");
-			for(size_t i = 0; i <= plot_x; i++)
-			{
-				for(size_t j = 0; j <= plot_u; j++)
-				{
-					double x = x_min_plot + i*dx_plot;
-					double u = u_min_electron_plot + j*du_electron_plot;
-					double f = eval_f_ion_acoustic<real,order>(n, x, u, coeffs.get(), conf,
-								true, true, false);
-					f_electron_file << x << " " << u << " " << f << std::endl;
-				}
-				f_electron_file << std::endl;
-			}
-        };
-        auto loop2 = [&]() {
-			std::ofstream f_ion_file("f_ion_"+ std::to_string(t) + ".txt");
-			for(size_t i = 0; i <= plot_x; i++)
-			{
-				for(size_t j = 0; j <= plot_u; j++)
-				{
-					double x = x_min_plot + i*dx_plot;
-					double u = u_min_ion_plot + j*du_ion_plot;
-					double f = eval_f_ion_acoustic<real,order>(n, x, u, coeffs.get(), conf,
-								false, true, false);
-					f_ion_file << x << " " << u << " " << f << std::endl;
-				}
-				f_ion_file << std::endl;
-			}
-        };
+	double f_11 = f0_r_electron(x_ref_pos, u_ref_pos);
+	double f_21 = f0_r_electron(x_ref_pos+1, u_ref_pos);
+	double f_12 = f0_r_electron(x_ref_pos, u_ref_pos+1);
+	double f_22 = f0_r_electron(x_ref_pos+1, u_ref_pos+1);
 
-        auto loop3 = [&]() {
-			std::ofstream phi_file("phi_"+ std::to_string(t) + ".txt");
-			for(size_t i = 0; i <= plot_x; i++)
-			{
-				real x = x_min_plot + i*dx_plot;
-				real phi = dim1::dirichlet::eval<real,order>( x, coeffs.get() + n*stride_t, conf );
+    double value = lin_interpol<double>(x, u, x1, x2, u1, u2, f_11, f_12, f_21, f_22);
 
-				phi_file << x << " " << phi << std::endl;
-			}
-        };
+    return value;
+}
 
-        auto loop4 = [&]() {
-			std::ofstream E_file("E_"+ std::to_string(t) + ".txt");
-			for(size_t i = 0; i <= plot_x; i++)
-			{
-				real x = x_min_plot + i*dx_plot;
-				real E = -dim1::dirichlet::eval_E<real,order>( x, coeffs.get() + n*stride_t, conf );
+double f_t_ion(double x, double u) noexcept
+{
+	if(u > conf.u_ion_max || u < conf.u_ion_min){
+		return 0;
+	}
 
-				E_file << x << " " << E << std::endl;
-			}
-        };
+	size_t nx_r = f0_r_ion.n_rows - 1;
+	size_t nu_r = f0_r_ion.n_cols - 1;
 
-        auto loop5 = [&]() {
-			std::ofstream rho_ion_file("rho_ion_"+ std::to_string(t) + ".txt");
-			size_t plot_x_rho = 2048;
-			real plot_dx_rho = (conf.x_max - conf.x_min)/plot_x_rho;
-			for(size_t i = 0; i <= plot_x_rho; i++)
-			{
-				real x = conf.x_min + i*plot_dx_rho;
+	double dx_r = conf.Lx / nx_r;
+	double du_r = (conf.u_ion_max - conf.u_ion_min)/nu_r;
 
-				real rho_ion = eval_rho_adaptive_trapezoidal_rule<real,order>(n,x,coeffs.get(),conf,conf.u_ion_min,
-						conf.u_ion_max, false, true, false);
+	size_t x_ref_pos = std::floor((x-conf.x_min)/dx_r);
+    x_ref_pos = x_ref_pos % nx_r;
+	size_t u_ref_pos = std::floor((u-conf.u_ion_min)/du_r);
 
-				rho_ion_file << x << " " << rho_ion << std::endl;
-			}
-        };
+	double x1 = x_ref_pos*dx_r;
+	double x2 = x1+dx_r;
+	double u1 = conf.u_ion_min + u_ref_pos*du_r;
+	double u2 = u1 + du_r;
 
-        auto loop6 = [&]() {
-			std::ofstream rho_electron_file("rho_electron_"+ std::to_string(t) + ".txt");
-			size_t plot_x_rho = 2048;
-			real plot_dx_rho = (conf.x_max - conf.x_min)/plot_x_rho;
-			for(size_t i = 0; i <= plot_x_rho; i++)
-			{
-				real x = conf.x_min + i*plot_dx_rho;
-				real rho_electron = eval_rho_adaptive_trapezoidal_rule<real,order>(n,x,coeffs.get(),conf,conf.u_electron_min,
-						conf.u_electron_max, true, true, false);
+	double f_11 = f0_r_ion(x_ref_pos, u_ref_pos);
+	double f_21 = f0_r_ion(x_ref_pos+1, u_ref_pos);
+	double f_12 = f0_r_ion(x_ref_pos, u_ref_pos+1);
+	double f_22 = f0_r_ion(x_ref_pos+1, u_ref_pos+1);
 
-				rho_electron_file << x << " " << rho_electron << std::endl;
-			}
-        };
+    double value = lin_interpol<double>(x, u, x1, x2, u1, u2, f_11, f_12, f_21, f_22);
 
-        std::thread t1(loop1);
-        std::thread t2(loop2);
-        std::thread t3(loop3);
-        std::thread t4(loop4);
-        std::thread t5(loop5);
-        std::thread t6(loop6);
-
-        t1.join();
-        t2.join();
-        t3.join();
-        t4.join();
-        t5.join();
-        t6.join();
-    }
+    return value;
 }
 
 template <typename real, size_t order>
-void nufi_two_species_ion_acoustic_with_reflecting_dirichlet_boundary()
+void nufi_two_species_ion_acoustic_with_reflecting_dirichlet_boundary(bool plot = true)
 {
-	config_t<real> conf;
-
 	conf.dt = 0.05;
 	conf.Nt = 1000/conf.dt;
 	conf.Nu_electron = 64;
@@ -219,6 +164,17 @@ void nufi_two_species_ion_acoustic_with_reflecting_dirichlet_boundary()
     const size_t stride_x = 1;
     const size_t stride_t = conf.Nx + order - 2; // conf.Nx = l+2, therefore: conf.Nx +order-2 = order+l
 
+    // Restart parameters.
+    size_t nx_r = 8192;
+	size_t nu_r = nx_r;
+    size_t nt_restart = 400;
+    double dx_r = conf_electron.Lx / nx_r;
+    double du_r_electron = (conf_electron.u_max - conf_electron.u_min)/ nu_r;
+    double du_r_ion = (conf_ion.u_max - conf_ion.u_min)/ nu_r;
+    f0_r_electron.resize(nx_r+1, nu_r+1);
+    f0_r_ion.resize(nx_r+1, nu_r+1);
+
+    std::unique_ptr<double[]> coeffs_restart { new double[ (nt_restart+1)*stride_t ] {} };
     std::unique_ptr<real[]> coeffs { new real[ (conf.Nt+1)*stride_t ] {} };
     std::unique_ptr<real,decltype(std::free)*> rho { reinterpret_cast<real*>(std::aligned_alloc(64,sizeof(real)*conf.Nx)), std::free };
     std::unique_ptr<real,decltype(std::free)*> rho_dir { reinterpret_cast<real*>(std::aligned_alloc(64,sizeof(real)*(conf.Nx+1))), std::free };
@@ -254,34 +210,27 @@ void nufi_two_species_ion_acoustic_with_reflecting_dirichlet_boundary()
     std::ofstream stats_file( "stats.txt" );
     std::ofstream coeffs_str( "coeffs_Nt_" + std::to_string(conf.dt) + "_Nx_ "
 				+ std::to_string(conf.Nx) + "_stride_t_" + std::to_string(stride_t) + ".txt" );
+
+	size_t restart_counter = 0;
+    size_t nt_r_curr = 0;
     for ( size_t n = 0; n <= conf.Nt; n++ )
     {
+		std::cout << " start of time step "<< n << " " << nt_r_curr  << std::endl; 
         nufi::stopwatch<double> timer;
 
     	//Compute rho:
     	#pragma omp parallel for
     	for(size_t i = 0; i<conf.Nx; i++)
     	 {
-    		/*
-    	 	rho.get()[i] = eval_rho_ion<real,order>(n, i, coeffs.get(), conf)
-    	 				  - eval_rho_electron<real,order>(n, i, coeffs.get(), conf);
-    		*/
     		real x = conf.x_min + i*conf.dx;
     		rho_e(i) = eval_rho_adaptive_trapezoidal_rule<real,order>(n,x,coeffs.get(),conf,conf.u_electron_min,
 					conf.u_electron_max, true, true, false);
     		rho_i(i) = eval_rho_adaptive_trapezoidal_rule<real,order>(n,x,coeffs.get(),conf,conf.u_ion_min,
 					conf.u_ion_max, false, true, false);
 
-    		//rho_i(i) = 1;
     		rho_tot(i) = rho_i(i) - rho_e(i);
     		rho_phi(i) = rho_tot(i);
     		rho.get()[i] = rho_tot(i);
-    		/*
-    		rho.get()[i] = eval_rho_adaptive_trapezoidal_rule<real,order>(n,x,coeffs.get(),conf,conf.u_ion_min,
-    											conf.u_ion_max, false, true, false)
-						- eval_rho_adaptive_trapezoidal_rule<real,order>(n,x,coeffs.get(),conf,conf.u_electron_min,
-								conf.u_electron_max, true, true, false);
-    		 */
     	 }
 
 		//std::memset( rho.get(), 0, conf.Nx*sizeof(real) );
@@ -328,6 +277,59 @@ void nufi_two_species_ion_acoustic_with_reflecting_dirichlet_boundary()
 
         std::cout << "t = " << n*conf.dt << " Iteration " << n << " Time for step: " << time_elapsed << " and total time s.f.: " << total_time << std::endl;
 
+		// Restart
+		if(nt_r_curr == nt_restart)
+    	{
+            std::cout << "Restart" << std::endl;
+            nufi::stopwatch<double> timer_restart;
+            arma::mat f0_r_copy(nx_r + 1, nu_r + 1);
+            // Restart ions.
+            #pragma omp parallel for
+    		for(size_t i = 0; i <= nx_r; i++ ){
+    			for(size_t j = 0; j <= nu_r; j++){
+    				double x = i*dx_r;
+    				double u = conf_ion.u_min + j*du_r_ion;
+
+                    double f = eval_f_ion_acoustic<double,order>(nt_r_curr,x,u,coeffs_restart.get(),conf,false);
+
+                    f0_r_copy(i,j) = f;
+    			}
+    		}
+
+            f0_r_ion = f0_r_copy;
+
+            // Restart electrons.
+            #pragma omp parallel for
+    		for(size_t i = 0; i <= nx_r; i++ ){
+    			for(size_t j = 0; j <= nu_r; j++){
+    				double x = i*dx_r;
+    				double u = conf_electron.u_min + j*du_r_electron;
+
+                    double f = eval_f_ion_acoustic<double,order>(nt_r_curr,x,u,coeffs_restart.get(),conf,true);
+
+                    f0_r_copy(i,j) = f;
+    			}
+    		}
+
+            f0_r_electron = f0_r_copy;
+            conf = config_t<double>(&f_t_electron, &f_t_ion);
+
+            // Copy last entry of coeff vector into restarted coeff vector.
+            #pragma omp parallel for
+            for(size_t i = 0; i < stride_t; i++){
+                coeffs_restart.get()[i] = coeffs_restart.get()[nt_r_curr*stride_t + i];
+            }
+
+            std::cout << n << " " << nt_r_curr << " restart " << std::endl;
+            nt_r_curr = 1;
+            restart_counter++;
+            double restart_time = timer_restart.elapsed();
+            total_time += restart_time;
+            std::cout << "Restart took: " << restart_time << ". Total comp time s.f.: " << total_time << std::endl;
+    	} else {
+            nt_r_curr++;
+        }
+
         // Output
         real t = n*conf.dt;
         real x_min_plot = conf.x_min;
@@ -343,7 +345,7 @@ void nufi_two_species_ion_acoustic_with_reflecting_dirichlet_boundary()
         real du_electron_plot = (u_max_electron_plot - u_min_electron_plot) / plot_u;
         real du_ion_plot = (u_max_ion_plot - u_min_ion_plot) / plot_u;
 
-        if(n%1 == 0)
+        if(n % 2 == 0)
         {
         	real E_l2 = 0;
         	real E_max = 0;
@@ -363,7 +365,7 @@ void nufi_two_species_ion_acoustic_with_reflecting_dirichlet_boundary()
 					   << std::endl;
 
 
-			if(n % (20*5) == 0 && true)
+			if(n % (20*5) == 0 && plot)
 			{
 				/*
 				std::ofstream f_electron_file("f_electron_"+ std::to_string(t) + ".txt");
