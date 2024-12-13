@@ -364,9 +364,8 @@ void nufi_two_species_ion_acoustic_with_reflecting_dirichlet_boundary()
 					   << std::endl;
 
 
-			if(n % (20*5) == 0 && true)
+			if(n % (20*1) == 0 && true)
 			{
-				/*
 				std::ofstream f_electron_file("f_electron_"+ std::to_string(t) + ".txt");
 				for(size_t i = 0; i <= plot_x; i++)
 				{
@@ -393,7 +392,6 @@ void nufi_two_species_ion_acoustic_with_reflecting_dirichlet_boundary()
 					}
 					f_ion_file << std::endl;
 				}
-				*/
 
 				std::ofstream E_file("E_"+ std::to_string(t) + ".txt");
 				std::ofstream rho_electron_file("rho_electron_"+ std::to_string(t) + ".txt");
