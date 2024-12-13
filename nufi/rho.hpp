@@ -376,7 +376,7 @@ real eval_ftilda_ion_acoustic( size_t n, real x, real u,
     // Reflecting boundaries:
     if(reflecting_boundary){
 		if(x > conf.x_max){
-			x = conf.x_max;
+			x = conf.x_max; // shouldn't this reflect x to a new position < x_max?
 			u = -u;
 		}else if(x < conf.x_min){
 			if(electron){
@@ -621,6 +621,7 @@ real eval_rho_adaptive_trapezoidal_rule( size_t n, real x, const real *coeffs, c
     const size_t stride_t = stride_x*(conf.Nx + order - 1);
 	real f_left = eval_ftilda_ion_acoustic<real,order>( n, x, u_min, coeffs, conf, is_electron );
 	real f_right = eval_ftilda_ion_acoustic<real,order>( n, x, u_max, coeffs, conf, is_electron );
+    size_t Nu = (is_electron)*conf.Nu_electron + !(is_electron)*conf.Nu_ion;
 
 	// Check u_min and u_max for feasibility. If need be extend boundaries and re-check
 	// until value of f again under tolerance. Note that the support should at most extend by the (maximum)
@@ -648,14 +649,14 @@ real eval_rho_adaptive_trapezoidal_rule( size_t n, real x, const real *coeffs, c
 	// started, which halts if either the tolerance (tol_integral) or the maximum depth (max_depth_integration)
 	// is reached.
 	real rho = 0;
-	real du = (u_max - u_min) / conf.Nu;
+	real du = (u_max - u_min) / Nu;
 	real u_left = u_min;
 	real u_right = u_min + du;
 	real fl = f_left;
 	real fr = eval_ftilda_ion_acoustic<real,order>( n, x, u_right, coeffs, conf, is_electron );
 	rho += sub_integral_eval_rho_adaptive_trapezoidal_rule<real,order>( n, x, coeffs, conf, u_left, u_right,
 					fl, fr, conf.max_depth_integration, is_electron, reflecting_boundary, relativistic);
-	for(size_t i  = 1; i < conf.Nu-1; i++){
+	for(size_t i  = 1; i < Nu-1; i++){
 		u_left = u_min + i * du;
 		u_right = u_left + du;
 		fl = fr;

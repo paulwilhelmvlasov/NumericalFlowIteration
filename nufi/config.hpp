@@ -121,7 +121,7 @@ struct config_t
     real (*f0_ion)( real x, real u );
 
     // "Standard parameters"
-    static constexpr real x_min = -40, x_max = 0, epsilon = 0.5;
+    static constexpr real x_min = -160, x_max = 0, epsilon = 0.5;
 
 	size_t Nx;  // Number of grid points in physical space.
     size_t Nu;

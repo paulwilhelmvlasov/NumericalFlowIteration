@@ -173,9 +173,9 @@ template <typename real, size_t order>
 void nufi_two_species_ion_acoustic_with_reflecting_dirichlet_boundary(bool plot = true)
 {
 	conf.dt = 0.05;
-	conf.Nt = 10/conf.dt;
-	conf.Nu_electron = 64;
-	conf.Nu_ion = 1024;
+	conf.Nt = 1000/conf.dt;
+	conf.Nu_electron = 32;
+	conf.Nu_ion = 256;
     conf.u_electron_min = -50;
     conf.u_electron_max =  50;
     conf.u_ion_min = -0.7;
@@ -184,14 +184,17 @@ void nufi_two_species_ion_acoustic_with_reflecting_dirichlet_boundary(bool plot 
     conf.du_ion = (conf.u_ion_max - conf.u_ion_min)/conf.Nu_ion;
     conf.Nx = 2048;
     conf.l = conf.Nx - 1;
-    conf.dx = (conf.x_max - conf.x_min)/conf.Nx;
+	conf.Lx = conf.x_max - conf.x_min;
+	conf.Lx_inv = 1.0 / conf.Lx;
+    conf.dx = conf.Lx/conf.Nx;
     conf.dx_inv = 1.0/conf.dx;
+	conf.max_depth_integration = 5;
 
     const size_t stride_x = 1;
     const size_t stride_t = conf.Nx + order - 2; // conf.Nx = l+2, therefore: conf.Nx +order-2 = order+l
 
     // Restart parameters.
-    size_t nx_r = 8192;
+    size_t nx_r = 2*conf.Nx;
 	size_t nu_r = nx_r;
     size_t nt_restart = 400;
     double dx_r = conf.Lx / nx_r;
@@ -200,7 +203,7 @@ void nufi_two_species_ion_acoustic_with_reflecting_dirichlet_boundary(bool plot 
     f0_r_electron.resize(nx_r+1, nu_r+1);
     f0_r_ion.resize(nx_r+1, nu_r+1);
 
-    std::unique_ptr<double[]> coeffs_restart { new double[ (nt_restart+1)*stride_t ] {} };
+    std::unique_ptr<real[]> coeffs_restart { new real[ (nt_restart+1)*stride_t ] {} };
     std::unique_ptr<real,decltype(std::free)*> rho { reinterpret_cast<real*>(std::aligned_alloc(64,sizeof(real)*conf.Nx)), std::free };
     std::unique_ptr<real,decltype(std::free)*> rho_dir { reinterpret_cast<real*>(std::aligned_alloc(64,sizeof(real)*(conf.Nx+1))), std::free };
     if ( rho == nullptr ) throw std::bad_alloc {};
@@ -248,10 +251,12 @@ void nufi_two_species_ion_acoustic_with_reflecting_dirichlet_boundary(bool plot 
     	for(size_t i = 0; i<conf.Nx; i++)
     	 {
     		real x = conf.x_min + i*conf.dx;
-    		rho_e(i) = eval_rho_adaptive_trapezoidal_rule<real,order>(nt_r_curr,x,coeffs_restart.get(),conf,conf.u_electron_min,
-					conf.u_electron_max, true, true, false);
-    		rho_i(i) = eval_rho_adaptive_trapezoidal_rule<real,order>(nt_r_curr,x,coeffs_restart.get(),conf,conf.u_ion_min,
-					conf.u_ion_max, false, true, false);
+    		rho_e(i) = eval_rho_adaptive_trapezoidal_rule<real,order>(nt_r_curr,x,
+						coeffs_restart.get(),conf,conf.u_electron_min,
+						conf.u_electron_max, true, true, false);
+    		rho_i(i) = eval_rho_adaptive_trapezoidal_rule<real,order>(nt_r_curr,x,
+						coeffs_restart.get(),conf,conf.u_ion_min,
+						conf.u_ion_max, false, true, false);
 
     		rho_tot(i) = rho_i(i) - rho_e(i);
     		rho_phi(i) = rho_tot(i);
@@ -274,7 +279,10 @@ void nufi_two_species_ion_acoustic_with_reflecting_dirichlet_boundary(bool plot 
         	phi_ext.get()[i] = rho_phi(i-1);
         }
 
-        dim1::dirichlet::interpolate<real,order>( coeffs_restart.get() + n*stride_t,phi_ext.get(), conf );
+		std::cout << rho_phi << std::endl; // Debug here...
+
+        dim1::dirichlet::interpolate<real,order>( coeffs_restart.get() + nt_r_curr*stride_t,
+													phi_ext.get(), conf );
 
         //sched.upload_phi( n, coeffs.get() );
         double time_elapsed = timer.elapsed();
@@ -375,7 +383,7 @@ void nufi_two_species_ion_acoustic_with_reflecting_dirichlet_boundary(bool plot 
 					   << std::endl;
 
 
-			if(n % (20*1) == 0 && plot)
+			if(n % (20*2) == 0 && plot)
 			{
 				
 				std::ofstream f_electron_file("f_electron_"+ std::to_string(t) + ".txt");
@@ -385,7 +393,7 @@ void nufi_two_species_ion_acoustic_with_reflecting_dirichlet_boundary(bool plot 
 					{
 						double x = x_min_plot + i*dx_plot;
 						double u = u_min_electron_plot + j*du_electron_plot;
-						double f = eval_f_ion_acoustic<real,order>(n, x, u, coeffs_restart.get(), conf,
+						double f = eval_f_ion_acoustic<real,order>(nt_r_curr, x, u, coeffs_restart.get(), conf,
 									true, true, false);
 						f_electron_file << x << " " << u << " " << f << std::endl;
 					}
@@ -398,7 +406,7 @@ void nufi_two_species_ion_acoustic_with_reflecting_dirichlet_boundary(bool plot 
 					{
 						double x = x_min_plot + i*dx_plot;
 						double u = u_min_ion_plot + j*du_ion_plot;
-						double f = eval_f_ion_acoustic<real,order>(n, x, u, coeffs_restart.get(), conf,
+						double f = eval_f_ion_acoustic<real,order>(nt_r_curr, x, u, coeffs_restart.get(), conf,
 									false, true, false);
 						f_ion_file << x << " " << u << " " << f << std::endl;
 					}
@@ -414,17 +422,13 @@ void nufi_two_species_ion_acoustic_with_reflecting_dirichlet_boundary(bool plot 
 				for(size_t i = 0; i <= plot_x; i++)
 				{
 					real x = x_min_plot + i*dx_plot;
-					//real E = -dim1::dirichlet::eval<real,order,1>( x, coeffs.get() + n*stride_t, conf );
-					real E = -dim1::dirichlet::eval_E<real,order>( x, coeffs_restart.get() + nt_r_curr*stride_t, conf );
-					real phi = dim1::dirichlet::eval<real,order>( x, coeffs_restart.get() + nt_r_curr*stride_t, conf );
-					//real rho_electron = eval_rho_electron<real,order>(n, x, coeffs.get(), conf);
-					//real rho_ion = eval_rho_ion<real,order>(n, x, coeffs.get(), conf);
-					//real rho = rho_ion - rho_electron;
+
+					real E = -dim1::dirichlet::eval_E<real,order>( x, 
+									coeffs_restart.get() + nt_r_curr*stride_t, conf );
+					real phi = dim1::dirichlet::eval<real,order>( x, 
+									coeffs_restart.get() + nt_r_curr*stride_t, conf );
 
 					E_file << x << " " << E << std::endl;
-					//rho_electron_file << x << " " << rho_electron << std::endl;
-					//rho_ion_file << x << " " << rho_ion << std::endl;
-					//rho_file << x << " " << rho << std::endl;
 					phi_file << x << " " << phi << std::endl;
 				}
 
