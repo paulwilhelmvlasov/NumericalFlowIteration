@@ -109,8 +109,14 @@ config_t<double> conf(&f0_electron, &f0_ion);
 
 double f_t_electron(double x, double u) noexcept
 {
-	if(u > conf.u_electron_max || u < conf.u_electron_min){
+	if(u >= conf.u_electron_max || u <= conf.u_electron_min){
 		return 0;
+	}
+	if(x <= conf.x_min){
+		x = conf.x_min;
+	}
+	if(x >= (conf.x_max - 1e-8)){
+		x = conf.x_max - 1e-8;
 	}
 
 	size_t nx_r = f0_r_electron.n_rows - 1;
@@ -120,13 +126,15 @@ double f_t_electron(double x, double u) noexcept
 	double du_r = (conf.u_electron_max - conf.u_electron_min)/nu_r;
 
 	size_t x_ref_pos = std::floor((x-conf.x_min)/dx_r);
-    x_ref_pos = x_ref_pos % nx_r;
 	size_t u_ref_pos = std::floor((u-conf.u_electron_min)/du_r);
 
-	double x1 = x_ref_pos*dx_r;
+	double x1 = conf.x_min + x_ref_pos*dx_r;
 	double x2 = x1+dx_r;
 	double u1 = conf.u_electron_min + u_ref_pos*du_r;
 	double u2 = u1 + du_r;
+
+/* 	std::cout << "Electron: " << x << " " << u << " " << x_ref_pos << " " << u_ref_pos << std::endl;
+	std::cout << nx_r << " " << nu_r << " " << f0_r_electron.n_rows << " " << f0_r_electron.n_cols << std::endl; */
 
 	double f_11 = f0_r_electron(x_ref_pos, u_ref_pos);
 	double f_21 = f0_r_electron(x_ref_pos+1, u_ref_pos);
@@ -140,8 +148,14 @@ double f_t_electron(double x, double u) noexcept
 
 double f_t_ion(double x, double u) noexcept
 {
-	if(u > conf.u_ion_max || u < conf.u_ion_min){
+	if(u >= conf.u_ion_max || u <= conf.u_ion_min){
 		return 0;
+	}
+	if(x <= conf.x_min){
+		x = conf.x_min;
+	}
+	if(x >= (conf.x_max - 1e-8)){
+		x = conf.x_max - 1e-8;
 	}
 
 	size_t nx_r = f0_r_ion.n_rows - 1;
@@ -151,13 +165,15 @@ double f_t_ion(double x, double u) noexcept
 	double du_r = (conf.u_ion_max - conf.u_ion_min)/nu_r;
 
 	size_t x_ref_pos = std::floor((x-conf.x_min)/dx_r);
-    x_ref_pos = x_ref_pos % nx_r;
 	size_t u_ref_pos = std::floor((u-conf.u_ion_min)/du_r);
 
-	double x1 = x_ref_pos*dx_r;
+	double x1 = conf.x_min + x_ref_pos*dx_r;
 	double x2 = x1+dx_r;
 	double u1 = conf.u_ion_min + u_ref_pos*du_r;
 	double u2 = u1 + du_r;
+
+/* 	std::cout << "Ion: " << x << " " << u << " " << x_ref_pos << " " << u_ref_pos << std::endl;
+	std::cout << nx_r << " " << nu_r << " " << f0_r_ion.n_rows << " " << f0_r_ion.n_cols << std::endl; */
 
 	double f_11 = f0_r_ion(x_ref_pos, u_ref_pos);
 	double f_21 = f0_r_ion(x_ref_pos+1, u_ref_pos);
@@ -174,7 +190,7 @@ void nufi_two_species_ion_acoustic_with_reflecting_dirichlet_boundary(bool plot 
 {
 	conf.dt = 0.05;
 	conf.Nt = 1000/conf.dt;
-	conf.Nu_electron = 32;
+	conf.Nu_electron = 64;
 	conf.Nu_ion = 256;
     conf.u_electron_min = -50;
     conf.u_electron_max =  50;
@@ -196,7 +212,7 @@ void nufi_two_species_ion_acoustic_with_reflecting_dirichlet_boundary(bool plot 
     // Restart parameters.
     size_t nx_r = 2*conf.Nx;
 	size_t nu_r = nx_r;
-    size_t nt_restart = 400;
+    size_t nt_restart = 100;
     double dx_r = conf.Lx / nx_r;
     double du_r_electron = (conf.u_electron_max - conf.u_electron_min)/ nu_r;
     double du_r_ion = (conf.u_ion_max - conf.u_ion_min)/ nu_r;
@@ -279,8 +295,6 @@ void nufi_two_species_ion_acoustic_with_reflecting_dirichlet_boundary(bool plot 
         	phi_ext.get()[i] = rho_phi(i-1);
         }
 
-		std::cout << rho_phi << std::endl; // Debug here...
-
         dim1::dirichlet::interpolate<real,order>( coeffs_restart.get() + nt_r_curr*stride_t,
 													phi_ext.get(), conf );
 
@@ -295,62 +309,9 @@ void nufi_two_species_ion_acoustic_with_reflecting_dirichlet_boundary(bool plot 
         	coeffs_str << coeffs_restart.get()[nt_r_curr*stride_t + i] << std::endl;
         }
 
-		// Restart
-		if(nt_r_curr == nt_restart)
-    	{
-            std::cout << "Restart" << std::endl;
-            nufi::stopwatch<double> timer_restart;
-            arma::mat f0_r_copy(nx_r + 1, nu_r + 1);
-            // Restart ions.
-            #pragma omp parallel for
-    		for(size_t i = 0; i <= nx_r; i++ ){
-    			for(size_t j = 0; j <= nu_r; j++){
-    				double x = i*dx_r;
-    				double u = conf.u_ion_min + j*du_r_ion;
-
-                    double f = eval_f_ion_acoustic<double,order>(nt_r_curr,x,u,coeffs_restart.get(),conf,false);
-
-                    f0_r_copy(i,j) = f;
-    			}
-    		}
-
-            f0_r_ion = f0_r_copy;
-
-            // Restart electrons.
-            #pragma omp parallel for
-    		for(size_t i = 0; i <= nx_r; i++ ){
-    			for(size_t j = 0; j <= nu_r; j++){
-    				double x = i*dx_r;
-    				double u = conf.u_electron_min + j*du_r_electron;
-
-                    double f = eval_f_ion_acoustic<double,order>(nt_r_curr,x,u,coeffs_restart.get(),conf,true);
-
-                    f0_r_copy(i,j) = f;
-    			}
-    		}
-
-            f0_r_electron = f0_r_copy;
-            conf = config_t<double>(&f_t_electron, &f_t_ion);
-
-            // Copy last entry of coeff vector into restarted coeff vector.
-            #pragma omp parallel for
-            for(size_t i = 0; i < stride_t; i++){
-                coeffs_restart.get()[i] = coeffs_restart.get()[nt_r_curr*stride_t + i];
-            }
-
-            std::cout << n << " " << nt_r_curr << " restart " << std::endl;
-            nt_r_curr = 1;
-            restart_counter++;
-            double restart_time = timer_restart.elapsed();
-            total_time += restart_time;
-            std::cout << "Restart took: " << restart_time << ". Total comp time s.f.: " << total_time << std::endl;
-    	} else {
-            nt_r_curr++;
-        }
-
-        // Output
+		        // Output
         real t = n*conf.dt;
-        real x_min_plot = conf.x_min;
+        real x_min_plot = -40;
         real x_max_plot = conf.x_max;
         real u_min_electron_plot = conf.u_electron_min;
         real u_max_electron_plot = conf.u_electron_max;
@@ -383,7 +344,7 @@ void nufi_two_species_ion_acoustic_with_reflecting_dirichlet_boundary(bool plot 
 					   << std::endl;
 
 
-			if(n % (20*2) == 0 && plot)
+			if(n % (20*5) == 0 && plot)
 			{
 				
 				std::ofstream f_electron_file("f_electron_"+ std::to_string(t) + ".txt");
@@ -423,7 +384,7 @@ void nufi_two_species_ion_acoustic_with_reflecting_dirichlet_boundary(bool plot 
 				{
 					real x = x_min_plot + i*dx_plot;
 
-					real E = -dim1::dirichlet::eval_E<real,order>( x, 
+					real E = dim1::dirichlet::eval_E<real,order>( x, 
 									coeffs_restart.get() + nt_r_curr*stride_t, conf );
 					real phi = dim1::dirichlet::eval<real,order>( x, 
 									coeffs_restart.get() + nt_r_curr*stride_t, conf );
@@ -434,12 +395,85 @@ void nufi_two_species_ion_acoustic_with_reflecting_dirichlet_boundary(bool plot 
 
 				for(size_t i = 0; i < conf.Nx; i++)
 				{
-					real x = x_min_plot + i*conf.dx;
+					real x = conf.x_min + i*conf.dx;
 					rho_electron_file << x << " " << rho_e(i) << std::endl;
 					rho_ion_file << x << " " << rho_i(i) << std::endl;
 					rho_file << x << " " << rho_tot(i) << std::endl;
 				}
 			}
+        }
+
+		// Restart
+		if(nt_r_curr == nt_restart)
+    	{
+            std::cout << "Restart" << std::endl;
+            nufi::stopwatch<double> timer_restart;
+            arma::mat f0_r_copy(nx_r + 1, nu_r + 1);
+            // Restart ions.
+            #pragma omp parallel for
+    		for(size_t i = 0; i <= nx_r; i++ ){
+    			for(size_t j = 0; j <= nu_r; j++){
+    				double x = conf.x_min + i*dx_r;
+    				double u = conf.u_ion_min + j*du_r_ion;
+
+                    double f = eval_f_ion_acoustic<double,order>(nt_r_curr,x,u,coeffs_restart.get(),conf,false);
+
+                    f0_r_copy(i,j) = f;
+    			}
+    		}
+
+            f0_r_ion = f0_r_copy;
+
+            // Restart electrons.
+            #pragma omp parallel for
+    		for(size_t i = 0; i <= nx_r; i++ ){
+    			for(size_t j = 0; j <= nu_r; j++){
+    				double x = conf.x_min + i*dx_r;
+    				double u = conf.u_electron_min + j*du_r_electron;
+
+                    double f = eval_f_ion_acoustic<double,order>(nt_r_curr,x,u,coeffs_restart.get(),conf,true);
+
+                    f0_r_copy(i,j) = f;
+    			}
+    		}
+
+            f0_r_electron = f0_r_copy;
+            
+			// This resets the parameter-choices from above. Thus as a hotfix I reset them here.
+			// TODO: Find a better solution.
+			conf = config_t<double>(&f_t_electron, &f_t_ion); 
+			conf.dt = 0.05;
+			conf.Nt = 1000/conf.dt;
+			conf.Nu_electron = 64;
+			conf.Nu_ion = 256;
+			conf.u_electron_min = -50;
+			conf.u_electron_max =  50;
+			conf.u_ion_min = -0.7;
+			conf.u_ion_max =  0.7;
+			conf.du_electron = (conf.u_electron_max - conf.u_electron_min)/conf.Nu_electron;
+			conf.du_ion = (conf.u_ion_max - conf.u_ion_min)/conf.Nu_ion;
+			conf.Nx = 2048;
+			conf.l = conf.Nx - 1;
+			conf.Lx = conf.x_max - conf.x_min;
+			conf.Lx_inv = 1.0 / conf.Lx;
+			conf.dx = conf.Lx/conf.Nx;
+			conf.dx_inv = 1.0/conf.dx;
+			conf.max_depth_integration = 5;
+
+            // Copy last entry of coeff vector into restarted coeff vector.
+            #pragma omp parallel for
+            for(size_t i = 0; i < stride_t; i++){
+                coeffs_restart.get()[i] = coeffs_restart.get()[nt_r_curr*stride_t + i];
+            }
+
+            std::cout << n << " " << nt_r_curr << " restart " << std::endl;
+            nt_r_curr = 1;
+            restart_counter++;
+            double restart_time = timer_restart.elapsed();
+            total_time += restart_time;
+            std::cout << "Restart took: " << restart_time << ". Total comp time s.f.: " << total_time << std::endl;
+    	} else {
+            nt_r_curr++;
         }
     }
 }
