@@ -121,7 +121,7 @@ struct config_t
     real (*f0_ion)( real x, real u );
 
     // "Standard parameters"
-    static constexpr real x_min = -160, x_max = 0, epsilon = 0.5;
+    real x_min = -40, x_max = 0, epsilon = 0.5;
 
 	size_t Nx;  // Number of grid points in physical space.
     size_t Nu;
@@ -160,7 +160,7 @@ config_t<real>::config_t(real(*init_electron)(real,real), real(*init_ion)(real,r
     Nu = 16;
     u_min = -1;
     u_max =  1;
-    l = Nx -1;
+    l = Nx -1; // is this maybe wrong?
 //    dt = 1./8.; Nt = 5/dt;
 
     Nu_electron = 512;

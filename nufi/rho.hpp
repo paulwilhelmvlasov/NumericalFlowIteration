@@ -217,6 +217,9 @@ void eval_flow_map_ion_acoustic( size_t n, real& x, real& u,
 				  bool electron = true, bool reflecting_boundary = true,
 				  bool relativistic = false, bool right_boundary_maxwellian = true)
 {
+    // Careful, this function may use the wrong boundary condtion.
+    // TODO: Repair.
+
 	if(n>0){
 	    const size_t stride_x = 1;
 	    const size_t stride_t = stride_x*(conf.l + order);
@@ -315,9 +318,14 @@ real eval_ftilda_ion_acoustic( size_t n, real x, real u,
 			}else{
 				return conf.f0_ion(x, u);
 			}
-		} else if(x > conf.x_max){
-			x = conf.x_max;
-			u = -u;
+		} else if(x >= conf.x_max){
+            if(electron){ // If only ions are reflected!
+                return 0;
+            }else{
+                real dist = x - conf.x_max;
+                x = conf.x_max - dist;
+                u = -u;
+            }
 		}
 	}
 
@@ -346,9 +354,14 @@ real eval_ftilda_ion_acoustic( size_t n, real x, real u,
 
         // Reflecting boundaries:
         if(reflecting_boundary){
-			if(x > conf.x_max){
-				x = conf.x_max;
-				u = -u;
+			if(x >= conf.x_max){
+                if(electron){
+                    return 0;
+                }else{
+                    real dist = x - conf.x_max;
+                    x = conf.x_max - dist;
+                    u = -u;
+                }
 			}else if(x < conf.x_min){
 				if(electron){
 					return conf.f0_electron(x, u);
@@ -375,9 +388,14 @@ real eval_ftilda_ion_acoustic( size_t n, real x, real u,
 
     // Reflecting boundaries:
     if(reflecting_boundary){
-		if(x > conf.x_max){
-			x = conf.x_max; // shouldn't this reflect x to a new position < x_max?
-			u = -u;
+		if(x >= conf.x_max){
+            if(electron){
+                return 0;
+            }else{
+                real dist = x - conf.x_max;
+                x = conf.x_max - dist;
+                u = -u;
+            }
 		}else if(x < conf.x_min){
 			if(electron){
 				return conf.f0_electron(x, u);
@@ -410,9 +428,14 @@ real eval_f_ion_acoustic( size_t n, real x, real u,
 	}
 
     if(reflecting_boundary){
-		if(x > conf.x_max){
-			x = conf.x_max;
-			u = -u;
+		if(x >= conf.x_max){
+            if(electron){
+                return 0;
+            }else{
+                real dist = x - conf.x_max;
+                x = conf.x_max - dist;
+                u = -u;
+            }
 		}else if(x < conf.x_min){
 			if(electron){
 				return conf.f0_electron(x, u);
@@ -451,9 +474,14 @@ real eval_f_ion_acoustic( size_t n, real x, real u,
 		u  += (electron/conf.m_e + (!electron)*(-1)/conf.m_i) * conf.dt*Ex;
 
 	    if(reflecting_boundary){
-			if(x > conf.x_max){
-				x = conf.x_max;
-				u = -u;
+			if(x >= conf.x_max){
+                if(electron){
+                    return 0;
+                }else{
+                    real dist = x - conf.x_max;
+                    x = conf.x_max - dist;
+                    u = -u;
+                }
 			}else if(x < conf.x_min){
 				if(electron){
 					return conf.f0_electron(x, u);
@@ -480,9 +508,14 @@ real eval_f_ion_acoustic( size_t n, real x, real u,
 
     // Reflecting boundaries:
     if(reflecting_boundary){
-		if(x > conf.x_max){
-			x = conf.x_max;
-			u = -u;
+		if(x >= conf.x_max){
+            if(electron){
+                return 0;
+            }else{
+                real dist = x - conf.x_max;
+                x = conf.x_max - dist;
+                u = -u;
+            }
 		}else if(x < conf.x_min){
 			if(electron){
 				return conf.f0_electron(x, u);

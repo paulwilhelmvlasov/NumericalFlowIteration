@@ -74,10 +74,32 @@ real initial_plasma_density( real x) noexcept
 	return 1;
 }
 
+// Simulation parameters:
 constexpr double T_e = 10;
 constexpr double T_i = 0.1;
 constexpr double m_e = 1;
 constexpr double m_i = 1836;
+
+constexpr double dt = 0.05;
+constexpr double Nt = 1000 / dt;
+constexpr size_t Nu_electron = 128;
+constexpr size_t Nu_ion = 256;
+constexpr double u_electron_min = -100;
+constexpr double u_electron_max = 100;
+constexpr double u_ion_min = -1;
+constexpr double u_ion_max = 1;
+constexpr double x_min = -100;
+constexpr double x_max = 0;
+constexpr double Lx = x_max - x_min;
+constexpr size_t Nx = 2048;
+
+// Restart parameters.
+constexpr size_t nx_r = 8192;
+constexpr size_t nu_r = nx_r;
+constexpr size_t nt_restart = 100;
+constexpr double dx_r = Lx / nx_r;
+constexpr double du_r_electron = (u_electron_max - u_electron_min)/ nu_r;
+constexpr double du_r_ion = (u_ion_max - u_ion_min)/ nu_r;
 
 template <typename real>
 real f0_electron(real x, real u) noexcept
@@ -105,119 +127,113 @@ real lin_interpol(real x , real y, real x1, real x2, real y1, real y2, real f_11
 
 arma::mat f0_r_electron;
 arma::mat f0_r_ion;
-config_t<double> conf(&f0_electron, &f0_ion);
+size_t restart_counter = 0;
 
 double f_t_electron(double x, double u) noexcept
 {
-	if(u >= conf.u_electron_max || u <= conf.u_electron_min){
-		return 0;
+	if(restart_counter == 0){
+		return f0_electron(x,u);
+	} else {
+		if(u >= u_electron_max || u <= u_electron_min){
+			return 0;
+		}
+		if(x <= x_min){
+			x = x_min;
+		}
+		if(x >= (x_max - 1e-8)){
+			x = x_max - 1e-8;
+		}
+
+		size_t nx_r = f0_r_electron.n_rows - 1;
+		size_t nu_r = f0_r_electron.n_cols - 1;
+
+		double dx_r = Lx / nx_r;
+		double du_r = (u_electron_max - u_electron_min)/nu_r;
+
+		size_t x_ref_pos = std::floor((x-x_min)/dx_r);
+		size_t u_ref_pos = std::floor((u-u_electron_min)/du_r);
+
+		double x1 = x_min + x_ref_pos*dx_r;
+		double x2 = x1+dx_r;
+		double u1 = u_electron_min + u_ref_pos*du_r;
+		double u2 = u1 + du_r;
+
+		double f_11 = f0_r_electron(x_ref_pos, u_ref_pos);
+		double f_21 = f0_r_electron(x_ref_pos+1, u_ref_pos);
+		double f_12 = f0_r_electron(x_ref_pos, u_ref_pos+1);
+		double f_22 = f0_r_electron(x_ref_pos+1, u_ref_pos+1);
+
+		return lin_interpol<double>(x, u, x1, x2, u1, u2, f_11, f_12, f_21, f_22);
 	}
-	if(x <= conf.x_min){
-		x = conf.x_min;
-	}
-	if(x >= (conf.x_max - 1e-8)){
-		x = conf.x_max - 1e-8;
-	}
-
-	size_t nx_r = f0_r_electron.n_rows - 1;
-	size_t nu_r = f0_r_electron.n_cols - 1;
-
-	double dx_r = conf.Lx / nx_r;
-	double du_r = (conf.u_electron_max - conf.u_electron_min)/nu_r;
-
-	size_t x_ref_pos = std::floor((x-conf.x_min)/dx_r);
-	size_t u_ref_pos = std::floor((u-conf.u_electron_min)/du_r);
-
-	double x1 = conf.x_min + x_ref_pos*dx_r;
-	double x2 = x1+dx_r;
-	double u1 = conf.u_electron_min + u_ref_pos*du_r;
-	double u2 = u1 + du_r;
-
-/* 	std::cout << "Electron: " << x << " " << u << " " << x_ref_pos << " " << u_ref_pos << std::endl;
-	std::cout << nx_r << " " << nu_r << " " << f0_r_electron.n_rows << " " << f0_r_electron.n_cols << std::endl; */
-
-	double f_11 = f0_r_electron(x_ref_pos, u_ref_pos);
-	double f_21 = f0_r_electron(x_ref_pos+1, u_ref_pos);
-	double f_12 = f0_r_electron(x_ref_pos, u_ref_pos+1);
-	double f_22 = f0_r_electron(x_ref_pos+1, u_ref_pos+1);
-
-    double value = lin_interpol<double>(x, u, x1, x2, u1, u2, f_11, f_12, f_21, f_22);
-
-    return value;
 }
 
 double f_t_ion(double x, double u) noexcept
 {
-	if(u >= conf.u_ion_max || u <= conf.u_ion_min){
-		return 0;
+	if(restart_counter == 0){
+		return f0_ion(x,u);
+	} else {
+		if(u >= u_ion_max || u <= u_ion_min){
+			return 0;
+		}
+		if(x <= x_min){
+			x = x_min;
+		}
+		if(x >= (x_max - 1e-8)){
+			x = x_max - 1e-8;
+		}
+
+		size_t nx_r = f0_r_ion.n_rows - 1;
+		size_t nu_r = f0_r_ion.n_cols - 1;
+
+		double dx_r = Lx / nx_r;
+		double du_r = (u_ion_max - u_ion_min)/nu_r;
+
+		size_t x_ref_pos = std::floor((x-x_min)/dx_r);
+		size_t u_ref_pos = std::floor((u-u_ion_min)/du_r);
+
+		double x1 = x_min + x_ref_pos*dx_r;
+		double x2 = x1+dx_r;
+		double u1 = u_ion_min + u_ref_pos*du_r;
+		double u2 = u1 + du_r;
+
+		double f_11 = f0_r_ion(x_ref_pos, u_ref_pos);
+		double f_21 = f0_r_ion(x_ref_pos+1, u_ref_pos);
+		double f_12 = f0_r_ion(x_ref_pos, u_ref_pos+1);
+		double f_22 = f0_r_ion(x_ref_pos+1, u_ref_pos+1);
+
+		return lin_interpol<double>(x, u, x1, x2, u1, u2, f_11, f_12, f_21, f_22);
 	}
-	if(x <= conf.x_min){
-		x = conf.x_min;
-	}
-	if(x >= (conf.x_max - 1e-8)){
-		x = conf.x_max - 1e-8;
-	}
-
-	size_t nx_r = f0_r_ion.n_rows - 1;
-	size_t nu_r = f0_r_ion.n_cols - 1;
-
-	double dx_r = conf.Lx / nx_r;
-	double du_r = (conf.u_ion_max - conf.u_ion_min)/nu_r;
-
-	size_t x_ref_pos = std::floor((x-conf.x_min)/dx_r);
-	size_t u_ref_pos = std::floor((u-conf.u_ion_min)/du_r);
-
-	double x1 = conf.x_min + x_ref_pos*dx_r;
-	double x2 = x1+dx_r;
-	double u1 = conf.u_ion_min + u_ref_pos*du_r;
-	double u2 = u1 + du_r;
-
-/* 	std::cout << "Ion: " << x << " " << u << " " << x_ref_pos << " " << u_ref_pos << std::endl;
-	std::cout << nx_r << " " << nu_r << " " << f0_r_ion.n_rows << " " << f0_r_ion.n_cols << std::endl; */
-
-	double f_11 = f0_r_ion(x_ref_pos, u_ref_pos);
-	double f_21 = f0_r_ion(x_ref_pos+1, u_ref_pos);
-	double f_12 = f0_r_ion(x_ref_pos, u_ref_pos+1);
-	double f_22 = f0_r_ion(x_ref_pos+1, u_ref_pos+1);
-
-    double value = lin_interpol<double>(x, u, x1, x2, u1, u2, f_11, f_12, f_21, f_22);
-
-    return value;
 }
 
 template <typename real, size_t order>
 void nufi_two_species_ion_acoustic_with_reflecting_dirichlet_boundary(bool plot = true)
 {
-	conf.dt = 0.05;
-	conf.Nt = 1000/conf.dt;
-	conf.Nu_electron = 64;
-	conf.Nu_ion = 256;
-    conf.u_electron_min = -50;
-    conf.u_electron_max =  50;
-    conf.u_ion_min = -0.7;
-    conf.u_ion_max =  0.7;
+	config_t<double> conf(&f_t_electron, &f_t_ion);
+
+	conf.dt = dt;
+	conf.Nt = Nt;
+	conf.Nu_electron = Nu_electron;
+	conf.Nu_ion = Nu_ion;
+    conf.u_electron_min = u_electron_min;
+    conf.u_electron_max = u_electron_max;
+    conf.u_ion_min = u_ion_min;
+    conf.u_ion_max = u_ion_max;
     conf.du_electron = (conf.u_electron_max - conf.u_electron_min)/conf.Nu_electron;
     conf.du_ion = (conf.u_ion_max - conf.u_ion_min)/conf.Nu_ion;
-    conf.Nx = 2048;
-    conf.l = conf.Nx - 1;
-	conf.Lx = conf.x_max - conf.x_min;
+	conf.x_min = x_min;
+	conf.x_max = x_max;
+    conf.Nx = Nx;
+    /* conf.l = conf.Nx - 1; */
+	conf.l = conf.Nx - 2;
+	conf.Lx = Lx;
 	conf.Lx_inv = 1.0 / conf.Lx;
     conf.dx = conf.Lx/conf.Nx;
     conf.dx_inv = 1.0/conf.dx;
 	conf.max_depth_integration = 5;
 
     const size_t stride_x = 1;
-    const size_t stride_t = conf.Nx + order - 2; // conf.Nx = l+2, therefore: conf.Nx +order-2 = order+l
-
-    // Restart parameters.
-    size_t nx_r = 2*conf.Nx;
-	size_t nu_r = nx_r;
-    size_t nt_restart = 100;
-    double dx_r = conf.Lx / nx_r;
-    double du_r_electron = (conf.u_electron_max - conf.u_electron_min)/ nu_r;
-    double du_r_ion = (conf.u_ion_max - conf.u_ion_min)/ nu_r;
-    f0_r_electron.resize(nx_r+1, nu_r+1);
-    f0_r_ion.resize(nx_r+1, nu_r+1);
+    /* const size_t stride_t = conf.Nx + order - 2; */ // conf.Nx = l+2, therefore: conf.Nx +order-2 = order+l
+	const size_t stride_t = conf.l + order;
 
     std::unique_ptr<real[]> coeffs_restart { new real[ (nt_restart+1)*stride_t ] {} };
     std::unique_ptr<real,decltype(std::free)*> rho { reinterpret_cast<real*>(std::aligned_alloc(64,sizeof(real)*conf.Nx)), std::free };
@@ -225,6 +241,8 @@ void nufi_two_species_ion_acoustic_with_reflecting_dirichlet_boundary(bool plot 
     if ( rho == nullptr ) throw std::bad_alloc {};
     std::unique_ptr<real,decltype(std::free)*> phi_ext { reinterpret_cast<real*>(std::aligned_alloc(64,sizeof(real)*stride_t)), std::free };//rename, this is the rhs of the interpolation task, but with 2 additional entries.
 
+    f0_r_electron.resize(nx_r+1, nu_r+1);
+    f0_r_ion.resize(nx_r+1, nu_r+1);
 
     //poisson_fd_dirichlet<double> poiss(conf);
     poisson_fd_pure_neumann_dirichlet poiss(conf);
@@ -255,7 +273,6 @@ void nufi_two_species_ion_acoustic_with_reflecting_dirichlet_boundary(bool plot 
     std::ofstream coeffs_str( "coeffs_Nt_" + std::to_string(conf.dt) + "_Nx_ "
 				+ std::to_string(conf.Nx) + "_stride_t_" + std::to_string(stride_t) + ".txt" );
 
-	size_t restart_counter = 0;
     size_t nt_r_curr = 0;
     for ( size_t n = 0; n <= conf.Nt; n++ )
     {
@@ -309,16 +326,18 @@ void nufi_two_species_ion_acoustic_with_reflecting_dirichlet_boundary(bool plot 
         	coeffs_str << coeffs_restart.get()[nt_r_curr*stride_t + i] << std::endl;
         }
 
-		        // Output
+		// Output
         real t = n*conf.dt;
-        real x_min_plot = -40;
-        real x_max_plot = conf.x_max;
+        /* real x_min_plot = conf.x_min;
+        real x_max_plot = conf.x_max; */
+		real x_min_plot = -50;
+        real x_max_plot = x_max;
         real u_min_electron_plot = conf.u_electron_min;
         real u_max_electron_plot = conf.u_electron_max;
         real u_min_ion_plot = conf.u_ion_min;
         real u_max_ion_plot = conf.u_ion_max;
-        size_t plot_x = 512;
-        size_t plot_u = 512;
+        size_t plot_x = 1024;
+        size_t plot_u = 1024;
 
         real dx_plot = (x_max_plot - x_min_plot) / plot_x;
         real du_electron_plot = (u_max_electron_plot - u_min_electron_plot) / plot_u;
@@ -344,7 +363,7 @@ void nufi_two_species_ion_acoustic_with_reflecting_dirichlet_boundary(bool plot 
 					   << std::endl;
 
 
-			if(n % (20*5) == 0 && plot)
+			if(n % (20*10) == 0 && plot)
 			{
 				
 				std::ofstream f_electron_file("f_electron_"+ std::to_string(t) + ".txt");
@@ -366,9 +385,11 @@ void nufi_two_species_ion_acoustic_with_reflecting_dirichlet_boundary(bool plot 
 					for(size_t j = 0; j <= plot_u; j++)
 					{
 						double x = x_min_plot + i*dx_plot;
+
 						double u = u_min_ion_plot + j*du_ion_plot;
 						double f = eval_f_ion_acoustic<real,order>(nt_r_curr, x, u, coeffs_restart.get(), conf,
 									false, true, false);
+						
 						f_ion_file << x << " " << u << " " << f << std::endl;
 					}
 					f_ion_file << std::endl;
@@ -439,27 +460,6 @@ void nufi_two_species_ion_acoustic_with_reflecting_dirichlet_boundary(bool plot 
 
             f0_r_electron = f0_r_copy;
             
-			// This resets the parameter-choices from above. Thus as a hotfix I reset them here.
-			// TODO: Find a better solution.
-			conf = config_t<double>(&f_t_electron, &f_t_ion); 
-			conf.dt = 0.05;
-			conf.Nt = 1000/conf.dt;
-			conf.Nu_electron = 64;
-			conf.Nu_ion = 256;
-			conf.u_electron_min = -50;
-			conf.u_electron_max =  50;
-			conf.u_ion_min = -0.7;
-			conf.u_ion_max =  0.7;
-			conf.du_electron = (conf.u_electron_max - conf.u_electron_min)/conf.Nu_electron;
-			conf.du_ion = (conf.u_ion_max - conf.u_ion_min)/conf.Nu_ion;
-			conf.Nx = 2048;
-			conf.l = conf.Nx - 1;
-			conf.Lx = conf.x_max - conf.x_min;
-			conf.Lx_inv = 1.0 / conf.Lx;
-			conf.dx = conf.Lx/conf.Nx;
-			conf.dx_inv = 1.0/conf.dx;
-			conf.max_depth_integration = 5;
-
             // Copy last entry of coeff vector into restarted coeff vector.
             #pragma omp parallel for
             for(size_t i = 0; i < stride_t; i++){
