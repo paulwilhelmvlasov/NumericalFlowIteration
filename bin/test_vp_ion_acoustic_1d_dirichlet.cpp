@@ -75,17 +75,17 @@ real initial_plasma_density( real x) noexcept
 }
 
 // Simulation parameters:
-constexpr double T_e = 10;
-constexpr double T_i = 0.1;
+constexpr double T_e = 11475;
+constexpr double T_i = T_e / 1000;
 constexpr double m_e = 1;
 constexpr double m_i = 1836;
 
 constexpr double dt = 0.05;
 constexpr double Nt = 1000 / dt;
-constexpr size_t Nu_electron = 128;
-constexpr size_t Nu_ion = 256;
-constexpr double u_electron_min = -100;
-constexpr double u_electron_max = 100;
+constexpr size_t Nu_electron = 64;
+constexpr size_t Nu_ion = 64;
+constexpr double u_electron_min = -1000;
+constexpr double u_electron_max = 1000;
 constexpr double u_ion_min = -1;
 constexpr double u_ion_max = 1;
 constexpr double x_min = -100;
@@ -94,7 +94,7 @@ constexpr double Lx = x_max - x_min;
 constexpr size_t Nx = 2048;
 
 // Restart parameters.
-constexpr size_t nx_r = 8192;
+constexpr size_t nx_r = 4096;
 constexpr size_t nu_r = nx_r;
 constexpr size_t nt_restart = 100;
 constexpr double dx_r = Lx / nx_r;
@@ -280,7 +280,8 @@ void nufi_two_species_ion_acoustic_with_reflecting_dirichlet_boundary(bool plot 
         nufi::stopwatch<double> timer;
 
     	//Compute rho:
-    	#pragma omp parallel for
+    	/* #pragma omp parallel for  */
+		#pragma omp parallel for schedule(dynamic)
     	for(size_t i = 0; i<conf.Nx; i++)
     	 {
     		real x = conf.x_min + i*conf.dx;
@@ -330,7 +331,7 @@ void nufi_two_species_ion_acoustic_with_reflecting_dirichlet_boundary(bool plot 
         real t = n*conf.dt;
         /* real x_min_plot = conf.x_min;
         real x_max_plot = conf.x_max; */
-		real x_min_plot = -50;
+		real x_min_plot = x_min;
         real x_max_plot = x_max;
         real u_min_electron_plot = conf.u_electron_min;
         real u_max_electron_plot = conf.u_electron_max;
@@ -363,7 +364,7 @@ void nufi_two_species_ion_acoustic_with_reflecting_dirichlet_boundary(bool plot 
 					   << std::endl;
 
 
-			if(n % (20*10) == 0 && plot)
+			if(n % (20*5) == 0 && plot)
 			{
 				
 				std::ofstream f_electron_file("f_electron_"+ std::to_string(t) + ".txt");
