@@ -75,26 +75,30 @@ real initial_plasma_density( real x) noexcept
 }
 
 // Simulation parameters:
-constexpr double T_e = 11475;
-constexpr double T_i = T_e / 1000;
+constexpr double T_e = 10;
+constexpr double T_i = T_e / 10;
 constexpr double m_e = 1;
 constexpr double m_i = 1836;
 
-constexpr double dt = 0.05;
-constexpr double Nt = 1000 / dt;
+constexpr double us_electron = 0;
+constexpr double us_ion = 0.05;
+
+/* constexpr double dt = 0.05; */
+constexpr double dt = 0.1;
+constexpr double Nt = 5000 / dt;
 constexpr size_t Nu_electron = 64;
-constexpr size_t Nu_ion = 64;
-constexpr double u_electron_min = -1000;
-constexpr double u_electron_max = 1000;
-constexpr double u_ion_min = -1;
-constexpr double u_ion_max = 1;
-constexpr double x_min = -100;
+constexpr size_t Nu_ion = 128;
+constexpr double u_electron_min = -50;
+constexpr double u_electron_max = 50;
+constexpr double u_ion_min = -0.5;
+constexpr double u_ion_max = 0.5;
+constexpr double x_min = -200;
 constexpr double x_max = 0;
 constexpr double Lx = x_max - x_min;
-constexpr size_t Nx = 2048;
+constexpr size_t Nx = 1024;
 
 // Restart parameters.
-constexpr size_t nx_r = 4096;
+constexpr size_t nx_r = 2048;
 constexpr size_t nu_r = nx_r;
 constexpr size_t nt_restart = 100;
 constexpr double dx_r = Lx / nx_r;
@@ -104,15 +108,13 @@ constexpr double du_r_ion = (u_ion_max - u_ion_min)/ nu_r;
 template <typename real>
 real f0_electron(real x, real u) noexcept
 {
-	real us = 0;
-	return initial_plasma_density(x)*boltzmann(u-us,T_e,m_e);
+	return initial_plasma_density(x)*boltzmann(u-us_electron,T_e,m_e);
 }
 
 template <typename real>
 real f0_ion(real x, real u) noexcept
 {
-	real us = 0.4;
-	return initial_plasma_density(x)*boltzmann(u-us,T_i,m_i);
+	return initial_plasma_density(x)*boltzmann(u-us_ion,T_i,m_i);
 }
 
 template <typename real>
@@ -280,8 +282,8 @@ void nufi_two_species_ion_acoustic_with_reflecting_dirichlet_boundary(bool plot 
         nufi::stopwatch<double> timer;
 
     	//Compute rho:
-    	/* #pragma omp parallel for  */
-		#pragma omp parallel for schedule(dynamic)
+    	#pragma omp parallel for 
+		/* #pragma omp parallel for schedule(dynamic) */
     	for(size_t i = 0; i<conf.Nx; i++)
     	 {
     		real x = conf.x_min + i*conf.dx;
@@ -364,7 +366,7 @@ void nufi_two_species_ion_acoustic_with_reflecting_dirichlet_boundary(bool plot 
 					   << std::endl;
 
 
-			if(n % (20*5) == 0 && plot)
+			if(n % (10*10) == 0 && plot)
 			{
 				
 				std::ofstream f_electron_file("f_electron_"+ std::to_string(t) + ".txt");
@@ -422,6 +424,21 @@ void nufi_two_species_ion_acoustic_with_reflecting_dirichlet_boundary(bool plot 
 					rho_ion_file << x << " " << rho_i(i) << std::endl;
 					rho_file << x << " " << rho_tot(i) << std::endl;
 				}
+
+/* 				std::ofstream rho_phi_file("rho_phi_"+ std::to_string(t) + ".txt");
+				for(size_t i = 0; i < rho_phi.n_elem; i++){
+					double x = x_min + i * conf.dx;
+					rho_phi_file << i << " " << rho_phi(i) << std::endl;
+				}
+				std::ofstream rho_reconstructed_file("rho_reconstructed_"+ std::to_string(t) + ".txt");
+				for(size_t i = 1; i < conf.Nx; i++){
+					double x = x_min + i * conf.dx;
+					double phi_left = rho_phi(i-1);
+					double phi_mid = rho_phi(i);
+					double phi_right = rho_phi(i+1);
+					double rho_reconstruct = -(phi_left - 2 * phi_mid + phi_right) / (conf.dx*conf.dx);
+					rho_reconstructed_file << x << " " << rho_reconstruct << std::endl;
+				} */
 			}
         }
 
