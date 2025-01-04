@@ -45,8 +45,8 @@ real f0(real x, real u) noexcept
 	//real alpha = 1e-2; // Linear Landau Damping or Two Stream instability
 	real alpha = 0.5; // Strong Landau Damping
 	real k = 0.5;
-    //return 1.0 / std::sqrt(2.0 * M_PI) * u*u * exp(-0.5 * u*u) * (1 + alpha * cos(k*x)); // Two Stream Instability
-	return 1.0 / std::sqrt(2.0 * M_PI) * exp(-0.5 * u*u) * (1 + alpha * cos(k*x)); // Landau Damping
+    return 1.0 / std::sqrt(2.0 * M_PI) * u*u * exp(-0.5 * u*u) * (1 + alpha * cos(k*x)); // Two Stream Instability
+	//return 1.0 / std::sqrt(2.0 * M_PI) * exp(-0.5 * u*u) * (1 + alpha * cos(k*x)); // Landau Damping
 }
 
 template <typename real>
@@ -151,6 +151,7 @@ void run_restarted_simulation()
 /*     std::ofstream Emax_file( "Emax_correct.txt" );
     std::ofstream coeff_str("coeff_correct.txt"); */
     std::ofstream stat_file( "stats.txt" );
+    std::ofstream stat_full_file( "stats_full.txt" );
     std::ofstream coeff_str("coeff_restart.txt");
     std::ofstream coeff_r_str("coeff_r_restart.txt");
     double total_time = 0;
@@ -215,6 +216,47 @@ void run_restarted_simulation()
         stat_file << std::setw(15) << t << std::setw(15) << std::setprecision(5) << std::scientific << Emax  << " " << E_l2 << std::endl;
         std::cout << std::setw(15) << t << std::setw(15) << std::setprecision(5) << std::scientific << Emax << " Comp-time: " << timer_elapsed;
         std::cout << " Total comp time s.f.: " << total_time << std::endl; 
+
+        if(nt_r_curr % 10 == 0){
+            size_t plot_n_u = plot_n_x;
+            double du_plot = (conf.u_max - conf.u_min) / plot_n_u;
+
+            double kinetic_energy = 0;
+            double entropy = 0;
+            double l1_norm = 0;
+            double l2_norm = 0;
+            double max_norm = 0;
+
+            for(size_t i = 0; i < plot_n_x; i++){
+                for(size_t j = 0; j < plot_n_u; j++){
+                    double x = conf.x_min + i*dx_plot;
+                    double u = conf.u_min + j*du_plot;
+                    double f = periodic::eval_f<double,order>(nt_r_curr, x, u, coeffs_restart.get(), conf);
+
+                    kinetic_energy += u*u*f;
+                    if(f > 0){
+                        entropy -= f*std::log(f);
+                    } 
+                    l1_norm += f;
+                    l2_norm += f*f;
+                    max_norm = std::max(f, max_norm);
+                }
+            }
+
+            double weight = dx_plot*du_plot;
+            kinetic_energy *= weight;
+            entropy *= weight;
+            l1_norm *= weight;
+            l2_norm *= weight;
+            double total_energy = kinetic_energy + E_l2;
+            stat_full_file << std::setprecision(16) << t << "; "
+                            << l1_norm              << "; "
+                            << l2_norm              << "; "
+                            << E_l2                 << "; "
+                            << kinetic_energy       << "; "
+                            << total_energy         << "; "
+                            << entropy              << std::endl;
+        }
 
         if(nt_r_curr == nt_restart)
     	{
