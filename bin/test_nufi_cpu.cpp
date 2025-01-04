@@ -42,8 +42,8 @@ namespace dim1
 template <typename real>
 real f0(real x, real u) noexcept
 {
-	//real alpha = 1e-2; // Linear Landau Damping or Two Stream instability
-	real alpha = 0.5; // Strong Landau Damping
+	real alpha = 1e-2; // Linear Landau Damping or Two Stream instability
+	//real alpha = 0.5; // Strong Landau Damping
 	real k = 0.5;
     return 1.0 / std::sqrt(2.0 * M_PI) * u*u * exp(-0.5 * u*u) * (1 + alpha * cos(k*x)); // Two Stream Instability
 	//return 1.0 / std::sqrt(2.0 * M_PI) * exp(-0.5 * u*u) * (1 + alpha * cos(k*x)); // Landau Damping
@@ -110,8 +110,8 @@ void run_restarted_simulation()
 
     size_t Nx = 64;  // Number of grid points in physical space.
     size_t Nu = 2*Nx;  // Number of quadrature points in velocity space.
-    //double   dt = 0.0625;  // Time-step size.
-    double   dt = 0.1;  // Time-step size.
+    double   dt = 0.0625;  // Time-step size.
+    //double   dt = 0.1;  // Time-step size.
     size_t Nt = 500/dt;  // Number of time-steps.
 
     // Dimensions of physical domain.
@@ -127,9 +127,9 @@ void run_restarted_simulation()
     conf.u_max = u_max;
 
     // We use conf.Nt as restart timer for now.
-    size_t nx_r = 2048;
+    size_t nx_r = 1024;
 	size_t nu_r = nx_r;
-    size_t nt_restart = 1000;
+    size_t nt_restart = 200;
     double dx_r = conf.Lx / nx_r;
     double du_r = (conf.u_max - conf.u_min)/ nu_r;
     f0_r.resize(nx_r+1, nu_r+1);
@@ -201,7 +201,7 @@ void run_restarted_simulation()
 
         double Emax = 0;
 	    double E_l2 = 0; // Electric energy
-        size_t plot_n_x = 256;
+        size_t plot_n_x = 1024;
         double dx_plot = conf.Lx / plot_n_x;
         for ( size_t i = 0; i < plot_n_x; ++i )
         {
@@ -217,7 +217,7 @@ void run_restarted_simulation()
         std::cout << std::setw(15) << t << std::setw(15) << std::setprecision(5) << std::scientific << Emax << " Comp-time: " << timer_elapsed;
         std::cout << " Total comp time s.f.: " << total_time << std::endl; 
 
-        if(nt_r_curr % 10 == 0){
+        if(n % (5*16) == 0 && false){
             size_t plot_n_u = plot_n_x;
             double du_plot = (conf.u_max - conf.u_min) / plot_n_u;
 
@@ -255,7 +255,7 @@ void run_restarted_simulation()
                             << E_l2                 << "; "
                             << kinetic_energy       << "; "
                             << total_energy         << "; "
-                            << entropy              << std::endl;
+                            << entropy              << ";" << std::endl;
         }
 
         if(nt_r_curr == nt_restart)
