@@ -37,8 +37,6 @@ const double umin = -6;
 const double umax = 6;
 const double dx_r = Lx/ nx_r;
 const double du_r = (umax - umin)/nu_r;
-
-std::vector<double> mat(nx_r*nu_r);
 }
 
 namespace nufi
