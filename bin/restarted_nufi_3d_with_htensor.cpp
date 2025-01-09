@@ -168,7 +168,7 @@ const size_t order = 4;
 const size_t Nx = 8;  // Number of grid points in physical space.
 const size_t Nu = 2*Nx;  // Number of quadrature points in velocity space.
 const double   dt = 0.1;  // Time-step size.
-const size_t Nt = 30/dt;  // Number of time-steps.
+const size_t Nt = 5/dt;  // Number of time-steps.
 config_t<double> conf(Nx, Nx, Nx, Nu, Nu, Nu, Nt, dt, 
                     0, htensor::Lx, 0, htensor::Ly, 0, htensor::Lz, 
                     htensor::umin, htensor::umax, 
@@ -177,7 +177,7 @@ config_t<double> conf(Nx, Nx, Nx, Nu, Nu, Nu, Nt, dt,
 size_t stride_t = (conf.Nx + order - 1) *
                   (conf.Ny + order - 1) *
 	    		  (conf.Nz + order - 1);
-const size_t nt_restart = 100;
+const size_t nt_restart = 100000;
 std::unique_ptr<double[]> coeffs_full { new double[ (Nt+1)*stride_t ] {} };
 std::unique_ptr<double[]> coeffs_restart { new double[ (nt_restart+1)*stride_t ] {} };
 
@@ -202,7 +202,7 @@ void test_interface(int** ind, double &val)
     double v = htensor::vmin + i_v*htensor::dv_r;
     double w = htensor::wmin + i_w*htensor::dw_r;
 
-	val = eval_f<double,order>(nt_restart*(restart_counter+1), x, y, z, u, v, w, coeffs_full.get(), conf);
+	val = eval_f<double,order>(20, x, y, z, u, v, w, coeffs_full.get(), conf);
 }
 
 double f_t(double x, double y, double z, double u, double v, double w) noexcept
@@ -272,7 +272,8 @@ void nufi_interface_for_fortran(int** ind, double &val)
     if(restarted){
         val = f_t(x,y,z,u,v,w);
     } else {
-        val = eval_f<double,order>(nt_restart, x, y, z, u, v, w, coeffs_restart.get(), conf);
+        val = eval_f<double,order>(nt_restart, x, y, z, u, v, w, 
+                                    coeffs_restart.get(), conf);
     }
 }
 
@@ -284,8 +285,6 @@ void run_restarted_simulation()
    	int32_t dim_arr[htensor::dim]{htensor::n_r, htensor::n_r, htensor::n_r, 
                                 htensor::n_r, htensor::n_r, htensor::n_r};
 	int32_t* nPtr1 = &dim_arr[0];
-    int32_t size = std::pow(htensor::n_r,6); // This causes on overflow... how did Katharina handle this?
-	auto sizePtr = &size;
 
 	bool is_rand = false;
 
@@ -386,6 +385,133 @@ void run_restarted_simulation()
 
 }
 
+void test_htensor_linear_interpol()
+{
+    std::ifstream coeff_str(std::string("../no_restart/coeffs.txt"));
+    std::ofstream coeff_read_in_str(std::string("test.txt"));
+	for(size_t i = 0; i <= conf.Nt*stride_t; i++){
+        int a = 0;
+		coeff_str >> a >> coeffs_full.get()[i];
+        coeff_read_in_str << coeffs_full.get()[i] << std::endl;
+	}
+
+    // Htensor stuff.
+   	int32_t dim_arr[htensor::dim]{htensor::n_r, htensor::n_r, htensor::n_r, 
+                                htensor::n_r, htensor::n_r, htensor::n_r};
+	int32_t* nPtr1 = &dim_arr[0];
+
+	bool is_rand = false;
+
+	void* opts;
+	auto optsPtr = &opts;
+
+	double tol = 1e-5;
+	int32_t tcase = 2;
+
+	int32_t cross_no_loops = 1;
+	int32_t nNodes = 2 * (6 * htensor::n_r ) - 1;
+	int32_t rank = 20;
+	int32_t rank_rand_row = 10;  
+	int32_t rank_rand_col = rank_rand_row;
+
+    chtl_s_init_truncation_option(optsPtr, &tcase, &tol, &cross_no_loops, &nNodes, &rank, &rank_rand_row, &rank_rand_col);
+	chtl_s_htensor_init_balanced(htensor::htensorPtr, htensor::dPtr, nPtr1);
+
+    auto fctPtr = &test_interface;
+
+    chtl_s_cross(fctPtr, htensor::htensorPtr, optsPtr, &is_rand);
+
+    // Let's plot the exact function and approximation.
+    size_t nx_plot = 256;
+    size_t nu_plot = nx_plot;
+    double dx_plot = htensor::Lx / nx_plot;
+    double du_plot = (htensor::umax - htensor::umin) / nu_plot;
+
+    double y = 2*M_PI;
+    double z = y;
+    double v = 0;
+    double w = v;
+
+    std::ofstream f_exact_str("f_exact.txt");
+    std::ofstream f_approx_str("f_approx.txt");
+    std::ofstream f_dist_str("f_dist.txt");
+    for(size_t ix = 0; ix < nx_plot; ix++){
+        for(size_t iu = 0; iu < nu_plot; iu++){
+            double x = ix*dx_plot;
+            double u = htensor::umin + iu*du_plot;
+            double f_exact = eval_f<double,order>(20, x, y, z, u, v, w, coeffs_full.get(), conf);
+
+            size_t x_ref_pos = std::floor(x/htensor::dx_r);
+            x_ref_pos = x_ref_pos % htensor::n_r;
+
+            size_t y_ref_pos = std::floor(y/htensor::dy_r);
+            y_ref_pos = y_ref_pos % htensor::n_r;
+
+            size_t z_ref_pos = std::floor(z/htensor::dz_r);
+            z_ref_pos = z_ref_pos % htensor::n_r;
+
+            size_t u_ref_pos = std::floor((u-conf.u_min)/htensor::du_r);
+            size_t v_ref_pos = std::floor((v-conf.v_min)/htensor::dv_r);
+            size_t w_ref_pos = std::floor((w-conf.w_min)/htensor::dw_r);
+            
+            int* arr = new int[6];
+
+            arr[0] = w_ref_pos + 1;
+            arr[1] = v_ref_pos + 1;
+            arr[2] = u_ref_pos + 1;
+            arr[3] = z_ref_pos + 1;
+            arr[4] = y_ref_pos + 1;
+            arr[5] = x_ref_pos + 1;
+            
+            double f_approx = htensor::linear_interpolation_6d(x, y, z, u, v, w, arr);
+
+            double f_dist = std::abs(f_exact - f_approx);
+
+            f_exact_str << x << " " << u << " " << f_exact << std::endl;
+            f_approx_str << x << " " << u << " " << f_approx << std::endl;
+            f_dist_str << x << " " << u << " " << f_dist << std::endl;
+        }
+        f_exact_str << std::endl;
+        f_approx_str << std::endl;
+        f_dist_str << std::endl;
+    }
+
+    std::ofstream htensor_str("htensor_str.txt");
+    for(size_t i = 0; i < htensor::n_r; i++){
+        for(size_t j = 0; j < htensor::n_r; j++){
+            double x = i*htensor::dx_r;
+            double u = htensor::umin + j*htensor::du_r;
+
+            size_t y_ref_pos = std::floor(y/htensor::dy_r);
+            y_ref_pos = y_ref_pos % htensor::n_r;
+
+            size_t z_ref_pos = std::floor(z/htensor::dz_r);
+            z_ref_pos = z_ref_pos % htensor::n_r;
+
+            size_t v_ref_pos = std::floor((v-conf.v_min)/htensor::dv_r);
+            size_t w_ref_pos = std::floor((w-conf.w_min)/htensor::dw_r);
+
+            int* arr = new int[6];
+            int** arrPtr = &arr;
+
+            arr[0] = w_ref_pos + 1;
+            arr[1] = v_ref_pos + 1;
+            arr[2] = j + 1;
+            arr[3] = z_ref_pos + 1;
+            arr[4] = y_ref_pos + 1;
+            arr[5] = i + 1;
+
+            double f = 0;
+            chtl_s_htensor_point_eval(htensor::htensorPtr,arrPtr,f,htensor::dPtr); 
+
+            htensor_str << x << " " << u << " " << f << std::endl;
+        }
+        htensor_str << std::endl;
+    }
+
+}
+
+
 }
 
 }
@@ -470,13 +596,14 @@ void test_lin_interpol(size_t test_n, double xmin_plot = 0, double xmax_plot = h
 }
 
 
-
 int main()
 {
 
     //test_lin_interpol(8, 2.5, 3, 2.5, 3, 2.5, 3, -0.5, 0.5, -0.5, 0.5, -0.5, 0.5);
 
-    nufi::dim3::run_restarted_simulation();
+    //nufi::dim3::run_restarted_simulation();
+
+    nufi::dim3::test_htensor_linear_interpol();
 
     return 0;
 }
