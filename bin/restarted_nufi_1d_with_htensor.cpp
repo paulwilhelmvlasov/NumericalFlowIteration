@@ -100,7 +100,7 @@ void test_interface(int** ind, double &val)
 	size_t j = ind[0][0] - 1;
 
 	// Allow higher plot res than the simulation was initially run with.
-	double x = i*htensor::nx_r;
+	double x = i*htensor::dx_r;
 	double v = htensor::umin + j*htensor::du_r;
 
 	val = periodic::eval_f<double,order>(nt_restart*(restart_counter+1), x, v, coeffs_full.get(), conf);
@@ -176,12 +176,6 @@ void nufi_interface_for_fortran(int** ind, double &val)
 
 void run_restarted_simulation()
 {
-	using std::exp;
-	using std::sin;
-	using std::cos;
-    using std::abs;
-    using std::max;
-
     //omp_set_num_threads(1);
 
     poisson<double> poiss( conf );
@@ -248,7 +242,7 @@ void run_restarted_simulation()
         {
             double x = conf.x_min + i*dx_plot;
             double E_abs = abs( periodic::eval<double,order,1>(x,coeffs_restart.get()+nt_r_curr*stride_t,conf));
-            Emax = max( Emax, E_abs );
+            Emax = std::max( Emax, E_abs );
 	        E_l2 += E_abs*E_abs;
         }
 	    E_l2 =  0.5*dx_plot*E_l2;

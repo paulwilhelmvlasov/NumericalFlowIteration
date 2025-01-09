@@ -24,7 +24,7 @@ namespace htensor
 const size_t dim = 6;
 int32_t d = dim;
 auto dPtr = &d;
-const size_t n_r = 256;
+const size_t n_r = 64;
 
 void* htensor;
 auto htensorPtr = &htensor;
@@ -83,8 +83,55 @@ real linear_interpolation_6d(real* x, real* f, int* ind)
                     * ((1-w_u)*(i_u==0) + w_u*(i_u==1))
                     * ((1-w_v)*(i_v==0) + w_v*(i_v==1))
                     * ((1-w_w)*(i_w==0) + w_w*(i_w==1));
-        
         value += factor * f[index_f_6d_flat_array(i_x,i_y,i_z,i_u,i_v,i_w)];
+    }
+
+    return value;
+}
+
+template <typename real>
+real linear_interpolation_6d(real x, real y, real z, real u, real v, real w, int* ind)
+{
+    int* arr = new int[6];
+	int** arrPtr = &arr;
+
+    // Right now only works excluding the right boundary!
+    real x0 = ind[0]*dx_r;
+    real y0 = ind[1]*dy_r;
+    real z0 = ind[2]*dz_r;
+    real u0 = umin + ind[3]*du_r;
+    real v0 = vmin + ind[4]*dv_r;
+    real w0 = wmin + ind[5]*dw_r;
+
+    real w_x = (x - x0)/dx_r;
+    real w_y = (y - y0)/dy_r;
+    real w_z = (z - z0)/dz_r;
+    real w_u = (u - u0)/du_r;
+    real w_v = (v - v0)/dv_r;
+    real w_w = (w - w0)/dw_r;
+
+    real value = 0;
+    for(int i_x = 0; i_x <= 1; i_x++)
+    for(int i_y = 0; i_y <= 1; i_y++)
+    for(int i_z = 0; i_z <= 1; i_z++)
+    for(int i_u = 0; i_u <= 1; i_u++)
+    for(int i_v = 0; i_v <= 1; i_v++)
+    for(int i_w = 0; i_w <= 1; i_w++){
+        real factor = ((1-w_x)*(i_x==0) + w_x*(i_x==1))
+                    * ((1-w_y)*(i_y==0) + w_y*(i_y==1))
+                    * ((1-w_z)*(i_z==0) + w_z*(i_z==1))
+                    * ((1-w_u)*(i_u==0) + w_u*(i_u==1))
+                    * ((1-w_v)*(i_v==0) + w_v*(i_v==1))
+                    * ((1-w_w)*(i_w==0) + w_w*(i_w==1));
+        arr[0] = ind[0] + i_w;
+        arr[1] = ind[1] + i_v;
+        arr[2] = ind[2] + i_u;
+        arr[3] = ind[3] + i_z;
+        arr[4] = ind[4] + i_y;
+        arr[5] = ind[5] + i_x;
+        double f = 0;
+        chtl_s_htensor_point_eval(htensor::htensorPtr,arrPtr,f,htensor::dPtr); 
+        value += factor * f;
     }
 
     return value;
@@ -114,20 +161,250 @@ real f0(real x, real y, real z, real u, real v, real w) noexcept
              * exp( -(u*u+v*v+w*w)/2 );
 }
 
-}
+size_t restart_counter = 0;
+bool restarted = false;
 
-}
+const size_t order = 4;
+const size_t Nx = 8;  // Number of grid points in physical space.
+const size_t Nu = 2*Nx;  // Number of quadrature points in velocity space.
+const double   dt = 0.1;  // Time-step size.
+const size_t Nt = 30/dt;  // Number of time-steps.
+config_t<double> conf(Nx, Nx, Nx, Nu, Nu, Nu, Nt, dt, 
+                    0, htensor::Lx, 0, htensor::Ly, 0, htensor::Lz, 
+                    htensor::umin, htensor::umax, 
+                    htensor::vmin, htensor::vmax,
+                    htensor::wmin, htensor::wmax, &f0);
+size_t stride_t = (conf.Nx + order - 1) *
+                  (conf.Ny + order - 1) *
+	    		  (conf.Nz + order - 1);
+const size_t nt_restart = 100;
+std::unique_ptr<double[]> coeffs_full { new double[ (Nt+1)*stride_t ] {} };
+std::unique_ptr<double[]> coeffs_restart { new double[ (nt_restart+1)*stride_t ] {} };
 
+std::unique_ptr<double,decltype(std::free)*> rho { reinterpret_cast<double*>(std::aligned_alloc(64,
+                                        sizeof(double)*conf.Nx*conf.Ny*conf.Nz)), std::free };
 
-int main()
+void test_interface(int** ind, double &val)
 {
-    size_t test_n = 8;
-    double plot_dx = htensor::Lx / test_n;
-    double plot_dy = htensor::Ly / test_n;
-    double plot_dz = htensor::Lz / test_n;
-    double plot_du = (htensor::umax - htensor::umin) / test_n;
-    double plot_dv = (htensor::vmax - htensor::vmin) / test_n;
-    double plot_dw = (htensor::wmax - htensor::wmin) / test_n;
+	// Fortran starts indexing at 1:
+    size_t i_x = ind[0][5] - 1;
+    size_t i_y = ind[0][4] - 1;
+    size_t i_z = ind[0][3] - 1;
+	size_t i_u = ind[0][2] - 1;
+    size_t i_v = ind[0][1] - 1;
+	size_t i_w = ind[0][0] - 1;
+
+	// Allow higher plot res than the simulation was initially run with.
+	double x = i_x*htensor::dx_r;
+    double y = i_y*htensor::dy_r;
+    double z = i_z*htensor::dz_r;
+	double u = htensor::umin + i_u*htensor::du_r;
+    double v = htensor::vmin + i_v*htensor::dv_r;
+    double w = htensor::wmin + i_w*htensor::dw_r;
+
+	val = eval_f<double,order>(nt_restart*(restart_counter+1), x, y, z, u, v, w, coeffs_full.get(), conf);
+}
+
+double f_t(double x, double y, double z, double u, double v, double w) noexcept
+{
+	if(u > htensor::umax || u < htensor::umin 
+        || v > htensor::vmax || v < htensor::vmin
+        || w > htensor::umax || w < htensor::umin){
+		return 0;
+	}
+
+	// Compute periodic reference position of x. Assume x_min = 0 to this end.
+    if(x < 0 || x > htensor::Lx){
+	    x -= htensor::Lx * std::floor(x/htensor::Lx);
+    } 
+    // Compute periodic reference position of y. Assume y_min = 0 to this end.
+    if(y < 0 || y > htensor::Ly){
+	    y -= htensor::Ly * std::floor(y/htensor::Ly);
+    } 
+	// Compute periodic reference position of z. Assume z_min = 0 to this end.
+    if(z < 0 || z > htensor::Lz){
+	    z -= htensor::Lz * std::floor(z/htensor::Lz);
+    } 
+
+	size_t x_ref_pos = std::floor(x/htensor::dx_r);
+    x_ref_pos = x_ref_pos % htensor::n_r;
+
+	size_t y_ref_pos = std::floor(y/htensor::dy_r);
+    y_ref_pos = y_ref_pos % htensor::n_r;
+
+    size_t z_ref_pos = std::floor(z/htensor::dz_r);
+    z_ref_pos = z_ref_pos % htensor::n_r;
+
+	size_t u_ref_pos = std::floor((u-conf.u_min)/htensor::du_r);
+    size_t v_ref_pos = std::floor((v-conf.v_min)/htensor::dv_r);
+    size_t w_ref_pos = std::floor((w-conf.w_min)/htensor::dw_r);
+
+    int* arr = new int[6];
+    
+    arr[0] = w_ref_pos + 1;
+	arr[1] = v_ref_pos + 1;
+    arr[2] = u_ref_pos + 1;
+    arr[3] = z_ref_pos + 1;
+    arr[4] = y_ref_pos + 1;
+    arr[5] = x_ref_pos + 1;
+	
+    return htensor::linear_interpolation_6d(x, y, z, u, v, w, arr);
+}
+
+void nufi_interface_for_fortran(int** ind, double &val)
+{
+	// Fortran starts indexing at 1:
+    size_t i_x = ind[0][5] - 1;
+    size_t i_y = ind[0][4] - 1;
+    size_t i_z = ind[0][3] - 1;
+	size_t i_u = ind[0][2] - 1;
+    size_t i_v = ind[0][1] - 1;
+	size_t i_w = ind[0][0] - 1;
+
+	// Allow higher plot res than the simulation was initially run with.
+	double x = i_x*htensor::dx_r;
+    double y = i_y*htensor::dy_r;
+    double z = i_z*htensor::dz_r;
+	double u = htensor::umin + i_u*htensor::du_r;
+    double v = htensor::vmin + i_v*htensor::dv_r;
+    double w = htensor::wmin + i_w*htensor::dw_r;
+
+    if(restarted){
+        val = f_t(x,y,z,u,v,w);
+    } else {
+        val = eval_f<double,order>(nt_restart, x, y, z, u, v, w, coeffs_restart.get(), conf);
+    }
+}
+
+void run_restarted_simulation()
+{
+    poisson<double> poiss( conf );
+
+    // Htensor stuff.
+   	int32_t dim_arr[htensor::dim]{htensor::n_r, htensor::n_r, htensor::n_r, 
+                                htensor::n_r, htensor::n_r, htensor::n_r};
+	int32_t* nPtr1 = &dim_arr[0];
+    int32_t size = std::pow(htensor::n_r,6); // This causes on overflow... how did Katharina handle this?
+	auto sizePtr = &size;
+
+	bool is_rand = false;
+
+	void* opts;
+	auto optsPtr = &opts;
+
+	double tol = 1e-5;
+	int32_t tcase = 2;
+
+	int32_t cross_no_loops = 1;
+	int32_t nNodes = 2 * (6 * htensor::n_r ) - 1;
+	int32_t rank = 20;
+	int32_t rank_rand_row = 10;  
+	int32_t rank_rand_col = rank_rand_row;
+
+    chtl_s_init_truncation_option(optsPtr, &tcase, &tol, &cross_no_loops, &nNodes, &rank, &rank_rand_row, &rank_rand_col);
+	chtl_s_htensor_init_balanced(htensor::htensorPtr, htensor::dPtr, nPtr1);
+
+    auto fctPtr = &nufi_interface_for_fortran;
+
+    std::ofstream stat_file( "stats.txt" );
+    std::ofstream coeff_file( "coeffs.txt" );
+    double total_time = 0;
+    double restart_time = 0;
+    size_t nt_r_curr = 0;
+    for ( size_t n = 0; n <= Nt; ++n )
+    {
+      	nufi::stopwatch<double> timer;
+
+        std::cout << " start of time step "<< n << " " << nt_r_curr  << std::endl; 
+		
+        #pragma omp parallel for
+    	for(size_t l = 0; l<conf.Nx*conf.Ny*conf.Nz; l++)
+    	{
+    		rho.get()[l] = eval_rho<double,order>(nt_r_curr, l, coeffs_restart.get(), conf);
+    	}
+
+        double E_energy = poiss.solve( rho.get() );
+        interpolate<double,order>( coeffs_restart.get() + nt_r_curr*stride_t, rho.get(), conf );
+
+        double timer_elapsed = timer.elapsed();
+        total_time += timer_elapsed;
+
+        double t = n*conf.dt;
+        stat_file << std::setw(15) << t << std::setw(15) << std::setprecision(5) << std::scientific << " " << E_energy << std::endl;
+        std::cout << std::setw(15) << t << std::setw(15) << std::setprecision(5) << std::scientific << E_energy << " Comp-time: " << timer_elapsed;
+        std::cout << " Total comp time s.f.: " << total_time << std::endl; 
+
+        // Print coefficients to file.
+        coeff_file << n << std::endl;
+        for(size_t i = 0; i < stride_t; i++){
+            coeff_file << i << " " << coeffs_restart.get()[n*stride_t + i ] << std::endl;
+        }
+
+        if(nt_r_curr == nt_restart)
+    	{
+            timer.reset();
+            std::cout << "Restart" << std::endl;
+
+            // Init copy.
+            std::cout << " init copy " << std::endl;
+            void* htensor_copy;
+            auto htensorPtr_copy = &htensor_copy;
+            chtl_s_htensor_init_balanced(htensorPtr_copy, htensor::dPtr, nPtr1);
+            // htensor_cross here to compute the new htensor_copy.
+            std::cout << " chtl cross " << std::endl;
+            chtl_s_cross(fctPtr, htensorPtr_copy, optsPtr, &is_rand);
+
+            std::cout << " copy htensor " << std::endl;
+            htensor::htensor = htensor_copy; 
+
+            conf = config_t<double>(Nx, Nx, Nx, Nu, Nu, Nu, Nt, dt, 
+                    0, htensor::Lx, 0, htensor::Ly, 0, htensor::Lz, 
+                    htensor::umin, htensor::umax, 
+                    htensor::vmin, htensor::vmax,
+                    htensor::wmin, htensor::wmax, &f_t);
+
+            // Copy last entry of coeff vector into restarted coeff vector.
+            #pragma omp parallel for
+            for(size_t i = 0; i < stride_t; i++){
+                coeffs_restart.get()[i] = coeffs_restart.get()[nt_r_curr*stride_t + i];
+            }
+
+            std::cout << n << " " << nt_r_curr << " restart " << std::endl;
+            nt_r_curr = 1;
+            restart_counter++;
+            restarted = true;
+            
+            timer_elapsed = timer.elapsed();
+            restart_time += timer_elapsed;
+            total_time += timer_elapsed;
+            std::cout << "Restart took: " << timer_elapsed << ". Total comp time s.f.: " << total_time << std::endl;
+    	} else {
+            nt_r_curr++;
+        }
+
+    }
+
+}
+
+}
+
+}
+
+void test_lin_interpol(size_t test_n, double xmin_plot = 0, double xmax_plot = htensor::Lx,
+                        double ymin_plot = 0, double ymax_plot = htensor::Lx,
+                        double zmin_plot = 0, double zmax_plot = htensor::Lx,
+                        double umin_plot = htensor::umin, double umax_plot = htensor::umax,
+                        double vmin_plot = htensor::vmin, double vmax_plot = htensor::vmax,
+                        double wmin_plot = htensor::wmin, double wmax_plot = htensor::wmax)
+{
+    
+
+    double plot_dx = (xmax_plot - xmin_plot) / test_n;
+    double plot_dy = (ymax_plot - ymin_plot) / test_n;
+    double plot_dz = (zmax_plot - zmin_plot) / test_n;
+    double plot_du = (umax_plot - umin_plot) / test_n;
+    double plot_dv = (vmax_plot - vmin_plot) / test_n;
+    double plot_dw = (wmax_plot - wmin_plot) / test_n;
 
     double max_error = 0;
     double l2_error = 0;
@@ -139,12 +416,12 @@ int main()
     for(size_t t_v = 0; t_v < test_n; t_v++)
     for(size_t t_w = 0; t_w < test_n; t_w++)
     {
-        double x_eval[6] = {t_x*plot_dx, 
-                            t_y*plot_dy, 
-                            t_z*plot_dz, 
-                            htensor::umin + t_u*plot_du, 
-                            htensor::vmin + t_v*plot_dv, 
-                            htensor::wmin + t_w*plot_dw}; 
+        double x_eval[6] = {xmin_plot + t_x*plot_dx, 
+                            ymin_plot + t_y*plot_dy, 
+                            zmin_plot + t_z*plot_dz, 
+                            umin_plot + t_u*plot_du, 
+                            vmin_plot + t_v*plot_dv, 
+                            wmin_plot + t_w*plot_dw}; 
         int ind[6] = {0, 0, 0, 0, 0, 0};
 
         ind[0] = std::floor(x_eval[0]/htensor::dx_r);
@@ -153,11 +430,6 @@ int main()
         ind[3] = std::floor((x_eval[3] - htensor::umin)/htensor::du_r);
         ind[4] = std::floor((x_eval[4] - htensor::vmin)/htensor::dv_r);
         ind[5] = std::floor((x_eval[5] - htensor::wmin)/htensor::dw_r);
-
-/*         std::cout << "Indices: " << std::endl;
-        for(size_t i = 0; i < 6; i++){
-            std::cout << i << " " << ind[i] << std::endl;
-        } */
 
         double* f = new double[64];
 
@@ -178,12 +450,6 @@ int main()
                 = nufi::dim3::f0<double>(x,y,z,u,v,w);
         }
 
-/*         std::cout << "f: " << std::endl;
-        for(size_t i = 0; i < 64; i++){
-            std::cout << i << " " << f[i] << std::endl;
-        } */
-
-
         double interpol_value = htensor::linear_interpolation_6d(x_eval, f, ind);
         double exact_value = nufi::dim3::f0<double>(x_eval[0],x_eval[1],x_eval[2],
                                                     x_eval[3],x_eval[4],x_eval[5]);
@@ -200,6 +466,17 @@ int main()
 
     std::cout << "Max error = " << max_error << std::endl;
     std::cout << "L2 error = " << l2_error << std::endl;
+
+}
+
+
+
+int main()
+{
+
+    //test_lin_interpol(8, 2.5, 3, 2.5, 3, 2.5, 3, -0.5, 0.5, -0.5, 0.5, -0.5, 0.5);
+
+    nufi::dim3::run_restarted_simulation();
 
     return 0;
 }
