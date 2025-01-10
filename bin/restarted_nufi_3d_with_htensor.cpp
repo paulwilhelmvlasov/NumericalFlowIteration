@@ -24,7 +24,8 @@ namespace htensor
 const size_t dim = 6;
 int32_t d = dim;
 auto dPtr = &d;
-const size_t n_r = 64;
+const size_t n_r = 256;
+const size_t size_tensor = n_r + 1;
 
 void* htensor;
 auto htensorPtr = &htensor;
@@ -47,6 +48,11 @@ const double du_r = (umax - umin)/n_r;
 const double dv_r = (vmax - vmin)/n_r;
 const double dw_r = (wmax - wmin)/n_r;
 
+double time_init_lin_interpol = 0;
+double time_precomp_lin_interpol = 0;
+double time_comp_value_lin_interpol = 0;
+double time_eval_htensor_lin_interpol = 0;
+
 int index_f_6d_flat_array (int i, int j, int k, int l, int m, int n) {
     return (((((i * 2 + j) * 2 + k) * 2 + l) * 2 + m) * 2 + n);
 }
@@ -56,12 +62,13 @@ real linear_interpolation_6d(real* x, real* f, int* ind)
 {
     // Right now only works excluding the right boundary!
 
-    real x0 = ind[0]*dx_r;
-    real y0 = ind[1]*dy_r;
-    real z0 = ind[2]*dz_r;
-    real u0 = umin + ind[3]*du_r;
-    real v0 = vmin + ind[4]*dv_r;
-    real w0 = wmin + ind[5]*dw_r;
+    real x0 = ind[5]*dx_r;
+    real y0 = ind[4]*dy_r;
+    real z0 = ind[3]*dz_r;
+    real u0 = umin + ind[2]*du_r;    
+    real v0 = vmin + ind[1]*dv_r;
+    real w0 = wmin + ind[0]*dw_r;
+
 
     real w_x = (x[0] - x0)/dx_r;
     real w_y = (x[1] - y0)/dy_r;
@@ -92,16 +99,19 @@ real linear_interpolation_6d(real* x, real* f, int* ind)
 template <typename real>
 real linear_interpolation_6d(real x, real y, real z, real u, real v, real w, int* ind)
 {
+    //nufi::stopwatch<double> timer_init;
     int* arr = new int[6];
 	int** arrPtr = &arr;
-
+    //time_init_lin_interpol += timer_init.elapsed();
+    
     // Right now only works excluding the right boundary!
-    real x0 = ind[0]*dx_r;
-    real y0 = ind[1]*dy_r;
-    real z0 = ind[2]*dz_r;
-    real u0 = umin + ind[3]*du_r;
-    real v0 = vmin + ind[4]*dv_r;
-    real w0 = wmin + ind[5]*dw_r;
+    //nufi::stopwatch<double> timer_pre_comp;
+    real x0 = ind[5]*dx_r;
+    real y0 = ind[4]*dy_r;
+    real z0 = ind[3]*dz_r;
+    real u0 = umin + ind[2]*du_r;
+    real v0 = vmin + ind[1]*dv_r;
+    real w0 = wmin + ind[0]*dw_r;    
 
     real w_x = (x - x0)/dx_r;
     real w_y = (y - y0)/dy_r;
@@ -109,7 +119,9 @@ real linear_interpolation_6d(real x, real y, real z, real u, real v, real w, int
     real w_u = (u - u0)/du_r;
     real w_v = (v - v0)/dv_r;
     real w_w = (w - w0)/dw_r;
+    //time_precomp_lin_interpol += timer_pre_comp.elapsed();
 
+    //nufi::stopwatch<double> timer_main_loop;
     real value = 0;
     for(int i_x = 0; i_x <= 1; i_x++)
     for(int i_y = 0; i_y <= 1; i_y++)
@@ -130,9 +142,12 @@ real linear_interpolation_6d(real x, real y, real z, real u, real v, real w, int
         arr[4] = ind[4] + i_y;
         arr[5] = ind[5] + i_x;
         double f = 0;
+        //nufi::stopwatch<double> timer_ht;
         chtl_s_htensor_point_eval(htensor::htensorPtr,arrPtr,f,htensor::dPtr); 
+        //time_eval_htensor_lin_interpol += timer_ht.elapsed();
         value += factor * f;
     }
+    //time_comp_value_lin_interpol += timer_main_loop.elapsed();
 
     return value;
 }
@@ -152,8 +167,8 @@ real f0(real x, real y, real z, real u, real v, real w) noexcept
     using std::cos;
     using std::exp;
 
-    constexpr real alpha = 0.001;
-    constexpr real k     = 0.2;
+    constexpr real alpha = 0.01;
+    constexpr real k     = 0.5;
 
     // Weak Landau Damping:
     constexpr real c  = 0.06349363593424096978576330493464; // Weak Landau damping
@@ -177,12 +192,14 @@ config_t<double> conf(Nx, Nx, Nx, Nu, Nu, Nu, Nt, dt,
 size_t stride_t = (conf.Nx + order - 1) *
                   (conf.Ny + order - 1) *
 	    		  (conf.Nz + order - 1);
-const size_t nt_restart = 100000;
+const size_t nt_restart = 10;
 std::unique_ptr<double[]> coeffs_full { new double[ (Nt+1)*stride_t ] {} };
 std::unique_ptr<double[]> coeffs_restart { new double[ (nt_restart+1)*stride_t ] {} };
 
 std::unique_ptr<double,decltype(std::free)*> rho { reinterpret_cast<double*>(std::aligned_alloc(64,
                                         sizeof(double)*conf.Nx*conf.Ny*conf.Nz)), std::free };
+
+size_t test_n = 0;
 
 void test_interface(int** ind, double &val)
 {
@@ -202,7 +219,7 @@ void test_interface(int** ind, double &val)
     double v = htensor::vmin + i_v*htensor::dv_r;
     double w = htensor::wmin + i_w*htensor::dw_r;
 
-	val = eval_f<double,order>(20, x, y, z, u, v, w, coeffs_full.get(), conf);
+	val = eval_f<double,order>(test_n, x, y, z, u, v, w, coeffs_full.get(), conf);
 }
 
 double f_t(double x, double y, double z, double u, double v, double w) noexcept
@@ -227,13 +244,13 @@ double f_t(double x, double y, double z, double u, double v, double w) noexcept
     } 
 
 	size_t x_ref_pos = std::floor(x/htensor::dx_r);
-    x_ref_pos = x_ref_pos % htensor::n_r;
+    /* x_ref_pos = x_ref_pos % htensor::n_r; */
 
 	size_t y_ref_pos = std::floor(y/htensor::dy_r);
-    y_ref_pos = y_ref_pos % htensor::n_r;
+    /* y_ref_pos = y_ref_pos % htensor::n_r; */
 
     size_t z_ref_pos = std::floor(z/htensor::dz_r);
-    z_ref_pos = z_ref_pos % htensor::n_r;
+    /* z_ref_pos = z_ref_pos % htensor::n_r; */
 
 	size_t u_ref_pos = std::floor((u-conf.u_min)/htensor::du_r);
     size_t v_ref_pos = std::floor((v-conf.v_min)/htensor::dv_r);
@@ -248,6 +265,11 @@ double f_t(double x, double y, double z, double u, double v, double w) noexcept
     arr[4] = y_ref_pos + 1;
     arr[5] = x_ref_pos + 1;
 	
+/*     nufi::stopwatch<double> timer;
+    double value = htensor::linear_interpolation_6d(x, y, z, u, v, w, arr);
+    std::cout << "lin interpol took = " << timer.elapsed() << std::endl;
+    return value; */
+
     return htensor::linear_interpolation_6d(x, y, z, u, v, w, arr);
 }
 
@@ -282,8 +304,10 @@ void run_restarted_simulation()
     poisson<double> poiss( conf );
 
     // Htensor stuff.
-   	int32_t dim_arr[htensor::dim]{htensor::n_r, htensor::n_r, htensor::n_r, 
-                                htensor::n_r, htensor::n_r, htensor::n_r};
+/*    	int32_t dim_arr[htensor::dim]{htensor::n_r, htensor::n_r, htensor::n_r, 
+                                htensor::n_r, htensor::n_r, htensor::n_r}; */
+    int32_t dim_arr[htensor::dim]{htensor::size_tensor, htensor::size_tensor, htensor::size_tensor, 
+                         htensor::size_tensor, htensor::size_tensor, htensor::size_tensor};
 	int32_t* nPtr1 = &dim_arr[0];
 
 	bool is_rand = false;
@@ -295,7 +319,8 @@ void run_restarted_simulation()
 	int32_t tcase = 2;
 
 	int32_t cross_no_loops = 1;
-	int32_t nNodes = 2 * (6 * htensor::n_r ) - 1;
+	/* int32_t nNodes = 2 * (6 * htensor::n_r ) - 1; */
+    int32_t nNodes = 2 * (6 * htensor::size_tensor ) - 1;
 	int32_t rank = 20;
 	int32_t rank_rand_row = 10;  
 	int32_t rank_rand_col = rank_rand_row;
@@ -315,12 +340,15 @@ void run_restarted_simulation()
       	nufi::stopwatch<double> timer;
 
         std::cout << " start of time step "<< n << " " << nt_r_curr  << std::endl; 
-		
+		nufi::stopwatch<double> rho_timer;
         #pragma omp parallel for
     	for(size_t l = 0; l<conf.Nx*conf.Ny*conf.Nz; l++)
     	{
     		rho.get()[l] = eval_rho<double,order>(nt_r_curr, l, coeffs_restart.get(), conf);
     	}
+        double rho_comp_time = rho_timer.elapsed();
+        std::cout << "rho comp time = " << rho_comp_time << " per dof = " <<  rho_comp_time/(conf.Nx*conf.Ny*conf.Nz) << std::endl;
+
 
         double E_energy = poiss.solve( rho.get() );
         interpolate<double,order>( coeffs_restart.get() + nt_r_curr*stride_t, rho.get(), conf );
@@ -387,6 +415,8 @@ void run_restarted_simulation()
 
 void test_htensor_linear_interpol()
 {
+    test_n = 50;
+
     std::ifstream coeff_str(std::string("../no_restart/coeffs.txt"));
     std::ofstream coeff_read_in_str(std::string("test.txt"));
 	for(size_t i = 0; i <= conf.Nt*stride_t; i++){
@@ -396,8 +426,10 @@ void test_htensor_linear_interpol()
 	}
 
     // Htensor stuff.
-   	int32_t dim_arr[htensor::dim]{htensor::n_r, htensor::n_r, htensor::n_r, 
-                                htensor::n_r, htensor::n_r, htensor::n_r};
+/*    	int32_t dim_arr[htensor::dim]{htensor::n_r, htensor::n_r, htensor::n_r, 
+                                htensor::n_r, htensor::n_r, htensor::n_r}; */
+    int32_t dim_arr[htensor::dim]{htensor::size_tensor, htensor::size_tensor, htensor::size_tensor, 
+                         htensor::size_tensor, htensor::size_tensor, htensor::size_tensor};
 	int32_t* nPtr1 = &dim_arr[0];
 
 	bool is_rand = false;
@@ -408,8 +440,9 @@ void test_htensor_linear_interpol()
 	double tol = 1e-5;
 	int32_t tcase = 2;
 
-	int32_t cross_no_loops = 1;
-	int32_t nNodes = 2 * (6 * htensor::n_r ) - 1;
+	int32_t cross_no_loops = 2;
+	/* int32_t nNodes = 2 * (6 * htensor::n_r ) - 1; */
+    int32_t nNodes = 2 * (6 * htensor::size_tensor ) - 1;
 	int32_t rank = 20;
 	int32_t rank_rand_row = 10;  
 	int32_t rank_rand_col = rank_rand_row;
@@ -424,8 +457,12 @@ void test_htensor_linear_interpol()
     // Let's plot the exact function and approximation.
     size_t nx_plot = 256;
     size_t nu_plot = nx_plot;
-    double dx_plot = htensor::Lx / nx_plot;
-    double du_plot = (htensor::umax - htensor::umin) / nu_plot;
+    double x_min_plot = 0;
+    double x_max_plot = htensor::Lx;
+    double u_min_plot = -6;
+    double u_max_plot = 6;
+    double dx_plot = (x_max_plot - x_min_plot) / nx_plot;
+    double du_plot = (u_max_plot - u_min_plot) / nu_plot;
 
     double y = 2*M_PI;
     double z = y;
@@ -435,20 +472,20 @@ void test_htensor_linear_interpol()
     std::ofstream f_exact_str("f_exact.txt");
     std::ofstream f_approx_str("f_approx.txt");
     std::ofstream f_dist_str("f_dist.txt");
-    for(size_t ix = 0; ix < nx_plot; ix++){
-        for(size_t iu = 0; iu < nu_plot; iu++){
-            double x = ix*dx_plot;
-            double u = htensor::umin + iu*du_plot;
-            double f_exact = eval_f<double,order>(20, x, y, z, u, v, w, coeffs_full.get(), conf);
+    for(size_t ix = 0; ix <= nx_plot; ix++){
+        for(size_t iu = 0; iu <= nu_plot; iu++){
+            double x = x_min_plot + ix*dx_plot;
+            double u = u_min_plot + iu*du_plot;
+            double f_exact = eval_f<double,order>(test_n, x, y, z, u, v, w, coeffs_full.get(), conf);
 
             size_t x_ref_pos = std::floor(x/htensor::dx_r);
-            x_ref_pos = x_ref_pos % htensor::n_r;
+            //x_ref_pos = x_ref_pos % htensor::n_r;
 
             size_t y_ref_pos = std::floor(y/htensor::dy_r);
-            y_ref_pos = y_ref_pos % htensor::n_r;
+            //y_ref_pos = y_ref_pos % htensor::n_r;
 
             size_t z_ref_pos = std::floor(z/htensor::dz_r);
-            z_ref_pos = z_ref_pos % htensor::n_r;
+            //z_ref_pos = z_ref_pos % htensor::n_r;
 
             size_t u_ref_pos = std::floor((u-conf.u_min)/htensor::du_r);
             size_t v_ref_pos = std::floor((v-conf.v_min)/htensor::dv_r);
@@ -465,7 +502,7 @@ void test_htensor_linear_interpol()
             
             double f_approx = htensor::linear_interpolation_6d(x, y, z, u, v, w, arr);
 
-            double f_dist = std::abs(f_exact - f_approx);
+            double f_dist = std::abs(f_exact - f_approx)/0.06349363593424096978576330493464;
 
             f_exact_str << x << " " << u << " " << f_exact << std::endl;
             f_approx_str << x << " " << u << " " << f_approx << std::endl;
@@ -476,9 +513,20 @@ void test_htensor_linear_interpol()
         f_dist_str << std::endl;
     }
 
+    size_t scale = (nx_plot+1)*(nu_plot+1);
+    htensor::time_init_lin_interpol /= scale;
+    htensor::time_precomp_lin_interpol /= scale;
+    htensor::time_comp_value_lin_interpol /= scale;
+    htensor::time_eval_htensor_lin_interpol /= scale;
+
+    std::cout << "Init took =" << htensor::time_init_lin_interpol << std::endl;
+    std::cout << "Precomp took = " << htensor::time_precomp_lin_interpol << std::endl;
+    std::cout << "Comp value took = " << htensor::time_comp_value_lin_interpol << std::endl;
+    std::cout << "Eval htensor took = " << htensor::time_eval_htensor_lin_interpol << std::endl;
+
     std::ofstream htensor_str("htensor_str.txt");
-    for(size_t i = 0; i < htensor::n_r; i++){
-        for(size_t j = 0; j < htensor::n_r; j++){
+    for(size_t i = 0; i <= htensor::n_r; i++){
+        for(size_t j = 0; j <= htensor::n_r; j++){
             double x = i*htensor::dx_r;
             double u = htensor::umin + j*htensor::du_r;
 
@@ -601,9 +649,9 @@ int main()
 
     //test_lin_interpol(8, 2.5, 3, 2.5, 3, 2.5, 3, -0.5, 0.5, -0.5, 0.5, -0.5, 0.5);
 
-    //nufi::dim3::run_restarted_simulation();
+    nufi::dim3::run_restarted_simulation();
 
-    nufi::dim3::test_htensor_linear_interpol();
+    //nufi::dim3::test_htensor_linear_interpol();
 
     return 0;
 }
