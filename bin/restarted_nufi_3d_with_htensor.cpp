@@ -24,7 +24,7 @@ namespace htensor
 const size_t dim = 6;
 int32_t d = dim;
 auto dPtr = &d;
-const size_t n_r = 256;
+const size_t n_r = 512;
 const size_t size_tensor = n_r + 1;
 
 void* htensor;
@@ -99,13 +99,14 @@ real linear_interpolation_6d(real* x, real* f, int* ind)
 template <typename real>
 real linear_interpolation_6d(real x, real y, real z, real u, real v, real w, int* ind)
 {
-    //nufi::stopwatch<double> timer_init;
-    int* arr = new int[6];
+    nufi::stopwatch<double> timer_init;
+    int* arr = new int[6]; // this is bad practice!!! 
+    // I have to deallocate it, otherwise I get memory leaks!
 	int** arrPtr = &arr;
-    //time_init_lin_interpol += timer_init.elapsed();
+    time_init_lin_interpol += timer_init.elapsed();
     
     // Right now only works excluding the right boundary!
-    //nufi::stopwatch<double> timer_pre_comp;
+    nufi::stopwatch<double> timer_pre_comp;
     real x0 = ind[5]*dx_r;
     real y0 = ind[4]*dy_r;
     real z0 = ind[3]*dz_r;
@@ -119,9 +120,9 @@ real linear_interpolation_6d(real x, real y, real z, real u, real v, real w, int
     real w_u = (u - u0)/du_r;
     real w_v = (v - v0)/dv_r;
     real w_w = (w - w0)/dw_r;
-    //time_precomp_lin_interpol += timer_pre_comp.elapsed();
+    time_precomp_lin_interpol += timer_pre_comp.elapsed();
 
-    //nufi::stopwatch<double> timer_main_loop;
+    nufi::stopwatch<double> timer_main_loop;
     real value = 0;
     for(int i_x = 0; i_x <= 1; i_x++)
     for(int i_y = 0; i_y <= 1; i_y++)
@@ -142,15 +143,40 @@ real linear_interpolation_6d(real x, real y, real z, real u, real v, real w, int
         arr[4] = ind[4] + i_y;
         arr[5] = ind[5] + i_x;
         double f = 0;
-        //nufi::stopwatch<double> timer_ht;
+        nufi::stopwatch<double> timer_ht;
         chtl_s_htensor_point_eval(htensor::htensorPtr,arrPtr,f,htensor::dPtr); 
-        //time_eval_htensor_lin_interpol += timer_ht.elapsed();
+        time_eval_htensor_lin_interpol += timer_ht.elapsed();
         value += factor * f;
     }
-    //time_comp_value_lin_interpol += timer_main_loop.elapsed();
+    time_comp_value_lin_interpol += timer_main_loop.elapsed();
+
+    delete[] arr;    
 
     return value;
 }
+
+template <typename real>
+real piecewise_constant_interpolation_6d(real x, real y, real z, real u, real v, real w, int* ind)
+{
+    int* arr = new int[6]; // this is bad practice!!! 
+    // I have to deallocate it, otherwise I get memory leaks!
+	int** arrPtr = &arr;
+
+    arr[0] = ind[0];
+    arr[1] = ind[1];
+    arr[2] = ind[2];
+    arr[3] = ind[3];
+    arr[4] = ind[4];
+    arr[5] = ind[5];
+
+    double f = 0;
+    chtl_s_htensor_point_eval(htensor::htensorPtr,arrPtr,f,htensor::dPtr);
+
+    delete[] arr;
+
+    return f;
+}
+
 
 }
 
@@ -182,8 +208,8 @@ bool restarted = false;
 const size_t order = 4;
 const size_t Nx = 8;  // Number of grid points in physical space.
 const size_t Nu = 2*Nx;  // Number of quadrature points in velocity space.
-const double   dt = 0.1;  // Time-step size.
-const size_t Nt = 5/dt;  // Number of time-steps.
+const double   dt = 0.0625;  // Time-step size.
+const size_t Nt = 30/dt;  // Number of time-steps.
 config_t<double> conf(Nx, Nx, Nx, Nu, Nu, Nu, Nt, dt, 
                     0, htensor::Lx, 0, htensor::Ly, 0, htensor::Lz, 
                     htensor::umin, htensor::umax, 
@@ -192,7 +218,7 @@ config_t<double> conf(Nx, Nx, Nx, Nu, Nu, Nu, Nt, dt,
 size_t stride_t = (conf.Nx + order - 1) *
                   (conf.Ny + order - 1) *
 	    		  (conf.Nz + order - 1);
-const size_t nt_restart = 10;
+const size_t nt_restart = 64;
 std::unique_ptr<double[]> coeffs_full { new double[ (Nt+1)*stride_t ] {} };
 std::unique_ptr<double[]> coeffs_restart { new double[ (nt_restart+1)*stride_t ] {} };
 
@@ -256,21 +282,25 @@ double f_t(double x, double y, double z, double u, double v, double w) noexcept
     size_t v_ref_pos = std::floor((v-conf.v_min)/htensor::dv_r);
     size_t w_ref_pos = std::floor((w-conf.w_min)/htensor::dw_r);
 
-    int* arr = new int[6];
+/*     int* arr = new int[6];
     
     arr[0] = w_ref_pos + 1;
 	arr[1] = v_ref_pos + 1;
     arr[2] = u_ref_pos + 1;
     arr[3] = z_ref_pos + 1;
     arr[4] = y_ref_pos + 1;
-    arr[5] = x_ref_pos + 1;
+    arr[5] = x_ref_pos + 1; */
+
+    int arr[6] = {w_ref_pos + 1, v_ref_pos + 1, u_ref_pos + 1,
+                z_ref_pos + 1, y_ref_pos + 1, x_ref_pos + 1};
 	
 /*     nufi::stopwatch<double> timer;
     double value = htensor::linear_interpolation_6d(x, y, z, u, v, w, arr);
     std::cout << "lin interpol took = " << timer.elapsed() << std::endl;
     return value; */
 
-    return htensor::linear_interpolation_6d(x, y, z, u, v, w, arr);
+    /* return htensor::linear_interpolation_6d(x, y, z, u, v, w, arr); */
+    return htensor::piecewise_constant_interpolation_6d(x, y, z, u, v, w, arr);
 }
 
 void nufi_interface_for_fortran(int** ind, double &val)
@@ -318,11 +348,11 @@ void run_restarted_simulation()
 	double tol = 1e-5;
 	int32_t tcase = 2;
 
-	int32_t cross_no_loops = 1;
+	int32_t cross_no_loops = 2;
 	/* int32_t nNodes = 2 * (6 * htensor::n_r ) - 1; */
     int32_t nNodes = 2 * (6 * htensor::size_tensor ) - 1;
-	int32_t rank = 20;
-	int32_t rank_rand_row = 10;  
+	int32_t rank = 30;
+	int32_t rank_rand_row = 20;  
 	int32_t rank_rand_col = rank_rand_row;
 
     chtl_s_init_truncation_option(optsPtr, &tcase, &tol, &cross_no_loops, &nNodes, &rank, &rank_rand_row, &rank_rand_col);
@@ -415,7 +445,7 @@ void run_restarted_simulation()
 
 void test_htensor_linear_interpol()
 {
-    test_n = 50;
+    test_n = 20;
 
     std::ifstream coeff_str(std::string("../no_restart/coeffs.txt"));
     std::ofstream coeff_read_in_str(std::string("test.txt"));
@@ -447,6 +477,8 @@ void test_htensor_linear_interpol()
 	int32_t rank_rand_row = 10;  
 	int32_t rank_rand_col = rank_rand_row;
 
+    std::cout << nNodes << std::endl;
+
     chtl_s_init_truncation_option(optsPtr, &tcase, &tol, &cross_no_loops, &nNodes, &rank, &rank_rand_row, &rank_rand_col);
 	chtl_s_htensor_init_balanced(htensor::htensorPtr, htensor::dPtr, nPtr1);
 
@@ -471,6 +503,7 @@ void test_htensor_linear_interpol()
 
     std::ofstream f_exact_str("f_exact.txt");
     std::ofstream f_approx_str("f_approx.txt");
+    std::ofstream f_const_approx_str("f_const_approx.txt");
     std::ofstream f_dist_str("f_dist.txt");
     for(size_t ix = 0; ix <= nx_plot; ix++){
         for(size_t iu = 0; iu <= nu_plot; iu++){
@@ -501,15 +534,18 @@ void test_htensor_linear_interpol()
             arr[5] = x_ref_pos + 1;
             
             double f_approx = htensor::linear_interpolation_6d(x, y, z, u, v, w, arr);
+            double f_const_approx = htensor::piecewise_constant_interpolation_6d(x, y, z, u, v, w, arr);
 
             double f_dist = std::abs(f_exact - f_approx)/0.06349363593424096978576330493464;
 
             f_exact_str << x << " " << u << " " << f_exact << std::endl;
             f_approx_str << x << " " << u << " " << f_approx << std::endl;
+            f_const_approx_str << x << " " << u << " " << f_const_approx << std::endl;
             f_dist_str << x << " " << u << " " << f_dist << std::endl;
         }
         f_exact_str << std::endl;
         f_approx_str << std::endl;
+        f_const_approx_str << std::endl;
         f_dist_str << std::endl;
     }
 
@@ -524,6 +560,7 @@ void test_htensor_linear_interpol()
     std::cout << "Comp value took = " << htensor::time_comp_value_lin_interpol << std::endl;
     std::cout << "Eval htensor took = " << htensor::time_eval_htensor_lin_interpol << std::endl;
 
+    double timer_htensor_2 = 0;
     std::ofstream htensor_str("htensor_str.txt");
     for(size_t i = 0; i <= htensor::n_r; i++){
         for(size_t j = 0; j <= htensor::n_r; j++){
@@ -550,12 +587,17 @@ void test_htensor_linear_interpol()
             arr[5] = i + 1;
 
             double f = 0;
+            nufi::stopwatch<double> timer;
             chtl_s_htensor_point_eval(htensor::htensorPtr,arrPtr,f,htensor::dPtr); 
+            timer_htensor_2 += timer.elapsed();
 
             htensor_str << x << " " << u << " " << f << std::endl;
         }
         htensor_str << std::endl;
     }
+
+    std::cout << "Second htensor eval timer total = " << timer_htensor_2 
+              << " average = " << timer_htensor_2 / (htensor::n_r*htensor::n_r) << std::endl;
 
 }
 
