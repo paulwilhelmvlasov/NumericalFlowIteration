@@ -118,7 +118,7 @@ bool restarted = false;
 const size_t order = 4;
 const size_t Nx = 16;  // Number of grid points in physical space.
 const size_t Nu = 2*Nx;  // Number of quadrature points in velocity space.
-const double   dt = 0.0625;  // Time-step size.
+const double   dt = 0.1;  // Time-step size.
 const size_t Nt = 30/dt;  // Number of time-steps.
 config_t<double> conf(Nx, Nx, Nu, Nu, Nt, dt, 
                     0, htensor::Lx, 0, htensor::Ly,
@@ -127,7 +127,7 @@ config_t<double> conf(Nx, Nx, Nu, Nu, Nt, dt,
                     &f0);
 size_t stride_t = (conf.Nx + order - 1) *
                   (conf.Ny + order - 1) ;
-const size_t nt_restart = 16;
+const size_t nt_restart = 5*10;
 std::unique_ptr<double[]> coeffs_full { new double[ (Nt+1)*stride_t ] {} };
 std::unique_ptr<double[]> coeffs_restart { new double[ (nt_restart+1)*stride_t ] {} };
 
@@ -221,13 +221,13 @@ void run_restarted_simulation()
 	void* opts;
 	auto optsPtr = &opts;
 
-	double tol = 1e-5;
+	double tol = 1e-6;
 	int32_t tcase = 2;
 
 	int32_t cross_no_loops = 2;
     int32_t nNodes = 2 * (4 * htensor::size_tensor ) - 1;
-	int32_t rank = 30;
-	int32_t rank_rand_row = 20;  
+	int32_t rank = 50;
+	int32_t rank_rand_row = 30;  
 	int32_t rank_rand_col = rank_rand_row;
 
     chtl_s_init_truncation_option(optsPtr, &tcase, &tol, &cross_no_loops, &nNodes, &rank, &rank_rand_row, &rank_rand_col);
