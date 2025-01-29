@@ -48,11 +48,11 @@ namespace dim1
 template <typename real>
 real f0(real x, real u) noexcept
 {
-	//real alpha = 1e-2; // Weak Landau or Two Stream Instability
-	real alpha = 0.5; // Strong Landau Damping
+	real alpha = 1e-2; // Weak Landau or Two Stream Instability
+	//real alpha = 0.5; // Strong Landau Damping
 	real k = 0.5;
-    //return 1.0 / std::sqrt(2.0 * M_PI) * u*u * exp(-0.5 * u*u) * (1 + alpha * cos(k*x));
-	return 1.0 / std::sqrt(2.0 * M_PI) * exp(-0.5 * u*u) * (1 + alpha * cos(k*x));
+    return 1.0 / std::sqrt(2.0 * M_PI) * u*u * exp(-0.5 * u*u) * (1 + alpha * cos(k*x));
+	//return 1.0 / std::sqrt(2.0 * M_PI) * exp(-0.5 * u*u) * (1 + alpha * cos(k*x));
 }
 
 template <typename real>
@@ -69,15 +69,15 @@ size_t restart_counter = 0;
 bool restarted = false;
 
 const size_t order = 4;
-const size_t Nx = 256;  // Number of grid points in physical space.
+const size_t Nx = 16;  // Number of grid points in physical space.
 const size_t Nu = 2*Nx;  // Number of quadrature points in velocity space.
 //const double   dt = 0.0625;  // Time-step size.
 const double   dt = 0.1;  // Time-step size.
-const size_t Nt = 500/dt;  // Number of time-steps.
-config_t<double> conf(Nx, Nu, Nt, dt, 0, htensor::Lx, htensor::umin, 
-                            htensor::umax, &f0);
+const size_t Nt = 100/dt;  // Number of time-steps.
+config_t<double> conf(Nx, Nu, Nt, dt, 0, htensor::Lx, 
+                    htensor::umin, htensor::umax, &f0);
 const size_t stride_t = conf.Nx + order - 1;
-const size_t nt_restart = 500;
+const size_t nt_restart = 200;
 std::unique_ptr<double[]> coeffs_full { new double[ (Nt+1)*stride_t ] {} };
 std::unique_ptr<double[]> coeffs_restart { new double[ (nt_restart+1)*stride_t ] {} };
 std::unique_ptr<double,decltype(std::free)*> rho { reinterpret_cast<double*>
@@ -176,8 +176,6 @@ void nufi_interface_for_fortran(int** ind, double &val)
 
 void run_restarted_simulation()
 {
-    //omp_set_num_threads(1);
-
     poisson<double> poiss( conf );
 
     // Htensor stuff.
@@ -191,13 +189,13 @@ void run_restarted_simulation()
 	void* opts;
 	auto optsPtr = &opts;
 
-	double tol = 1e-5;
+	double tol = 1e-6;
 	int32_t tcase = 2;
 
-	int32_t cross_no_loops = 1;
+	int32_t cross_no_loops = 2;
 	int32_t nNodes = 2 * (htensor::nx_r + htensor::nu_r ) - 1;
-	int32_t rank = 30;
-	int32_t rank_rand_row = 20;  
+	int32_t rank = 50;
+	int32_t rank_rand_row = 30;  
 	int32_t rank_rand_col = rank_rand_row;
 
     chtl_s_init_truncation_option(optsPtr, &tcase, &tol, &cross_no_loops, &nNodes, &rank, &rank_rand_row, &rank_rand_col);
@@ -226,30 +224,29 @@ void run_restarted_simulation()
     	}
 
         // Solve Poisson's equation.
-        poiss.solve( rho.get() );
+        double electric_energy = poiss.solve( rho.get() );
 
         // Interpolation of Poisson solution.
-        periodic::interpolate<double,order>( coeffs_restart.get() + nt_r_curr*stride_t, rho.get(), conf );
+        periodic::interpolate<double,order>( coeffs_restart.get() + nt_r_curr*stride_t, 
+                                    rho.get(), conf );
         
         double timer_elapsed = timer.elapsed();
         total_time += timer_elapsed;
 
         double Emax = 0;
-	    double E_l2 = 0; // Electric energy
         size_t plot_n_x = 256;
         double dx_plot = conf.Lx / plot_n_x;
         for ( size_t i = 0; i < plot_n_x; ++i )
         {
             double x = conf.x_min + i*dx_plot;
-            double E_abs = abs( periodic::eval<double,order,1>(x,coeffs_restart.get()+nt_r_curr*stride_t,conf));
+            double E_abs = std::abs( periodic::eval<double,order,1>
+                            (x,coeffs_restart.get()+nt_r_curr*stride_t,conf));
             Emax = std::max( Emax, E_abs );
-	        E_l2 += E_abs*E_abs;
         }
-	    E_l2 =  0.5*dx_plot*E_l2;
 
 	    double t = n*conf.dt;
-        stat_file << std::setw(15) << t << std::setw(15) << std::setprecision(5) << std::scientific << Emax  << " " << E_l2 << std::endl;
-        std::cout << std::setw(15) << t << std::setw(15) << std::setprecision(5) << std::scientific << Emax << " Comp-time: " << timer_elapsed;
+        stat_file << std::setw(15) << t << std::setw(15) << std::setprecision(5) << std::scientific << Emax  << " " << electric_energy << std::endl;
+        std::cout << std::setw(15) << t << std::setw(15) << std::setprecision(5) << std::scientific << electric_energy << " Comp-time: " << timer_elapsed;
         std::cout << " Total comp time s.f.: " << total_time << std::endl; 
 
         // Print coefficients to file.

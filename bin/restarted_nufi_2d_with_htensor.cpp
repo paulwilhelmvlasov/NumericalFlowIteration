@@ -48,7 +48,7 @@ const double dv_r = (vmax - vmin)/n_r;
 double linear_interpolation_4d(double x, double y,  
                                 double u, double v, int* ind )
 {
-    int* arr = new int[6]; // this is bad practice!!! 
+    int* arr = new int[4]; // this is bad practice!!! 
     // I have to deallocate it, otherwise I get memory leaks!
 	int** arrPtr = &arr;
     
@@ -107,9 +107,14 @@ real f0(real x, real y,real u, real v) noexcept
     constexpr real k     = 0.5;
 
     // Weak Landau Damping:
-    constexpr real c  = 1.0 / (2.0 * M_PI); // Weak Landau damping
+/*     constexpr real c  = 1.0 / (2.0 * M_PI); 
     return c * ( 1. + alpha*cos(k*x) + alpha*cos(k*y)) 
              * exp( -(u*u+v*v)/2 );
+ */
+    // Two Stream instability (v_x direction):
+    constexpr real c  = 1.0 / (2.0 * M_PI); 
+    return c * ( 1. + alpha*cos(k*x) + alpha*cos(k*y)) 
+             * u*u * exp( -(u*u+v*v)/2 );
 }
 
 size_t restart_counter = 0;
@@ -119,7 +124,7 @@ const size_t order = 4;
 const size_t Nx = 16;  // Number of grid points in physical space.
 const size_t Nu = 2*Nx;  // Number of quadrature points in velocity space.
 const double   dt = 0.1;  // Time-step size.
-const size_t Nt = 30/dt;  // Number of time-steps.
+const size_t Nt = 100/dt;  // Number of time-steps.
 config_t<double> conf(Nx, Nx, Nu, Nu, Nt, dt, 
                     0, htensor::Lx, 0, htensor::Ly,
                     htensor::umin, htensor::umax, 
@@ -127,7 +132,7 @@ config_t<double> conf(Nx, Nx, Nu, Nu, Nt, dt,
                     &f0);
 size_t stride_t = (conf.Nx + order - 1) *
                   (conf.Ny + order - 1) ;
-const size_t nt_restart = 5*10;
+const size_t nt_restart = 20*10;
 std::unique_ptr<double[]> coeffs_full { new double[ (Nt+1)*stride_t ] {} };
 std::unique_ptr<double[]> coeffs_restart { new double[ (nt_restart+1)*stride_t ] {} };
 
@@ -221,13 +226,13 @@ void run_restarted_simulation()
 	void* opts;
 	auto optsPtr = &opts;
 
-	double tol = 1e-6;
+	double tol = 1e-4;
 	int32_t tcase = 2;
 
-	int32_t cross_no_loops = 2;
+	int32_t cross_no_loops = 1;
     int32_t nNodes = 2 * (4 * htensor::size_tensor ) - 1;
-	int32_t rank = 50;
-	int32_t rank_rand_row = 30;  
+	int32_t rank = 30;
+	int32_t rank_rand_row = 20;  
 	int32_t rank_rand_col = rank_rand_row;
 
     chtl_s_init_truncation_option(optsPtr, &tcase, &tol, &cross_no_loops, &nNodes, &rank, &rank_rand_row, &rank_rand_col);
@@ -268,7 +273,7 @@ void run_restarted_simulation()
         // Print coefficients to file.
         coeff_file << n << std::endl;
         for(size_t i = 0; i < stride_t; i++){
-            coeff_file << i << " " << coeffs_restart.get()[n*stride_t + i ] << std::endl;
+            coeff_file << i << " " << coeffs_restart.get()[nt_r_curr*stride_t + i ] << std::endl;
         }
 
         if(nt_r_curr == nt_restart)
@@ -344,8 +349,8 @@ void test_htensor_linear_interpol()
 	int32_t cross_no_loops = 2;
 	/* int32_t nNodes = 2 * (6 * htensor::n_r ) - 1; */
     int32_t nNodes = 2 * (6 * htensor::size_tensor ) - 1;
-	int32_t rank = 20;
-	int32_t rank_rand_row = 10;  
+	int32_t rank = 50;
+	int32_t rank_rand_row = 30;  
 	int32_t rank_rand_col = rank_rand_row;
 
     std::cout << nNodes << std::endl;
