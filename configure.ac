@@ -14,7 +14,7 @@ AC_PROG_FC
 AC_OPENMP
 AC_SUBST([AM_CXXFLAGS],["$OPENMP_CXXFLAGS"]) 
 AX_CXX_COMPILE_STDCXX(20,[noext],[mandatory])
-AX_CHECK_CUDA
+#AX_CHECK_CUDA
 AX_BLAS
 
 AC_SUBST([AM_CPPFLAGS],['-I$(top_srcdir) -I/home/paul/Projekte/htlib'])
