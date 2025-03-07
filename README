@@ -15,6 +15,9 @@ SIAM Journal on Scientific Computing, 46, 3, https://doi.org/10.1137/23M154710X.
 Kirchhart, Mathhias and Torrilhon, Manuel, Special Issue:93rd Annual Meeting of the International Association of 
 Applied Mathematics and Mechanics (GAMM), 23, 3, https://doi.org/10.1002/pamm.202300162.
 
+[3] High fidelity simulations of the multi-species Vlasov equation in the electro-static, collisional-less limit,
+R.-P. Wilhelm et. al. 2025 Plasma Phys. Control. Fusion 67, https://doi.org/10.1088/1361-6587/ad9fdb.
+
 When using this codebase please cite the previously mentioned works. 
 
 The implementation includes:
