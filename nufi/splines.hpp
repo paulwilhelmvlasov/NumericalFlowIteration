@@ -140,6 +140,7 @@ namespace splines3d
 template <typename real, size_t order, size_t dx = 0, size_t dy = 0, size_t dz = 0>
 real eval( real x, real y, real z, const real *coefficients, size_t stride_z, size_t stride_y, size_t stride_x = 1 ) noexcept
 {
+    //std::cout << "Enter deep eval." << std::endl; 
     static_assert( order > 0, "Splines must have order greater than zero." );
     constexpr size_t n { order };
 
@@ -148,21 +149,34 @@ real eval( real x, real y, real z, const real *coefficients, size_t stride_z, si
     if ( dz >= n ) return 0;
     if ( n  == 1 ) return *coefficients;
 
+    //std::cout << "Deep eval pos 1" << std::endl;
     real czy[ order*order ] {};
     real cz [ order ] {};
     real N  [ order ];
 
+    //std::cout << "Deep eval pos 2" << std::endl;
     splines1d::N<real,order,dx>(x,N);
     for ( size_t k = 0; k < order; ++k )
     for ( size_t j = 0; j < order; ++j )
-    for ( size_t i = 0; i < order; ++i )
+    for ( size_t i = 0; i < order; ++i ){
+/*         std::cout << "Deep eval pos 2.1 " << k << " " << j << " " << i << std::endl;
+        std::cout << czy[ k*order + j ] << std::endl;
+        std::cout << N[i] << std::endl;
+        std::cout << "index " << k*stride_z + j*stride_y + i*stride_x  << std::endl;
+        std::cout << "coeff " <<  coefficients[ k*stride_z + j*stride_y + i*stride_x] << std::endl; */
+        if(coefficients == nullptr){
+            std::cout << "Alaaarm!" << std::endl;
+        }
         czy[ k*order + j ] += coefficients[ k*stride_z + j*stride_y + i*stride_x ]*N[i];
+    }
 
+    //std::cout << "Deep eval pos 3" << std::endl;
     splines1d::N<real,order,dy>(y,N);
     for ( size_t k = 0; k < order; ++k )
     for ( size_t j = 0; j < order; ++j )
         cz[ k ]  += czy[ k*order + j ]*N[j];
 
+    //std::cout << "Deep eval pos 4" << std::endl;
     return splines1d::eval<real,order,dz>(z,cz);
 }
 

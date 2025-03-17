@@ -318,6 +318,7 @@ namespace dim3
 template <typename real, size_t order, size_t dx = 0, size_t dy = 0, size_t dz = 0>
 real eval( real x, real y, real z, const real *coeffs, const config_t<real> &config )
 {
+    //std::cout << "Enter eval " << std::endl;
     using std::floor;
 
     // Shift to a box that starts at 0.
@@ -354,7 +355,9 @@ real eval( real x, real y, real z, const real *coeffs, const config_t<real> &con
     for ( size_t j = 0; j < dy; ++j ) factor *= config.dy_inv;
     for ( size_t k = 0; k < dz; ++k ) factor *= config.dz_inv;
 
+    //std::cout << "Eval 1" << std::endl;
     coeffs += kk*stride_z + jj*stride_y + ii*stride_x;
+    //std::cout << "Eval 2" << std::endl;
     return factor*splines3d::eval<real,order,dx,dy,dz>( x, y, z, coeffs, stride_z, stride_y, stride_x );
 }
 
