@@ -616,16 +616,12 @@ ac_subst_vars='am__EXEEXT_FALSE
 am__EXEEXT_TRUE
 LTLIBOBJS
 LIBOBJS
+AM_CPPFLAGS
 BLAS_LIBS
 FLIBS
 ac_ct_F77
 FFLAGS
 F77
-AM_CPPFLAGS
-CUDA_INCLUDE
-CUDA_LDFLAGS
-NVCC
-NVCC_FLAGS
 HAVE_CXX20
 AM_CXXFLAGS
 OPENMP_CXXFLAGS
@@ -745,7 +741,6 @@ enable_option_checking
 enable_silent_rules
 enable_dependency_tracking
 enable_openmp
-with_cuda
 with_blas
 '
       ac_precious_vars='build_alias
@@ -761,7 +756,6 @@ CXXFLAGS
 CCC
 FC
 FCFLAGS
-NVCC_FLAGS
 F77
 FFLAGS'
 
@@ -1403,7 +1397,6 @@ Optional Features:
 Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
   --without-PACKAGE       do not use PACKAGE (same as --with-PACKAGE=no)
-  --with-cuda=PATH        Path to CUDA headers and binaries.
   --with-blas=<lib>       use BLAS library <lib>
 
 Some influential environment variables:
@@ -1418,7 +1411,6 @@ Some influential environment variables:
   CXXFLAGS    C++ compiler flags
   FC          Fortran compiler command
   FCFLAGS     Fortran compiler flags
-  NVCC_FLAGS  Provide additional flags to the NVCC compiler if desired.
   F77         Fortran 77 compiler command
   FFLAGS      Fortran 77 compiler flags
 
@@ -7676,157 +7668,7 @@ printf "%s\n" "#define HAVE_CXX20 1" >>confdefs.h
   fi
 
 
-
-
-# Provide your CUDA path with this
-
-# Check whether --with-cuda was given.
-if test ${with_cuda+y}
-then :
-  withval=$with_cuda; cuda_prefix=$withval; cuda_path_provided="yes";
-else $as_nop
-  cuda_path_provided="no"
-fi
-
-
-
-
-if test "$cuda_path_provided" = "yes"; then
-   NVCC=$cuda_prefix/bin/nvcc
-
-   CUDA_LDFLAGS=-L$cuda_prefix/lib -lcudart
-
-   CUDA_INCLUDE=-I$cuda_prefix/include
-
-   AM_CPPFLAGS="$AM_CPPFLAGS $CUDA_INCLUDE"
-
-else
-   NVCC=nvcc
-
-   CUDA_LDFLAGS=-lcudart
-
-
-fi
-
-
-{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking nvcc" >&5
-printf %s "checking nvcc... " >&6; }
-if $NVCC --version &>/dev/null; then
-{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $NVCC" >&5
-printf "%s\n" "$NVCC" >&6; }
-else
-{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: not found." >&5
-printf "%s\n" "not found." >&6; }
-{ { printf "%s\n" "$as_me:${as_lineno-$LINENO}: error: in \`$ac_pwd':" >&5
-printf "%s\n" "$as_me: error: in \`$ac_pwd':" >&2;}
-as_fn_error $? "Could not find nvcc. Consider specifying the prefix of your CUDA installation using --with-cuda
-See \`config.log' for more details" "$LINENO" 5; }
-fi
-
-{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking if we can compile a simple CUDA binary" >&5
-printf %s "checking if we can compile a simple CUDA binary... " >&6; }
-cat > test_cuda_kernel.cu << eof
-#include <cuda_runtime.h>
-
-__global__
-void kernel( float *x, float *y, float *result )
-{
-    size_t index = blockDim.x*blockIdx.x + threadIdx.x;
-    result += index;
-    x += index;
-    y += index;
-    *result = *x + *y;
-}
-
-
-void run_kernel()
-{
-    float *x { nullptr }, *y { nullptr }, *result { nullptr };
-    cudaMalloc( &x, 1024*sizeof(float) );
-    cudaMalloc( &y, 1024*sizeof(float) );
-    cudaMalloc( &result, 1024*sizeof(float) );
-
-    kernel<<<4,32>>> (x,y,result);
-
-    cudaFree( result );
-    cudaFree( y );
-    cudaFree( y );
-
-
-}
-
-eof
-
-if test $? -ne 0; then
-    { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
-printf "%s\n" "no" >&6; }
-    { { printf "%s\n" "$as_me:${as_lineno-$LINENO}: error: in \`$ac_pwd':" >&5
-printf "%s\n" "$as_me: error: in \`$ac_pwd':" >&2;}
-as_fn_error $? "Could not create cuda test-file. Lacking permissions for creating files?
-See \`config.log' for more details" "$LINENO" 5; }
-fi
-
-cat > test_cuda_runner.cpp << eof
-void run_kernel();
-
-int main()
-{
-    run_kernel();
-    return 0;
-}
-
-eof
-
-if test $? -ne 0; then
-    { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
-printf "%s\n" "no" >&6; }
-    { { printf "%s\n" "$as_me:${as_lineno-$LINENO}: error: in \`$ac_pwd':" >&5
-printf "%s\n" "$as_me: error: in \`$ac_pwd':" >&2;}
-as_fn_error $? "Could not create cuda test-file. Lacking permissions for creating files?
-See \`config.log' for more details" "$LINENO" 5; }
-fi
-
-$NVCC $NVCC_FLAGS -c test_cuda_kernel.cu
-if test $? -ne 0; then
-    { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
-printf "%s\n" "no" >&6; }
-    { { printf "%s\n" "$as_me:${as_lineno-$LINENO}: error: in \`$ac_pwd':" >&5
-printf "%s\n" "$as_me: error: in \`$ac_pwd':" >&2;}
-as_fn_error $? "Could not compile usng nvcc.
-See \`config.log' for more details" "$LINENO" 5; }
-fi
-
-$CXX -c test_cuda_runner.cpp
-if test $? -ne 0; then
-    rm -f test_cuda_kernel.cu  test_cuda_kernel.o
-    { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
-printf "%s\n" "no" >&6; }
-    { { printf "%s\n" "$as_me:${as_lineno-$LINENO}: error: in \`$ac_pwd':" >&5
-printf "%s\n" "$as_me: error: in \`$ac_pwd':" >&2;}
-as_fn_error $? "Could not compile usng $CXX.
-See \`config.log' for more details" "$LINENO" 5; }
-fi
-
-$CXX test_cuda_runner.o test_cuda_kernel.o $CUDA_LDFLAGS -o test_cuda
-if test $? -ne 0; then
-    rm -f test_cuda_kernel.cu  test_cuda_kernel.o
-    rm -f test_cuda_runner.cpp test_cuda_runner.o
-    { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
-printf "%s\n" "no" >&6; }
-    { { printf "%s\n" "$as_me:${as_lineno-$LINENO}: error: in \`$ac_pwd':" >&5
-printf "%s\n" "$as_me: error: in \`$ac_pwd':" >&2;}
-as_fn_error $? "Could link CUDA binary.
-See \`config.log' for more details" "$LINENO" 5; }
-fi
-
-rm -f test_cuda_kernel.cu  test_cuda_kernel.o
-rm -f test_cuda_runner.cpp test_cuda_runner.o
-rm -f test_cuda
-
-{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
-printf "%s\n" "yes" >&6; }
-
-
+#AX_CHECK_CUDA
 ac_ext=f
 ac_compile='$F77 -c $FFLAGS conftest.$ac_ext >&5'
 ac_link='$F77 -o conftest$ac_exeext $FFLAGS $LDFLAGS conftest.$ac_ext $LIBS >&5'

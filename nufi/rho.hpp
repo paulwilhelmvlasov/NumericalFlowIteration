@@ -20,6 +20,8 @@
 #ifndef NUFI_RHO_HPP
 #define NUFI_RHO_HPP
 
+#include <armadillo>
+
 #include <nufi/fields.hpp>
 
 namespace nufi
@@ -357,7 +359,6 @@ real eval_rho( size_t n, size_t l, const real *coeffs, const config_t<real> &con
 namespace dim3
 {
 
-
 template <typename real, size_t order>
 real eval_ftilda( size_t n, real x, real y, real z,
                             real u, real v, real w,
@@ -566,6 +567,138 @@ real eval_rho( size_t n, size_t l, const real *coeffs, const config_t<real> &con
     rho = 1 - du*dv*dw*rho;
     
     return rho;
+}
+
+
+template <typename real>
+arma::Mat<real> exp_J(real vx, real vy, real vz, real tol = 1e-16)
+{
+    arma::Col<real> v({vx,vy,vz});
+
+    real theta = arma::norm(v);
+    if(theta < tol){
+        return arma::Mat<real>(3,3,arma::fill::eye);
+    }
+
+    arma::mat J_v(3,3,arma::fill::zeros);
+    J_v(0,1) = v(2);
+    J_v(0,2) = -v(1);
+    J_v(1,0) = -v(2);
+    J_v(1,2) = v(0);
+    J_v(2,0) = v(1);
+    J_v(2,1) = -v(0);
+
+    return arma::Mat<real>(3,3,arma::fill::eye) + std::sin(theta)/theta * J_v + (1-std::cos(theta))/theta * J_v * J_v;
+}
+
+template <typename real>
+arma::Mat<real> exp_J(const arma::Col<real>& v, real tol = 1e-16)
+{
+    real theta = arma::norm(v);
+    if(theta < tol){
+        return arma::Mat<real>(3,3,arma::fill::eye);
+    }
+
+    arma::mat J_v(3,3,arma::fill::zeros);
+    J_v(0,1) = v(2);
+    J_v(0,2) = -v(1);
+    J_v(1,0) = -v(2);
+    J_v(1,2) = v(0);
+    J_v(2,0) = v(1);
+    J_v(2,1) = -v(0);
+
+    return arma::Mat<real>(3,3,arma::fill::eye) + std::sin(theta)/theta * J_v + (1-std::cos(theta))/theta * J_v * J_v;
+}
+
+
+template <typename real, size_t order> 
+real eval_f_lie_fBE(size_t n, real x, real y, real z,
+    real u, real v, real w, const std::vector<const real*>& coeffs_E, 
+    const std::vector<const real*>& coeffs_B, const std::vector<const real*>& coeffs_j_hat, 
+    const config_t<real> &conf )
+{
+    const size_t stride_x = 1;
+    const size_t stride_y = stride_x*(conf.Nx + order - 1);
+    const size_t stride_z = stride_y*(conf.Ny + order - 1);
+    const size_t stride_t = stride_z*(conf.Nz + order - 1);
+
+    // Introduce helper variables.
+    arma::Col<real> E2(3,arma::fill::zeros);
+    arma::Col<real> B0(3,arma::fill::zeros);
+    arma::Col<real> j_hat(3,arma::fill::zeros);
+
+    arma::Col<real> x_vec({x,y,z});
+    arma::Col<real> v_vec({u,v,w});
+
+    for(; n > 0; n--){
+        B0(0) = eval<real,order>(x_vec(0), x_vec(1), x_vec(2), coeffs_B[0].get() + n*stride_t, conf);
+        B0(1) = eval<real,order>(x_vec(0), x_vec(1), x_vec(2), coeffs_B[1].get() + n*stride_t, conf);
+        B0(2) = eval<real,order>(x_vec(0), x_vec(1), x_vec(2), coeffs_B[2].get() + n*stride_t, conf);
+
+        j_hat(0) = eval<real,order>(x_vec(0), x_vec(1), x_vec(2), coeffs_j_hat[0].get() + n*stride_t, conf);
+        j_hat(1) = eval<real,order>(x_vec(0), x_vec(1), x_vec(2), coeffs_j_hat[1].get() + n*stride_t, conf);
+        j_hat(2) = eval<real,order>(x_vec(0), x_vec(1), x_vec(2), coeffs_j_hat[2].get() + n*stride_t, conf);
+
+        E2(0) = eval<real,order>(x_vec(0), x_vec(1), x_vec(2), coeffs_E[0].get() + n*stride_t, conf);
+        E2(1) = eval<real,order>(x_vec(0), x_vec(1), x_vec(2), coeffs_E[1].get() + n*stride_t, conf);
+        E2(2) = eval<real,order>(x_vec(0), x_vec(1), x_vec(2), coeffs_E[2].get() + n*stride_t, conf);
+        
+        E2 = E2 - conf.dt * j_hat;
+
+        E2(0) = E2(0) + conf.dt * ( eval<real,order,0,1,0>(x_vec(0), x_vec(1), x_vec(2),coeffs_B[2].get()) 
+                                    - eval<real,order,0,0,1>(x_vec(0), x_vec(1), x_vec(2),coeffs_B[1].get()));
+        E2(1) = E2(1) + conf.dt * ( eval<real,order,0,0,1>(x_vec(0), x_vec(1), x_vec(2),coeffs_B[0].get()) 
+                                    - eval<real,order,1,0,0>(x_vec(0), x_vec(1), x_vec(2),coeffs_B[2].get()));
+        E2(2) = E2(2) + conf.dt * ( eval<real,order,1,0,0>(x_vec(0), x_vec(1), x_vec(2),coeffs_B[1].get()) 
+                                    - eval<real,order,0,1,0>(x_vec(0), x_vec(1), x_vec(2),coeffs_B[0].get()));
+
+        arma::Mat<real> J_B = exp_J<real>(-conf.dt*B0);
+
+        v_vec = J_B * (v_vec - conf.dt * E2);
+        x_vec = x_vec - conf.dt * v_vec;
+    }
+
+    return conf.f0(x_vec(0), x_vec(1), x_vec(2), v_vec(0), v_vec(1), v_vec(2));
+}
+
+template <typename real, size_t order>
+void eval_j_hat(size_t n, std::vector<std::vector<real>>& j_hat, 
+    const std::vector<const real*>& coeffs_E, const std::vector<const real*>& coeffs_B,
+    const std::vector<const real*>& coeffs_j_hat, const config_t<real> &conf )
+{
+    #pragma omp parallel for
+    for(size_t l = 0; l < conf.Nx*conf.Ny*conf.Nz; l++){
+        
+        size_t iz   = l   / (conf.Nx * conf.Ny);
+        size_t tmp = l   % (conf.Nx * conf.Ny);
+        size_t iy   = tmp / conf.Nx;
+        size_t ix   = tmp % conf.Nx;
+    
+        real x = conf.x_min + ix*conf.dx; 
+        real y = conf.y_min + iy*conf.dy; 
+        real z = conf.z_min + iz*conf.dz; 
+        
+        j_hat[0][l] = 0;
+        j_hat[1][l] = 0;
+        j_hat[2][l] = 0;
+        for(size_t iu = 0; iu < conf.Nu; iu++)
+        for(size_t iv = 0; iv < conf.Nv; iv++)
+        for(size_t iw = 0; iw < conf.Nw; iw++){
+            real u = conf.u_min + (iu + 0.5) * conf.du;
+            real v = conf.v_min + (iv + 0.5) * conf.dv;
+            real w = conf.w_min + (iw + 0.5) * conf.dw;
+
+            real f_half = eval_f_lie_fBE<real,order>(n, x - 0.5*conf.dt*u, y - 0.5*conf.dt*v, z - 0.5*conf.dt*w, 
+                                                        u, v, w, coeffs_E, coeffs_B, coeffs_j_hat, conf );
+
+            j_hat[0][l] += u*f_half;
+            j_hat[1][l] += v*f_half;
+            j_hat[2][l] += w*f_half;
+        }
+        j_hat[0][l] *= conf.du*conf.dv*conf.dw;
+        j_hat[1][l] *= conf.du*conf.dv*conf.dw;
+        j_hat[2][l] *= conf.du*conf.dv*conf.dw;
+    }
 }
 
 }

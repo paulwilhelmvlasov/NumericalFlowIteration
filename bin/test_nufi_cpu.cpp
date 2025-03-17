@@ -449,12 +449,94 @@ void run_simulation()
 }
 }
 
+namespace nufi 
+{
+namespace dim3
+{
+
+template <typename real>
+real f0(real x, real y, real z, real u, real v, real w) noexcept
+{
+	real alpha = 1e-2; // Linear Landau Damping or Two Stream instability
+	//real alpha = 0.5; // Strong Landau Damping
+	real k = 0.5;
+    return 1.0 / std::sqrt(2.0 * M_PI) * u*u * exp(-0.5 * u*u) * (1 + alpha * cos(k*x)); // Two Stream Instability
+	//return 1.0 / std::sqrt(2.0 * M_PI) * exp(-0.5 * u*u) * (1 + alpha * cos(k*x)); // Landau Damping
+}
+
+const double Lx = 2*M_PI;
+const double Ly = Lx;
+const double Lz = Lx;
+const size_t order = 4;
+
+double func(double x, double y, double z){
+    return std::sin(x);
+}
+
+void test_interpolate()
+{   
+    size_t Nx = 16;
+    size_t Ny = 1;
+    size_t Nz = 1;
+    config_t<double> conf(Nx,Ny,Nz,1,1,1,1,0.1,0,Lx,0,Ly,0,Lz,-1,1,-1,1,-1,1,&f0);
+
+    size_t stride_t = (conf.Nx + order - 1) *
+                  (conf.Ny + order - 1) *
+	    		  (conf.Nz + order - 1);
+    std::unique_ptr<double[]> coeffs { new double[ stride_t ] {} };
+
+    std::unique_ptr<double,decltype(std::free)*> rho { reinterpret_cast<double*>(std::aligned_alloc(64,
+                                            sizeof(double)*conf.Nx*conf.Ny*conf.Nz)), std::free };
+
+    
+
+    for(size_t ix = 0; ix < conf.Nx; ix++){
+        for(size_t iy = 0; iy < conf.Ny; iy++){
+            for(size_t iz = 0; iz < conf.Nz; iz++){
+                double x = ix*conf.dx;
+                double y = iy*conf.dy;
+                double z = iz*conf.dz;
+
+                size_t l = ix + iy*conf.Nx + iz*conf.Nx*conf.Ny;
+
+                rho.get()[l] = func(x,y,z);
+            }
+        }
+    }
+
+    interpolate<double,order>(coeffs.get(),rho.get(),conf);
+
+    std::cout << "I finished." << std::endl;
+
+    size_t N_plot = 32;
+    double dx_plot = Lx / N_plot;
+    std::ofstream test_str("test.txt");
+    std::ofstream validate_str("validate.txt");
+    for(size_t ix = 0; ix < N_plot; ix++){
+        for(size_t iy = 0; iy < N_plot; iy++){
+            double x = ix * dx_plot;
+            double y = iy * dx_plot;
+            double z = Lx/2.0;
+
+            double f = eval<double,order>(x,y,z,coeffs.get(),conf);
+
+            test_str << x << " " << y << " " << f << std::endl;
+            validate_str << x << " " << y << " " << func(x,y,z) << std::endl;
+        }
+        test_str << std::endl;
+        validate_str << std::endl;
+    }
+}
+}
+}
 
 int main()
 {
 	//nufi::dim1::run_simulation<double,4>();
-	nufi::dim1::run_restarted_simulation<4>();
+	//nufi::dim1::run_restarted_simulation<4>();
 
     //nufi::dim1::read_in_coeff();
+
+    nufi::dim3::test_interpolate();
 }
 
