@@ -30,7 +30,7 @@ real f0(real x, real y, real z, real u, real v, real w) noexcept
     constexpr real k     = 0.5;
 
     // Weak Landau Damping in x direction:
-    constexpr real c  = 1.0 / std::pow(2.0 * M_PI, 1.5); 
+    constexpr real c  = 1.0 / std::pow(2.0 * M_PI, 3.0/2.0); 
     return c * ( 1. + alpha*cos(k*x)) 
              * exp( -(u*u+v*v+w*w)/2 );
 }
@@ -83,10 +83,10 @@ arma::Col<real> rot_rot(size_t n, real x, real y, real z, const std::vector<std:
 const double Lx = 4*M_PI;
 const double umin = -6;
 const double umax = 6;
-const size_t Nx = 16;  
+const size_t Nx = 8;  
 const size_t Ny = 1;  
 const size_t Nz = 1;  
-const size_t Nu = 2*Nx;  
+const size_t Nu = 16;  
 const double   dt = 0.1;  
 const size_t Nt = 30/dt;  
 config_t<double> conf(Nx, Nx, Nx, Nu, Nu, Nu, Nt, dt, 
@@ -238,13 +238,12 @@ void nufi_maxwell_lie_fBE()
 
     std::cout << "Start time-loop." << std::endl;    
     double total_time = 0;
-    omp_set_num_threads(1);
     for(size_t n = 1; n <= conf.Nt; n++)
     {
         nufi::stopwatch<double> timer;
 
         // Compute E(n) and B(n).
-        std::cout << "Compute E(n) and B(n)." << std::endl;
+        //std::cout << "Compute E(n) and B(n)." << std::endl;
         #pragma omp parallel for
         for(size_t l = 0; l < conf.Nx*conf.Ny*conf.Nz; l++){
             size_t iz   = l   / (conf.Nx * conf.Ny);
@@ -288,7 +287,7 @@ void nufi_maxwell_lie_fBE()
         }
 
         // Interpolate E(n) and B(n).
-        std::cout << "Interpolate E(n) and B(n)." << std::endl;
+        //std::cout << "Interpolate E(n) and B(n)." << std::endl;
         #pragma omp parallel
         {
             #pragma omp sections
@@ -314,11 +313,11 @@ void nufi_maxwell_lie_fBE()
         }
 
         // Compute j_hat(n).
-        std::cout << "Compute j_hat(n)." << std::endl;
+        //std::cout << "Compute j_hat(n)." << std::endl;
         eval_j_hat<real,order>(n, j_hat, coeffs_E, coeffs_B, coeffs_j_hat, conf);
 
         // Interpolate j_hat(n).
-        std::cout << "Interpolate j_hat(n)." << std::endl;
+        //std::cout << "Interpolate j_hat(n)." << std::endl;
         #pragma omp parallel
         {
             #pragma omp sections
