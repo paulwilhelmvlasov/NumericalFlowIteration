@@ -42,7 +42,7 @@ arma::Col<real> E0(real x, real y, real z)
     constexpr real k     = 0.5;
     
     // Weak Landau Damping in x directions:
-    return  arma::Col<real>({-0.01 * alpha / k * std::sin(k*x), 0, 0}); 
+    return  arma::Col<real>({-alpha / k * std::sin(k*x), 0, 0}); 
 }
 
 template <typename real>
@@ -80,9 +80,9 @@ arma::Col<real> rot_rot(size_t n, real x, real y, real z, const std::vector<std:
     });
 }
 
-const size_t Lx = 4*M_PI;
-const size_t umin = -6;
-const size_t umax = 6;
+const double Lx = 4*M_PI;
+const double umin = -6;
+const double umax = 6;
 const size_t Nx = 16;  
 const size_t Ny = 1;  
 const size_t Nz = 1;  
@@ -184,28 +184,52 @@ void nufi_maxwell_lie_fBE()
 
     std::cout << "First output." << std::endl;
     std::ofstream stat_file( "stats.txt" );
+    std::ofstream Ex_file( "Ex_file.txt" );
+    std::ofstream Ey_file( "Ey_file.txt" );
+    std::ofstream Ez_file( "Ez_file.txt" );
+    std::ofstream Bx_file( "Bx_file.txt" );
+    std::ofstream By_file( "By_file.txt" );
+    std::ofstream Bz_file( "Bz_file.txt" );
     // Output stats (Electric/magnetic energy).
-    const size_t nx_plot = 32;
-    const double dx_plot = Lx/nx_plot;
+    size_t nx_plot = 64;
+    std::cout << Lx << std::endl;
+    double dx_plot = Lx/nx_plot;
     double electric_energy = 0;
     double magnetic_energy = 0;
-    for(size_t ix = 0; ix < nx_plot; ix++)
-    for(size_t iy = 0; iy < nx_plot; iy++)
-    for(size_t iz = 0; iz < nx_plot; iz++){
-        double x = (ix+0.5)*dx_plot;
-        double y = (iy+0.5)*dx_plot;
-        double z = (iz+0.5)*dx_plot;
+    for(size_t ix = 0; ix < nx_plot; ix++){
+        for(size_t iy = 0; iy < nx_plot; iy++){
+            for(size_t iz = 0; iz < nx_plot; iz++){
+                double x = (ix+0.5)*dx_plot;
+                double y = (iy+0.5)*dx_plot;
+                double z = (iz+0.5)*dx_plot;
 
-        double Ex = eval<real,order>(x,y,z,coeffs_E[0].data(),conf);
-        double Ey = eval<real,order>(x,y,z,coeffs_E[1].data(),conf);
-        double Ez = eval<real,order>(x,y,z,coeffs_E[2].data(),conf);
+                double Ex = eval<real,order>(x,y,z,coeffs_E[0].data(),conf);
+                double Ey = eval<real,order>(x,y,z,coeffs_E[1].data(),conf);
+                double Ez = eval<real,order>(x,y,z,coeffs_E[2].data(),conf);
 
-        double Bx = eval<real,order>(x,y,z,coeffs_B[0].data(),conf);
-        double By = eval<real,order>(x,y,z,coeffs_B[1].data(),conf);
-        double Bz = eval<real,order>(x,y,z,coeffs_B[2].data(),conf);
+                double Bx = eval<real,order>(x,y,z,coeffs_B[0].data(),conf);
+                double By = eval<real,order>(x,y,z,coeffs_B[1].data(),conf);
+                double Bz = eval<real,order>(x,y,z,coeffs_B[2].data(),conf);
 
-        electric_energy += Ex*Ex + Ey*Ey + Ez*Ez;
-        magnetic_energy += Bx*Bx + By*By + Bz*Bz;
+                electric_energy += Ex*Ex + Ey*Ey + Ez*Ez;
+                magnetic_energy += Bx*Bx + By*By + Bz*Bz;
+
+                if(iz == 16){
+                    Ex_file << x << " " << y << " " << Ex << std::endl;
+                    Ey_file << x << " " << y << " " << Ey << std::endl;
+                    Ez_file << x << " " << y << " " << Ez << std::endl;
+                    Bx_file << x << " " << y << " " << Bx << std::endl;
+                    By_file << x << " " << y << " " << By << std::endl;
+                    Bz_file << x << " " << y << " " << Bz << std::endl;
+                }
+            }
+        }
+        Ex_file << std::endl;
+        Ey_file << std::endl;
+        Ez_file << std::endl;
+        Bx_file << std::endl;
+        By_file << std::endl;
+        Bz_file << std::endl;
     }
     electric_energy = 0.5*dx_plot*dx_plot*dx_plot*std::sqrt(electric_energy);
     magnetic_energy = 0.5*dx_plot*dx_plot*dx_plot*std::sqrt(magnetic_energy);

@@ -631,26 +631,26 @@ real eval_f_lie_fBE(size_t n, real x, real y, real z,
     arma::Col<real> v_vec({u,v,w});
 
     for(; n > 0; n--){
-        std::cout << "f eval pos 1" << std::endl;
+        //std::cout << "f eval pos 1" << std::endl;
         B0(0) = eval<real,order>(x_vec(0), x_vec(1), x_vec(2), coeffs_B[0].data() + (n-1)*stride_t, conf);
         B0(1) = eval<real,order>(x_vec(0), x_vec(1), x_vec(2), coeffs_B[1].data() + (n-1)*stride_t, conf);
         B0(2) = eval<real,order>(x_vec(0), x_vec(1), x_vec(2), coeffs_B[2].data() + (n-1)*stride_t, conf);
 
-        std::cout << "f eval pos 1.1" << std::endl;
+        //std::cout << "f eval pos 1.1" << std::endl;
         j_hat(0) = eval<real,order>(x_vec(0), x_vec(1), x_vec(2), coeffs_j_hat[0].data() + (n-1)*stride_t, conf);
         j_hat(1) = eval<real,order>(x_vec(0), x_vec(1), x_vec(2), coeffs_j_hat[1].data() + (n-1)*stride_t, conf);
         j_hat(2) = eval<real,order>(x_vec(0), x_vec(1), x_vec(2), coeffs_j_hat[2].data() + (n-1)*stride_t, conf);
 
-        std::cout << "f eval pos 1.2" << std::endl;
+        //std::cout << "f eval pos 1.2" << std::endl;
         E2(0) = eval<real,order>(x_vec(0), x_vec(1), x_vec(2), coeffs_E[0].data() + (n-1)*stride_t, conf);
-        std::cout << "f eval pos 1.2.1" << std::endl;
+        //std::cout << "f eval pos 1.2.1" << std::endl;
         E2(1) = eval<real,order>(x_vec(0), x_vec(1), x_vec(2), coeffs_E[1].data() + (n-1)*stride_t, conf);
-        std::cout << "f eval pos 1.2.2" << std::endl;
+        //std::cout << "f eval pos 1.2.2" << std::endl;
         E2(2) = eval<real,order>(x_vec(0), x_vec(1), x_vec(2), coeffs_E[2].data() + (n-1)*stride_t, conf);
-        std::cout << "f eval pos 1.2.3" << std::endl;
+        //std::cout << "f eval pos 1.2.3" << std::endl;
         E2 = E2 - conf.dt * j_hat;
 
-        std::cout << "f eval pos 2" << std::endl;
+        //std::cout << "f eval pos 2" << std::endl;
         E2(0) = E2(0) + conf.dt * ( eval<real,order,0,1,0>(x_vec(0), x_vec(1), x_vec(2),coeffs_B[2].data()+(n-1)*stride_t,conf) 
                                     - eval<real,order,0,0,1>(x_vec(0), x_vec(1), x_vec(2),coeffs_B[1].data()+(n-1)*stride_t,conf));
         E2(1) = E2(1) + conf.dt * ( eval<real,order,0,0,1>(x_vec(0), x_vec(1), x_vec(2),coeffs_B[0].data()+(n-1)*stride_t,conf) 
@@ -658,7 +658,7 @@ real eval_f_lie_fBE(size_t n, real x, real y, real z,
         E2(2) = E2(2) + conf.dt * ( eval<real,order,1,0,0>(x_vec(0), x_vec(1), x_vec(2),coeffs_B[1].data()+(n-1)*stride_t,conf) 
                                     - eval<real,order,0,1,0>(x_vec(0), x_vec(1), x_vec(2),coeffs_B[0].data()+(n-1)*stride_t,conf));
 
-        std::cout << "f eval pos 3" << std::endl;
+        //std::cout << "f eval pos 3" << std::endl;
         arma::Mat<real> J_B = exp_J<real>(-conf.dt*B0);
 
         v_vec = J_B * (v_vec - conf.dt * E2);
@@ -695,9 +695,9 @@ void eval_j_hat(size_t n, std::vector<std::vector<real>>& j_hat,
             real v = conf.v_min + (iv + 0.5) * conf.dv;
             real w = conf.w_min + (iw + 0.5) * conf.dw;
 
-            if(n > 0){
+/*             if(n > 0){
                 std::cout << "f_half " << l << " " << iu << " " << iv << " " << iw << std::endl;
-            }
+            } */
             real f_half = eval_f_lie_fBE<real,order>(n, x - 0.5*conf.dt*u, y - 0.5*conf.dt*v, z - 0.5*conf.dt*w, 
                                                         u, v, w, coeffs_E, coeffs_B, coeffs_j_hat, conf );
 
