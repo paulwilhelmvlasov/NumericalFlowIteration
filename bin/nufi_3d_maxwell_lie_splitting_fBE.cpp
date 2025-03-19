@@ -134,6 +134,7 @@ config_t<double> conf(Nx, Nx, Nx, Nu, Nu, Nu, Nt, dt,
 template <typename real, size_t order>
 void nufi_maxwell_lie_fBE()
 {
+    //omp_set_num_threads(1);
     size_t stride_t = (conf.Nx + order - 1) *
                   (conf.Ny + order - 1) *
 	    		  (conf.Nz + order - 1);
@@ -227,6 +228,7 @@ void nufi_maxwell_lie_fBE()
     std::cout << "Start time-loop." << std::endl;    
     std::cout << " ---------------------------------- " << std::endl;
     double total_time = 0;
+    omp_set_num_threads(1);
     for(size_t n = 1; n <= conf.Nt; n++)
     {
         nufi::stopwatch<double> timer;
