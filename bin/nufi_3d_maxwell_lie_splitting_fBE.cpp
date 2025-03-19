@@ -80,10 +80,47 @@ arma::Col<real> rot_rot(size_t n, real x, real y, real z, const std::vector<std:
     });
 }
 
+template<typename real, size_t order>
+void do_stats(size_t nt, size_t nx_plot, std::ofstream& stat_file, 
+    const std::vector<std::vector<real>>& coeffs_E, const std::vector<std::vector<real>>& coeffs_B, const config_t<double>& conf )
+{
+    size_t stride_t = (conf.Nx + order - 1) *
+                  (conf.Ny + order - 1) *
+	    		  (conf.Nz + order - 1);
+
+    double dx_plot = conf.Lx/nx_plot;
+    double electric_energy = 0;
+    double magnetic_energy = 0;
+    for(size_t ix = 0; ix < nx_plot; ix++){
+        for(size_t iy = 0; iy < nx_plot; iy++){
+            for(size_t iz = 0; iz < nx_plot; iz++){
+                double x = (ix+0.5)*dx_plot;
+                double y = (iy+0.5)*dx_plot;
+                double z = (iz+0.5)*dx_plot;
+
+                double Ex = eval<real,order>(x,y,z,coeffs_E[0].data() + nt*stride_t,conf);
+                double Ey = eval<real,order>(x,y,z,coeffs_E[1].data() + nt*stride_t,conf);
+                double Ez = eval<real,order>(x,y,z,coeffs_E[2].data() + nt*stride_t,conf);
+
+                double Bx = eval<real,order>(x,y,z,coeffs_B[0].data() + nt*stride_t,conf);
+                double By = eval<real,order>(x,y,z,coeffs_B[1].data() + nt*stride_t,conf);
+                double Bz = eval<real,order>(x,y,z,coeffs_B[2].data() + nt*stride_t,conf);
+
+                electric_energy += Ex*Ex + Ey*Ey + Ez*Ez;
+                magnetic_energy += Bx*Bx + By*By + Bz*Bz;
+            }
+        }
+    }
+    electric_energy *= 0.5*dx_plot*dx_plot*dx_plot;
+    magnetic_energy *= 0.5*dx_plot*dx_plot*dx_plot;
+
+    stat_file << 0*conf.dt << " " << electric_energy << " " << magnetic_energy << std::endl;
+}
+
 const double Lx = 4*M_PI;
 const double umin = -6;
 const double umax = 6;
-const size_t Nx = 8;  
+const size_t Nx = 16;  
 const size_t Ny = 1;  
 const size_t Nz = 1;  
 const size_t Nu = 16;  
@@ -184,59 +221,11 @@ void nufi_maxwell_lie_fBE()
 
     std::cout << "First output." << std::endl;
     std::ofstream stat_file( "stats.txt" );
-    std::ofstream Ex_file( "Ex_file.txt" );
-    std::ofstream Ey_file( "Ey_file.txt" );
-    std::ofstream Ez_file( "Ez_file.txt" );
-    std::ofstream Bx_file( "Bx_file.txt" );
-    std::ofstream By_file( "By_file.txt" );
-    std::ofstream Bz_file( "Bz_file.txt" );
     // Output stats (Electric/magnetic energy).
-    size_t nx_plot = 64;
-    std::cout << Lx << std::endl;
-    double dx_plot = Lx/nx_plot;
-    double electric_energy = 0;
-    double magnetic_energy = 0;
-    for(size_t ix = 0; ix < nx_plot; ix++){
-        for(size_t iy = 0; iy < nx_plot; iy++){
-            for(size_t iz = 0; iz < nx_plot; iz++){
-                double x = (ix+0.5)*dx_plot;
-                double y = (iy+0.5)*dx_plot;
-                double z = (iz+0.5)*dx_plot;
-
-                double Ex = eval<real,order>(x,y,z,coeffs_E[0].data(),conf);
-                double Ey = eval<real,order>(x,y,z,coeffs_E[1].data(),conf);
-                double Ez = eval<real,order>(x,y,z,coeffs_E[2].data(),conf);
-
-                double Bx = eval<real,order>(x,y,z,coeffs_B[0].data(),conf);
-                double By = eval<real,order>(x,y,z,coeffs_B[1].data(),conf);
-                double Bz = eval<real,order>(x,y,z,coeffs_B[2].data(),conf);
-
-                electric_energy += Ex*Ex + Ey*Ey + Ez*Ez;
-                magnetic_energy += Bx*Bx + By*By + Bz*Bz;
-
-                if(iz == 16){
-                    Ex_file << x << " " << y << " " << Ex << std::endl;
-                    Ey_file << x << " " << y << " " << Ey << std::endl;
-                    Ez_file << x << " " << y << " " << Ez << std::endl;
-                    Bx_file << x << " " << y << " " << Bx << std::endl;
-                    By_file << x << " " << y << " " << By << std::endl;
-                    Bz_file << x << " " << y << " " << Bz << std::endl;
-                }
-            }
-        }
-        Ex_file << std::endl;
-        Ey_file << std::endl;
-        Ez_file << std::endl;
-        Bx_file << std::endl;
-        By_file << std::endl;
-        Bz_file << std::endl;
-    }
-    electric_energy = 0.5*dx_plot*dx_plot*dx_plot*std::sqrt(electric_energy);
-    magnetic_energy = 0.5*dx_plot*dx_plot*dx_plot*std::sqrt(magnetic_energy);
-
-    stat_file << 0*conf.dt << " " << electric_energy << " " << magnetic_energy << std::endl;
+    do_stats<real,order>(0, 64, stat_file,coeffs_E, coeffs_B, conf);
 
     std::cout << "Start time-loop." << std::endl;    
+    std::cout << " ---------------------------------- " << std::endl;
     double total_time = 0;
     for(size_t n = 1; n <= conf.Nt; n++)
     {
@@ -272,9 +261,9 @@ void nufi_maxwell_lie_fBE()
                 eval<real,order>(x,y,z,coeffs_j_hat[2].data()+(n-1)*stride_t,conf)
             });
 
-            E0_vec = E0_vec - conf.dt*j_hat + conf.dt*rot<real,order>(n-1,x,y,z,coeffs_B,conf);
+            E0_vec = E0_vec - conf.dt*conf.q/conf.m*j_hat + conf.dt*rot<real,order>(n-1,x,y,z,coeffs_B,conf);
             B0_vec = B0_vec - conf.dt*rot<real,order>(n-1,x,y,z,coeffs_E,conf) 
-                    - conf.dt*conf.dt*rot<real,order>(n-1,x,y,z,coeffs_j_hat,conf)
+                    - conf.dt*conf.dt*conf.q/conf.m*rot<real,order>(n-1,x,y,z,coeffs_j_hat,conf)
                     + conf.dt*conf.dt*rot_rot<real,order>(n-1,x,y,z,coeffs_B,conf);
 
             E[0][l] = E0_vec(0);
@@ -285,6 +274,9 @@ void nufi_maxwell_lie_fBE()
             B[1][l] = B0_vec(1);
             B[2][l] = B0_vec(2);
         }
+        double time_compute_EB = timer.elapsed();
+        std::cout << "Compute EB took " << time_compute_EB << " s." << std::endl;
+        timer.reset();
 
         // Interpolate E(n) and B(n).
         //std::cout << "Interpolate E(n) and B(n)." << std::endl;
@@ -311,13 +303,17 @@ void nufi_maxwell_lie_fBE()
                 interpolate<real,order>(coeffs_B[2].data()+n*stride_t,B[2].data(),conf);
             }
         }
+        double time_interpolate_EB = timer.elapsed();
+        std::cout << "EB interpolation took " << time_interpolate_EB << " s." << std::endl;
+        timer.reset();
 
         // Compute j_hat(n).
-        //std::cout << "Compute j_hat(n)." << std::endl;
         eval_j_hat<real,order>(n, j_hat, coeffs_E, coeffs_B, coeffs_j_hat, conf);
-
+        double time_eval_j_hat = timer.elapsed();
+        std::cout << "Eval j_hat took " << time_eval_j_hat << " s." << std::endl;
+        timer.reset();
+        
         // Interpolate j_hat(n).
-        //std::cout << "Interpolate j_hat(n)." << std::endl;
         #pragma omp parallel
         {
             #pragma omp sections
@@ -330,38 +326,19 @@ void nufi_maxwell_lie_fBE()
                 interpolate<real,order>(coeffs_j_hat[2].data()+n*stride_t,j_hat[2].data(),conf);            
             }
         }
+        double time_interpolate_j_hat = timer.elapsed();
+        std::cout << "Interpolate j_hat took " << time_interpolate_j_hat << " s." << std::endl;
+        timer.reset();
 
         // Analyze data if wanted.
         // Compute time measurement.
-        double time_for_step = timer.elapsed();
+        double time_for_step = time_compute_EB + time_interpolate_EB + time_eval_j_hat + time_interpolate_j_hat;
         total_time += time_for_step;
         std::cout << "Time step " << n << " took a total of " << time_for_step << " s." << std::endl;
 
-        // Output stats (Electric/magnetic energy).
-        double electric_energy = 0;
-        double magnetic_energy = 0;
-        for(size_t ix = 0; ix < nx_plot; ix++)
-        for(size_t iy = 0; iy < nx_plot; iy++)
-        for(size_t iz = 0; iz < nx_plot; iz++){
-            double x = (ix+0.5)*dx_plot;
-            double y = (iy+0.5)*dx_plot;
-            double z = (iz+0.5)*dx_plot;
-
-            double Ex = eval<real,order>(x,y,z,coeffs_E[0].data()+n*stride_t,conf);
-            double Ey = eval<real,order>(x,y,z,coeffs_E[1].data()+n*stride_t,conf);
-            double Ez = eval<real,order>(x,y,z,coeffs_E[2].data()+n*stride_t,conf);
-
-            double Bx = eval<real,order>(x,y,z,coeffs_B[0].data()+n*stride_t,conf);
-            double By = eval<real,order>(x,y,z,coeffs_B[1].data()+n*stride_t,conf);
-            double Bz = eval<real,order>(x,y,z,coeffs_B[2].data()+n*stride_t,conf);
-
-            electric_energy += Ex*Ex + Ey*Ey + Ez*Ez;
-            magnetic_energy += Bx*Bx + By*By + Bz*Bz;
-        }
-        electric_energy = 0.5*dx_plot*dx_plot*dx_plot*std::sqrt(electric_energy);
-        magnetic_energy = 0.5*dx_plot*dx_plot*dx_plot*std::sqrt(magnetic_energy);
-
-        stat_file << n*conf.dt << " " << electric_energy << " " << magnetic_energy << std::endl;
+        do_stats<real,order>(n, 64, stat_file,coeffs_E, coeffs_B, conf);
+        std::cout << "Do stats took: " << double(timer.elapsed()) << " s." << std::endl;
+        std::cout << " ---------------------------------- " << std::endl;
     }
 
     std::cout << "Total simulation time " << total_time << " s." << std::endl;

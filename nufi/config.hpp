@@ -171,6 +171,9 @@ struct config_t
     real dz, dz_inv, Lz, Lz_inv;
     real du, dv, dw;
 
+    real m = 1;
+    real q = -1;
+
     config_t(size_t nx, size_t ny, size_t nz, size_t nu, size_t nv, size_t nw,
     		size_t nt, real delta_t, real xmin, real xmax, real ymin, real ymax,
 			real zmin, real zmax, real umin, real umax, real vmin, real vmax,
