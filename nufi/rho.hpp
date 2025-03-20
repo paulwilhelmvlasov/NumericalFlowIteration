@@ -611,6 +611,32 @@ arma::Mat<real> exp_J(const arma::Col<real>& v, real tol = 1e-16)
     return arma::Mat<real>(3,3,arma::fill::eye) + std::sin(theta)/theta * J_v + (1-std::cos(theta))/theta * J_v * J_v;
 }
 
+template <typename real>
+void exp_J(arma::Mat<real>& J_v, const arma::Col<real>& v, real tol = 1e-16)
+{
+    real theta = arma::norm(v);
+    if(theta < tol){
+        J_v = arma::Mat<real>(3,3,arma::fill::eye);
+    } else {
+        J_v(0,0) = 0;
+        J_v(0,1) = v(2);
+        J_v(0,2) = -v(1);
+        J_v(1,0) = -v(2);
+        J_v(1,1) = 0;
+        J_v(1,2) = v(0);
+        J_v(2,0) = v(1);
+        J_v(2,1) = -v(0);
+        J_v(2,2) = 0;
+
+        J_v = std::sin(theta)/theta * J_v + (1-std::cos(theta))/theta * J_v * J_v;
+        J_v(0,0) += 1;
+        J_v(1,1) += 1;
+        J_v(2,2) += 1;
+    }
+}
+
+
+
 
 template <typename real, size_t order> 
 real eval_f_lie_fBE(size_t n, real x, real y, real z,
@@ -618,8 +644,6 @@ real eval_f_lie_fBE(size_t n, real x, real y, real z,
     const std::vector<std::vector<real>>& coeffs_B, const std::vector<std::vector<real>>& coeffs_j_hat, 
     const config_t<real> &conf )
 {
-    std::cout << " ============================= " << std::endl;
-    nufi::stopwatch<double> timer;
     const size_t stride_x = 1;
     const size_t stride_y = stride_x*(conf.Nx + order - 1);
     const size_t stride_z = stride_y*(conf.Ny + order - 1);
@@ -632,8 +656,6 @@ real eval_f_lie_fBE(size_t n, real x, real y, real z,
 
     arma::Col<real> x_vec({x,y,z});
     arma::Col<real> v_vec({u,v,w});
-/*     std::cout << "eval_f_lie: Init took " << timer.elapsed() << std::endl;
-    timer.reset(); */
 
     for(; n > 0; n--){
         stopwatch<double> timer_loop;
@@ -648,12 +670,8 @@ real eval_f_lie_fBE(size_t n, real x, real y, real z,
         E2(0) = eval<real,order>(x_vec(0), x_vec(1), x_vec(2), coeffs_E[0].data() + (n-1)*stride_t, conf);
         E2(1) = eval<real,order>(x_vec(0), x_vec(1), x_vec(2), coeffs_E[1].data() + (n-1)*stride_t, conf);
         E2(2) = eval<real,order>(x_vec(0), x_vec(1), x_vec(2), coeffs_E[2].data() + (n-1)*stride_t, conf);
-        std::cout << "eval_f_lie, inside loop: Setup took " << timer_loop.elapsed() << std::endl;
-        timer_loop.reset();
 
         E2 = E2 - conf.dt * conf.q/conf.m * j_hat;
-        std::cout << "eval_f_lie, inside loop: E2 - dt*j took " << timer_loop.elapsed() << std::endl;
-        timer_loop.reset();
 
         E2(0) = E2(0) + conf.dt * ( eval<real,order,0,1,0>(x_vec(0), x_vec(1), x_vec(2),coeffs_B[2].data()+(n-1)*stride_t,conf) 
                                     - eval<real,order,0,0,1>(x_vec(0), x_vec(1), x_vec(2),coeffs_B[1].data()+(n-1)*stride_t,conf));
@@ -662,28 +680,13 @@ real eval_f_lie_fBE(size_t n, real x, real y, real z,
         E2(2) = E2(2) + conf.dt * ( eval<real,order,1,0,0>(x_vec(0), x_vec(1), x_vec(2),coeffs_B[1].data()+(n-1)*stride_t,conf) 
                                     - eval<real,order,0,1,0>(x_vec(0), x_vec(1), x_vec(2),coeffs_B[0].data()+(n-1)*stride_t,conf));
 
-        std::cout << "eval_f_lie, inside loop: E - dt * rot B " << timer_loop.elapsed() << std::endl;
-        timer_loop.reset();
-
         arma::Mat<real> J_B = exp_J<real>(-conf.dt*conf.q/conf.m*B0);
-        std::cout << "eval_f_lie, inside loop: exp(J_B) took " << timer_loop.elapsed() << std::endl;
-        timer_loop.reset();
 
         v_vec = J_B * (v_vec - conf.dt * conf.q/conf.m * E2);
         x_vec = x_vec - conf.dt * v_vec;
-        std::cout << "eval_f_lie, inside loop: Update x,v took " << timer_loop.elapsed() << std::endl;
-        timer_loop.reset();
     }
 
-    std::cout << "eval_f_lie: Loop took " << timer.elapsed() << std::endl;
-    timer.reset();
-
-    real value = conf.f0(x_vec(0), x_vec(1), x_vec(2), v_vec(0), v_vec(1), v_vec(2)); 
-/*     std::cout << "eval_f_lie: Eval f0 took " << timer.elapsed() << std::endl;
-    timer.reset();
-    std::cout << " ============================= " << std::endl; */
-
-    return value;
+    return conf.f0(x_vec(0), x_vec(1), x_vec(2), v_vec(0), v_vec(1), v_vec(2));
 }
 
 template <typename real, size_t order>

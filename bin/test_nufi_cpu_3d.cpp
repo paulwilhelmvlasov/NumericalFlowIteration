@@ -60,7 +60,7 @@ const double umax = 6;
 const size_t Nx = 8;  
 const size_t Ny = 1;  
 const size_t Nz = 1;  
-const size_t Nu = 16;  
+const size_t Nu = 8;  
 const double   dt = 0.1;  
 const size_t Nt = 30/dt;  
 config_t<double> conf(Nx, Ny, Nz, Nu, Nu, Nu, Nt, dt, 
@@ -81,7 +81,7 @@ void run_simulation()
         sizeof(double)*conf.Nx*conf.Ny*conf.Nz)), std::free };
 
     std::ofstream stats_file( "stats.txt" );
-    /* std::ofstream coeff_file( "coeffs.txt" ); */
+    std::ofstream coeff_file( "coeffs.txt" );
     double total_time = 0;
     double total_time_with_plotting = 0;
     for ( size_t n = 0; n <= conf.Nt; ++n )
@@ -103,10 +103,10 @@ void run_simulation()
         nufi::stopwatch<double> timer_plots;
 
         // Print coefficients to file.
-/*         coeff_file << n << std::endl;
+        coeff_file << n << std::endl;
         for(size_t i = 0; i < stride_t; i++){
             coeff_file << i << " " << coeffs_full.get()[n*stride_t + i ] << std::endl;
-        } */
+        }
         stats_file << n*conf.dt << " " << electric_energy << std::endl;
 
         std::cout << "n = " << n << " t = " << n*conf.dt << " Comp-time: " << timer_elapsed << std::endl;

@@ -114,18 +114,65 @@ void do_stats(size_t nt, size_t nx_plot, std::ofstream& stat_file,
     electric_energy *= 0.5*dx_plot*dx_plot*dx_plot;
     magnetic_energy *= 0.5*dx_plot*dx_plot*dx_plot;
 
-    stat_file << 0*conf.dt << " " << electric_energy << " " << magnetic_energy << std::endl;
+    stat_file << nt*conf.dt << " " << electric_energy << " " << magnetic_energy << std::endl;
+    std::cout << nt*conf.dt << " " << electric_energy << " " << magnetic_energy << std::endl;
 }
+
+template<typename real, size_t order>
+void write_coeffs(size_t n, const std::vector<std::vector<real>>& coeffs_E, 
+    const std::vector<std::vector<real>>& coeffs_B, const std::vector<std::vector<real>>& coeffs_j_hat, 
+    const config_t<double>& conf, std::ofstream& coeff_file_E, std::ofstream& coeff_file_B, 
+    std::ofstream& coeff_file_j_hat )
+{
+    size_t stride_t = (conf.Nx + order - 1) *
+                  (conf.Ny + order - 1) *
+	    		  (conf.Nz + order - 1);
+
+    #pragma omp parallel
+    {
+        #pragma omp sections
+        {    
+            #pragma omp section
+            for(size_t l = 0; l < stride_t; l++)
+            {
+                coeff_file_E << coeffs_E[0][n*stride_t + l] << " "
+                            << coeffs_E[1][n*stride_t + l] << " "
+                            << coeffs_E[2][n*stride_t + l] << " "
+                            << std::endl;
+            }
+            
+            #pragma omp section
+            for(size_t l = 0; l < stride_t; l++)
+            {
+                coeff_file_B << coeffs_B[0][n*stride_t + l] << " "
+                            << coeffs_B[1][n*stride_t + l] << " "
+                            << coeffs_B[2][n*stride_t + l] << " "
+                            << std::endl;
+            }
+
+            #pragma omp section
+            for(size_t l = 0; l < stride_t; l++)
+            {
+                coeff_file_j_hat << coeffs_j_hat[0][n*stride_t + l] << " "
+                                << coeffs_j_hat[1][n*stride_t + l] << " "
+                                << coeffs_j_hat[2][n*stride_t + l] << " "
+                                << std::endl;
+            }
+        }
+    }
+
+}    
+
 
 const double Lx = 4*M_PI;
 const double umin = -6;
 const double umax = 6;
-const size_t Nx = 16;  
+const size_t Nx = 8;  
 const size_t Ny = 1;  
 const size_t Nz = 1;  
-const size_t Nu = 16;  
+const size_t Nu = 8;  
 const double   dt = 0.1;  
-const size_t Nt = 30/dt;  
+const size_t Nt = 50/dt;  
 config_t<double> conf(Nx, Nx, Nx, Nu, Nu, Nu, Nt, dt, 
                     0, Lx, 0, Lx, 0, Lx, umin, umax, 
                     umin, umax, umin, umax,  &f0);
@@ -224,17 +271,21 @@ void nufi_maxwell_lie_fBE()
     std::ofstream stat_file( "stats.txt" );
     // Output stats (Electric/magnetic energy).
     do_stats<real,order>(0, 64, stat_file,coeffs_E, coeffs_B, conf);
+    std::ofstream coeff_str_E("coeffs_E.txt");
+    std::ofstream coeff_str_B("coeffs_B.txt");
+    std::ofstream coeff_str_j_hat("coeffs_j_hat.txt");
+    write_coeffs<real,order>(0, coeffs_E, coeffs_B, coeffs_j_hat, conf, coeff_str_E, coeff_str_B, coeff_str_j_hat );
+
 
     std::cout << "Start time-loop." << std::endl;    
     std::cout << " ---------------------------------- " << std::endl;
     double total_time = 0;
-    omp_set_num_threads(1);
+    //omp_set_num_threads(1);
     for(size_t n = 1; n <= conf.Nt; n++)
     {
         nufi::stopwatch<double> timer;
 
         // Compute E(n) and B(n).
-        //std::cout << "Compute E(n) and B(n)." << std::endl;
         #pragma omp parallel for
         for(size_t l = 0; l < conf.Nx*conf.Ny*conf.Nz; l++){
             size_t iz   = l   / (conf.Nx * conf.Ny);
@@ -339,6 +390,7 @@ void nufi_maxwell_lie_fBE()
         std::cout << "Time step " << n << " took a total of " << time_for_step << " s." << std::endl;
 
         do_stats<real,order>(n, 64, stat_file,coeffs_E, coeffs_B, conf);
+        write_coeffs<real,order>(n, coeffs_E, coeffs_B, coeffs_j_hat, conf, coeff_str_E, coeff_str_B, coeff_str_j_hat );
         std::cout << "Do stats took: " << double(timer.elapsed()) << " s." << std::endl;
         std::cout << " ---------------------------------- " << std::endl;
     }
