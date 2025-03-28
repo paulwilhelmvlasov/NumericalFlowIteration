@@ -172,7 +172,7 @@ const size_t Ny = 1;
 const size_t Nz = 1;  
 const size_t Nu = 8;  
 const double   dt = 0.1;  
-const size_t Nt = 50/dt;  
+const size_t Nt = 3/dt;  
 config_t<double> conf(Nx, Nx, Nx, Nu, Nu, Nu, Nt, dt, 
                     0, Lx, 0, Lx, 0, Lx, umin, umax, 
                     umin, umax, umin, umax,  &f0);
@@ -396,6 +396,74 @@ void nufi_maxwell_lie_fBE()
     }
 
     std::cout << "Total simulation time " << total_time << " s." << std::endl;
+}
+
+template <typename real, size_t order>
+void read_in_coeff_and_plot()
+{
+    std::ifstream coeff_str_E("../coeffs_E.txt");
+    std::ifstream coeff_str_B("../coeffs_B.txt");
+    std::ifstream coeff_str_j_hat("../coeffs_j_hat.txt");
+
+    size_t stride_t = (conf.Nx + order - 1) *
+    (conf.Ny + order - 1) *
+    (conf.Nz + order - 1);
+
+    std::vector<std::vector<real>> coeffs_E(3, std::vector<real>((conf.Nt+1)*stride_t,0) ); 
+    std::vector<std::vector<real>> coeffs_B(3, std::vector<real>((conf.Nt+1)*stride_t,0) );
+    std::vector<std::vector<real>> coeffs_j_hat(3, std::vector<real>((conf.Nt+1)*stride_t,0) );
+
+    for(size_t n = 0; n <= conf.Nt; n++){
+        for(size_t l = 0; l < stride_t; l++)
+        {
+            coeff_str_E >> coeffs_E[0][n*stride_t + l] 
+                        >> coeffs_E[1][n*stride_t + l] 
+                        >> coeffs_E[2][n*stride_t + l];
+        }
+
+
+        for(size_t l = 0; l < stride_t; l++)
+        {
+            coeff_str_B >> coeffs_B[0][n*stride_t + l]
+                        >> coeffs_B[1][n*stride_t + l]
+                        >> coeffs_B[2][n*stride_t + l];
+        }
+
+        for(size_t l = 0; l < stride_t; l++)
+        {
+            coeff_str_j_hat >> coeffs_j_hat[0][n*stride_t + l]
+                            >> coeffs_j_hat[1][n*stride_t + l]
+                            >> coeffs_j_hat[2][n*stride_t + l];
+        }
+    }
+
+    for(size_t n = 0; n <= 200; n += 50){
+        size_t n_plot = 128;
+        double dx_plot = conf.Lx/n_plot;
+        double dy_plot = conf.Ly/n_plot;
+        double dz_plot = conf.Lz/n_plot;
+        double du_plot = (conf.u_max - conf.u_min)/n_plot;
+        double dv_plot = (conf.v_max - conf.v_min)/n_plot;
+        double dw_plot = (conf.w_max - conf.w_min)/n_plot;
+
+        std::ofstream f_str("f_" + std::to_string(n) + ".txt");
+        for(size_t ix = 0; ix <= n_plot; ix++){
+            for(size_t iv = 0; iv <= n_plot; iv++){
+                double x = ix*dx_plot;
+                double v = conf.v_min + iv*dv_plot;
+
+                double y = n_plot/2.0 * dy_plot;
+                double z = n_plot/2.0 * dz_plot;
+                double u = 0;
+                double w = 0;
+
+                double f = eval_f_lie_fBE<real,order>(n,x,y,z,u,v,w,coeffs_E,coeffs_B,coeffs_j_hat,conf);
+
+                f_str << x << " " << v << " " << f << std::endl;
+            }
+            f_str << std::endl;
+        }
+    }
 }
 
 }

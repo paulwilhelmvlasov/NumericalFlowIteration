@@ -683,40 +683,67 @@ void read_in_and_plot()
 {
     std::ifstream coeff_str(std::string("../coeffs.txt"));
     int a = 0;
-    for(size_t n = 0; n <= /* 600 */300; n++){
+    for(size_t n = 0; n <= 500; n++){
         coeff_str >> a;
         for(size_t i = 0; i < stride_t; i++){
             coeff_str >> a >> coeffs_full.get()[n*stride_t + i];
         }
     }
     coeff_str.close();
-    coeff_str.open(std::string("coeffs_restart.txt"));
+/*     coeff_str.open(std::string("coeffs_restart.txt"));
     for(size_t n = 301; n <= 600; n++ ){
         coeff_str >> a;
         for(size_t i = 0; i < stride_t; i++){
             coeff_str >> a >> coeffs_full.get()[n*stride_t + i];
         }
-    }
+    } */
 
-    size_t n_plot = 1024;
+    size_t n_plot = 128;
     double dx_plot = Lx / n_plot;
     double du_plot = (umax - umin) / n_plot;
 
-    size_t nt_plot = 500;
+    size_t nt_plot = 300;
+    std::vector<std::vector<std::vector<std::vector<double>>>> values(n_plot+1,std::vector<std::vector<std::vector<double>>>(n_plot+1, 
+                                                                std::vector<std::vector<double>>(n_plot+1,
+                                                                std::vector<double>(n_plot+1,0))));
     // Plot f
-    double y = 2*M_PI;
-    double v = 0;
-    std::ofstream f_str(std::string("f_restarted_" + std::to_string(nt_plot) + ".txt"));
+    std::ofstream f_str(std::string("f_" + std::to_string(nt_plot) + ".txt"));
+    #pragma omp parallel for
     for(size_t ix = 0; ix <= n_plot; ix++){
-        for(size_t iu = 0; iu <= n_plot; iu++){
-            double x = ix*dx_plot;
-            double u = umin + iu*du_plot;
+        std::cout << "Row " << ix << std::endl;
+    for(size_t iy = 0; iy <= n_plot; iy++){
+    for(size_t iu = 0; iu <= n_plot; iu++){
+    for(size_t iv = 0; iv <= n_plot; iv++){
+        double x = ix*dx_plot;
+        double y = iy*dx_plot;
+        double u = umin + iu*du_plot;
+        double v = umin + iv*du_plot;
 
-            double f = eval_f<double,order>(nt_plot,x,y,u,v,coeffs_full.get(),conf);
+        double f = eval_f<double,order>(nt_plot,x,y,u,v,coeffs_full.get(),conf);
+        values[ix][iy][iu][iv] = f;
 
-            f_str << x << " " << u << " " << f << std::endl;
-        }
-        f_str << std::endl;
+        /* f_str << x << " " << y << " " << u << " " << v << " " << f << std::endl; */
+    }
+    }
+    }
+    }
+
+    for(size_t ix = 0; ix <= n_plot; ix++){
+        std::cout << "Row " << ix << std::endl;
+    for(size_t iy = 0; iy <= n_plot; iy++){
+    for(size_t iu = 0; iu <= n_plot; iu++){
+    for(size_t iv = 0; iv <= n_plot; iv++){
+        double x = ix*dx_plot;
+        double y = iy*dx_plot;
+        double u = umin + iu*du_plot;
+        double v = umin + iv*du_plot;
+
+        double f = values[ix][iy][iu][iv];
+
+        f_str << x << " " << y << " " << u << " " << v << " " << f << std::endl;
+    }
+    }
+    }
     }
 }
 

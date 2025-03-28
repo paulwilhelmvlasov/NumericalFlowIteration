@@ -20,7 +20,7 @@ test_nufi_cpu_3d_LDADD  +=  -larmadillo -llapack -lopenblas -lfftw3 -lfftw3f
 
 nufi_3d_maxwell_lie_splitting_fBE_SOURCES = nufi_3d_maxwell_lie_splitting_fBE.cpp
 nufi_3d_maxwell_lie_splitting_fBE_LDADD   = $(top_builddir)/nufi/libnufi.a 
-nufi_3d_maxwell_lie_splitting_fBE_LDADD  +=  -larmadillo -llapack -lopenblas -lfftw3 -lfftw3f
+nufi_3d_maxwell_lie_splitting_fBE_LDADD  +=  -larmadillo -llapack -lopenblas -lfftw3 -lfftw3f -L/usr/lib -lprofiler
 
 #test_cpp_interface_SOURCES = test_cpp_interface.cpp
 #test_cpp_interface_LDADD   = $(top_builddir)/nufi/libnufi.a 
