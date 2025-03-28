@@ -205,12 +205,12 @@ config_t<double> conf(Nx, Nx, Nx, Nu, Nu, Nu, Nt, dt,
 
 const double k = 1.25;
 const double Lx = 2*M_PI/k;
-const double umin = -1.5;
-const double umax = 1.5;
-const double vmin = -5;
-const double vmax = 5;
-const double wmin = -1.5;
-const double wmax = 1.5;
+const double umin = -0.15;
+const double umax = 0.15;
+const double vmin = -0.6;
+const double vmax = 0.6;
+const double wmin = -0.15;
+const double wmax = 0.15;
 const size_t Nx = 32;
 const size_t Ny = 1;
 const size_t Nz = 1;
@@ -459,7 +459,9 @@ void read_in_coeff_and_plot()
     std::vector<std::vector<real>> coeffs_B(3, std::vector<real>((conf.Nt+1)*stride_t,0) );
     std::vector<std::vector<real>> coeffs_j_hat(3, std::vector<real>((conf.Nt+1)*stride_t,0) );
 
-    for(size_t n = 0; n <= conf.Nt; n++){
+    std::cout << "Read in coeffs" << std::endl;
+
+    for(size_t n = 0; n <= 200 /* conf.Nt */; n++){
         for(size_t l = 0; l < stride_t; l++)
         {
             coeff_str_E >> coeffs_E[0][n*stride_t + l] 
@@ -483,31 +485,62 @@ void read_in_coeff_and_plot()
         }
     }
 
-    for(size_t n = 0; n <= 200; n += 50){
-        size_t n_plot = 128;
-        double dx_plot = conf.Lx/n_plot;
-        double dy_plot = conf.Ly/n_plot;
-        double dz_plot = conf.Lz/n_plot;
-        double du_plot = (conf.u_max - conf.u_min)/n_plot;
-        double dv_plot = (conf.v_max - conf.v_min)/n_plot;
-        double dw_plot = (conf.w_max - conf.w_min)/n_plot;
+    std::cout << "Plot f" << std::endl;
 
-        std::ofstream f_str("f_" + std::to_string(n) + ".txt");
+    size_t n_plot = 128;
+    double dx_plot = conf.Lx/n_plot;
+    double dy_plot = conf.Ly/n_plot;
+    double dz_plot = conf.Lz/n_plot;
+    double du_plot = (conf.u_max - conf.u_min)/n_plot;
+    double dv_plot = (conf.v_max - conf.v_min)/n_plot;
+    double dw_plot = (conf.w_max - conf.w_min)/n_plot;
+
+    for(size_t n = 0; n <= 140; n += 10){
+
+/*         std::ofstream f_str("f_" + std::to_string(n) + ".txt");
         for(size_t ix = 0; ix <= n_plot; ix++){
-            for(size_t iv = 0; iv <= n_plot; iv++){
+            for(size_t iu = 0; iu <= n_plot; iu++){
                 double x = ix*dx_plot;
-                double v = conf.v_min + iv*dv_plot;
+                double u = conf.u_min + iu*du_plot;
 
                 double y = n_plot/2.0 * dy_plot;
                 double z = n_plot/2.0 * dz_plot;
-                double u = 0;
+                double v = 0;
                 double w = 0;
 
                 double f = eval_f_lie_fBE<real,order>(n,x,y,z,u,v,w,coeffs_E,coeffs_B,coeffs_j_hat,conf);
 
-                f_str << x << " " << v << " " << f << std::endl;
+                f_str << x << " " << u << " " << f << std::endl;
             }
             f_str << std::endl;
+        } */
+
+        std::ofstream Ex_str("Ex_" + std::to_string(n) + ".txt");
+        std::ofstream Ey_str("Ey_" + std::to_string(n) + ".txt");
+        std::ofstream Ez_str("Ez_" + std::to_string(n) + ".txt");
+        std::ofstream Bx_str("Bx_" + std::to_string(n) + ".txt");
+        std::ofstream By_str("By_" + std::to_string(n) + ".txt");
+        std::ofstream Bz_str("Bz_" + std::to_string(n) + ".txt");
+        for(size_t ix = 0; ix <= n_plot; ix++){
+            double x = ix * dx_plot;
+            double y = n_plot/2.0 * dx_plot;
+            double z = n_plot/2.0 * dx_plot;
+
+            double Ex = eval<real,order>(x,y,z,coeffs_E[0].data() + n*stride_t,conf);
+            double Ey = eval<real,order>(x,y,z,coeffs_E[1].data() + n*stride_t,conf);
+            double Ez = eval<real,order>(x,y,z,coeffs_E[2].data() + n*stride_t,conf);
+
+            double Bx = eval<real,order>(x,y,z,coeffs_B[0].data() + n*stride_t,conf);
+            double By = eval<real,order>(x,y,z,coeffs_B[1].data() + n*stride_t,conf);
+            double Bz = eval<real,order>(x,y,z,coeffs_B[2].data() + n*stride_t,conf);
+
+            Ex_str << x << " " << Ex << std::endl;
+            Ey_str << x << " " << Ey << std::endl;
+            Ez_str << x << " " << Ez << std::endl;
+
+            Bx_str << x << " " << Bx << std::endl;
+            By_str << x << " " << By << std::endl;
+            Bz_str << x << " " << Bz << std::endl;
         }
     }
 }
@@ -517,7 +550,9 @@ void read_in_coeff_and_plot()
 
 int main()
 {
-    nufi::dim3::nufi_maxwell_lie_fBE<double,4>();
+    //nufi::dim3::nufi_maxwell_lie_fBE<double,4>();
+    
+    nufi::dim3::read_in_coeff_and_plot<double,4>();
 
     return 0;
 }
