@@ -18,7 +18,14 @@ namespace nufi
 {
 namespace dim3
 {
-    
+
+template <typename real>
+real maxwellian(real u, real v, real w, real vth) noexcept
+{
+    real c = 1.0 / std::pow(2*M_PI*vth*vth, 3.0/2.0);
+    return c*std::exp(-(u*u + v*v + w*w) / (2*vth*vth) );
+}
+ 
 template <typename real>
 real f0(real x, real y, real z, real u, real v, real w) noexcept
 {
@@ -26,30 +33,50 @@ real f0(real x, real y, real z, real u, real v, real w) noexcept
     using std::cos;
     using std::exp;
 
-    constexpr real alpha = 0.01;
-    constexpr real k     = 0.5;
+//    constexpr real alpha = 0.01;
+//    constexpr real k     = 0.5;
 
     // Weak Landau Damping in x direction:
-    constexpr real c  = 1.0 / std::pow(2.0 * M_PI, 3.0/2.0); 
+/*    constexpr real c  = 1.0 / std::pow(2.0 * M_PI, 3.0/2.0); 
     return c * ( 1. + alpha*cos(k*x)) 
-             * exp( -(u*u+v*v+w*w)/2 );
+             * exp( -(u*u+v*v+w*w)/2 ); */
+
+    // Two Stream Instability in x direction:
+/*    constexpr real c = 1.0 / std::pow(2.0 * M_PI, 3.0/2.0);
+    return c * ( 1. + alpha*cos(k*x)) * u*u * exp( -(u*u+v*v+w*w)/2 );*/
+
+// Two Stream in y direction
+/*   real alpha = 1e-4;
+   real k = 0.5;
+   real v_beam = 1;
+   real vth = v_beam / 10;
+   real perturbation = (1+alpha*std::cos(k*x));
+   return perturbation * 0.5 * (maxwellian<real>(u,v-v_beam,w,vth) + maxwellian<real>(u,v+v_beam,w,vth));*/
+
+// Weibel instability 1x2v
+   real alpha = 1e-4;
+   real k = 1.25;
+   real Tr = 12;
+   real vth = 0.02;
+   real perturbation = (1+alpha*std::cos(k*x));
+   return 1.0/std::sqrt(Tr)*perturbation*maxwellian<real>(u,v/std::sqrt(Tr),w,vth);
 }
 
 template <typename real>
 arma::Col<real> E0(real x, real y, real z)
 {
-    constexpr real alpha = 0.01;
-    constexpr real k     = 0.5;
-    
-    // Weak Landau Damping in x directions:
-    return  arma::Col<real>({-alpha / k * std::sin(k*x), 0, 0}); 
+    constexpr real alpha = 1e-4;
+    constexpr real k     = 1.25;
+
+    return  arma::Col<real>({-alpha / k * std::sin(k*x), 0, 0});
 }
 
 template <typename real>
 arma::Col<real> B0(real x, real y, real z)
 {
-    // Weak Landau Damping in x directions:
-    return arma::Col<real>({0, 0, 0}); 
+    constexpr real beta = 1e-4;
+    constexpr real k = 1.25;
+    return arma::Col<real>({beta*std::cos(k*x), 0, 0});
 }
 
 template <typename real,size_t order>
@@ -163,8 +190,7 @@ void write_coeffs(size_t n, const std::vector<std::vector<real>>& coeffs_E,
 
 }    
 
-
-const double Lx = 4*M_PI;
+/* const double Lx = 4*M_PI;
 const double umin = -6;
 const double umax = 6;
 const size_t Nx = 8;  
@@ -175,7 +201,27 @@ const double   dt = 0.1;
 const size_t Nt = 3/dt;  
 config_t<double> conf(Nx, Nx, Nx, Nu, Nu, Nu, Nt, dt, 
                     0, Lx, 0, Lx, 0, Lx, umin, umax, 
-                    umin, umax, umin, umax,  &f0);
+                    umin, umax, umin, umax,  &f0); */
+
+const double k = 1.25;
+const double Lx = 2*M_PI/k;
+const double umin = -1.5;
+const double umax = 1.5;
+const double vmin = -5;
+const double vmax = 5;
+const double wmin = -1.5;
+const double wmax = 1.5;
+const size_t Nx = 32;
+const size_t Ny = 1;
+const size_t Nz = 1;
+const size_t Nu = 64;
+const size_t Nv = 64;
+const size_t Nw = 8;
+const double   dt = 0.1;
+const size_t Nt = 500/dt;
+config_t<double> conf(Nx, Ny, Nz, Nu, Nv, Nw, Nt, dt,
+                    0, Lx, 0, Lx, 0, Lx, umin, umax,
+                    vmin, vmax, wmin, wmax,  &f0);
 
 
 template <typename real, size_t order>
