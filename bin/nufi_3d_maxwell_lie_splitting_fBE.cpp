@@ -76,7 +76,7 @@ arma::Col<real> B0(real x, real y, real z)
 {
     constexpr real beta = 1e-4;
     constexpr real k = 1.25;
-    return arma::Col<real>({beta*std::cos(k*x), 0, 0});
+    return arma::Col<real>({0, 0, beta*std::cos(k*x)});
 }
 
 template <typename real,size_t order>
