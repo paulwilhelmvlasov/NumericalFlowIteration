@@ -635,9 +635,6 @@ void exp_J(arma::Mat<real>& J_v, const arma::Col<real>& v, real tol = 1e-16)
     }
 }
 
-
-
-
 template <typename real, size_t order> 
 real eval_f_lie_fBE(size_t n, real x, real y, real z,
     real u, real v, real w, const std::vector<std::vector<real>>& coeffs_E, 
@@ -728,6 +725,128 @@ void eval_j_hat(size_t n, std::vector<std::vector<real>>& j_hat,
         j_hat[2][l] *= conf.du*conf.dv*conf.dw;
     }
 }
+
+
+template<typename real> 
+real trilinear_interpolation(real x, real y, real z, 
+                            real x0, real y0, real z0, 
+                            real dx_inv, real dy_inv, real dz_inv,
+                            real c000, real c001, 
+                            real c010, real c011, 
+                            real c100, real c101,
+                            real c110, real c111)
+{
+    // C_{ix, iy, iz}
+    real xd = (x-x0) * dx_inv;
+    real yd = (y-y0) * dy_inv;
+    real zd = (z-z0) * dz_inv;
+
+    real c00 = c000 * (1-xd) + c100*xd;
+    real c01 = c001 * (1-xd) + c101*xd;
+    real c10 = c010 * (1-xd) + c110*xd;
+    real c11 = c011 * (1-xd) + c111*xd;
+
+    real c0 = c00 * (1-yd) + c10*yd;
+    real c1 = c01 * (1-yd) + c11*yd;
+
+    return c0 * (1-zd) + c1*zd;
+}
+
+template <typename real>
+real eval_field(size_t n, size_t dir, real x, real y, real z, 
+                const std::vector<real>& field_values, const config_t<real>& conf,
+                bool node_storage )
+{
+    // We store the field values in an array (5 dim tensor) with the sorting:
+    // l = n + Nt * (dir + d * (ix + Ny * (iy + Ny * iz))).
+    // Furthermore as we use a staggered grid for the fields the electric field 
+    // is stored on the nodes while magnetic field is stored on the cell centers.
+    
+    // Shift to a box that starts at 0.
+    x -= conf.x_min;
+    y -= conf.y_min;
+    z -= conf.z_min;
+
+    // Get "periodic position" in box at origin.
+    x = x - conf.Lx * floor( x*conf.Lx_inv ); 
+    y = y - conf.Ly * floor( y*conf.Ly_inv ); 
+    z = z - conf.Lz * floor( z*conf.Lz_inv ); 
+
+    size_t l_base = n + conf.Nt * dir;
+
+    if(node_storage){
+        // E:
+        real x_knot = floor( x*conf.dx_inv ); 
+        real y_knot = floor( y*conf.dy_inv ); 
+        real z_knot = floor( z*conf.dz_inv );
+
+        size_t ix = static_cast<size_t>(x_knot);
+        size_t iy = static_cast<size_t>(y_knot);
+        size_t iz = static_cast<size_t>(z_knot);
+
+        size_t ix_1 = (ix+1) % conf.Nx;
+        size_t iy_1 = (iy+1) % conf.Ny;
+        size_t iz_1 = (iz+1) % conf.Nz;
+
+        // C_{ix, iy, iz}.
+        real c000 = field_values[n + conf.Nt * (dir +  3 * (ix + conf.Nx * (iy + conf.Ny * iz)))];
+        real c001 = field_values[n + conf.Nt * (dir +  3 * (ix + conf.Nx * (iy + conf.Ny * iz_1)))];
+        real c010 = field_values[n + conf.Nt * (dir +  3 * (ix + conf.Nx * (iy_1 + conf.Ny * iz)))];
+        real c011 = field_values[n + conf.Nt * (dir +  3 * (ix + conf.Nx * (iy_1 + conf.Ny * iz_1)))];
+        real c100 = field_values[n + conf.Nt * (dir +  3 * (ix_1 + conf.Nx * (iy + conf.Ny * iz)))];
+        real c101 = field_values[n + conf.Nt * (dir +  3 * (ix_1 + conf.Nx * (iy + conf.Ny * iz_1)))];
+        real c110 = field_values[n + conf.Nt * (dir +  3 * (ix_1 + conf.Nx * (iy_1 + conf.Ny * iz)))];
+        real c111 = field_values[n + conf.Nt * (dir +  3 * (ix_1 + conf.Nx * (iy_1 + conf.Ny * iz_1)))];
+
+        return trilinear_interpolation<real>(x, y, z, ix*conf.dx, iy*conf.dy, iz*conf.dz,
+                                            conf.dx_inv, conf.dy_inv, conf.dz_inv, 
+                                            c000, c001, c010, c011, c100, c101, c110, c111);
+
+    } else {
+        // B: 
+        real x_knot = floor( (x + conf.dx/2.0)*conf.dx_inv ); 
+        real y_knot = floor( (y + conf.dy/2.0)*conf.dy_inv ); 
+        real z_knot = floor( (z + conf.dz/2.0)*conf.dz_inv );
+
+        int ix = static_cast<int>(x_knot);
+        int iy = static_cast<int>(y_knot);
+        int iz = static_cast<int>(z_knot);
+
+        size_t ix_1 = (ix+1) % conf.Nx;
+        size_t iy_1 = (iy+1) % conf.Ny;
+        size_t iz_1 = (iz+1) % conf.Nz;
+
+        // ix could be also (-1) if x is in between 0 and x_{1/2}. 
+        // For this case we have to take the modulo but only
+        // after computing the correct x0.
+        real x0 = (ix + 0.5) * conf.dx;
+        real y0 = (iy + 0.5) * conf.dy;
+        real z0 = (iz + 0.5) * conf.dz;
+
+        ix = ix % conf.Nx;
+        iy = iy % conf.Ny;
+        iz = iz % conf.Nz;
+
+        // C_{ix, iy, iz}.
+        real c000 = field_values[n + conf.Nt * (dir +  3 * (ix + conf.Nx * (iy + conf.Ny * iz)))];
+        real c001 = field_values[n + conf.Nt * (dir +  3 * (ix + conf.Nx * (iy + conf.Ny * iz_1)))];
+        real c010 = field_values[n + conf.Nt * (dir +  3 * (ix + conf.Nx * (iy_1 + conf.Ny * iz)))];
+        real c011 = field_values[n + conf.Nt * (dir +  3 * (ix + conf.Nx * (iy_1 + conf.Ny * iz_1)))];
+        real c100 = field_values[n + conf.Nt * (dir +  3 * (ix_1 + conf.Nx * (iy + conf.Ny * iz)))];
+        real c101 = field_values[n + conf.Nt * (dir +  3 * (ix_1 + conf.Nx * (iy + conf.Ny * iz_1)))];
+        real c110 = field_values[n + conf.Nt * (dir +  3 * (ix_1 + conf.Nx * (iy_1 + conf.Ny * iz)))];
+        real c111 = field_values[n + conf.Nt * (dir +  3 * (ix_1 + conf.Nx * (iy_1 + conf.Ny * iz_1)))];
+
+        return trilinear_interpolation<real>(x, y, z, x0, y0, z0,
+                                            conf.dx_inv, conf.dy_inv, conf.dz_inv, 
+                                            c000, c001, c010, c011, c100, c101, c110, c111);
+    }
+}
+
+// Does it make sense to use the above routine to compute derivatives or wouldn't it rather be better to 
+// compute and store the derivatives on the grid? 
+// Think about how an efficient implemention for the derivatives could look like, keeping in mind that
+// I will need to interpolate values inbetween nodes/cell-centers. 
 
 }
 
