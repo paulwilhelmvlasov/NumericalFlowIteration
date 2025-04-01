@@ -192,12 +192,12 @@ void write_coeffs(size_t n, const std::vector<std::vector<real>>& coeffs_E,
 
 const double k = 1.25;
 const double Lx = 2*M_PI/k;
-const double umin = -1.5;
-const double umax = 1.5;
-const double vmin = -5;
-const double vmax = 5;
-const double wmin = -1.5;
-const double wmax = 1.5;
+const double umin = -0.15;
+const double umax = 0.15;
+const double vmin = -0.6;
+const double vmax = 0.6;
+const double wmin = -0.15;
+const double wmax = 0.15;
 const size_t Nx = 32;
 const size_t Ny = 1;
 const size_t Nz = 1;

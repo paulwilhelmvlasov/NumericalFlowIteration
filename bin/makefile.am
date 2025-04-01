@@ -4,23 +4,23 @@ test_nufi_cpu_3d nufi_3d_maxwell_lie_splitting_fBE
 
 test_nufi_cpu_SOURCES = test_nufi_cpu.cpp
 test_nufi_cpu_LDADD   = $(top_builddir)/nufi/libnufi.a 
-test_nufi_cpu_LDADD  += -larmadillo -llapack -lopenblas -lfftw3 -lfftw3f
+test_nufi_cpu_LDADD  += -larmadillo -lscalapack -lopenblas -lfftw3 -lfftw3f 
 
 nufi_1d_multi_species_periodic_SOURCES = nufi_1d_multi_species_periodic.cpp
 nufi_1d_multi_species_periodic_LDADD   = $(top_builddir)/nufi/libnufi.a 
-nufi_1d_multi_species_periodic_LDADD  += -larmadillo -llapack -lopenblas -lfftw3 -lfftw3f
+nufi_1d_multi_species_periodic_LDADD  += -larmadillo -lscalapack -lopenblas -lfftw3 -lfftw3f
 
 test_nufi_cpu_2d_SOURCES = test_nufi_cpu_2d.cpp
 test_nufi_cpu_2d_LDADD   = $(top_builddir)/nufi/libnufi.a 
-test_nufi_cpu_2d_LDADD  +=  -larmadillo -llapack -lopenblas -lfftw3 -lfftw3f
+test_nufi_cpu_2d_LDADD  +=  -larmadillo -lscalapack -lopenblas -lfftw3 -lfftw3f
 
 test_nufi_cpu_3d_SOURCES = test_nufi_cpu_3d.cpp
 test_nufi_cpu_3d_LDADD   = $(top_builddir)/nufi/libnufi.a 
-test_nufi_cpu_3d_LDADD  +=  -larmadillo -llapack -lopenblas -lfftw3 -lfftw3f
+test_nufi_cpu_3d_LDADD  +=  -larmadillo -lscalapack -lopenblas -lfftw3 -lfftw3f
 
 nufi_3d_maxwell_lie_splitting_fBE_SOURCES = nufi_3d_maxwell_lie_splitting_fBE.cpp
 nufi_3d_maxwell_lie_splitting_fBE_LDADD   = $(top_builddir)/nufi/libnufi.a 
-nufi_3d_maxwell_lie_splitting_fBE_LDADD  +=  -larmadillo -llapack -lopenblas -lfftw3 -lfftw3f
+nufi_3d_maxwell_lie_splitting_fBE_LDADD  +=  -larmadillo -lscalapack -lopenblas -lfftw3 -lfftw3f
 
 #test_cpp_interface_SOURCES = test_cpp_interface.cpp
 #test_cpp_interface_LDADD   = $(top_builddir)/nufi/libnufi.a 
