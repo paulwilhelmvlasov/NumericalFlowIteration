@@ -48,7 +48,7 @@ const size_t Nw = 8;
 const double   dt = 0.02;
 const size_t Nt = 500/dt;
 
-const size_t nt_restart = 1;
+const size_t nt_restart = 200;
 
 const double dx_r = Lx / nx_r;
 const double dy_r = Ly / ny_r;
@@ -699,7 +699,7 @@ void read_in_coeff_and_plot()
 template<size_t order>
 void restarted_nufi_maxwell_lie_fBE()
 {
-    size_t first_nt_restart = 0;
+    size_t first_nt_restart = 250;
 
     std::ifstream coeff_in_str_E("../coeffs_E.txt");
     std::ifstream coeff_in_str_B("../coeffs_B.txt");
