@@ -20,6 +20,7 @@
 #ifndef NUFI_CONFIG_HPP
 #define NUFI_CONFIG_HPP
 
+#include <iostream>
 #include <cmath>
 
 namespace nufi
@@ -180,6 +181,8 @@ struct config_t
 			real wmin, real wmax, real(*init_data)(real,real,real,real,real,real)) noexcept;
 
     real (*f0)( real x, real y, real z, real u, real v, real w );
+
+    void print_config(std::ostream &output);
 };
 
 
@@ -223,6 +226,37 @@ config_t<real>::config_t(size_t nx, size_t ny, size_t nz, size_t nu, size_t nv, 
     dw = (w_max - w_min)/Nw;
 
     f0 = init_data;
+}
+
+template <typename real>
+void config_t<real>::print_config(std::ostream &output)
+{
+    output << "x_min = " << x_min << std::endl;
+    output << "x_max = " << x_max << std::endl;
+    output << "y_min = " << y_min << std::endl;
+    output << "y_max = " << y_max << std::endl;
+    output << "z_min = " << z_min << std::endl;
+    output << "z_max = " << z_max << std::endl;
+
+    output << "u_min = " << u_min << std::endl;
+    output << "u_max = " << u_max << std::endl;
+    output << "v_min = " << v_min << std::endl;
+    output << "v_max = " << v_max << std::endl;
+    output << "w_min = " << w_min << std::endl;
+    output << "w_max = " << w_max << std::endl;
+
+    output << "Nx = " << Nx << std::endl;
+    output << "Ny = " << Ny << std::endl;
+    output << "Nz = " << Nz << std::endl;
+    output << "Nu = " << Nu << std::endl;
+    output << "Nv = " << Nv << std::endl;
+    output << "Nw = " << Nw << std::endl;
+
+    output << "Nt = " << Nt << std::endl;
+    output << "dt = " << dt << std::endl;
+
+    output << "q = " << q << std::endl;
+    output << "m = " << m << std::endl;
 }
 
 }
