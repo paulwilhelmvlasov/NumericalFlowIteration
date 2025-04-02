@@ -48,7 +48,7 @@ const size_t Nw = 8;
 const double   dt = 0.02;
 const size_t Nt = 500/dt;
 
-const size_t nt_restart = 200;
+const size_t nt_restart = 1;
 
 const double dx_r = Lx / nx_r;
 const double dy_r = Ly / ny_r;
@@ -61,15 +61,31 @@ const double dw_r = (wmax - wmin) / nw_r;
 double linear_interpolation_6d(double x, double y, double z, 
                                 double u, double v, double w)
 {
-    if( u > umax || u < umin 
-        || v > vmax || v < vmin 
-        || w > wmax || w < wmin){
+    if( u >= umax || u <= umin 
+        || v >= vmax || v <= vmin 
+        || w >= wmax || w <= wmin){
 		return 0;
 	}
+
+    //std::cout << std::setprecision(16) << "Before: " << x << " " << y << " " << z << " " << u << " " << v << " " << w << std::endl;
 
     x -= Lx * std::floor(x/Lx);
     y -= Ly * std::floor(y/Ly);
     z -= Lz * std::floor(z/Lz);
+
+    constexpr double tol = 1e-15;
+    if(std::abs(x - Lx) < tol){
+        x -= tol;
+    }
+    if(std::abs(y - Ly) < tol){
+        y -= tol;
+    }
+    if(std::abs(z - Lz) < tol){
+        z -= tol;
+    }
+
+/*     std::cout << std::setprecision(16) << "After: " << x << " " << y << " " << z << " " << u << " " << v << " " << w << std::endl;
+    std::cout << std::setprecision(16) << "Lx = " << Lx << std::endl; */
 
     size_t x_ref_pos = std::floor(x/dx_r);
 	size_t y_ref_pos = std::floor(y/dy_r);
@@ -116,9 +132,14 @@ double linear_interpolation_6d(double x, double y, double z,
         size_t index_v = v_ref_pos + i_v;
         size_t index_w = w_ref_pos + i_w;
 
-        size_t index_0 = index_x + nx_r*(index_y + ny_r*index_z);
-        size_t index_1 = index_u + nu_r*(index_v + nv_r*index_w);
-        
+        size_t index_0 = index_x + (nx_r+1)*(index_y + (ny_r+1)*index_z);
+        size_t index_1 = index_u + (nu_r+1)*(index_v + (nv_r+1)*index_w);
+
+        /* std::cout << index_x << " " << index_y << " " << index_z << " "
+                    << index_u << " " << index_v << " " << index_w << std::endl;
+        std::cout << "Debug " << index_0 << " / " << restart_matrix.n_rows << " " 
+                    << index_1 << " / " << restart_matrix.n_cols << std::endl; */
+
         value += factor * restart_matrix(index_0, index_1);
     }
 
@@ -678,7 +699,7 @@ void read_in_coeff_and_plot()
 template<size_t order>
 void restarted_nufi_maxwell_lie_fBE()
 {
-    size_t first_nt_restart = 250;
+    size_t first_nt_restart = 0;
 
     std::ifstream coeff_in_str_E("../coeffs_E.txt");
     std::ifstream coeff_in_str_B("../coeffs_B.txt");
@@ -725,9 +746,12 @@ void restarted_nufi_maxwell_lie_fBE()
 
     // Compute first restart matrix.
     std::cout << "Compute initial restart matrix." << std::endl;
-    restart_matrix.resize((nx_r+1)*(ny_r+1)*(nz_r+1),
-                            (nu_r+1)*(nv_r+1)*(nw_r+1));
+    size_t size_x_r = (nx_r+1)*(ny_r+1)*(nz_r+1);
+    size_t size_v_r = (nu_r+1)*(nv_r+1)*(nw_r+1);
+    restart_matrix.resize(size_x_r, size_v_r);
+    arma::mat copy_mat(size_x_r, size_v_r, arma::fill::zeros);
 
+    #pragma omp parallel for collapse(3)
     for(size_t ix = 0; ix <= nx_r; ix++)
     for(size_t iy = 0; iy <= ny_r; iy++)
     for(size_t iz = 0; iz <= nz_r; iz++)
@@ -742,15 +766,13 @@ void restarted_nufi_maxwell_lie_fBE()
         double v = conf.v_min + iv*dv_r;
         double w = conf.w_min + iw*dw_r;
 
-        size_t index_0 = ix + nx_r*(iy + ny_r*iz);
-        size_t index_1 = iu + nu_r*(iv + nv_r*iw);
+        size_t index_0 = ix + (nx_r+1)*(iy + (ny_r+1)*iz);
+        size_t index_1 = iu + (nu_r+1)*(iv + (nv_r+1)*iw);
         restart_matrix(index_0,index_1) = eval_f_lie_fBE<double,order>
                                             (first_nt_restart, x, y, z, u, v, w, 
                                             coeffs_E, coeffs_B, coeffs_j_hat,
                                             conf);
     }
-
-    arma::mat copy_mat((nx_r+1)*(ny_r+1)*(nz_r+1), (nu_r+1)*(nv_r+1)*(nw_r+1), arma::fill::zeros);
     
     conf = config_t<double>(Nx, Ny, Nz, Nu, Nv, Nw, Nt, dt, 
                             0, Lx, 0, Ly, 0, Lz, umin, umax, 
@@ -909,15 +931,21 @@ void restarted_nufi_maxwell_lie_fBE()
                 double v = conf.v_min + iv*dv_r;
                 double w = conf.w_min + iw*dw_r;
 
-                size_t index_0 = ix + nx_r*(iy + ny_r*iz);
-                size_t index_1 = iu + nu_r*(iv + nv_r*iw);
-                copy_mat(index_0,index_1) = eval_f_lie_fBE<double,order>
-                                    (nt_r_curr, x, y, z, u, v, w, 
-                                    coeffs_E, coeffs_B, coeffs_j_hat,
-                                    conf);
+                size_t index_0 = ix + (nx_r+1)*(iy + (ny_r+1)*iz);
+                size_t index_1 = iu + (nu_r+1)*(iv + (nv_r+1)*iw);
+
+                double f = eval_f_lie_fBE<double,order>(nt_r_curr, x, y, z, u, v, w, 
+                                                    coeffs_E, coeffs_B, coeffs_j_hat, conf);
+                copy_mat(index_0,index_1) = f;
             }
+            double timer_fill_restart_matrix = timer.elapsed();
+            timer.reset();
+            std::cout << "Filling restart matrix took " << timer_fill_restart_matrix << " s." << std::endl;
 
             restart_matrix = copy_mat;
+            double timer_copy_mat = timer.elapsed();
+            timer.reset();
+            std::cout << "Copying restart matrix took " << timer_copy_mat << " s." << std::endl;
             
             // Copy last entries of coeff vectors.
             #pragma omp parallel for collapse(2)
