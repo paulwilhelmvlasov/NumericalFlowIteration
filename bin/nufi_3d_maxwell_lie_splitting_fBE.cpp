@@ -1023,6 +1023,7 @@ void periodically_restarted_nufi_maxwell_lie_fBE()
 
     // Print out config.
     conf.print_config(std::cout);
+    std::cout << "order = " << order << std::endl;
     std::cout << "Restart parameters: " << std::endl;
     std::cout << "nx_r " << nx_r << std::endl;
     std::cout << "ny_r " << ny_r << std::endl;
@@ -1033,6 +1034,7 @@ void periodically_restarted_nufi_maxwell_lie_fBE()
     std::cout << "nt_restart " << nt_restart << std::endl;
     std::ofstream config_out_str("config.txt");
     conf.print_config(config_out_str);
+    config_out_str << "order = " << order << std::endl;
     config_out_str << "nx_r " << nx_r << std::endl;
     config_out_str << "ny_r " << ny_r << std::endl;
     config_out_str << "nz_r " << nz_r << std::endl;
