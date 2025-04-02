@@ -20,12 +20,12 @@ namespace nufi
 namespace dim3
 {
 
-const size_t nx_r = 128;
+const size_t nx_r = 32;
 const size_t ny_r = 1;
 const size_t nz_r = 1;
-const size_t nu_r = 128;
-const size_t nv_r = 128;
-const size_t nw_r = 32;
+const size_t nu_r = 64;
+const size_t nv_r = 64;
+const size_t nw_r = 16;
 
 arma::mat restart_matrix;
 
@@ -39,13 +39,13 @@ const double vmin = -0.6;
 const double vmax = 0.6;
 const double wmin = -0.15;
 const double wmax = 0.15;
-const size_t Nx = 32;
+const size_t Nx = 16;
 const size_t Ny = 1;
 const size_t Nz = 1;
-const size_t Nu = 64;
-const size_t Nv = 64;
+const size_t Nu = 32;
+const size_t Nv = 32;
 const size_t Nw = 8;
-const double   dt = 0.1;
+const double   dt = 0.02;
 const size_t Nt = 500/dt;
 
 const size_t nt_restart = 200;
@@ -678,7 +678,7 @@ void read_in_coeff_and_plot()
 template<size_t order>
 void restarted_nufi_maxwell_lie_fBE()
 {
-    size_t first_nt_restart = 1000;
+    size_t first_nt_restart = 250;
 
     std::ifstream coeff_in_str_E("../coeffs_E.txt");
     std::ifstream coeff_in_str_B("../coeffs_B.txt");
@@ -724,6 +724,7 @@ void restarted_nufi_maxwell_lie_fBE()
     }
 
     // Compute first restart matrix.
+    std::cout << "Compute initial restart matrix." << std::endl;
     restart_matrix.resize((nx_r+1)*(ny_r+1)*(nz_r+1),
                             (nu_r+1)*(nv_r+1)*(nw_r+1));
 
@@ -776,7 +777,7 @@ void restarted_nufi_maxwell_lie_fBE()
     std::cout << " ---------------------------------- " << std::endl;
     double total_time = 0;
     size_t nt_r_curr = 1;
-    for(size_t n = first_nt_restart; n <= conf.Nt; n++)
+    for(size_t n = first_nt_restart + 1; n <= conf.Nt; n++)
     {
         nufi::stopwatch<double> timer;
                 // Compute E(n) and B(n).
@@ -893,9 +894,6 @@ void restarted_nufi_maxwell_lie_fBE()
             timer.reset();
             std::cout << "Restart simulation. " << std::endl;
             // Compute first restart matrix.
-            restart_matrix.resize((nx_r+1)*(ny_r+1)*(nz_r+1),
-                (nu_r+1)*(nv_r+1)*(nw_r+1));
-
             #pragma omp parallel for collapse(3)
             for(size_t ix = 0; ix <= nx_r; ix++)
             for(size_t iy = 0; iy <= ny_r; iy++)
