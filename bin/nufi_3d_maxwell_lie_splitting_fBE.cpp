@@ -1127,8 +1127,8 @@ void periodically_restarted_nufi_maxwell_lie_fBE()
     std::cout << "Restart time-loop." << std::endl;    
     std::cout << " ---------------------------------- " << std::endl;
     double total_time = 0;
-    size_t nt_r_curr = 0;
-    for(size_t n = 0; n <= conf.Nt; n++)
+    size_t nt_r_curr = 1;
+    for(size_t n = 1; n <= conf.Nt; n++)
     {
         nufi::stopwatch<double> timer;
                 // Compute E(n) and B(n).
