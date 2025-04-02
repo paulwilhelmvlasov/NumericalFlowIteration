@@ -1014,15 +1014,33 @@ void periodically_restarted_nufi_maxwell_lie_fBE()
     size_t size_v_r = (nu_r+1)*(nv_r+1)*(nw_r+1);
     restart_matrix.resize(size_x_r, size_v_r);
     arma::mat copy_mat(size_x_r, size_v_r, arma::fill::zeros);
-    
+
+    // Set up config.
     conf = config_t<double>(Nx, Ny, Nz, Nu, Nv, Nw, Nt, dt, 
                             0, Lx, 0, Ly, 0, Lz, umin, umax, 
                             vmin, vmax, wmin, wmax,
                             &f0);
 
+    // Print out config.
     conf.print_config(std::cout);
+    std::cout << "Restart parameters: " << std::endl;
+    std::cout << "nx_r " << nx_r << std::endl;
+    std::cout << "ny_r " << ny_r << std::endl;
+    std::cout << "nz_r " << nz_r << std::endl;
+    std::cout << "nu_r " << nu_r << std::endl;
+    std::cout << "nv_r " << nv_r << std::endl;
+    std::cout << "nw_r " << nw_r << std::endl;
+    std::cout << "nt_restart " << nt_restart << std::endl;
     std::ofstream config_out_str("config.txt");
     conf.print_config(config_out_str);
+    config_out_str << "nx_r " << nx_r << std::endl;
+    config_out_str << "ny_r " << ny_r << std::endl;
+    config_out_str << "nz_r " << nz_r << std::endl;
+    config_out_str << "nu_r " << nu_r << std::endl;
+    config_out_str << "nv_r " << nv_r << std::endl;
+    config_out_str << "nw_r " << nw_r << std::endl;
+    config_out_str << "nt_restart " << nt_restart << std::endl;
+
 
     // Compute E(0) and B(0).
     std::cout << "Compute E(0) and B(0)." << std::endl;
