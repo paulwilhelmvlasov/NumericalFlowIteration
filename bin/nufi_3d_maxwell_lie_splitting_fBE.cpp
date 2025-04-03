@@ -182,7 +182,7 @@ real f0(real x, real y, real z, real u, real v, real w) noexcept
     return c * ( 1. + alpha*cos(k*x)) * u*u * exp( -(u*u+v*v+w*w)/2 );*/
 
 // Two Stream in y direction
-    real alpha = 1e-4;
+    real alpha = 1e-2;
     real k = 0.5;
     real v_beam = 1;
     real vth = v_beam / 10;
@@ -207,9 +207,9 @@ arma::Col<real> E0(real x, real y, real z)
     return  arma::Col<real>({-alpha / k * std::sin(k*x), 0, 0}); */
 
     // Magnetic Two Stream Instability by Fabio
-    constexpr real alpha = 1e-4;
+    constexpr real alpha = 1e-2;
     constexpr real k     = 0.5;
-    return  arma::Col<real>({-alpha / k * std::sin(k*x), 0, 0});
+    return  arma::Col<real>({-alpha / k * std::sin(k*x),0, 0});
 }
 
 template <typename real>
