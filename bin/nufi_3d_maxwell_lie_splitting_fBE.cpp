@@ -277,7 +277,7 @@ real compute_kinetic_energy(size_t nt, const std::vector<std::vector<real>>& coe
     real dw_plot = (conf.w_max - conf.w_min) / Nw_plot;
     
     real kin_energy = 0;
-    #pragma omp parallel for /* collapse(4) */
+    #pragma omp parallel for collapse(4)
     for(size_t ix = 0; ix < Nx_plot; ix++)
     for(size_t iy = 0; iy < Ny_plot; iy++)
     for(size_t iz = 0; iz < Nz_plot; iz++)
@@ -1305,7 +1305,7 @@ void periodically_restarted_nufi_maxwell_lie_fBE()
             timer.reset();
             std::cout << "Restart simulation. " << std::endl;
             // Compute first restart matrix.
-            #pragma omp parallel for collapse(3)
+            #pragma omp parallel for collapse(6)
             for(size_t ix = 0; ix <= nx_r; ix++)
             for(size_t iy = 0; iy <= ny_r; iy++)
             for(size_t iz = 0; iz <= nz_r; iz++)
@@ -1370,11 +1370,11 @@ int main()
 {
     //nufi::dim3::nufi_maxwell_lie_fBE<double,4>();
     
-    nufi::dim3::read_in_coeff_and_plot<double,4>();
+    //nufi::dim3::read_in_coeff_and_plot<double,4>();
 
     //nufi::dim3::restarted_from_disk_nufi_maxwell_lie_fBE<4>();
 
-    //nufi::dim3::periodically_restarted_nufi_maxwell_lie_fBE<4>();
+    nufi::dim3::periodically_restarted_nufi_maxwell_lie_fBE<4>();
 
     return 0;
 }
