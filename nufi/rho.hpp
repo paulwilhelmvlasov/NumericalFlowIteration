@@ -653,7 +653,7 @@ real eval_f_lie_fBE(size_t n, real x, real y, real z,
 
     arma::Col<real> x_vec({x,y,z});
     arma::Col<real> v_vec({u,v,w});
-
+    
     for(; n > 0; n--){
         stopwatch<double> timer_loop;
         B0(0) = eval<real,order>(x_vec(0), x_vec(1), x_vec(2), coeffs_B[0].data() + (n-1)*stride_t, conf);
@@ -703,9 +703,12 @@ void eval_j_hat(size_t n, std::vector<std::vector<real>>& j_hat,
         real y = conf.y_min + iy*conf.dy; 
         real z = conf.z_min + iz*conf.dz; 
         
-        j_hat[0][l] = 0;
+/*         j_hat[0][l] = 0;
         j_hat[1][l] = 0;
-        j_hat[2][l] = 0;
+        j_hat[2][l] = 0; */
+
+        real sum0 = 0, sum1 = 0, sum2 = 0;
+        #pragma omp parallel for collapse(3) reduction(+:sum0,sum1,sum2)
         for(size_t iu = 0; iu < conf.Nu; iu++)
         for(size_t iv = 0; iv < conf.Nv; iv++)
         for(size_t iw = 0; iw < conf.Nw; iw++){
@@ -716,13 +719,19 @@ void eval_j_hat(size_t n, std::vector<std::vector<real>>& j_hat,
             real f_half = eval_f_lie_fBE<real,order>(n, x - 0.5*conf.dt*u, y - 0.5*conf.dt*v, z - 0.5*conf.dt*w, 
                                                         u, v, w, coeffs_E, coeffs_B, coeffs_j_hat, conf );
 
-            j_hat[0][l] += u*f_half;
+            sum0 += u * f_half;
+            sum1 += v * f_half;
+            sum2 += w * f_half;
+/*             j_hat[0][l] += u*f_half;
             j_hat[1][l] += v*f_half;
-            j_hat[2][l] += w*f_half;
+            j_hat[2][l] += w*f_half; */
         }
-        j_hat[0][l] *= conf.du*conf.dv*conf.dw;
+/*         j_hat[0][l] *= conf.du*conf.dv*conf.dw;
         j_hat[1][l] *= conf.du*conf.dv*conf.dw;
-        j_hat[2][l] *= conf.du*conf.dv*conf.dw;
+        j_hat[2][l] *= conf.du*conf.dv*conf.dw; */
+        j_hat[0][l] = sum0 * conf.du * conf.dv * conf.dw;
+        j_hat[1][l] = sum1 * conf.du * conf.dv * conf.dw;
+        j_hat[2][l] = sum2 * conf.du * conf.dv * conf.dw;
     }
 }
 
