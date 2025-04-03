@@ -30,7 +30,7 @@ const size_t nw_r = 16;
 arma::mat restart_matrix;
 
 //const double k = 1.25; // Weibel Instability by Einkemmer
-const double k = 0.5; 
+const double k = 0.5; // Two Stream Instability by Fabio (perturbation in v direction)
 const double Lx = 2*M_PI/k;
 const double Ly = Lx;
 const double Lz = Lx;
@@ -186,7 +186,7 @@ real f0(real x, real y, real z, real u, real v, real w) noexcept
     real k = 0.5;
     real v_beam = 1;
     real vth = v_beam / 10;
-    real perturbation = (1+alpha*std::cos(k*x));
+    real perturbation = 1;
     return perturbation * 0.5 * (maxwellian<real>(u,v-v_beam,w,vth) + maxwellian<real>(u,v+v_beam,w,vth));
 
 // Weibel instability 1x2v
@@ -202,26 +202,37 @@ template <typename real>
 arma::Col<real> E0(real x, real y, real z)
 {
     // Weibel Instability by Einkemmer.
-/*     constexpr real alpha = 1e-4;
+    /* constexpr real alpha = 1e-4;
     constexpr real k     = 1.25;
     return  arma::Col<real>({-alpha / k * std::sin(k*x), 0, 0}); */
 
-    // Magnetic Two Stream Instability by Fabio
-    constexpr real alpha = 1e-4;
+    // Electro-static Two Stream Instability
+/*     constexpr real alpha = 1e-2;
     constexpr real k     = 0.5;
-    return  arma::Col<real>({-alpha / k * std::sin(k*x), 0, 0});
+    return  arma::Col<real>({-alpha / k * std::sin(k*x), 0, 0}); */
+
+    // Electro-static Two Stream Instability by Fabio & Paul
+    // Note that if we assume only a x-dependent perturbation for f it can only 
+    // induce a electric field in the x- but not y-component. This however means 
+    // that to induce dynamics along y we need an initial B instead of E.
+    return  arma::Col<real>({0, 0, 0});  
 }
 
 template <typename real>
 arma::Col<real> B0(real x, real y, real z)
 {
     // Weibel Instability by Einkemmer.
-/*     constexpr real beta = 1e-4;
+    /* constexpr real beta = 1e-4;
     constexpr real k = 1.25;
     return arma::Col<real>({0, 0, beta*std::cos(k*x)}); */
 
-    // Magnetic Two Stream Instability by Fabio
-    return arma::Col<real>({0, 0, 0});
+    // Electro-static
+    //return arma::Col<real>({0, 0, 0});
+
+    // Magnetic Two Stream Instability by Fabio & Paul.
+    constexpr real beta = 1e-2;
+    constexpr real k = 0.5;
+    return arma::Col<real>({0, 0, beta*std::cos(k*x)});
 }
 
 template <typename real,size_t order>
@@ -250,6 +261,44 @@ arma::Col<real> rot_rot(size_t n, real x, real y, real z, const std::vector<std:
         eval<real,order,1,1,0>(x,y,z,coeff[0].data() + n*stride_t,conf) + eval<real,order,0,1,1>(x,y,z,coeff[2].data() + n*stride_t,conf),
         eval<real,order,1,0,1>(x,y,z,coeff[0].data() + n*stride_t,conf) + eval<real,order,0,1,1>(x,y,z,coeff[1].data() + n*stride_t,conf)
     });
+}
+
+template <typename real, size_t order>
+real compute_kinetic_energy(size_t nt, const std::vector<std::vector<real>>& coeffs_E, const std::vector<std::vector<real>>& coeffs_B, 
+    const std::vector<std::vector<real>>& coeffs_j_hat, const config_t<double>& conf, 
+    size_t Nx_plot = 16, size_t Ny_plot = 1, size_t Nz_plot = 1, 
+    size_t Nu_plot = 32, size_t Nv_plot = 32, size_t Nw_plot = 8)
+{
+    real dx_plot = (conf.x_max - conf.x_min) / Nx_plot;
+    real dy_plot = (conf.y_max - conf.y_min) / Ny_plot;
+    real dz_plot = (conf.z_max - conf.z_min) / Nz_plot;
+    real du_plot = (conf.u_max - conf.u_min) / Nu_plot;
+    real dv_plot = (conf.v_max - conf.v_min) / Nv_plot;
+    real dw_plot = (conf.w_max - conf.w_min) / Nw_plot;
+    
+    real kin_energy = 0;
+    #pragma omp parallel for /* collapse(4) */
+    for(size_t ix = 0; ix < Nx_plot; ix++)
+    for(size_t iy = 0; iy < Ny_plot; iy++)
+    for(size_t iz = 0; iz < Nz_plot; iz++)
+    for(size_t iu = 0; iu < Nu_plot; iu++)
+    for(size_t iv = 0; iv < Nv_plot; iv++)
+    for(size_t iw = 0; iw < Nw_plot; iw++){
+        real x = conf.x_min + (ix+0.5) * dx_plot;
+        real y = conf.y_min + (iy+0.5) * dy_plot;
+        real z = conf.z_min + (iz+0.5) * dz_plot;
+        real u = conf.u_min + (iu+0.5) * du_plot;
+        real v = conf.v_min + (iv+0.5) * dv_plot;
+        real w = conf.w_min + (iw+0.5) * dw_plot;
+        real f = eval_f_lie_fBE<real, order>(nt, x, y, z, u, v, w, coeffs_E, coeffs_B, coeffs_j_hat, conf);
+
+        #pragma omp atomic
+        kin_energy += (u*u + v*v + w*w) * f; 
+    }
+
+    kin_energy *= 0.5 * dx_plot * dy_plot * dz_plot * du_plot * dv_plot * dw_plot;
+
+    return kin_energy;
 }
 
 template<typename real, size_t order>
@@ -599,11 +648,16 @@ void read_in_coeff_and_plot()
     std::vector<std::vector<real>> coeffs_B(3, std::vector<real>((conf.Nt+1)*stride_t,0) );
     std::vector<std::vector<real>> coeffs_j_hat(3, std::vector<real>((conf.Nt+1)*stride_t,0) );
 
-    std::cout << "Read in coeffs" << std::endl;
+    std::cout << "Read in coeffs." << std::endl;
 
-    size_t end_n = 100;
+    size_t end_n = 80*50;
 
     for(size_t n = 0; n <= end_n /* conf.Nt */; n++){
+/*         if(n == 251){
+            coeff_str_E.open("../restarted_coeffs_E.txt");
+            coeff_str_B.open("../restarted_coeffs_B.txt");
+            coeff_str_j_hat.open("../restarted_coeffs_j_hat.txt");
+        } */
         for(size_t l = 0; l < stride_t; l++)
         {
             coeff_str_E >> coeffs_E[0][n*stride_t + l] 
@@ -627,7 +681,7 @@ void read_in_coeff_and_plot()
         }
     }
 
-    std::cout << "Plot f" << std::endl;
+    std::cout << "Analyze data." << std::endl;
 
     size_t n_plot = 128;
     double dx_plot = conf.Lx/n_plot;
@@ -637,36 +691,42 @@ void read_in_coeff_and_plot()
     double dv_plot = (conf.v_max - conf.v_min)/n_plot;
     double dw_plot = (conf.w_max - conf.w_min)/n_plot;
 
-    #pragma omp parallel for
-    for(size_t n = 0; n <= end_n; n += 10){
 
-/*         std::ofstream f_str("f_" + std::to_string(n) + ".txt");
+//    std::ofstream kin_energy_str("kin_energy.txt");
+    #pragma omp parallel for
+    for(size_t n = 0; n <= end_n; n += (10*50)){
+        std::cout << "Analyze " << n*conf.dt << std::endl;
+/*         double kin_energy = compute_kinetic_energy<double,order>(n,coeffs_E, 
+            coeffs_B, coeffs_j_hat, conf);
+
+        kin_energy_str << n*conf.dt << " " << kin_energy << std::endl; */
+/*         std::ofstream f_str("f_" + std::to_string(n*conf.dt) + ".txt");
         for(size_t ix = 0; ix <= n_plot; ix++){
-            for(size_t iu = 0; iu <= n_plot; iu++){
+            for(size_t iv = 0; iv <= n_plot; iv++){
                 double x = ix*dx_plot;
-                double u = conf.u_min + iu*du_plot;
+                double v = conf.v_min + iv*dv_plot;
 
                 double y = n_plot/2.0 * dy_plot;
                 double z = n_plot/2.0 * dz_plot;
-                double v = 0;
+                double u = 0;
                 double w = 0;
 
                 double f = eval_f_lie_fBE<real,order>(n,x,y,z,u,v,w,coeffs_E,coeffs_B,coeffs_j_hat,conf);
 
-                f_str << x << " " << u << " " << f << std::endl;
+                f_str << x << " " << v << " " << f << std::endl;
             }
             f_str << std::endl;
         } */
 
-        std::ofstream Ex_str("Ex_" + std::to_string(n) + ".txt");
-        std::ofstream Ey_str("Ey_" + std::to_string(n) + ".txt");
-        std::ofstream Ez_str("Ez_" + std::to_string(n) + ".txt");
-        std::ofstream Bx_str("Bx_" + std::to_string(n) + ".txt");
-        std::ofstream By_str("By_" + std::to_string(n) + ".txt");
-        std::ofstream Bz_str("Bz_" + std::to_string(n) + ".txt");
-        std::ofstream div_B_str("div_B_" + std::to_string(n) + ".txt");
-        std::ofstream div_E_str("div_E_" + std::to_string(n) + ".txt");
-        std::ofstream rho_str("rho_" + std::to_string(n) + ".txt");
+        std::ofstream Ex_str("Ex_" + std::to_string(n*conf.dt) + ".txt");
+        std::ofstream Ey_str("Ey_" + std::to_string(n*conf.dt) + ".txt");
+        std::ofstream Ez_str("Ez_" + std::to_string(n*conf.dt) + ".txt");
+        std::ofstream Bx_str("Bx_" + std::to_string(n*conf.dt) + ".txt");
+        std::ofstream By_str("By_" + std::to_string(n*conf.dt) + ".txt");
+        std::ofstream Bz_str("Bz_" + std::to_string(n*conf.dt) + ".txt");
+        std::ofstream div_B_str("div_B_" + std::to_string(n*conf.dt) + ".txt");
+        std::ofstream div_E_str("div_E_" + std::to_string(n*conf.dt) + ".txt");
+        //std::ofstream rho_str("rho_" + std::to_string(n) + ".txt");
         for(size_t ix = 0; ix <= n_plot; ix++){
             double x = ix * dx_plot;
             double y = n_plot/2.0 * dx_plot;
@@ -688,7 +748,7 @@ void read_in_coeff_and_plot()
                         + eval<real,order,0,1,0>(x,y,z,coeffs_E[1].data() + n*stride_t,conf)
                         + eval<real,order,0,0,1>(x,y,z,coeffs_E[2].data() + n*stride_t,conf);
 
-            double rho = 0;
+/*             double rho = 0;
             for(size_t iu = 0; iu < conf.Nu; iu++){
                 for(size_t iv = 0; iv < conf.Nv; iv++){
                     for(size_t iw = 0; iw < conf.Nw; iw++){
@@ -701,7 +761,7 @@ void read_in_coeff_and_plot()
                 }
             }
             rho *= conf.du*conf.dv*conf.dw;
-            rho = 1 - rho;
+            rho = 1 - rho; */
 
             Ex_str << x << " " << Ex << std::endl;
             Ey_str << x << " " << Ey << std::endl;
@@ -713,7 +773,7 @@ void read_in_coeff_and_plot()
 
             div_B_str << x << " " << div_B << std::endl;
             div_E_str << x << " " << div_E << std::endl;
-            rho_str << x << " " << rho << std::endl;
+            //rho_str << x << " " << rho << std::endl;
         }
     }
 }
@@ -1310,11 +1370,11 @@ int main()
 {
     //nufi::dim3::nufi_maxwell_lie_fBE<double,4>();
     
-    //nufi::dim3::read_in_coeff_and_plot<double,4>();
+    nufi::dim3::read_in_coeff_and_plot<double,4>();
 
     //nufi::dim3::restarted_from_disk_nufi_maxwell_lie_fBE<4>();
 
-    nufi::dim3::periodically_restarted_nufi_maxwell_lie_fBE<4>();
+    //nufi::dim3::periodically_restarted_nufi_maxwell_lie_fBE<4>();
 
     return 0;
 }
