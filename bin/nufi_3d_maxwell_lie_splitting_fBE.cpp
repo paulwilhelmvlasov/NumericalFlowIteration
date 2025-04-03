@@ -20,13 +20,6 @@ namespace nufi
 namespace dim3
 {
 
-const size_t nx_r = 32;
-const size_t ny_r = 1;
-const size_t nz_r = 1;
-const size_t nu_r = 64;
-const size_t nv_r = 64;
-const size_t nw_r = 16;
-
 arma::mat restart_matrix;
 
 //const double k = 1.25; // Weibel Instability by Einkemmer
@@ -44,19 +37,26 @@ const double wmax = 0.15; */
 // Magnetic Two Stream Instability by Fabio (perturbation in v direction)
 const double umin = -1;
 const double umax = 1;
-const double vmin = -2;
-const double vmax = 2;
+const double vmin = -3;
+const double vmax = 3;
 const double wmin = -1;
 const double wmax = 1;
 const size_t Nx = 16;
 const size_t Ny = 1;
 const size_t Nz = 1;
 const size_t Nu = 32;
-const size_t Nv = 32;
+const size_t Nv = 64;
 const size_t Nw = 8;
 const double   dt = 0.02;
 const size_t Nt = 500/dt;
 
+
+const size_t nx_r = 2*Nx;
+const size_t ny_r = 1;
+const size_t nz_r = 1;
+const size_t nu_r = 2*Nu;
+const size_t nv_r = 2*Nv;
+const size_t nw_r = 2*Nw;
 const size_t nt_restart = 200;
 
 const double dx_r = Lx / nx_r;
@@ -230,7 +230,7 @@ arma::Col<real> B0(real x, real y, real z)
     //return arma::Col<real>({0, 0, 0});
 
     // Magnetic Two Stream Instability by Fabio & Paul.
-    constexpr real beta = 1e-2;
+    constexpr real beta = 1e-4;
     constexpr real k = 0.5;
     return arma::Col<real>({0, 0, beta*std::cos(k*x)});
 }
@@ -650,7 +650,7 @@ void read_in_coeff_and_plot()
 
     std::cout << "Read in coeffs." << std::endl;
 
-    size_t end_n = 80*50;
+    size_t end_n = 24*50;
 
     for(size_t n = 0; n <= end_n /* conf.Nt */; n++){
 /*         if(n == 251){
@@ -694,13 +694,13 @@ void read_in_coeff_and_plot()
 
 //    std::ofstream kin_energy_str("kin_energy.txt");
     #pragma omp parallel for
-    for(size_t n = 0; n <= end_n; n += (10*50)){
+    for(size_t n = 0; n <= end_n; n += (2*50)){
         std::cout << "Analyze " << n*conf.dt << std::endl;
 /*         double kin_energy = compute_kinetic_energy<double,order>(n,coeffs_E, 
             coeffs_B, coeffs_j_hat, conf);
 
         kin_energy_str << n*conf.dt << " " << kin_energy << std::endl; */
-/*         std::ofstream f_str("f_" + std::to_string(n*conf.dt) + ".txt");
+        std::ofstream f_str("f_" + std::to_string(n*conf.dt) + ".txt");
         for(size_t ix = 0; ix <= n_plot; ix++){
             for(size_t iv = 0; iv <= n_plot; iv++){
                 double x = ix*dx_plot;
@@ -716,7 +716,7 @@ void read_in_coeff_and_plot()
                 f_str << x << " " << v << " " << f << std::endl;
             }
             f_str << std::endl;
-        } */
+        }
 
         std::ofstream Ex_str("Ex_" + std::to_string(n*conf.dt) + ".txt");
         std::ofstream Ey_str("Ey_" + std::to_string(n*conf.dt) + ".txt");
@@ -1370,11 +1370,11 @@ int main()
 {
     //nufi::dim3::nufi_maxwell_lie_fBE<double,4>();
     
-    //nufi::dim3::read_in_coeff_and_plot<double,4>();
+    nufi::dim3::read_in_coeff_and_plot<double,4>();
 
     //nufi::dim3::restarted_from_disk_nufi_maxwell_lie_fBE<4>();
 
-    nufi::dim3::periodically_restarted_nufi_maxwell_lie_fBE<4>();
+    //nufi::dim3::periodically_restarted_nufi_maxwell_lie_fBE<4>();
 
     return 0;
 }
