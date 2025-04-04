@@ -43,27 +43,27 @@ const double wmax = 0.15; */
 // Magnetic Two Stream Instability by Fabio (perturbation in v direction)
 const double umin = -0.01;
 const double umax = 0.01;
-const double vmin = -1;
-const double vmax = 1;
+const double vmin = -0.85;
+const double vmax = 0.85;
 const double wmin = -0.01;
 const double wmax = 0.01;
-const size_t Nx = 64;
+const size_t Nx = 32;
 const size_t Ny = 1;
 const size_t Nz = 1;
-const size_t Nu = 64;
-const size_t Nv = 1024;
-const size_t Nw = 8;
-const double   dt = 0.02;
+const size_t Nu = 32;
+const size_t Nv = 2048;
+const size_t Nw = 1;
+const double   dt = 0.05;
 const size_t Nt = 50/dt;
 
 
-const size_t nx_r = 2*Nx;
+const size_t nx_r = Nx;
 const size_t ny_r = 1;
 const size_t nz_r = 1;
-const size_t nu_r = 2*Nu;
-const size_t nv_r = 2*Nv;
-const size_t nw_r = 2*Nw;
-const size_t nt_restart = 200;
+const size_t nu_r = Nu;
+const size_t nv_r = Nv;
+const size_t nw_r = 1;
+const size_t nt_restart = 50;
 
 const double dx_r = Lx / nx_r;
 const double dy_r = Ly / ny_r;
@@ -167,6 +167,13 @@ real maxwellian(real u, real v, real w, real vth) noexcept
     real c = 1.0 / std::pow(2*M_PI*vth*vth, 3.0/2.0);
     return c*std::exp(-(u*u + v*v + w*w) / (2*vth*vth) );
 }
+
+template <typename real>
+real maxwellian_2d(real u, real v, real vth) noexcept
+{
+    real c = 1.0 / (2*M_PI*vth*vth);
+    return c*std::exp(-(u*u + v*v) / (2*vth*vth) );
+}
  
 template <typename real>
 real f0(real x, real y, real z, real u, real v, real w) noexcept
@@ -196,7 +203,8 @@ real f0(real x, real y, real z, real u, real v, real w) noexcept
     // Two Stream in y direction by Fabio
     real v_beam = 0.4;
     real vth = 0.001;
-    return 0.5 * (maxwellian<real>(u,v-v_beam,w,vth) + maxwellian<real>(u,v+v_beam,w,vth));
+    /* return 0.5 * (maxwellian<real>(u,v-v_beam,w,vth) + maxwellian<real>(u,v+v_beam,w,vth)); */
+    return 0.5 * (maxwellian_2d<real>(u,v-v_beam,vth) + maxwellian_2d<real>(u,v+v_beam,vth));
 
 // Weibel instability 1x2v
 /*    real alpha = 1e-4;
