@@ -28,10 +28,15 @@ const double Lx = 2*M_PI/k;
 const double Ly = Lx;
 const double Lz = Lx; */
 
-// Two Stream Instability by Fabio (perturbation in v direction)
-const double Lx = 12.8;
+// Magnetic Two Stream Instability by Einkemmer 
+const double Lx = 2*M_PI;
 const double Ly = Lx;
 const double Lz = Lx;
+
+// Two Stream Instability by Fabio 
+/* const double Lx = 12.8;
+const double Ly = Lx;
+const double Lz = Lx; */
 
 // Weibel Instability by Einkemmer
 /* const double umin = -0.15;
@@ -40,21 +45,28 @@ const double vmin = -0.6;
 const double vmax = 0.6;
 const double wmin = -0.15;
 const double wmax = 0.15; */
+// Magnetic Two Stream Instability by Einkemmer
+const double umin = -0.015;
+const double umax = 0.015;
+const double vmin = -0.22;
+const double vmax = 0.22;
+const double wmin = -1;
+const double wmax = 1;
 // Magnetic Two Stream Instability by Fabio (perturbation in v direction)
-const double umin = -0.01;
+/* const double umin = -0.01;
 const double umax = 0.01;
 const double vmin = -0.85;
 const double vmax = 0.85;
 const double wmin = -0.01;
-const double wmax = 0.01;
+const double wmax = 0.01; */
 const size_t Nx = 32;
 const size_t Ny = 1;
 const size_t Nz = 1;
-const size_t Nu = 32;
-const size_t Nv = 2048;
+const size_t Nu = 64;
+const size_t Nv = 128;
 const size_t Nw = 1;
 const double   dt = 0.05;
-const size_t Nt = 50/dt;
+const size_t Nt = 100/dt;
 
 
 const size_t nx_r = Nx;
@@ -63,7 +75,7 @@ const size_t nz_r = 1;
 const size_t nu_r = Nu;
 const size_t nv_r = Nv;
 const size_t nw_r = 1;
-const size_t nt_restart = 50;
+const size_t nt_restart = 100;
 
 const double dx_r = Lx / nx_r;
 const double dy_r = Ly / ny_r;
@@ -201,9 +213,13 @@ real f0(real x, real y, real z, real u, real v, real w) noexcept
     return perturbation * 0.5 * (maxwellian<real>(u,v-v_beam,w,vth) + maxwellian<real>(u,v+v_beam,w,vth)); */
 
     // Two Stream in y direction by Fabio
-    real v_beam = 0.4;
+/*     real v_beam = 0.4;
     real vth = 0.001;
-    /* return 0.5 * (maxwellian<real>(u,v-v_beam,w,vth) + maxwellian<real>(u,v+v_beam,w,vth)); */
+    return 0.5 * (maxwellian_2d<real>(u,v-v_beam,vth) + maxwellian_2d<real>(u,v+v_beam,vth)); */
+
+    // Magnetic Two Stream by Einkemmer
+    real v_beam = 0.2;
+    real vth = 2e-3;
     return 0.5 * (maxwellian_2d<real>(u,v-v_beam,vth) + maxwellian_2d<real>(u,v+v_beam,vth));
 
 // Weibel instability 1x2v
@@ -287,13 +303,9 @@ arma::Col<real> B0(real x, real y, real z)
     // Electro-static
     //return arma::Col<real>({0, 0, 0});
 
-    // Magnetic Two Stream Instability by Paul.
-    /* constexpr real beta = 1e-4;
-    constexpr real k = 0.5;
-    return arma::Col<real>({0, 0, beta*std::cos(k*x)}); */
-
-    // Magnetic Two Stream Instability by Paul.
-    return arma::Col<real>({0, 0, 0});
+    // Magnetic Two Stream Instability by Einkemmer.
+    constexpr real alpha = 1e-3;
+    return arma::Col<real>({0, 0, alpha*std::sin(x)});
 }
 
 template <typename real,size_t order>
@@ -1180,17 +1192,21 @@ void periodically_restarted_nufi_maxwell_lie_fBE()
         double z = conf.z_min + iz*conf.dz; 
         
         arma::Col<double> E0_vec = E0(x,y,z);
-        //arma::Col<double> B0_vec = B0(x,y,z);
+        arma::Col<double> B0_vec = B0(x,y,z);
 
         E[0][l] = E0_vec(0);
         E[1][l] = E0_vec(1);
         E[2][l] = E0_vec(2);
 
-        double B0 = 1e-3;
+/*         double B0 = 1e-3;
 
         B[0][l] = 0;
         B[1][l] = 0;
-        B[2][l] = B0*B_z_values[ix];
+        B[2][l] = B0*B_z_values[ix]; */
+
+        B[0][l] = B0_vec(0);
+        B[1][l] = B0_vec(1);
+        B[2][l] = B0_vec(2);
     }
 
     // Interpolate E(0) and B(0).
