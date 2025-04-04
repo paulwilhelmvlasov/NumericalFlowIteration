@@ -23,10 +23,16 @@ namespace dim3
 arma::mat restart_matrix;
 
 //const double k = 1.25; // Weibel Instability by Einkemmer
-const double k = 0.5; // Two Stream Instability by Fabio (perturbation in v direction)
+/* const double k = 0.5; // "Normal" choice
 const double Lx = 2*M_PI/k;
 const double Ly = Lx;
+const double Lz = Lx; */
+
+// Two Stream Instability by Fabio (perturbation in v direction)
+const double Lx = 12.8;
+const double Ly = Lx;
 const double Lz = Lx;
+
 // Weibel Instability by Einkemmer
 /* const double umin = -0.15;
 const double umax = 0.15;
@@ -35,20 +41,20 @@ const double vmax = 0.6;
 const double wmin = -0.15;
 const double wmax = 0.15; */
 // Magnetic Two Stream Instability by Fabio (perturbation in v direction)
-const double umin = -1;
-const double umax = 1;
-const double vmin = -3;
-const double vmax = 3;
-const double wmin = -1;
-const double wmax = 1;
-const size_t Nx = 16;
+const double umin = -0.01;
+const double umax = 0.01;
+const double vmin = -1;
+const double vmax = 1;
+const double wmin = -0.01;
+const double wmax = 0.01;
+const size_t Nx = 64;
 const size_t Ny = 1;
 const size_t Nz = 1;
-const size_t Nu = 32;
-const size_t Nv = 64;
+const size_t Nu = 64;
+const size_t Nv = 1024;
 const size_t Nw = 8;
 const double   dt = 0.02;
-const size_t Nt = 500/dt;
+const size_t Nt = 50/dt;
 
 
 const size_t nx_r = 2*Nx;
@@ -182,12 +188,15 @@ real f0(real x, real y, real z, real u, real v, real w) noexcept
     return c * ( 1. + alpha*cos(k*x)) * u*u * exp( -(u*u+v*v+w*w)/2 );*/
 
 // Two Stream in y direction
-    real alpha = 1e-2;
-    real k = 0.5;
-    real v_beam = 1;
+/*     real v_beam = 1;
     real vth = v_beam / 10;
     real perturbation = 1;
-    return perturbation * 0.5 * (maxwellian<real>(u,v-v_beam,w,vth) + maxwellian<real>(u,v+v_beam,w,vth));
+    return perturbation * 0.5 * (maxwellian<real>(u,v-v_beam,w,vth) + maxwellian<real>(u,v+v_beam,w,vth)); */
+
+    // Two Stream in y direction by Fabio
+    real v_beam = 0.4;
+    real vth = 0.001;
+    return 0.5 * (maxwellian<real>(u,v-v_beam,w,vth) + maxwellian<real>(u,v+v_beam,w,vth));
 
 // Weibel instability 1x2v
 /*    real alpha = 1e-4;
@@ -218,6 +227,47 @@ arma::Col<real> E0(real x, real y, real z)
     return  arma::Col<real>({0, 0, 0});
 }
 
+// Function to generate random smooth periodic function using Fourier series
+std::vector<double> generateRandomSmoothFunction(double L, int N, int num_points) {
+    std::vector<double> x(num_points);
+    std::vector<double> f_x(num_points, 0.0);
+    
+    // Create a uniform grid over the domain [0, L]
+    double dx = L / (num_points - 1);
+    for (int i = 0; i < num_points; ++i) {
+        x[i] = i * dx;
+    }
+    
+    // Generate random Fourier coefficients
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::normal_distribution<> dist(0.0, 1.0);  // Normal distribution with mean 0, stddev 1
+
+    std::vector<double> a_n(N), b_n(N);
+    for (int n = 0; n < N; ++n) {
+        a_n[n] = dist(gen);  // Cosine coefficients
+        b_n[n] = dist(gen);  // Sine coefficients
+    }
+
+    // Generate the Fourier series for the random smooth function
+    for (int i = 0; i < num_points; ++i) {
+        double xi = x[i];
+        for (int n = 0; n < N; ++n) {
+            f_x[i] += a_n[n] * std::cos(2 * M_PI * (n + 1) * xi / L) + b_n[n] * std::sin(2 * M_PI * (n + 1) * xi / L);
+        }
+    }
+
+    double max_f = 0;
+    for(size_t i = 0; i < num_points; i++){
+        max_f = std::max(std::abs(f_x[i]),max_f);
+    }
+    for(size_t i = 0; i < num_points; i++){
+        f_x[i] /= max_f;
+    }
+
+    return f_x;
+}
+
 template <typename real>
 arma::Col<real> B0(real x, real y, real z)
 {
@@ -229,10 +279,13 @@ arma::Col<real> B0(real x, real y, real z)
     // Electro-static
     //return arma::Col<real>({0, 0, 0});
 
-    // Magnetic Two Stream Instability by Fabio & Paul.
-    constexpr real beta = 1e-4;
+    // Magnetic Two Stream Instability by Paul.
+    /* constexpr real beta = 1e-4;
     constexpr real k = 0.5;
-    return arma::Col<real>({0, 0, beta*std::cos(k*x)});
+    return arma::Col<real>({0, 0, beta*std::cos(k*x)}); */
+
+    // Magnetic Two Stream Instability by Paul.
+    return arma::Col<real>({0, 0, 0});
 }
 
 template <typename real,size_t order>
@@ -1103,13 +1156,14 @@ void periodically_restarted_nufi_maxwell_lie_fBE()
     config_out_str << "nw_r " << nw_r << std::endl;
     config_out_str << "nt_restart " << nt_restart << std::endl;
 
+    std::vector<double> B_z_values = generateRandomSmoothFunction(Lx, 100, Nx);
 
     // Compute E(0) and B(0).
     std::cout << "Compute E(0) and B(0)." << std::endl;
     #pragma omp parallel for
     for(size_t l = 0; l < conf.Nx*conf.Ny*conf.Nz; l++){
         size_t iz   = l   / (conf.Nx * conf.Ny);
-        size_t tmp = l   % (conf.Nx * conf.Ny);
+        size_t tmp  = l   % (conf.Nx * conf.Ny);
         size_t iy   = tmp / conf.Nx;
         size_t ix   = tmp % conf.Nx;
     
@@ -1118,15 +1172,17 @@ void periodically_restarted_nufi_maxwell_lie_fBE()
         double z = conf.z_min + iz*conf.dz; 
         
         arma::Col<double> E0_vec = E0(x,y,z);
-        arma::Col<double> B0_vec = B0(x,y,z);
+        //arma::Col<double> B0_vec = B0(x,y,z);
 
         E[0][l] = E0_vec(0);
         E[1][l] = E0_vec(1);
         E[2][l] = E0_vec(2);
 
-        B[0][l] = B0_vec(0);
-        B[1][l] = B0_vec(1);
-        B[2][l] = B0_vec(2);
+        double B0 = 1e-3;
+
+        B[0][l] = 0;
+        B[1][l] = 0;
+        B[2][l] = B0*B_z_values[ix];
     }
 
     // Interpolate E(0) and B(0).
@@ -1370,11 +1426,30 @@ int main()
 {
     //nufi::dim3::nufi_maxwell_lie_fBE<double,4>();
     
-    nufi::dim3::read_in_coeff_and_plot<double,4>();
+    //nufi::dim3::read_in_coeff_and_plot<double,4>();
 
     //nufi::dim3::restarted_from_disk_nufi_maxwell_lie_fBE<4>();
 
-    //nufi::dim3::periodically_restarted_nufi_maxwell_lie_fBE<4>();
+    nufi::dim3::periodically_restarted_nufi_maxwell_lie_fBE<4>();
+
+    return 0;
+
+    // Parameters for the domain and the Fourier series
+/*     double L = 10.0;     // Length of the domain
+    int N = 100;         // Number of Fourier modes
+    int num_points = 500; // Number of points to evaluate
+
+    // Generate the random smooth function
+    std::vector<double> f_x = nufi::dim3::generateRandomSmoothFunction(L, N, num_points);
+
+    // Output the function values to a file
+    std::ofstream outfile("random_smooth_function.dat");
+    for (int i = 0; i < num_points; ++i) {
+        outfile << i * (L / (num_points - 1)) << " " << f_x[i] << std::endl;
+    }
+
+    // Display message
+    std::cout << "Random smooth function data generated and written to 'random_smooth_function.dat'." << std::endl; */
 
     return 0;
 }
