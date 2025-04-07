@@ -63,9 +63,9 @@ const size_t Nx = 32;
 const size_t Ny = 1;
 const size_t Nz = 1;
 const size_t Nu = 64;
-const size_t Nv = 128;
+const size_t Nv = 512;
 const size_t Nw = 1;
-const double   dt = 0.05;
+const double   dt = 0.01;
 const size_t Nt = 100/dt;
 
 
@@ -383,7 +383,7 @@ void do_stats(size_t nt, size_t nx_plot, std::ofstream& stat_file,
                   (conf.Ny + order - 1) *
 	    		  (conf.Nz + order - 1);
 
-    double dx_plot = conf.Lx/nx_plot;
+    double dx_plot = conf.Lx/nx_plot; // Assuming that Lx = Ly = Lz.
     double electric_energy = 0;
     double magnetic_energy = 0;
     for(size_t ix = 0; ix < nx_plot; ix++){
@@ -406,8 +406,8 @@ void do_stats(size_t nt, size_t nx_plot, std::ofstream& stat_file,
             }
         }
     }
-    electric_energy *= 0.5*dx_plot*dx_plot*dx_plot;
-    magnetic_energy *= 0.5*dx_plot*dx_plot*dx_plot;
+    electric_energy = 0.5*dx_plot*dx_plot*dx_plot*electric_energy;
+    magnetic_energy = 0.5*dx_plot*dx_plot*dx_plot*magnetic_energy;
 
     if(restarted){
         stat_file << n_full*conf.dt << " " << electric_energy << " " << magnetic_energy << std::endl;
@@ -723,7 +723,7 @@ void read_in_coeff_and_plot()
 
     std::cout << "Read in coeffs." << std::endl;
 
-    size_t end_n = 24*50;
+    size_t end_n = 30*50;
 
     for(size_t n = 0; n <= end_n /* conf.Nt */; n++){
 /*         if(n == 251){
@@ -756,7 +756,7 @@ void read_in_coeff_and_plot()
 
     std::cout << "Analyze data." << std::endl;
 
-    size_t n_plot = 128;
+    size_t n_plot = 512;
     double dx_plot = conf.Lx/n_plot;
     double dy_plot = conf.Ly/n_plot;
     double dz_plot = conf.Lz/n_plot;
@@ -766,29 +766,31 @@ void read_in_coeff_and_plot()
 
 
 //    std::ofstream kin_energy_str("kin_energy.txt");
-    #pragma omp parallel for
-    for(size_t n = 0; n <= end_n; n += (2*50)){
+    //#pragma omp parallel for
+    for(size_t n = 0; n <= 0/* end_n */; n += (1*50)){
         std::cout << "Analyze " << n*conf.dt << std::endl;
 /*         double kin_energy = compute_kinetic_energy<double,order>(n,coeffs_E, 
             coeffs_B, coeffs_j_hat, conf);
 
         kin_energy_str << n*conf.dt << " " << kin_energy << std::endl; */
-        std::ofstream f_str("f_" + std::to_string(n*conf.dt) + ".txt");
-        for(size_t ix = 0; ix <= n_plot; ix++){
-            for(size_t iv = 0; iv <= n_plot; iv++){
-                double x = ix*dx_plot;
-                double v = conf.v_min + iv*dv_plot;
+        if(n % (5*50) == 0){
+            std::ofstream f_str("f_" + std::to_string(n*conf.dt) + ".txt");
+            for(size_t ix = 0; ix <= n_plot; ix++){
+                for(size_t iv = 0; iv <= n_plot; iv++){
+                    double x = ix*dx_plot;
+                    double v = conf.v_min + iv*dv_plot;
 
-                double y = n_plot/2.0 * dy_plot;
-                double z = n_plot/2.0 * dz_plot;
-                double u = 0;
-                double w = 0;
+                    double y = n_plot/2.0 * dy_plot;
+                    double z = n_plot/2.0 * dz_plot;
+                    double u = 0;
+                    double w = 0;
 
-                double f = eval_f_lie_fBE<real,order>(n,x,y,z,u,v,w,coeffs_E,coeffs_B,coeffs_j_hat,conf);
+                    double f = eval_f_lie_fBE<real,order>(n,x,y,z,u,v,w,coeffs_E,coeffs_B,coeffs_j_hat,conf);
 
-                f_str << x << " " << v << " " << f << std::endl;
+                    f_str << x << " " << v << " " << f << std::endl;
+                }
+                f_str << std::endl;
             }
-            f_str << std::endl;
         }
 
         std::ofstream Ex_str("Ex_" + std::to_string(n*conf.dt) + ".txt");
@@ -1455,8 +1457,6 @@ int main()
     //nufi::dim3::restarted_from_disk_nufi_maxwell_lie_fBE<4>();
 
     nufi::dim3::periodically_restarted_nufi_maxwell_lie_fBE<4>();
-
-    return 0;
 
     // Parameters for the domain and the Fourier series
 /*     double L = 10.0;     // Length of the domain
