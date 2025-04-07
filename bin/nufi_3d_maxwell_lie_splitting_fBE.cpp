@@ -29,14 +29,14 @@ const double Ly = Lx;
 const double Lz = Lx; */
 
 // Magnetic Two Stream Instability by Einkemmer 
-const double Lx = 2*M_PI;
-const double Ly = Lx;
-const double Lz = Lx;
-
-// Two Stream Instability by Fabio 
-/* const double Lx = 12.8;
+/* const double Lx = 2*M_PI;
 const double Ly = Lx;
 const double Lz = Lx; */
+
+// Two Stream Instability by Fabio 
+const double Lx = 12.8;
+const double Ly = Lx;
+const double Lz = Lx;
 
 // Weibel Instability by Einkemmer
 /* const double umin = -0.15;
@@ -46,36 +46,36 @@ const double vmax = 0.6;
 const double wmin = -0.15;
 const double wmax = 0.15; */
 // Magnetic Two Stream Instability by Einkemmer
-const double umin = -0.015;
+/* const double umin = -0.015;
 const double umax = 0.015;
 const double vmin = -0.22;
 const double vmax = 0.22;
 const double wmin = -1;
-const double wmax = 1;
+const double wmax = 1; */
 // Magnetic Two Stream Instability by Fabio (perturbation in v direction)
-/* const double umin = -0.01;
+const double umin = -0.01;
 const double umax = 0.01;
 const double vmin = -0.85;
 const double vmax = 0.85;
 const double wmin = -0.01;
-const double wmax = 0.01; */
+const double wmax = 0.01;
 const size_t Nx = 32;
 const size_t Ny = 1;
 const size_t Nz = 1;
-const size_t Nu = 64;
-const size_t Nv = 512;
+const size_t Nu = 32;
+const size_t Nv = 2048;
 const size_t Nw = 1;
 const double   dt = 0.01;
 const size_t Nt = 100/dt;
 
 
-const size_t nx_r = Nx;
+const size_t nx_r = 2*Nx;
 const size_t ny_r = 1;
 const size_t nz_r = 1;
-const size_t nu_r = Nu;
-const size_t nv_r = Nv;
+const size_t nu_r = 2*Nu;
+const size_t nv_r = 2*Nv;
 const size_t nw_r = 1;
-const size_t nt_restart = 100;
+const size_t nt_restart = 300;
 
 const double dx_r = Lx / nx_r;
 const double dy_r = Ly / ny_r;
@@ -213,15 +213,15 @@ real f0(real x, real y, real z, real u, real v, real w) noexcept
     return perturbation * 0.5 * (maxwellian<real>(u,v-v_beam,w,vth) + maxwellian<real>(u,v+v_beam,w,vth)); */
 
     // Two Stream in y direction by Fabio
-/*     real v_beam = 0.4;
+    real v_beam = 0.4;
     real vth = 0.001;
-    return 0.5 * (maxwellian_2d<real>(u,v-v_beam,vth) + maxwellian_2d<real>(u,v+v_beam,vth)); */
-
-    // Magnetic Two Stream by Einkemmer
-    real v_beam = 0.2;
-    real vth = 2e-3;
     return 0.5 * (maxwellian_2d<real>(u,v-v_beam,vth) + maxwellian_2d<real>(u,v+v_beam,vth));
 
+    // Magnetic Two Stream by Einkemmer
+/*     real v_beam = 0.2;
+    real vth = 2e-3;
+    return 0.5 * (maxwellian_2d<real>(u,v-v_beam,vth) + maxwellian_2d<real>(u,v+v_beam,vth));
+ */
 // Weibel instability 1x2v
 /*    real alpha = 1e-4;
    real k = 1.25;
@@ -767,13 +767,13 @@ void read_in_coeff_and_plot()
 
 //    std::ofstream kin_energy_str("kin_energy.txt");
     //#pragma omp parallel for
-    for(size_t n = 0; n <= 0/* end_n */; n += (1*50)){
+    for(size_t n = 0; n <= 300/* end_n */; n += (25)){
         std::cout << "Analyze " << n*conf.dt << std::endl;
 /*         double kin_energy = compute_kinetic_energy<double,order>(n,coeffs_E, 
             coeffs_B, coeffs_j_hat, conf);
 
         kin_energy_str << n*conf.dt << " " << kin_energy << std::endl; */
-        if(n % (5*50) == 0){
+        if(n % (5*50) == 0 && false){
             std::ofstream f_str("f_" + std::to_string(n*conf.dt) + ".txt");
             for(size_t ix = 0; ix <= n_plot; ix++){
                 for(size_t iv = 0; iv <= n_plot; iv++){
@@ -1200,15 +1200,15 @@ void periodically_restarted_nufi_maxwell_lie_fBE()
         E[1][l] = E0_vec(1);
         E[2][l] = E0_vec(2);
 
-/*         double B0 = 1e-3;
+        double B0 = 1e-3;
 
         B[0][l] = 0;
         B[1][l] = 0;
-        B[2][l] = B0*B_z_values[ix]; */
+        B[2][l] = B0*B_z_values[ix];
 
-        B[0][l] = B0_vec(0);
+/*         B[0][l] = B0_vec(0);
         B[1][l] = B0_vec(1);
-        B[2][l] = B0_vec(2);
+        B[2][l] = B0_vec(2); */
     }
 
     // Interpolate E(0) and B(0).
@@ -1457,23 +1457,6 @@ int main()
     //nufi::dim3::restarted_from_disk_nufi_maxwell_lie_fBE<4>();
 
     nufi::dim3::periodically_restarted_nufi_maxwell_lie_fBE<4>();
-
-    // Parameters for the domain and the Fourier series
-/*     double L = 10.0;     // Length of the domain
-    int N = 100;         // Number of Fourier modes
-    int num_points = 500; // Number of points to evaluate
-
-    // Generate the random smooth function
-    std::vector<double> f_x = nufi::dim3::generateRandomSmoothFunction(L, N, num_points);
-
-    // Output the function values to a file
-    std::ofstream outfile("random_smooth_function.dat");
-    for (int i = 0; i < num_points; ++i) {
-        outfile << i * (L / (num_points - 1)) << " " << f_x[i] << std::endl;
-    }
-
-    // Display message
-    std::cout << "Random smooth function data generated and written to 'random_smooth_function.dat'." << std::endl; */
 
     return 0;
 }
