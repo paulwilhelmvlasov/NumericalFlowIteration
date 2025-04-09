@@ -702,10 +702,6 @@ void eval_j_hat(size_t n, std::vector<std::vector<real>>& j_hat,
         real x = conf.x_min + ix*conf.dx; 
         real y = conf.y_min + iy*conf.dy; 
         real z = conf.z_min + iz*conf.dz; 
-        
-/*         j_hat[0][l] = 0;
-        j_hat[1][l] = 0;
-        j_hat[2][l] = 0; */
 
         real sum0 = 0, sum1 = 0, sum2 = 0;
         #pragma omp parallel for collapse(3) reduction(+:sum0,sum1,sum2)
@@ -722,16 +718,128 @@ void eval_j_hat(size_t n, std::vector<std::vector<real>>& j_hat,
             sum0 += u * f_half;
             sum1 += v * f_half;
             sum2 += w * f_half;
-/*             j_hat[0][l] += u*f_half;
-            j_hat[1][l] += v*f_half;
-            j_hat[2][l] += w*f_half; */
         }
-/*         j_hat[0][l] *= conf.du*conf.dv*conf.dw;
-        j_hat[1][l] *= conf.du*conf.dv*conf.dw;
-        j_hat[2][l] *= conf.du*conf.dv*conf.dw; */
         j_hat[0][l] = sum0 * conf.du * conf.dv * conf.dw;
         j_hat[1][l] = sum1 * conf.du * conf.dv * conf.dw;
         j_hat[2][l] = sum2 * conf.du * conf.dv * conf.dw;
+    }
+}
+
+inline size_t idx_base(size_t t, size_t d, size_t ix, size_t iy, size_t iz, 
+                        size_t Nx_ext, size_t Ny_ext, size_t Nz_ext, size_t Nt) {
+    size_t spatial_idx = ix + Nx_ext * (iy + Ny_ext * iz);
+    return t + Nt * (d + 3 * spatial_idx);
+}
+
+template <typename real, size_t order>
+real eval_f_lie_fBE(size_t n, real x, real y, real z,
+    real u, real v, real w, const std::vector<real>& coeffs_E,
+    const std::vector<real>& coeffs_B, const std::vector<real>& coeffs_j_hat,
+    const config_t<real>& conf)
+{
+    const size_t dim = 3;
+    const size_t Nx_ext = conf.Nx + order - 1;
+    const size_t Ny_ext = conf.Ny + order - 1;
+    const size_t Nz_ext = conf.Nz + order - 1;
+    const size_t Nspace = Nx_ext * Ny_ext * Nz_ext;
+    const size_t stride_spatial = 1;
+    const size_t stride_comp = dim * stride_spatial;
+    const size_t stride_t = stride_comp * Nspace;
+
+    arma::Col<real> E2(3, arma::fill::zeros);
+    arma::Col<real> B0(3, arma::fill::zeros);
+    arma::Col<real> j_hat(3, arma::fill::zeros);
+
+    arma::Col<real> x_vec({x, y, z});
+    arma::Col<real> v_vec({u, v, w});
+
+    for (; n > 0; n--) {
+        for (size_t d = 0; d < 3; ++d) {
+            // Using the previous time step, i.e., n-1
+            B0(d) = eval<real, order>(x_vec(0), x_vec(1), x_vec(2),
+                        &coeffs_B[idx_base(n - 1, d, 0, 0, 0, Nx_ext, Ny_ext, Nz_ext, conf.Nt)], 
+                        conf);
+
+            j_hat(d) = eval<real, order>(x_vec(0), x_vec(1), x_vec(2),
+                        &coeffs_j_hat[idx_base(n - 1, d, 0, 0, 0, Nx_ext, Ny_ext, Nz_ext, conf.Nt)], 
+                        conf);
+
+            E2(d) = eval<real, order>(x_vec(0), x_vec(1), x_vec(2),
+                        &coeffs_E[idx_base(n - 1, d, 0, 0, 0, Nx_ext, Ny_ext, Nz_ext, conf.Nt)], 
+                        conf);
+        }
+
+        // Apply the correction to E2
+        E2 -= conf.dt * conf.q / conf.m * j_hat;
+
+        // Add the curl(B) term for E2
+        E2(0) += conf.dt * (eval<real, order, 0, 1, 0>(x_vec(0), x_vec(1), x_vec(2),
+                            &coeffs_B[idx_base(n - 1, 2, 0, 0, 0, Nx_ext, Ny_ext, Nz_ext, conf.Nt)], 
+                            conf)
+                          - eval<real, order, 0, 0, 1>(x_vec(0), x_vec(1), x_vec(2),
+                            &coeffs_B[idx_base(n - 1, 1, 0, 0, 0, Nx_ext, Ny_ext, Nz_ext, conf.Nt)], 
+                            conf));
+
+        E2(1) += conf.dt * (eval<real, order, 0, 0, 1>(x_vec(0), x_vec(1), x_vec(2),
+                            &coeffs_B[idx_base(n - 1, 0, 0, 0, 0, Nx_ext, Ny_ext, Nz_ext, conf.Nt)], 
+                            conf)
+                          - eval<real, order, 1, 0, 0>(x_vec(0), x_vec(1), x_vec(2),
+                            &coeffs_B[idx_base(n - 1, 2, 0, 0, 0, Nx_ext, Ny_ext, Nz_ext, conf.Nt)], 
+                            conf));
+
+        E2(2) += conf.dt * (eval<real, order, 1, 0, 0>(x_vec(0), x_vec(1), x_vec(2),
+                            &coeffs_B[idx_base(n - 1, 1, 0, 0, 0, Nx_ext, Ny_ext, Nz_ext, conf.Nt)], 
+                            conf)
+                          - eval<real, order, 0, 1, 0>(x_vec(0), x_vec(1), x_vec(2),
+                            &coeffs_B[idx_base(n - 1, 0, 0, 0, 0, Nx_ext, Ny_ext, Nz_ext, conf.Nt)], 
+                            conf));
+
+        arma::Mat<real> J_B = exp_J<real>(-conf.dt * conf.q / conf.m * B0);
+
+        // Update velocity and position
+        v_vec = J_B * (v_vec - conf.dt * conf.q / conf.m * E2);
+        x_vec -= conf.dt * v_vec;
+    }
+
+    // Final return using f0 function
+    return conf.f0(x_vec(0), x_vec(1), x_vec(2), v_vec(0), v_vec(1), v_vec(2));
+}
+
+template <typename real, size_t order>
+void eval_j_hat(size_t n, std::vector<real>& j_hat, const std::vector<real>& coeffs_E, 
+    const std::vector<real>& coeffs_B, const std::vector<real>& coeffs_j_hat, const config_t<real> &conf )
+{
+    #pragma omp parallel for
+    for(size_t l = 0; l < conf.Nx*conf.Ny*conf.Nz; l++){
+        
+        size_t iz   = l   / (conf.Nx * conf.Ny);
+        size_t tmp  = l   % (conf.Nx * conf.Ny);
+        size_t iy   = tmp / conf.Nx;
+        size_t ix   = tmp % conf.Nx;
+    
+        real x = conf.x_min + ix*conf.dx; 
+        real y = conf.y_min + iy*conf.dy; 
+        real z = conf.z_min + iz*conf.dz; 
+
+        real sum0 = 0, sum1 = 0, sum2 = 0;
+        #pragma omp parallel for collapse(3) reduction(+:sum0,sum1,sum2)
+        for(size_t iu = 0; iu < conf.Nu; iu++)
+        for(size_t iv = 0; iv < conf.Nv; iv++)
+        for(size_t iw = 0; iw < conf.Nw; iw++){
+            real u = conf.u_min + (iu + 0.5) * conf.du;
+            real v = conf.v_min + (iv + 0.5) * conf.dv;
+            real w = conf.w_min + (iw + 0.5) * conf.dw;
+
+            real f_half = eval_f_lie_fBE<real,order>(n, x - 0.5*conf.dt*u, y - 0.5*conf.dt*v, z - 0.5*conf.dt*w, 
+                                                        u, v, w, coeffs_E, coeffs_B, coeffs_j_hat, conf );
+
+            sum0 += u * f_half;
+            sum1 += v * f_half;
+            sum2 += w * f_half;
+        }
+        j_hat[l] = sum0 * conf.du * conf.dv * conf.dw;
+        j_hat[l + conf.Nx*conf.Ny*conf.Nz] = sum1 * conf.du * conf.dv * conf.dw;
+        j_hat[l + 2*conf.Nx*conf.Ny*conf.Nz] = sum2 * conf.du * conf.dv * conf.dw;
     }
 }
 
