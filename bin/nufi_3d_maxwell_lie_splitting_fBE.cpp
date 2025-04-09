@@ -317,87 +317,6 @@ arma::Col<real> B0(real x, real y, real z)
     return arma::Col<real>({0, 0, alpha*std::sin(x)});
 }
 
-template <typename real,size_t order>
-arma::Col<real> rot(size_t n, real x, real y, real z, const std::vector<std::vector<real>>& coeff, config_t<real> conf)
-{
-    size_t stride_t = (conf.Nx + order - 1) *
-                    (conf.Ny + order - 1) *
-	    		    (conf.Nz + order - 1);
-
-    return arma::Col<real>({
-        eval<real,order,0,1,0>(x,y,z,coeff[2].data() + n*stride_t,conf) - eval<real,order,0,0,1>(x,y,z,coeff[1].data() + n*stride_t,conf),
-        eval<real,order,0,0,1>(x,y,z,coeff[0].data() + n*stride_t,conf) - eval<real,order,1,0,0>(x,y,z,coeff[2].data() + n*stride_t,conf),
-        eval<real,order,1,0,0>(x,y,z,coeff[1].data() + n*stride_t,conf) - eval<real,order,0,1,0>(x,y,z,coeff[0].data() + n*stride_t,conf)
-    });
-}
-
-template <typename real,size_t order>
-arma::Col<real> rot(size_t n, real x, real y, real z, const std::vector<real>& coeff, config_t<real> conf)
-{
-    // Storage of coefficients now via: 
-    // index = nt + Nt * (d + dim * (ix + Nx * (iy + Ny * iz)))
-    size_t stride_t = (conf.Nx + order - 1) *
-                        (conf.Ny + order - 1) *
-                        (conf.Nz + order - 1);
-
-    const size_t dim = 3;
-    const size_t Nx_ext = conf.Nx + order - 1;
-    const size_t Ny_ext = conf.Ny + order - 1;
-    const size_t Nz_ext = conf.Nz + order - 1;
-    const size_t Nspace = Nx_ext * Ny_ext * Nz_ext;
-
-    return arma::Col<real>({
-        eval<real,order,0,1,0>(x,y,z,coeff.data() + idx_base(n,2,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf) 
-                - eval<real,order,0,0,1>(x,y,z,coeff.data() + idx_base(n,1,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf),
-        eval<real,order,0,0,1>(x,y,z,coeff.data() + idx_base(n,0,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf) 
-                - eval<real,order,1,0,0>(x,y,z,coeff.data() + idx_base(n,2,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf),
-        eval<real,order,1,0,0>(x,y,z,coeff.data() + idx_base(n,1,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf) 
-                - eval<real,order,0,1,0>(x,y,z,coeff.data() + idx_base(n,0,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf)
-    });
-}
-
-
-template <typename real,size_t order>
-arma::Col<real> rot_rot(size_t n, real x, real y, real z, const std::vector<std::vector<real>>& coeff, config_t<real> conf)
-{
-    size_t stride_t = (conf.Nx + order - 1) *
-                        (conf.Ny + order - 1) *
-                        (conf.Nz + order - 1);
-
-    return arma::Col<real>({
-        eval<real,order,1,1,0>(x,y,z,coeff[1].data() + n*stride_t,conf) + eval<real,order,1,0,1>(x,y,z,coeff[2].data() + n*stride_t,conf),
-        eval<real,order,1,1,0>(x,y,z,coeff[0].data() + n*stride_t,conf) + eval<real,order,0,1,1>(x,y,z,coeff[2].data() + n*stride_t,conf),
-        eval<real,order,1,0,1>(x,y,z,coeff[0].data() + n*stride_t,conf) + eval<real,order,0,1,1>(x,y,z,coeff[1].data() + n*stride_t,conf)
-    });
-}
-
-template <typename real,size_t order>
-arma::Col<real> rot_rot(size_t n, real x, real y, real z, 
-            const std::vector<real>& coeff, config_t<real> conf)
-{
-    // Storage of coefficients now via: 
-    // index = nt + Nt * (d + dim * (ix + Nx * (iy + Ny * iz)))
-    size_t stride_t = (conf.Nx + order - 1) *
-                        (conf.Ny + order - 1) *
-                        (conf.Nz + order - 1);
-
-    const size_t dim = 3;
-    const size_t Nx_ext = conf.Nx + order - 1;
-    const size_t Ny_ext = conf.Ny + order - 1;
-    const size_t Nz_ext = conf.Nz + order - 1;
-    const size_t Nspace = Nx_ext * Ny_ext * Nz_ext;
-
-    return arma::Col<real>({
-        eval<real,order,1,1,0>(x,y,z,coeff.data() + idx_base(n,1,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf) 
-                    + eval<real,order,1,0,1>(x,y,z,coeff.data() + idx_base(n,2,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf),
-        eval<real,order,1,1,0>(x,y,z,coeff.data() + idx_base(n,0,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf) 
-                    + eval<real,order,0,1,1>(x,y,z,coeff.data() + idx_base(n,2,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf),
-        eval<real,order,1,0,1>(x,y,z,coeff.data() + idx_base(n,0,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf) 
-                    + eval<real,order,0,1,1>(x,y,z,coeff.data() + idx_base(n,1,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf)
-    });
-}
-
-
 template <typename real, size_t order>
 real compute_kinetic_energy(size_t nt, const std::vector<std::vector<real>>& coeffs_E, const std::vector<std::vector<real>>& coeffs_B, 
     const std::vector<std::vector<real>>& coeffs_j_hat, const config_t<double>& conf, 
@@ -500,6 +419,12 @@ void do_stats(size_t nt, size_t nx_plot, std::ofstream& stat_file,
     double dx_plot = conf.Lx/nx_plot; // Assuming that Lx = Ly = Lz.
     double electric_energy = 0;
     double magnetic_energy = 0;
+    std::ofstream Ex_str("Ex_" + std::to_string(nt*conf.dt) + ".txt");
+    std::ofstream Ey_str("Ey_" + std::to_string(nt*conf.dt) + ".txt");
+    std::ofstream Ez_str("Ez_" + std::to_string(nt*conf.dt) + ".txt");
+    std::ofstream Bx_str("Bx_" + std::to_string(nt*conf.dt) + ".txt");
+    std::ofstream By_str("By_" + std::to_string(nt*conf.dt) + ".txt");
+    std::ofstream Bz_str("Bz_" + std::to_string(nt*conf.dt) + ".txt");
     for(size_t ix = 0; ix < nx_plot; ix++){
         for(size_t iy = 0; iy < nx_plot; iy++){
             for(size_t iz = 0; iz < nx_plot; iz++){
@@ -517,6 +442,15 @@ void do_stats(size_t nt, size_t nx_plot, std::ofstream& stat_file,
 
                 electric_energy += Ex*Ex + Ey*Ey + Ez*Ez;
                 magnetic_energy += Bx*Bx + By*By + Bz*Bz;
+
+                if(iy == nx_plot/2 && iz == nx_plot/2){
+                    Ex_str << x << " " << Ex << std::endl;
+                    Ey_str << x << " " << Ey << std::endl;
+                    Ez_str << x << " " << Ez << std::endl;
+                    Bx_str << x << " " << Bx << std::endl;
+                    By_str << x << " " << By << std::endl;
+                    Bz_str << x << " " << Bz << std::endl;
+                }
             }
         }
     }
@@ -1726,7 +1660,7 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned()
         arma::Col<double> B0_vec = B0(x,y,z);
 
         for(size_t d = 0; d < 3; d++){
-            size_t index = d + 3 * l;
+            size_t index = d*conf.Nx*conf.Ny*conf.Nz + l;
             E[index] = E0_vec(d);
             B[index] = B0_vec(d);
         }
@@ -1770,7 +1704,7 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned()
     for(size_t n = 1; n <= conf.Nt; n++)
     {
         nufi::stopwatch<double> timer;
-                // Compute E(n) and B(n).
+        // Compute E(n) and B(n).
         #pragma omp parallel for
         for(size_t l = 0; l < conf.Nx*conf.Ny*conf.Nz; l++){
             size_t iz   = l   / (conf.Nx * conf.Ny);
@@ -1789,14 +1723,14 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned()
                             });
             arma::Col<double> B0_vec({
                                 eval<double,order>(x,y,z,coeffs_B.data() + idx_base(nt_r_curr-1,0,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf),
-                                eval<double,order>(x,y,z,coeffs_B.data() + idx_base(nt_r_curr-1,0,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf),
-                                eval<double,order>(x,y,z,coeffs_B.data() + idx_base(nt_r_curr-1,0,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf)
+                                eval<double,order>(x,y,z,coeffs_B.data() + idx_base(nt_r_curr-1,1,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf),
+                                eval<double,order>(x,y,z,coeffs_B.data() + idx_base(nt_r_curr-1,2,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf)
                             });
             
             arma::Col<double> j_hat({
                 eval<double,order>(x,y,z,coeffs_j_hat.data() + idx_base(nt_r_curr-1,0,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf),
-                eval<double,order>(x,y,z,coeffs_j_hat.data() + idx_base(nt_r_curr-1,0,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf),
-                eval<double,order>(x,y,z,coeffs_j_hat.data() + idx_base(nt_r_curr-1,0,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf)
+                eval<double,order>(x,y,z,coeffs_j_hat.data() + idx_base(nt_r_curr-1,1,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf),
+                eval<double,order>(x,y,z,coeffs_j_hat.data() + idx_base(nt_r_curr-1,2,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf)
             });
 
             E0_vec = E0_vec - conf.dt*conf.q/conf.m*j_hat + conf.dt*rot<double,order>(nt_r_curr-1,x,y,z,coeffs_B,conf);
@@ -1805,7 +1739,7 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned()
                     + conf.dt*conf.dt*rot_rot<double,order>(nt_r_curr-1,x,y,z,coeffs_B,conf);
 
             for(size_t d = 0; d < 3; d++){
-                size_t index = d + 3 * l;
+                size_t index = d*conf.Nx*conf.Ny*conf.Nz + l;
                 E[index] = E0_vec(d);
                 B[index] = B0_vec(d);
             }

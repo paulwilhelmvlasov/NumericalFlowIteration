@@ -635,6 +635,96 @@ void exp_J(arma::Mat<real>& J_v, const arma::Col<real>& v, real tol = 1e-16)
     }
 }
 
+inline size_t idx_base(size_t t, size_t d, size_t ix, size_t iy, size_t iz,
+    size_t Nx_ext, size_t Ny_ext, size_t Nz_ext, size_t Nt) {
+    size_t spatial_idx = ix + Nx_ext * (iy + Ny_ext * iz);
+    size_t Nspace = Nx_ext * Ny_ext * Nz_ext;
+    return d * Nspace + spatial_idx + 3 * Nspace * t;
+}
+
+template <typename real,size_t order>
+arma::Col<real> rot(size_t n, real x, real y, real z, 
+        const std::vector<std::vector<real>>& coeff, config_t<real> conf)
+{
+    size_t stride_t = (conf.Nx + order - 1) *
+                    (conf.Ny + order - 1) *
+	    		    (conf.Nz + order - 1);
+
+    return arma::Col<real>({
+        eval<real,order,0,1,0>(x,y,z,coeff[2].data() + n*stride_t,conf) - eval<real,order,0,0,1>(x,y,z,coeff[1].data() + n*stride_t,conf),
+        eval<real,order,0,0,1>(x,y,z,coeff[0].data() + n*stride_t,conf) - eval<real,order,1,0,0>(x,y,z,coeff[2].data() + n*stride_t,conf),
+        eval<real,order,1,0,0>(x,y,z,coeff[1].data() + n*stride_t,conf) - eval<real,order,0,1,0>(x,y,z,coeff[0].data() + n*stride_t,conf)
+    });
+}
+
+template <typename real,size_t order>
+arma::Col<real> rot(size_t n, real x, real y, real z, 
+                const std::vector<real>& coeff, config_t<real> conf)
+{
+    // Storage of coefficients now such spatial grid data aligned for 
+    // fixed time and component.
+    size_t stride_t = (conf.Nx + order - 1) *
+                        (conf.Ny + order - 1) *
+                        (conf.Nz + order - 1);
+
+    const size_t dim = 3;
+    const size_t Nx_ext = conf.Nx + order - 1;
+    const size_t Ny_ext = conf.Ny + order - 1;
+    const size_t Nz_ext = conf.Nz + order - 1;
+    const size_t Nspace = Nx_ext * Ny_ext * Nz_ext;
+
+    return arma::Col<real>({
+        eval<real,order,0,1,0>(x,y,z,coeff.data() + idx_base(n,2,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf) 
+                - eval<real,order,0,0,1>(x,y,z,coeff.data() + idx_base(n,1,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf),
+        eval<real,order,0,0,1>(x,y,z,coeff.data() + idx_base(n,0,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf) 
+                - eval<real,order,1,0,0>(x,y,z,coeff.data() + idx_base(n,2,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf),
+        eval<real,order,1,0,0>(x,y,z,coeff.data() + idx_base(n,1,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf) 
+                - eval<real,order,0,1,0>(x,y,z,coeff.data() + idx_base(n,0,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf)
+    });
+}
+
+
+template <typename real,size_t order>
+arma::Col<real> rot_rot(size_t n, real x, real y, real z, 
+        const std::vector<std::vector<real>>& coeff, config_t<real> conf)
+{
+    size_t stride_t = (conf.Nx + order - 1) *
+                        (conf.Ny + order - 1) *
+                        (conf.Nz + order - 1);
+
+    return arma::Col<real>({
+        eval<real,order,1,1,0>(x,y,z,coeff[1].data() + n*stride_t,conf) + eval<real,order,1,0,1>(x,y,z,coeff[2].data() + n*stride_t,conf),
+        eval<real,order,1,1,0>(x,y,z,coeff[0].data() + n*stride_t,conf) + eval<real,order,0,1,1>(x,y,z,coeff[2].data() + n*stride_t,conf),
+        eval<real,order,1,0,1>(x,y,z,coeff[0].data() + n*stride_t,conf) + eval<real,order,0,1,1>(x,y,z,coeff[1].data() + n*stride_t,conf)
+    });
+}
+
+template <typename real,size_t order>
+arma::Col<real> rot_rot(size_t n, real x, real y, real z, 
+            const std::vector<real>& coeff, config_t<real> conf)
+{
+    // Storage of coefficients now such spatial grid data aligned for 
+    // fixed time and component.
+    size_t stride_t = (conf.Nx + order - 1) *
+                      (conf.Ny + order - 1) *
+                      (conf.Nz + order - 1);
+
+    const size_t dim = 3;
+    const size_t Nx_ext = conf.Nx + order - 1;
+    const size_t Ny_ext = conf.Ny + order - 1;
+    const size_t Nz_ext = conf.Nz + order - 1;
+    const size_t Nspace = Nx_ext * Ny_ext * Nz_ext;
+
+    return arma::Col<real>({
+        eval<real,order,1,1,0>(x,y,z,coeff.data() + idx_base(n,1,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf) 
+                    + eval<real,order,1,0,1>(x,y,z,coeff.data() + idx_base(n,2,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf),
+        eval<real,order,1,1,0>(x,y,z,coeff.data() + idx_base(n,0,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf) 
+                    + eval<real,order,0,1,1>(x,y,z,coeff.data() + idx_base(n,2,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf),
+        eval<real,order,1,0,1>(x,y,z,coeff.data() + idx_base(n,0,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf) 
+                    + eval<real,order,0,1,1>(x,y,z,coeff.data() + idx_base(n,1,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf)
+    });
+}
+
 template <typename real, size_t order> 
 real eval_f_lie_fBE(size_t n, real x, real y, real z,
     real u, real v, real w, const std::vector<std::vector<real>>& coeffs_E, 
@@ -725,11 +815,6 @@ void eval_j_hat(size_t n, std::vector<std::vector<real>>& j_hat,
     }
 }
 
-inline size_t idx_base(size_t t, size_t d, size_t ix, size_t iy, size_t iz, 
-                        size_t Nx_ext, size_t Ny_ext, size_t Nz_ext, size_t Nt) {
-    size_t spatial_idx = ix + Nx_ext * (iy + Ny_ext * iz);
-    return t + Nt * (d + 3 * spatial_idx);
-}
 
 template <typename real, size_t order>
 real eval_f_lie_fBE(size_t n, real x, real y, real z,
@@ -771,9 +856,11 @@ real eval_f_lie_fBE(size_t n, real x, real y, real z,
 
         // Apply the correction to E2
         E2 -= conf.dt * conf.q / conf.m * j_hat;
+        
 
         // Add the curl(B) term for E2
-        E2(0) += conf.dt * (eval<real, order, 0, 1, 0>(x_vec(0), x_vec(1), x_vec(2),
+        E2 += conf.dt * rot<real,order>(n-1,x_vec(0),x_vec(1),x_vec(2),coeffs_B,conf);
+/*         E2(0) += conf.dt * (eval<real, order, 0, 1, 0>(x_vec(0), x_vec(1), x_vec(2),
                             &coeffs_B[idx_base(n - 1, 2, 0, 0, 0, Nx_ext, Ny_ext, Nz_ext, conf.Nt)], 
                             conf)
                           - eval<real, order, 0, 0, 1>(x_vec(0), x_vec(1), x_vec(2),
@@ -792,7 +879,7 @@ real eval_f_lie_fBE(size_t n, real x, real y, real z,
                             conf)
                           - eval<real, order, 0, 1, 0>(x_vec(0), x_vec(1), x_vec(2),
                             &coeffs_B[idx_base(n - 1, 0, 0, 0, 0, Nx_ext, Ny_ext, Nz_ext, conf.Nt)], 
-                            conf));
+                            conf)); */
 
         arma::Mat<real> J_B = exp_J<real>(-conf.dt * conf.q / conf.m * B0);
 
@@ -870,7 +957,7 @@ real trilinear_interpolation(real x, real y, real z,
 }
 
 template <typename real>
-real eval_field(size_t n, size_t dir, real x, real y, real z, 
+real eval_field_FD(size_t n, size_t dir, real x, real y, real z, 
                 const std::vector<real>& field_values, const config_t<real>& conf,
                 bool node_storage )
 {
