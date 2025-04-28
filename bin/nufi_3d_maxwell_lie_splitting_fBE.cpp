@@ -23,15 +23,15 @@ namespace dim3
 arma::mat restart_matrix;
 
 //const double k = 1.25; // Weibel Instability by Einkemmer
-/* const double k = 0.5; // "Normal" choice
+const double k = 0.5; // "Normal" choice
 const double Lx = 2*M_PI/k;
 const double Ly = Lx;
-const double Lz = Lx; */
+const double Lz = Lx;
 
 // Magnetic Two Stream Instability by Einkemmer 
-const double Lx = 2*M_PI;
+/* const double Lx = 2*M_PI;
 const double Ly = Lx;
-const double Lz = Lx;
+const double Lz = Lx; */
 
 // Two Stream Instability by Fabio 
 /* const double Lx = 12.8;
@@ -53,8 +53,8 @@ const double vmax = 0.22;
 const double wmin = -1;
 const double wmax = 1; */
 // Paul's test
-const double umin = -1;
-const double umax = 1;
+const double umin = -5;
+const double umax = 5;
 const double vmin = -2;
 const double vmax = 2;
 const double wmin = -1;
@@ -70,9 +70,9 @@ const size_t Nx = 32;
 const size_t Ny = 1;
 const size_t Nz = 1;
 const size_t Nu = 32;
-const size_t Nv = 64;
+const size_t Nv = 1/* 64 */;
 const size_t Nw = 1;
-const double   dt = 1e-2;
+const double   dt = 1e-1;
 const size_t Nt = 100/dt;
 
 
@@ -80,7 +80,7 @@ const size_t nx_r = 2*Nx;
 const size_t ny_r = 1;
 const size_t nz_r = 1;
 const size_t nu_r = 2*Nu;
-const size_t nv_r = 2*Nv;
+const size_t nv_r = 1/* 2*Nv */;
 const size_t nw_r = 1;
 const size_t nt_restart = 200;
 
@@ -193,6 +193,14 @@ real maxwellian_2d(real u, real v, real vth) noexcept
     real c = 1.0 / (2*M_PI*vth*vth);
     return c*std::exp(-(u*u + v*v) / (2*vth*vth) );
 }
+
+template <typename real>
+real maxwellian_1d(real u, real vth) noexcept
+{
+    real c = 1.0 / std::sqrt(2*M_PI*vth*vth);
+    return c*std::exp(-(u*u) / (2*vth*vth) );
+}
+
  
 template <typename real>
 real f0(real x, real y, real z, real u, real v, real w) noexcept
@@ -208,6 +216,9 @@ real f0(real x, real y, real z, real u, real v, real w) noexcept
 /*    constexpr real c  = 1.0 / std::pow(2.0 * M_PI, 3.0/2.0); 
     return c * ( 1. + alpha*cos(k*x)) 
              * exp( -(u*u+v*v+w*w)/2 ); */
+    constexpr real alpha = 0.01;
+    constexpr real k = 0.5;
+    return ( 1. + alpha*cos(k*x)) * maxwellian_1d<real>(u,1);
 
     // Two Stream Instability in x direction:
 /*    constexpr real c = 1.0 / std::pow(2.0 * M_PI, 3.0/2.0);
@@ -227,10 +238,10 @@ real f0(real x, real y, real z, real u, real v, real w) noexcept
     // Magnetic Two Stream by Einkemmer
 /*     real v_beam = 0.2;
     real vth = 2e-3; */
-    real v_beam = 1;
+/*     real v_beam = 1;
     real vth = 0.1;
     return 0.5 * (maxwellian_2d<real>(u,v-v_beam,vth) + maxwellian_2d<real>(u,v+v_beam,vth));
-
+ */
 // Weibel instability 1x2v
 /*    real alpha = 1e-4;
    real k = 1.25;
@@ -249,15 +260,15 @@ arma::Col<real> E0(real x, real y, real z)
     return  arma::Col<real>({-alpha / k * std::sin(k*x), 0, 0}); */
 
     // Electro-static Two Stream Instability
-/*     constexpr real alpha = 1e-2;
+    constexpr real alpha = 1e-2;
     constexpr real k     = 0.5;
-    return  arma::Col<real>({-alpha / k * std::sin(k*x), 0, 0}); */
+    return  arma::Col<real>({-alpha / k * std::sin(k*x), 0, 0});
 
     // Electro-static Two Stream Instability by Fabio & Paul
     // Note that if we assume only a x-dependent perturbation for f it can only 
     // induce a electric field in the x- but not y-component. This however means 
     // that to induce dynamics along y we need an initial B instead of E.
-    return  arma::Col<real>({0, 0, 0});  
+    //return  arma::Col<real>({0, 0, 0});  
 }
 
 // Function to generate random smooth periodic function using Fourier series
@@ -310,11 +321,11 @@ arma::Col<real> B0(real x, real y, real z)
     return arma::Col<real>({0, 0, beta*std::cos(k*x)}); */
 
     // Electro-static
-    //return arma::Col<real>({0, 0, 0});
+    return arma::Col<real>({0, 0, 0});
 
     // Magnetic Two Stream Instability by Einkemmer.
-    constexpr real alpha = 1e-3;
-    return arma::Col<real>({0, 0, alpha*std::sin(x)});
+/*     constexpr real alpha = 1e-3;
+    return arma::Col<real>({0, 0, alpha*std::sin(x)}); */
 }
 
 template <typename real, size_t order>
@@ -1717,20 +1728,20 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned()
             double z = conf.z_min + iz*conf.dz; 
     
             arma::Col<double> E0_vec({
-                                eval<double,order>(x,y,z,coeffs_E.data() + idx_base(nt_r_curr-1,0,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf),
-                                eval<double,order>(x,y,z,coeffs_E.data() + idx_base(nt_r_curr-1,1,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf),
-                                eval<double,order>(x,y,z,coeffs_E.data() + idx_base(nt_r_curr-1,2,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf),
+                                eval<double,order>(x,y,z,coeffs_E.data() + idx_base(nt_r_curr-1,0,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf),
+                                eval<double,order>(x,y,z,coeffs_E.data() + idx_base(nt_r_curr-1,1,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf),
+                                eval<double,order>(x,y,z,coeffs_E.data() + idx_base(nt_r_curr-1,2,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf),
                             });
             arma::Col<double> B0_vec({
-                                eval<double,order>(x,y,z,coeffs_B.data() + idx_base(nt_r_curr-1,0,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf),
-                                eval<double,order>(x,y,z,coeffs_B.data() + idx_base(nt_r_curr-1,1,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf),
-                                eval<double,order>(x,y,z,coeffs_B.data() + idx_base(nt_r_curr-1,2,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf)
+                                eval<double,order>(x,y,z,coeffs_B.data() + idx_base(nt_r_curr-1,0,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf),
+                                eval<double,order>(x,y,z,coeffs_B.data() + idx_base(nt_r_curr-1,1,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf),
+                                eval<double,order>(x,y,z,coeffs_B.data() + idx_base(nt_r_curr-1,2,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf)
                             });
             
             arma::Col<double> j_hat({
-                eval<double,order>(x,y,z,coeffs_j_hat.data() + idx_base(nt_r_curr-1,0,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf),
-                eval<double,order>(x,y,z,coeffs_j_hat.data() + idx_base(nt_r_curr-1,1,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf),
-                eval<double,order>(x,y,z,coeffs_j_hat.data() + idx_base(nt_r_curr-1,2,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf)
+                eval<double,order>(x,y,z,coeffs_j_hat.data() + idx_base(nt_r_curr-1,0,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf),
+                eval<double,order>(x,y,z,coeffs_j_hat.data() + idx_base(nt_r_curr-1,1,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf),
+                eval<double,order>(x,y,z,coeffs_j_hat.data() + idx_base(nt_r_curr-1,2,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf)
             });
 
             E0_vec = E0_vec - conf.dt*conf.q/conf.m*j_hat + conf.dt*rot<double,order>(nt_r_curr-1,x,y,z,coeffs_B,conf);
@@ -1819,9 +1830,9 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned()
             // Copy last entries of coeff vectors.
             #pragma omp parallel for collapse(2)
             for(size_t k = 0; k < 3; k++){
-                for(size_t ix = 0; ix < conf.Nx; ix++)
-                for(size_t iy = 0; iy < conf.Ny; iy++)
-                for(size_t iz = 0; iz < conf.Nz; iz++){
+                for(size_t ix = 0; ix < Nx_ext; ix++)
+                for(size_t iy = 0; iy < Ny_ext; iy++)
+                for(size_t iz = 0; iz < Nz_ext; iz++){
                     coeffs_E[idx_base(0,k,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,conf.Nt)] 
                                     = coeffs_E[idx_base(nt_r_curr,k,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,conf.Nt)];
                     coeffs_B[idx_base(0,k,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,conf.Nt)] 
