@@ -72,7 +72,8 @@ const size_t Nz = 1;
 const size_t Nu = 32;
 const size_t Nv = 64;
 const size_t Nw = 1;
-const double   dt = 2e-2;
+const size_t steps_per_1 = 200;
+const double   dt = 1.0 / steps_per_1;
 const size_t Nt = 100/dt;
 
 
@@ -503,6 +504,50 @@ void do_stats(size_t nt, size_t nx_plot, std::ofstream& stat_file,
     } else {
         stat_file << nt*conf.dt << " " << electric_energy << " " << magnetic_energy << std::endl;
         std::cout << nt*conf.dt << " " << electric_energy << " " << magnetic_energy << std::endl;
+    }
+}
+
+template<typename real, size_t order>
+void plot_f(size_t n, const std::vector<real>& coeffs_E, const std::vector<real>& coeffs_B, 
+    const std::vector<real>& coeffs_j_hat, const config_t<double>& conf, bool restarted = false, 
+    size_t n_full = 0)
+{
+    size_t nt_plot = n;
+    if(restarted){
+        nt_plot = n_full;
+    }
+
+    std::ofstream f_x_vx_str("f_x_vx_" + std::to_string(nt_plot*conf.dt) + ".txt");
+    std::ofstream f_x_vy_str("f_x_vy_" + std::to_string(nt_plot*conf.dt) + ".txt");
+    std::ofstream f_minux_eq_x_vx_str("f_minux_eq_x_vx_" + std::to_string(nt_plot*conf.dt) + ".txt");
+    std::ofstream f_minux_eq_x_vy_str("f_minux_eq_x_vy_" + std::to_string(nt_plot*conf.dt) + ".txt");
+
+    size_t nx_plot = 128;
+    size_t nu_plot = 128;
+    double dx_plot = conf.Lx / nx_plot;
+    double du_plot = (umax - umin) / nu_plot;
+    double dv_plot = (vmax - vmin) / nu_plot;
+
+    for(size_t ix = 0; ix <= nx_plot; ix++){
+        for(size_t iu = 0; iu <= nu_plot; iu++){
+            double x = conf.x_min + ix * dx_plot;
+            double u = umin + iu * du_plot;
+            double v = vmin + iu * dv_plot;
+
+            double f_x_vx = eval_f_lie_fBE<real,order>(n, x, 0, 0, u, 0, 0, coeffs_E, coeffs_B, coeffs_j_hat, conf);
+            double f_x_vy = eval_f_lie_fBE<real,order>(n, x, 0, 0, 0, v, 0, coeffs_E, coeffs_B, coeffs_j_hat, conf);
+            double f_minus_equilbrium_vx = std::abs(f_x_vx - f0<real>(x,0,0,u,0,0));
+            double f_minus_equilbrium_vy = std::abs(f_x_vy - f0<real>(x,0,0,0,v,0));
+
+            f_x_vx_str << x << " " << u << " " << f_x_vx << std::endl;
+            f_x_vy_str << x << " " << v << " " << f_x_vy << std::endl;
+            f_minux_eq_x_vx_str << x << " " << u << " " << f_minus_equilbrium_vx << std::endl;
+            f_minux_eq_x_vy_str << x << " " << v << " " << f_minus_equilbrium_vy << std::endl;
+        }
+        f_x_vx_str << std::endl;
+        f_x_vy_str << std::endl;
+        f_minux_eq_x_vx_str << std::endl;
+        f_minux_eq_x_vy_str << std::endl;
     }
 }
 
@@ -1622,6 +1667,8 @@ void interpolate_fields_aligned(size_t n, std::vector<real>& coeffs,
 template<size_t order>
 void periodically_restarted_nufi_maxwell_lie_fBE_aligned()
 {
+    omp_set_num_threads(8);
+
     // Storage of coefficients now via: 
     // index = nt + Nt * (d + dim * (ix + Nx * (iy + Ny * iz)))
     size_t stride_t = (conf.Nx + order - 1) *
@@ -1737,11 +1784,11 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned()
     std::ofstream stat_file( "stats.txt" );
     // Output stats (Electric/magnetic energy).
     do_stats<double,order>(0, 64, stat_file,coeffs_E, coeffs_B, conf);
+    plot_f<double,order>(0,coeffs_E, coeffs_B, coeffs_j_hat, conf);
     std::ofstream coeff_out_str_E("coeffs_E.txt");
     std::ofstream coeff_out_str_B("coeffs_B.txt");
     std::ofstream coeff_out_str_j_hat("coeffs_j_hat.txt");
     write_coeffs<double,order>(0, coeffs_E, coeffs_B, coeffs_j_hat, conf, coeff_out_str_E, coeff_out_str_B, coeff_out_str_j_hat );
-
 
     std::cout << "Restart time-loop." << std::endl;    
     std::cout << " ---------------------------------- " << std::endl;
@@ -1822,6 +1869,9 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned()
         std::cout << "Time step " << n << " took a total of " << time_for_step << " s." << std::endl;
 
         do_stats<double,order>(nt_r_curr, 64, stat_file, coeffs_E, coeffs_B, conf, true, n);
+        if(n % (steps_per_1) == 0){
+            plot_f<double,order>(nt_r_curr,coeffs_E, coeffs_B, coeffs_j_hat, conf, true, n);
+        }
         write_coeffs<double,order>(nt_r_curr, coeffs_E, coeffs_B, coeffs_j_hat, conf, 
                                     coeff_out_str_E, coeff_out_str_B, coeff_out_str_j_hat );
         std::cout << "Do stats took: " << double(timer.elapsed()) << " s." << std::endl;
