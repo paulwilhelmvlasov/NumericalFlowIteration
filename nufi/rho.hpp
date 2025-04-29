@@ -635,6 +635,96 @@ void exp_J(arma::Mat<real>& J_v, const arma::Col<real>& v, real tol = 1e-16)
     }
 }
 
+inline size_t idx_base(size_t t, size_t d, size_t ix, size_t iy, size_t iz,
+    size_t Nx_ext, size_t Ny_ext, size_t Nz_ext, size_t Nt) {
+    size_t spatial_idx = ix + Nx_ext * (iy + Ny_ext * iz);
+    size_t Nspace = Nx_ext * Ny_ext * Nz_ext;
+    return d * Nspace + spatial_idx + 3 * Nspace * t;
+}
+
+template <typename real,size_t order>
+arma::Col<real> rot(size_t n, real x, real y, real z, 
+        const std::vector<std::vector<real>>& coeff, config_t<real> conf)
+{
+    size_t stride_t = (conf.Nx + order - 1) *
+                    (conf.Ny + order - 1) *
+	    		    (conf.Nz + order - 1);
+
+    return arma::Col<real>({
+        eval<real,order,0,1,0>(x,y,z,coeff[2].data() + n*stride_t,conf) - eval<real,order,0,0,1>(x,y,z,coeff[1].data() + n*stride_t,conf),
+        eval<real,order,0,0,1>(x,y,z,coeff[0].data() + n*stride_t,conf) - eval<real,order,1,0,0>(x,y,z,coeff[2].data() + n*stride_t,conf),
+        eval<real,order,1,0,0>(x,y,z,coeff[1].data() + n*stride_t,conf) - eval<real,order,0,1,0>(x,y,z,coeff[0].data() + n*stride_t,conf)
+    });
+}
+
+template <typename real,size_t order>
+arma::Col<real> rot(size_t n, real x, real y, real z, 
+                const std::vector<real>& coeff, config_t<real> conf)
+{
+    // Storage of coefficients now such spatial grid data aligned for 
+    // fixed time and component.
+    size_t stride_t = (conf.Nx + order - 1) *
+                        (conf.Ny + order - 1) *
+                        (conf.Nz + order - 1);
+
+    const size_t dim = 3;
+    const size_t Nx_ext = conf.Nx + order - 1;
+    const size_t Ny_ext = conf.Ny + order - 1;
+    const size_t Nz_ext = conf.Nz + order - 1;
+    const size_t Nspace = Nx_ext * Ny_ext * Nz_ext;
+
+    return arma::Col<real>({
+        eval<real,order,0,1,0>(x,y,z,coeff.data() + idx_base(n,2,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf) 
+                - eval<real,order,0,0,1>(x,y,z,coeff.data() + idx_base(n,1,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf),
+        eval<real,order,0,0,1>(x,y,z,coeff.data() + idx_base(n,0,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf) 
+                - eval<real,order,1,0,0>(x,y,z,coeff.data() + idx_base(n,2,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf),
+        eval<real,order,1,0,0>(x,y,z,coeff.data() + idx_base(n,1,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf) 
+                - eval<real,order,0,1,0>(x,y,z,coeff.data() + idx_base(n,0,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf)
+    });
+}
+
+
+template <typename real,size_t order>
+arma::Col<real> rot_rot(size_t n, real x, real y, real z, 
+        const std::vector<std::vector<real>>& coeff, config_t<real> conf)
+{
+    size_t stride_t = (conf.Nx + order - 1) *
+                        (conf.Ny + order - 1) *
+                        (conf.Nz + order - 1);
+
+    return arma::Col<real>({
+        eval<real,order,1,1,0>(x,y,z,coeff[1].data() + n*stride_t,conf) + eval<real,order,1,0,1>(x,y,z,coeff[2].data() + n*stride_t,conf),
+        eval<real,order,1,1,0>(x,y,z,coeff[0].data() + n*stride_t,conf) + eval<real,order,0,1,1>(x,y,z,coeff[2].data() + n*stride_t,conf),
+        eval<real,order,1,0,1>(x,y,z,coeff[0].data() + n*stride_t,conf) + eval<real,order,0,1,1>(x,y,z,coeff[1].data() + n*stride_t,conf)
+    });
+}
+
+template <typename real,size_t order>
+arma::Col<real> rot_rot(size_t n, real x, real y, real z, 
+            const std::vector<real>& coeff, config_t<real> conf)
+{
+    // Storage of coefficients now such spatial grid data aligned for 
+    // fixed time and component.
+    size_t stride_t = (conf.Nx + order - 1) *
+                      (conf.Ny + order - 1) *
+                      (conf.Nz + order - 1);
+
+    const size_t dim = 3;
+    const size_t Nx_ext = conf.Nx + order - 1;
+    const size_t Ny_ext = conf.Ny + order - 1;
+    const size_t Nz_ext = conf.Nz + order - 1;
+    const size_t Nspace = Nx_ext * Ny_ext * Nz_ext;
+
+    return arma::Col<real>({
+        eval<real,order,1,1,0>(x,y,z,coeff.data() + idx_base(n,1,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf) 
+                    + eval<real,order,1,0,1>(x,y,z,coeff.data() + idx_base(n,2,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf),
+        eval<real,order,1,1,0>(x,y,z,coeff.data() + idx_base(n,0,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf) 
+                    + eval<real,order,0,1,1>(x,y,z,coeff.data() + idx_base(n,2,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf),
+        eval<real,order,1,0,1>(x,y,z,coeff.data() + idx_base(n,0,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf) 
+                    + eval<real,order,0,1,1>(x,y,z,coeff.data() + idx_base(n,1,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf)
+    });
+}
+
 template <typename real, size_t order> 
 real eval_f_lie_fBE(size_t n, real x, real y, real z,
     real u, real v, real w, const std::vector<std::vector<real>>& coeffs_E, 
@@ -702,10 +792,6 @@ void eval_j_hat(size_t n, std::vector<std::vector<real>>& j_hat,
         real x = conf.x_min + ix*conf.dx; 
         real y = conf.y_min + iy*conf.dy; 
         real z = conf.z_min + iz*conf.dz; 
-        
-/*         j_hat[0][l] = 0;
-        j_hat[1][l] = 0;
-        j_hat[2][l] = 0; */
 
         real sum0 = 0, sum1 = 0, sum2 = 0;
         #pragma omp parallel for collapse(3) reduction(+:sum0,sum1,sum2)
@@ -722,13 +808,7 @@ void eval_j_hat(size_t n, std::vector<std::vector<real>>& j_hat,
             sum0 += u * f_half;
             sum1 += v * f_half;
             sum2 += w * f_half;
-/*             j_hat[0][l] += u*f_half;
-            j_hat[1][l] += v*f_half;
-            j_hat[2][l] += w*f_half; */
         }
-/*         j_hat[0][l] *= conf.du*conf.dv*conf.dw;
-        j_hat[1][l] *= conf.du*conf.dv*conf.dw;
-        j_hat[2][l] *= conf.du*conf.dv*conf.dw; */
         j_hat[0][l] = sum0 * conf.du * conf.dv * conf.dw;
         j_hat[1][l] = sum1 * conf.du * conf.dv * conf.dw;
         j_hat[2][l] = sum2 * conf.du * conf.dv * conf.dw;
@@ -736,126 +816,98 @@ void eval_j_hat(size_t n, std::vector<std::vector<real>>& j_hat,
 }
 
 
-template<typename real> 
-real trilinear_interpolation(real x, real y, real z, 
-                            real x0, real y0, real z0, 
-                            real dx_inv, real dy_inv, real dz_inv,
-                            real c000, real c001, 
-                            real c010, real c011, 
-                            real c100, real c101,
-                            real c110, real c111)
+template <typename real, size_t order>
+real eval_f_lie_fBE(size_t n, real x, real y, real z,
+    real u, real v, real w, const std::vector<real>& coeffs_E,
+    const std::vector<real>& coeffs_B, const std::vector<real>& coeffs_j_hat,
+    const config_t<real>& conf)
 {
-    // C_{ix, iy, iz}
-    real xd = (x-x0) * dx_inv;
-    real yd = (y-y0) * dy_inv;
-    real zd = (z-z0) * dz_inv;
+    const size_t dim = 3;
+    const size_t Nx_ext = conf.Nx + order - 1;
+    const size_t Ny_ext = conf.Ny + order - 1;
+    const size_t Nz_ext = conf.Nz + order - 1;
+    const size_t Nspace = Nx_ext * Ny_ext * Nz_ext;
+    const size_t stride_spatial = 1;
+    const size_t stride_comp = dim * stride_spatial;
+    const size_t stride_t = stride_comp * Nspace;
 
-    real c00 = c000 * (1-xd) + c100*xd;
-    real c01 = c001 * (1-xd) + c101*xd;
-    real c10 = c010 * (1-xd) + c110*xd;
-    real c11 = c011 * (1-xd) + c111*xd;
+    arma::Col<real> E2(3, arma::fill::zeros);
+    arma::Col<real> B0(3, arma::fill::zeros);
+    arma::Col<real> j_hat(3, arma::fill::zeros);
 
-    real c0 = c00 * (1-yd) + c10*yd;
-    real c1 = c01 * (1-yd) + c11*yd;
+    arma::Col<real> x_vec({x, y, z});
+    arma::Col<real> v_vec({u, v, w});
 
-    return c0 * (1-zd) + c1*zd;
+    for (; n > 0; n--) {
+        for (size_t d = 0; d < 3; ++d) {
+            // Using the previous time step, i.e., n-1
+            B0(d) = eval<real, order>(x_vec(0), x_vec(1), x_vec(2),
+                        &coeffs_B[idx_base(n - 1, d, 0, 0, 0, Nx_ext, Ny_ext, Nz_ext, conf.Nt)], 
+                        conf);
+
+            j_hat(d) = eval<real, order>(x_vec(0), x_vec(1), x_vec(2),
+                        &coeffs_j_hat[idx_base(n - 1, d, 0, 0, 0, Nx_ext, Ny_ext, Nz_ext, conf.Nt)], 
+                        conf);
+
+            E2(d) = eval<real, order>(x_vec(0), x_vec(1), x_vec(2),
+                        &coeffs_E[idx_base(n - 1, d, 0, 0, 0, Nx_ext, Ny_ext, Nz_ext, conf.Nt)], 
+                        conf);
+        }
+
+        // Apply the correction to E2
+        E2 -= conf.dt * conf.q / conf.m * j_hat;
+        
+        // Add the curl(B) term for E2
+        E2 += conf.dt * rot<real,order>(n-1,x_vec(0),x_vec(1),x_vec(2),coeffs_B,conf);
+
+        arma::Mat<real> J_B = exp_J<real>(-conf.dt * conf.q / conf.m * B0);
+
+        // Update velocity and position
+        v_vec = J_B * (v_vec - conf.dt * conf.q / conf.m * E2);
+        x_vec -= conf.dt * v_vec;
+    }
+
+    // Final return using f0 function
+    return conf.f0(x_vec(0), x_vec(1), x_vec(2), v_vec(0), v_vec(1), v_vec(2));
 }
 
-template <typename real>
-real eval_field(size_t n, size_t dir, real x, real y, real z, 
-                const std::vector<real>& field_values, const config_t<real>& conf,
-                bool node_storage )
+template <typename real, size_t order>
+void eval_j_hat(size_t n, std::vector<real>& j_hat, const std::vector<real>& coeffs_E, 
+    const std::vector<real>& coeffs_B, const std::vector<real>& coeffs_j_hat, const config_t<real> &conf )
 {
-    // We store the field values in an array (5 dim tensor) with the sorting:
-    // l = n + Nt * (dir + d * (ix + Ny * (iy + Ny * iz))).
-    // Furthermore as we use a staggered grid for the fields the electric field 
-    // is stored on the nodes while magnetic field is stored on the cell centers.
+    #pragma omp parallel for
+    for(size_t l = 0; l < conf.Nx*conf.Ny*conf.Nz; l++){
+        
+        size_t iz   = l   / (conf.Nx * conf.Ny);
+        size_t tmp  = l   % (conf.Nx * conf.Ny);
+        size_t iy   = tmp / conf.Nx;
+        size_t ix   = tmp % conf.Nx;
     
-    // Shift to a box that starts at 0.
-    x -= conf.x_min;
-    y -= conf.y_min;
-    z -= conf.z_min;
+        real x = conf.x_min + ix*conf.dx; 
+        real y = conf.y_min + iy*conf.dy; 
+        real z = conf.z_min + iz*conf.dz; 
 
-    // Get "periodic position" in box at origin.
-    x = x - conf.Lx * floor( x*conf.Lx_inv ); 
-    y = y - conf.Ly * floor( y*conf.Ly_inv ); 
-    z = z - conf.Lz * floor( z*conf.Lz_inv ); 
+        real sum0 = 0, sum1 = 0, sum2 = 0;
+        #pragma omp parallel for collapse(3) reduction(+:sum0,sum1,sum2)
+        for(size_t iu = 0; iu < conf.Nu; iu++)
+        for(size_t iv = 0; iv < conf.Nv; iv++)
+        for(size_t iw = 0; iw < conf.Nw; iw++){
+            real u = conf.u_min + (iu + 0.5) * conf.du;
+            real v = conf.v_min + (iv + 0.5) * conf.dv;
+            real w = conf.w_min + (iw + 0.5) * conf.dw;
 
-    size_t l_base = n + conf.Nt * dir;
+            real f_half = eval_f_lie_fBE<real,order>(n, x - 0.5*conf.dt*u, y - 0.5*conf.dt*v, z - 0.5*conf.dt*w, 
+                                                        u, v, w, coeffs_E, coeffs_B, coeffs_j_hat, conf );
 
-    if(node_storage){
-        // E:
-        real x_knot = floor( x*conf.dx_inv ); 
-        real y_knot = floor( y*conf.dy_inv ); 
-        real z_knot = floor( z*conf.dz_inv );
-
-        size_t ix = static_cast<size_t>(x_knot);
-        size_t iy = static_cast<size_t>(y_knot);
-        size_t iz = static_cast<size_t>(z_knot);
-
-        size_t ix_1 = (ix+1) % conf.Nx;
-        size_t iy_1 = (iy+1) % conf.Ny;
-        size_t iz_1 = (iz+1) % conf.Nz;
-
-        // C_{ix, iy, iz}.
-        real c000 = field_values[n + conf.Nt * (dir +  3 * (ix + conf.Nx * (iy + conf.Ny * iz)))];
-        real c001 = field_values[n + conf.Nt * (dir +  3 * (ix + conf.Nx * (iy + conf.Ny * iz_1)))];
-        real c010 = field_values[n + conf.Nt * (dir +  3 * (ix + conf.Nx * (iy_1 + conf.Ny * iz)))];
-        real c011 = field_values[n + conf.Nt * (dir +  3 * (ix + conf.Nx * (iy_1 + conf.Ny * iz_1)))];
-        real c100 = field_values[n + conf.Nt * (dir +  3 * (ix_1 + conf.Nx * (iy + conf.Ny * iz)))];
-        real c101 = field_values[n + conf.Nt * (dir +  3 * (ix_1 + conf.Nx * (iy + conf.Ny * iz_1)))];
-        real c110 = field_values[n + conf.Nt * (dir +  3 * (ix_1 + conf.Nx * (iy_1 + conf.Ny * iz)))];
-        real c111 = field_values[n + conf.Nt * (dir +  3 * (ix_1 + conf.Nx * (iy_1 + conf.Ny * iz_1)))];
-
-        return trilinear_interpolation<real>(x, y, z, ix*conf.dx, iy*conf.dy, iz*conf.dz,
-                                            conf.dx_inv, conf.dy_inv, conf.dz_inv, 
-                                            c000, c001, c010, c011, c100, c101, c110, c111);
-
-    } else {
-        // B: 
-        real x_knot = floor( (x + conf.dx/2.0)*conf.dx_inv ); 
-        real y_knot = floor( (y + conf.dy/2.0)*conf.dy_inv ); 
-        real z_knot = floor( (z + conf.dz/2.0)*conf.dz_inv );
-
-        int ix = static_cast<int>(x_knot);
-        int iy = static_cast<int>(y_knot);
-        int iz = static_cast<int>(z_knot);
-
-        size_t ix_1 = (ix+1) % conf.Nx;
-        size_t iy_1 = (iy+1) % conf.Ny;
-        size_t iz_1 = (iz+1) % conf.Nz;
-
-        // ix could be also (-1) if x is in between 0 and x_{1/2}. 
-        // For this case we have to take the modulo but only
-        // after computing the correct x0.
-        real x0 = (ix + 0.5) * conf.dx;
-        real y0 = (iy + 0.5) * conf.dy;
-        real z0 = (iz + 0.5) * conf.dz;
-
-        ix = ix % conf.Nx;
-        iy = iy % conf.Ny;
-        iz = iz % conf.Nz;
-
-        // C_{ix, iy, iz}.
-        real c000 = field_values[n + conf.Nt * (dir +  3 * (ix + conf.Nx * (iy + conf.Ny * iz)))];
-        real c001 = field_values[n + conf.Nt * (dir +  3 * (ix + conf.Nx * (iy + conf.Ny * iz_1)))];
-        real c010 = field_values[n + conf.Nt * (dir +  3 * (ix + conf.Nx * (iy_1 + conf.Ny * iz)))];
-        real c011 = field_values[n + conf.Nt * (dir +  3 * (ix + conf.Nx * (iy_1 + conf.Ny * iz_1)))];
-        real c100 = field_values[n + conf.Nt * (dir +  3 * (ix_1 + conf.Nx * (iy + conf.Ny * iz)))];
-        real c101 = field_values[n + conf.Nt * (dir +  3 * (ix_1 + conf.Nx * (iy + conf.Ny * iz_1)))];
-        real c110 = field_values[n + conf.Nt * (dir +  3 * (ix_1 + conf.Nx * (iy_1 + conf.Ny * iz)))];
-        real c111 = field_values[n + conf.Nt * (dir +  3 * (ix_1 + conf.Nx * (iy_1 + conf.Ny * iz_1)))];
-
-        return trilinear_interpolation<real>(x, y, z, x0, y0, z0,
-                                            conf.dx_inv, conf.dy_inv, conf.dz_inv, 
-                                            c000, c001, c010, c011, c100, c101, c110, c111);
+            sum0 += u * f_half;
+            sum1 += v * f_half;
+            sum2 += w * f_half;
+        }
+        j_hat[l] = sum0 * conf.du * conf.dv * conf.dw;
+        j_hat[l + conf.Nx*conf.Ny*conf.Nz] = sum1 * conf.du * conf.dv * conf.dw;
+        j_hat[l + 2*conf.Nx*conf.Ny*conf.Nz] = sum2 * conf.du * conf.dv * conf.dw;
     }
 }
-
-// Does it make sense to use the above routine to compute derivatives or wouldn't it rather be better to 
-// compute and store the derivatives on the grid? 
-// Think about how an efficient implemention for the derivatives could look like, keeping in mind that
-// I will need to interpolate values inbetween nodes/cell-centers. 
 
 }
 

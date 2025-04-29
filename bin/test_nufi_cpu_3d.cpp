@@ -50,20 +50,21 @@ real f0(real x, real y, real z, real u, real v, real w) noexcept
 
     // Weak Landau Damping in x direction:
     constexpr real c  = 1.0 / std::pow(2.0 * M_PI, 3.0/2.0); 
-    return c * ( 1. + alpha*cos(k*x)) 
-             * exp( -(u*u+v*v+w*w)/2 );
+    return c * ( 1. + alpha*cos(k*x)) * exp( -(u*u + v*v + w*w)/2 );
 }
 
 const double Lx = 4*M_PI;
-const double umin = -6;
-const double umax = 6;
-const size_t Nx = 8;  
+const double umin = -5;
+const double umax = 5;
+const size_t Nx = 32;  
 const size_t Ny = 1;  
 const size_t Nz = 1;  
-const size_t Nu = 8;  
+const size_t Nu = 32;
+const size_t Nv = 8;
+const size_t Nw = 8;  
 const double   dt = 0.1;  
 const size_t Nt = 30/dt;  
-config_t<double> conf(Nx, Ny, Nz, Nu, Nu, Nu, Nt, dt, 
+config_t<double> conf(Nx, Ny, Nz, Nu, Nv, Nw, Nt, dt, 
                     0, Lx, 0, Lx, 0, Lx, umin, umax, 
                     umin, umax, umin, umax,  &f0);
 

@@ -23,20 +23,20 @@ namespace dim3
 arma::mat restart_matrix;
 
 //const double k = 1.25; // Weibel Instability by Einkemmer
-/* const double k = 0.5; // "Normal" choice
-const double Lx = 2*M_PI/k;
+//const double k = 0.5; // "Normal" choice
+/* const double Lx = 2*M_PI/k;
 const double Ly = Lx;
 const double Lz = Lx; */
 
 // Magnetic Two Stream Instability by Einkemmer 
-const double Lx = 2*M_PI;
-const double Ly = Lx;
-const double Lz = Lx;
-
-// Two Stream Instability by Fabio 
-/* const double Lx = 12.8;
+/* const double Lx = 2*M_PI;
 const double Ly = Lx;
 const double Lz = Lx; */
+
+// Two Stream Instability by Fabio 
+const double Lx = 12.8;
+const double Ly = Lx;
+const double Lz = Lx;
 
 // Weibel Instability by Einkemmer
 /* const double umin = -0.15;
@@ -46,12 +46,19 @@ const double vmax = 0.6;
 const double wmin = -0.15;
 const double wmax = 0.15; */
 // Magnetic Two Stream Instability by Einkemmer
-const double umin = -0.015;
+/* const double umin = -0.015;
 const double umax = 0.015;
 const double vmin = -0.22;
 const double vmax = 0.22;
 const double wmin = -1;
-const double wmax = 1;
+const double wmax = 1; */
+// Paul's test
+const double umin = -1;
+const double umax = 1;
+const double vmin = -1.2;
+const double vmax = 1.2;
+const double wmin = -0.5;
+const double wmax = 0.5;
 // Magnetic Two Stream Instability by Fabio (perturbation in v direction)
 /* const double umin = -0.01;
 const double umax = 0.01;
@@ -63,9 +70,10 @@ const size_t Nx = 32;
 const size_t Ny = 1;
 const size_t Nz = 1;
 const size_t Nu = 32;
-const size_t Nv = 2048;
+const size_t Nv = 64;
 const size_t Nw = 1;
-const double   dt = 1e-3;
+const size_t steps_per_1 = 200;
+const double   dt = 1.0 / steps_per_1;
 const size_t Nt = 100/dt;
 
 
@@ -74,7 +82,7 @@ const size_t ny_r = 1;
 const size_t nz_r = 1;
 const size_t nu_r = 2*Nu;
 const size_t nv_r = 2*Nv;
-const size_t nw_r = 1;
+const size_t nw_r = 2*Nw;
 const size_t nt_restart = 200;
 
 const double dx_r = Lx / nx_r;
@@ -186,6 +194,14 @@ real maxwellian_2d(real u, real v, real vth) noexcept
     real c = 1.0 / (2*M_PI*vth*vth);
     return c*std::exp(-(u*u + v*v) / (2*vth*vth) );
 }
+
+template <typename real>
+real maxwellian_1d(real u, real vth) noexcept
+{
+    real c = 1.0 / std::sqrt(2*M_PI*vth*vth);
+    return c*std::exp(-(u*u) / (2*vth*vth) );
+}
+
  
 template <typename real>
 real f0(real x, real y, real z, real u, real v, real w) noexcept
@@ -201,6 +217,15 @@ real f0(real x, real y, real z, real u, real v, real w) noexcept
 /*    constexpr real c  = 1.0 / std::pow(2.0 * M_PI, 3.0/2.0); 
     return c * ( 1. + alpha*cos(k*x)) 
              * exp( -(u*u+v*v+w*w)/2 ); */
+/*  
+    // Careful: If using 1d Maxwellian and constant function along some 
+    // velocity directions it is important to normalize away the size of
+    // the velocity space in that direction or just choose the velocity
+    // domain in that direction as [-0.5,0.5].
+    constexpr real alpha = 0.01;
+    constexpr real k = 0.5;
+    return ( 1. + alpha*cos(k*x)) * maxwellian_1d<real>(u,1); */ 
+    //return ( 1. + alpha*cos(k*x)) * maxwellian<real>(u,v,w,1);
 
     // Two Stream Instability in x direction:
 /*    constexpr real c = 1.0 / std::pow(2.0 * M_PI, 3.0/2.0);
@@ -213,15 +238,17 @@ real f0(real x, real y, real z, real u, real v, real w) noexcept
     return perturbation * 0.5 * (maxwellian<real>(u,v-v_beam,w,vth) + maxwellian<real>(u,v+v_beam,w,vth)); */
 
     // Two Stream in y direction by Fabio
-/*     real v_beam = 0.4;
-    real vth = 0.001;
-    return 0.5 * (maxwellian_2d<real>(u,v-v_beam,vth) + maxwellian_2d<real>(u,v+v_beam,vth)); */
-
-    // Magnetic Two Stream by Einkemmer
-    real v_beam = 0.2;
-    real vth = 2e-3;
+    real v_beam = 0.4;
+    real vth = 0.1;
     return 0.5 * (maxwellian_2d<real>(u,v-v_beam,vth) + maxwellian_2d<real>(u,v+v_beam,vth));
 
+    // Magnetic Two Stream by Einkemmer
+/*     real v_beam = 0.2;
+    real vth = 2e-3; */
+/*     real v_beam = 1;
+    real vth = 0.1;
+    return 0.5 * (maxwellian_2d<real>(u,v-v_beam,vth) + maxwellian_2d<real>(u,v+v_beam,vth));
+ */
 // Weibel instability 1x2v
 /*    real alpha = 1e-4;
    real k = 1.25;
@@ -239,7 +266,7 @@ arma::Col<real> E0(real x, real y, real z)
     constexpr real k     = 1.25;
     return  arma::Col<real>({-alpha / k * std::sin(k*x), 0, 0}); */
 
-    // Electro-static Two Stream Instability
+    // Electro-static (Landau Damping or Two Stream Instability)
 /*     constexpr real alpha = 1e-2;
     constexpr real k     = 0.5;
     return  arma::Col<real>({-alpha / k * std::sin(k*x), 0, 0}); */
@@ -301,39 +328,11 @@ arma::Col<real> B0(real x, real y, real z)
     return arma::Col<real>({0, 0, beta*std::cos(k*x)}); */
 
     // Electro-static
-    //return arma::Col<real>({0, 0, 0});
+    return arma::Col<real>({0, 0, 0});
 
     // Magnetic Two Stream Instability by Einkemmer.
-    constexpr real alpha = 1e-3;
-    return arma::Col<real>({0, 0, alpha*std::sin(x)});
-}
-
-template <typename real,size_t order>
-arma::Col<real> rot(size_t n, real x, real y, real z, const std::vector<std::vector<real>>& coeff, config_t<real> conf)
-{
-    size_t stride_t = (conf.Nx + order - 1) *
-                    (conf.Ny + order - 1) *
-	    		    (conf.Nz + order - 1);
-
-    return arma::Col<real>({
-        eval<real,order,0,1,0>(x,y,z,coeff[2].data() + n*stride_t,conf) - eval<real,order,0,0,1>(x,y,z,coeff[1].data() + n*stride_t,conf),
-        eval<real,order,0,0,1>(x,y,z,coeff[0].data() + n*stride_t,conf) - eval<real,order,1,0,0>(x,y,z,coeff[2].data() + n*stride_t,conf),
-        eval<real,order,1,0,0>(x,y,z,coeff[1].data() + n*stride_t,conf) - eval<real,order,0,1,0>(x,y,z,coeff[0].data() + n*stride_t,conf)
-    });
-}
-
-template <typename real,size_t order>
-arma::Col<real> rot_rot(size_t n, real x, real y, real z, const std::vector<std::vector<real>>& coeff, config_t<real> conf)
-{
-    size_t stride_t = (conf.Nx + order - 1) *
-                        (conf.Ny + order - 1) *
-                        (conf.Nz + order - 1);
-
-    return arma::Col<real>({
-        eval<real,order,1,1,0>(x,y,z,coeff[1].data() + n*stride_t,conf) + eval<real,order,1,0,1>(x,y,z,coeff[2].data() + n*stride_t,conf),
-        eval<real,order,1,1,0>(x,y,z,coeff[0].data() + n*stride_t,conf) + eval<real,order,0,1,1>(x,y,z,coeff[2].data() + n*stride_t,conf),
-        eval<real,order,1,0,1>(x,y,z,coeff[0].data() + n*stride_t,conf) + eval<real,order,0,1,1>(x,y,z,coeff[1].data() + n*stride_t,conf)
-    });
+/*     constexpr real alpha = 1e-3;
+    return arma::Col<real>({0, 0, alpha*std::sin(x)}); */
 }
 
 template <typename real, size_t order>
@@ -419,6 +418,140 @@ void do_stats(size_t nt, size_t nx_plot, std::ofstream& stat_file,
 }
 
 template<typename real, size_t order>
+void do_stats(size_t nt, size_t nx_plot, std::ofstream& stat_file, 
+    const std::vector<real>& coeffs_E, const std::vector<real>& coeffs_B, 
+    const config_t<double>& conf, bool restarted = false, size_t n_full = 0)
+{
+    // Storage of coefficients now via: 
+    // index = nt + Nt * (d + dim * (ix + Nx * (iy + Ny * iz)))
+    const size_t stride_t = (conf.Nx + order - 1) *
+                        (conf.Ny + order - 1) *
+                        (conf.Nz + order - 1);
+
+    const size_t dim = 3;
+    const size_t Nx_ext = conf.Nx + order - 1;
+    const size_t Ny_ext = conf.Ny + order - 1;
+    const size_t Nz_ext = conf.Nz + order - 1;
+    const size_t Nspace = Nx_ext * Ny_ext * Nz_ext;
+
+    double dx_plot = conf.Lx/nx_plot; // Assuming that Lx = Ly = Lz.
+    double electric_energy = 0;
+    double magnetic_energy = 0;
+    if(nt % 10 == 0){
+        std::ofstream Ex_str("Ex_" + std::to_string(nt*conf.dt) + ".txt");
+        std::ofstream Ey_str("Ey_" + std::to_string(nt*conf.dt) + ".txt");
+        std::ofstream Ez_str("Ez_" + std::to_string(nt*conf.dt) + ".txt");
+        std::ofstream Bx_str("Bx_" + std::to_string(nt*conf.dt) + ".txt");
+        std::ofstream By_str("By_" + std::to_string(nt*conf.dt) + ".txt");
+        std::ofstream Bz_str("Bz_" + std::to_string(nt*conf.dt) + ".txt");
+        for(size_t ix = 0; ix < nx_plot; ix++){
+            for(size_t iy = 0; iy < nx_plot; iy++){
+                for(size_t iz = 0; iz < nx_plot; iz++){
+                    double x = (ix+0.5)*dx_plot;
+                    double y = (iy+0.5)*dx_plot;
+                    double z = (iz+0.5)*dx_plot;
+
+                    double Ex = eval<real,order>(x,y,z,coeffs_E.data() + idx_base(nt,0,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf);
+                    double Ey = eval<real,order>(x,y,z,coeffs_E.data() + idx_base(nt,1,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf);
+                    double Ez = eval<real,order>(x,y,z,coeffs_E.data() + idx_base(nt,2,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf);
+
+                    double Bx = eval<real,order>(x,y,z,coeffs_B.data() + idx_base(nt,0,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf);
+                    double By = eval<real,order>(x,y,z,coeffs_B.data() + idx_base(nt,1,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf);
+                    double Bz = eval<real,order>(x,y,z,coeffs_B.data() + idx_base(nt,2,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf);
+
+                    electric_energy += Ex*Ex + Ey*Ey + Ez*Ez;
+                    magnetic_energy += Bx*Bx + By*By + Bz*Bz;
+
+                    if(iy == nx_plot/2 && iz == nx_plot/2 && (nt % 10 == 0)){
+                        Ex_str << x << " " << Ex << std::endl;
+                        Ey_str << x << " " << Ey << std::endl;
+                        Ez_str << x << " " << Ez << std::endl;
+                        Bx_str << x << " " << Bx << std::endl;
+                        By_str << x << " " << By << std::endl;
+                        Bz_str << x << " " << Bz << std::endl;
+                    }
+                }
+            }
+        }
+    } else {
+        for(size_t ix = 0; ix < nx_plot; ix++){
+            for(size_t iy = 0; iy < nx_plot; iy++){
+                for(size_t iz = 0; iz < nx_plot; iz++){
+                    double x = (ix+0.5)*dx_plot;
+                    double y = (iy+0.5)*dx_plot;
+                    double z = (iz+0.5)*dx_plot;
+
+                    double Ex = eval<real,order>(x,y,z,coeffs_E.data() + idx_base(nt,0,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf);
+                    double Ey = eval<real,order>(x,y,z,coeffs_E.data() + idx_base(nt,1,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf);
+                    double Ez = eval<real,order>(x,y,z,coeffs_E.data() + idx_base(nt,2,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf);
+
+                    double Bx = eval<real,order>(x,y,z,coeffs_B.data() + idx_base(nt,0,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf);
+                    double By = eval<real,order>(x,y,z,coeffs_B.data() + idx_base(nt,1,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf);
+                    double Bz = eval<real,order>(x,y,z,coeffs_B.data() + idx_base(nt,2,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf);
+
+                    electric_energy += Ex*Ex + Ey*Ey + Ez*Ez;
+                    magnetic_energy += Bx*Bx + By*By + Bz*Bz;
+                }
+            }
+        }
+    }
+    electric_energy *= 0.5*dx_plot*dx_plot*dx_plot;
+    magnetic_energy *= 0.5*dx_plot*dx_plot*dx_plot;
+
+    if(restarted){
+        stat_file << n_full*conf.dt << " " << electric_energy << " " << magnetic_energy << std::endl;
+        std::cout << n_full*conf.dt << " " << electric_energy << " " << magnetic_energy << std::endl;
+    } else {
+        stat_file << nt*conf.dt << " " << electric_energy << " " << magnetic_energy << std::endl;
+        std::cout << nt*conf.dt << " " << electric_energy << " " << magnetic_energy << std::endl;
+    }
+}
+
+template<typename real, size_t order>
+void plot_f(size_t n, const std::vector<real>& coeffs_E, const std::vector<real>& coeffs_B, 
+    const std::vector<real>& coeffs_j_hat, const config_t<double>& conf, bool restarted = false, 
+    size_t n_full = 0)
+{
+    size_t nt_plot = n;
+    if(restarted){
+        nt_plot = n_full;
+    }
+
+    std::ofstream f_x_vx_str("f_x_vx_" + std::to_string(nt_plot*conf.dt) + ".txt");
+    std::ofstream f_x_vy_str("f_x_vy_" + std::to_string(nt_plot*conf.dt) + ".txt");
+    std::ofstream f_minux_eq_x_vx_str("f_minux_eq_x_vx_" + std::to_string(nt_plot*conf.dt) + ".txt");
+    std::ofstream f_minux_eq_x_vy_str("f_minux_eq_x_vy_" + std::to_string(nt_plot*conf.dt) + ".txt");
+
+    size_t nx_plot = 128;
+    size_t nu_plot = 128;
+    double dx_plot = conf.Lx / nx_plot;
+    double du_plot = (umax - umin) / nu_plot;
+    double dv_plot = (vmax - vmin) / nu_plot;
+
+    for(size_t ix = 0; ix <= nx_plot; ix++){
+        for(size_t iu = 0; iu <= nu_plot; iu++){
+            double x = conf.x_min + ix * dx_plot;
+            double u = umin + iu * du_plot;
+            double v = vmin + iu * dv_plot;
+
+            double f_x_vx = eval_f_lie_fBE<real,order>(n, x, 0, 0, u, 0, 0, coeffs_E, coeffs_B, coeffs_j_hat, conf);
+            double f_x_vy = eval_f_lie_fBE<real,order>(n, x, 0, 0, 0, v, 0, coeffs_E, coeffs_B, coeffs_j_hat, conf);
+            double f_minus_equilbrium_vx = std::abs(f_x_vx - f0<real>(x,0,0,u,0,0));
+            double f_minus_equilbrium_vy = std::abs(f_x_vy - f0<real>(x,0,0,0,v,0));
+
+            f_x_vx_str << x << " " << u << " " << f_x_vx << std::endl;
+            f_x_vy_str << x << " " << v << " " << f_x_vy << std::endl;
+            f_minux_eq_x_vx_str << x << " " << u << " " << f_minus_equilbrium_vx << std::endl;
+            f_minux_eq_x_vy_str << x << " " << v << " " << f_minus_equilbrium_vy << std::endl;
+        }
+        f_x_vx_str << std::endl;
+        f_x_vy_str << std::endl;
+        f_minux_eq_x_vx_str << std::endl;
+        f_minux_eq_x_vy_str << std::endl;
+    }
+}
+
+template<typename real, size_t order>
 void write_coeffs(size_t n, const std::vector<std::vector<real>>& coeffs_E, 
     const std::vector<std::vector<real>>& coeffs_B, const std::vector<std::vector<real>>& coeffs_j_hat, 
     const config_t<double>& conf, std::ofstream& coeff_file_E, std::ofstream& coeff_file_B, 
@@ -461,7 +594,69 @@ void write_coeffs(size_t n, const std::vector<std::vector<real>>& coeffs_E,
         }
     }
 
+}
+
+
+template<typename real, size_t order>
+void write_coeffs(size_t n, const std::vector<real>& coeffs_E, 
+    const std::vector<real>& coeffs_B, const std::vector<real>& coeffs_j_hat, 
+    const config_t<real>& conf, std::ofstream& coeff_file_E, std::ofstream& coeff_file_B, 
+    std::ofstream& coeff_file_j_hat )
+{
+    // Storage of coefficients now via: 
+    // index = nt + Nt * (d + dim * (ix + Nx * (iy + Ny * iz)))
+    const size_t stride_t = (conf.Nx + order - 1) *
+                        (conf.Ny + order - 1) *
+                        (conf.Nz + order - 1);
+
+    const size_t dim = 3;
+    const size_t Nx_ext = conf.Nx + order - 1;
+    const size_t Ny_ext = conf.Ny + order - 1;
+    const size_t Nz_ext = conf.Nz + order - 1;
+    const size_t Nspace = Nx_ext * Ny_ext * Nz_ext;
+
+    #pragma omp parallel
+    {
+        #pragma omp sections
+        {    
+            #pragma omp section
+            for(size_t ix = 0; ix < conf.Nx; ix++)
+            for(size_t iy = 0; iy < conf.Ny; iy++)
+            for(size_t iz = 0; iz < conf.Nz; iz++)
+            {
+                coeff_file_E << coeffs_E[idx_base(n,0,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,conf.Nt)] << " "
+                            << coeffs_E[idx_base(n,1,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,conf.Nt)] << " "
+                            << coeffs_E[idx_base(n,2,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,conf.Nt)] << " "
+                            << std::endl;
+            }
+            
+            #pragma omp section
+            for(size_t ix = 0; ix < conf.Nx; ix++)
+            for(size_t iy = 0; iy < conf.Ny; iy++)
+            for(size_t iz = 0; iz < conf.Nz; iz++)
+            {
+                coeff_file_B << coeffs_B[idx_base(n,0,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,conf.Nt)] << " "
+                            << coeffs_B[idx_base(n,1,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,conf.Nt)] << " "
+                            << coeffs_B[idx_base(n,2,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,conf.Nt)] << " "
+                            << std::endl;
+            }
+
+            #pragma omp section
+            for(size_t ix = 0; ix < conf.Nx; ix++)
+            for(size_t iy = 0; iy < conf.Ny; iy++)
+            for(size_t iz = 0; iz < conf.Nz; iz++)
+            {
+                coeff_file_j_hat << coeffs_j_hat[idx_base(n,0,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,conf.Nt)] << " "
+                            << coeffs_j_hat[idx_base(n,1,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,conf.Nt)] << " "
+                            << coeffs_j_hat[idx_base(n,2,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,conf.Nt)] << " "
+                            << std::endl;
+            }
+        }
+    }
+
 }    
+
+
 
 /* const double Lx = 4*M_PI;
 const double umin = -6;
@@ -1445,6 +1640,313 @@ void periodically_restarted_nufi_maxwell_lie_fBE()
     std::cout << "Total simulation time " << total_time << " s." << std::endl;
 }
 
+template<typename real, size_t order>
+void interpolate_fields_aligned(size_t n, std::vector<real>& coeffs, 
+                                std::vector<real>& values, const config_t<real>& conf)
+{
+    // It is assumed that E and B are precomputed correctly already.
+    // Storage of coefficients now via: 
+    // index = nt + Nt * (d + dim * (ix + Nx * (iy + Ny * iz)))
+    const size_t stride_t = (conf.Nx + order - 1) *
+                        (conf.Ny + order - 1) *
+                        (conf.Nz + order - 1);
+
+    const size_t dim = 3;
+    const size_t Nx_ext = conf.Nx + order - 1;
+    const size_t Ny_ext = conf.Ny + order - 1;
+    const size_t Nz_ext = conf.Nz + order - 1;
+    const size_t Nspace = Nx_ext * Ny_ext * Nz_ext;
+
+    #pragma omp parallel for
+    for(size_t d = 0; d < 3; d++){
+        interpolate<real,order>(coeffs.data() + idx_base(n,d,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),
+                                                values.data() + d*conf.Nx*conf.Ny*conf.Nz,conf);
+    }
+}
+
+template<size_t order>
+void periodically_restarted_nufi_maxwell_lie_fBE_aligned()
+{
+    omp_set_num_threads(8);
+
+    // Storage of coefficients now via: 
+    // index = nt + Nt * (d + dim * (ix + Nx * (iy + Ny * iz)))
+    size_t stride_t = (conf.Nx + order - 1) *
+                        (conf.Ny + order - 1) *
+                        (conf.Nz + order - 1);
+
+    const size_t dim = 3;
+    const size_t Nx_ext = conf.Nx + order - 1;
+    const size_t Ny_ext = conf.Ny + order - 1;
+    const size_t Nz_ext = conf.Nz + order - 1;
+    const size_t Nspace = Nx_ext * Ny_ext * Nz_ext;
+    
+    std::cout << "Start NuFI Vlasov-Maxwell-Solver with fBE-Lie-Splitting." << std::endl;
+    std::cout << "Init helper variables." << std::endl;
+
+    // Flattened 1D coefficient storage
+    std::vector<double> coeffs_E(3 * (conf.Nt + 1) * stride_t, 0);
+    std::vector<double> coeffs_B(3 * (conf.Nt + 1) * stride_t, 0);
+    std::vector<double> coeffs_j_hat(3 * (conf.Nt + 1) * stride_t, 0);
+    std::vector<double> E(3 * conf.Nx * conf.Ny * conf.Nz, 0);
+    std::vector<double> B(3 * conf.Nx * conf.Ny * conf.Nz, 0);
+    std::vector<double> j_hat(3 * conf.Nx * conf.Ny * conf.Nz, 0);
+
+
+    // Init restart matrices.
+    std::cout << "Initialize restart matrices." << std::endl;
+    size_t size_x_r = (nx_r+1)*(ny_r+1)*(nz_r+1);
+    size_t size_v_r = (nu_r+1)*(nv_r+1)*(nw_r+1);
+    restart_matrix.resize(size_x_r, size_v_r);
+    arma::mat copy_mat(size_x_r, size_v_r, arma::fill::zeros);
+
+    // Set up config.
+    conf = config_t<double>(Nx, Ny, Nz, Nu, Nv, Nw, Nt, dt, 
+                            0, Lx, 0, Ly, 0, Lz, umin, umax, 
+                            vmin, vmax, wmin, wmax,
+                            &f0);
+
+    // Print out config.
+    conf.print_config(std::cout);
+    std::cout << "order = " << order << std::endl;
+    std::cout << "Restart parameters: " << std::endl;
+    std::cout << "nx_r " << nx_r << std::endl;
+    std::cout << "ny_r " << ny_r << std::endl;
+    std::cout << "nz_r " << nz_r << std::endl;
+    std::cout << "nu_r " << nu_r << std::endl;
+    std::cout << "nv_r " << nv_r << std::endl;
+    std::cout << "nw_r " << nw_r << std::endl;
+    std::cout << "nt_restart " << nt_restart << std::endl;
+    std::ofstream config_out_str("config.txt");
+    conf.print_config(config_out_str);
+    config_out_str << "order = " << order << std::endl;
+    config_out_str << "nx_r " << nx_r << std::endl;
+    config_out_str << "ny_r " << ny_r << std::endl;
+    config_out_str << "nz_r " << nz_r << std::endl;
+    config_out_str << "nu_r " << nu_r << std::endl;
+    config_out_str << "nv_r " << nv_r << std::endl;
+    config_out_str << "nw_r " << nw_r << std::endl;
+    config_out_str << "nt_restart " << nt_restart << std::endl;
+
+    std::vector<double> B_z_values = generateRandomSmoothFunction(Lx, 100, Nx);
+
+    // Compute E(0) and B(0).
+    std::cout << "Compute E(0) and B(0)." << std::endl;
+    #pragma omp parallel for
+    for(size_t l = 0; l < conf.Nx*conf.Ny*conf.Nz; l++){
+        size_t iz   = l   / (conf.Nx * conf.Ny);
+        size_t tmp  = l   % (conf.Nx * conf.Ny);
+        size_t iy   = tmp / conf.Nx;
+        size_t ix   = tmp % conf.Nx;
+    
+        double x = conf.x_min + ix*conf.dx; 
+        double y = conf.y_min + iy*conf.dy; 
+        double z = conf.z_min + iz*conf.dz; 
+        
+        // Normal initialization:        
+/*        arma::Col<double> E0_vec = E0(x,y,z);
+        arma::Col<double> B0_vec = B0(x,y,z);
+
+         for(size_t d = 0; d < 3; d++){
+            size_t index = d*conf.Nx*conf.Ny*conf.Nz + l;
+            E[index] = E0_vec(d);
+            B[index] = B0_vec(d);
+        }
+ */
+        // Fabio's magnetic Two Stream Instability:
+        for(size_t d = 0; d < 3; d++){
+            size_t index = d*conf.Nx*conf.Ny*conf.Nz + l;
+            E[index] = 0;
+            if(d < 2){
+                B[index] = 0;
+            } else{
+                B[index] = 1e-3 * B_z_values[ix];
+            }
+        }
+
+    }
+
+    // Interpolate E(0) and B(0).
+    std::cout << "Interpolate E(0)." << std::endl;
+    interpolate_fields_aligned<double,order>(0, coeffs_E, E, conf);
+    std::cout << "Interpolate B(0)." << std::endl;
+    interpolate_fields_aligned<double,order>(0, coeffs_B, B, conf);
+    
+    // Compute j_hat(0).
+    std::cout << "Compute j_hat(0)." << std::endl;
+    eval_j_hat<double,order>(0, j_hat, coeffs_E, coeffs_B, coeffs_j_hat, conf);
+
+    // Interpolate j_hat(0).
+    std::cout << "Interpolate j_hat(0)." << std::endl;
+    interpolate_fields_aligned<double,order>(0, coeffs_j_hat, j_hat, conf);
+
+    std::cout << "First output." << std::endl;
+    std::ofstream stat_file( "stats.txt" );
+    // Output stats (Electric/magnetic energy).
+    do_stats<double,order>(0, 64, stat_file,coeffs_E, coeffs_B, conf);
+    plot_f<double,order>(0,coeffs_E, coeffs_B, coeffs_j_hat, conf);
+    std::ofstream coeff_out_str_E("coeffs_E.txt");
+    std::ofstream coeff_out_str_B("coeffs_B.txt");
+    std::ofstream coeff_out_str_j_hat("coeffs_j_hat.txt");
+    write_coeffs<double,order>(0, coeffs_E, coeffs_B, coeffs_j_hat, conf, coeff_out_str_E, coeff_out_str_B, coeff_out_str_j_hat );
+
+    std::cout << "Restart time-loop." << std::endl;    
+    std::cout << " ---------------------------------- " << std::endl;
+    double total_time = 0;
+    size_t nt_r_curr = 1;
+    for(size_t n = 1; n <= conf.Nt; n++)
+    {
+        nufi::stopwatch<double> timer;
+        // Compute E(n) and B(n).
+        #pragma omp parallel for
+        for(size_t l = 0; l < conf.Nx*conf.Ny*conf.Nz; l++){
+            size_t iz   = l   / (conf.Nx * conf.Ny);
+            size_t tmp  = l   % (conf.Nx * conf.Ny);
+            size_t iy   = tmp / conf.Nx;
+            size_t ix   = tmp % conf.Nx;
+        
+            double x = conf.x_min + ix*conf.dx; 
+            double y = conf.y_min + iy*conf.dy; 
+            double z = conf.z_min + iz*conf.dz; 
+    
+            arma::Col<double> E0_vec({
+                                eval<double,order>(x,y,z,coeffs_E.data() + idx_base(nt_r_curr-1,0,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf),
+                                eval<double,order>(x,y,z,coeffs_E.data() + idx_base(nt_r_curr-1,1,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf),
+                                eval<double,order>(x,y,z,coeffs_E.data() + idx_base(nt_r_curr-1,2,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf),
+                            });
+            arma::Col<double> B0_vec({
+                                eval<double,order>(x,y,z,coeffs_B.data() + idx_base(nt_r_curr-1,0,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf),
+                                eval<double,order>(x,y,z,coeffs_B.data() + idx_base(nt_r_curr-1,1,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf),
+                                eval<double,order>(x,y,z,coeffs_B.data() + idx_base(nt_r_curr-1,2,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf)
+                            });
+            
+            arma::Col<double> j_hat({
+                eval<double,order>(x,y,z,coeffs_j_hat.data() + idx_base(nt_r_curr-1,0,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf),
+                eval<double,order>(x,y,z,coeffs_j_hat.data() + idx_base(nt_r_curr-1,1,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf),
+                eval<double,order>(x,y,z,coeffs_j_hat.data() + idx_base(nt_r_curr-1,2,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf)
+            });
+
+            E0_vec = E0_vec - conf.dt*conf.q/conf.m*j_hat + conf.dt*rot<double,order>(nt_r_curr-1,x,y,z,coeffs_B,conf);
+            B0_vec = B0_vec - conf.dt*rot<double,order>(nt_r_curr-1,x,y,z,coeffs_E,conf) 
+                    - conf.dt*conf.dt*conf.q/conf.m*rot<double,order>(nt_r_curr-1,x,y,z,coeffs_j_hat,conf)
+                    + conf.dt*conf.dt*rot_rot<double,order>(nt_r_curr-1,x,y,z,coeffs_B,conf);
+
+            for(size_t d = 0; d < 3; d++){
+                size_t index = d*conf.Nx*conf.Ny*conf.Nz + l;
+                E[index] = E0_vec(d);
+                B[index] = B0_vec(d);
+            }
+        }
+        double time_compute_EB = timer.elapsed();
+        std::cout << "Compute EB took " << time_compute_EB << " s." << std::endl;
+        timer.reset();
+
+        // Interpolate E(n) and B(n).
+        //std::cout << "Interpolate E(n) and B(n)." << std::endl;
+        interpolate_fields_aligned<double,order>(nt_r_curr,coeffs_E, E, conf);
+        interpolate_fields_aligned<double,order>(nt_r_curr,coeffs_B, B, conf);
+
+        double time_interpolate_EB = timer.elapsed();
+        std::cout << "EB interpolation took " << time_interpolate_EB << " s." << std::endl;
+        timer.reset();
+
+        // Compute j_hat(n).
+        eval_j_hat<double,order>(nt_r_curr, j_hat, coeffs_E, coeffs_B, coeffs_j_hat, conf);
+        double time_eval_j_hat = timer.elapsed();
+        std::cout << "Eval j_hat took " << time_eval_j_hat << " s." << std::endl;
+        timer.reset();
+        
+        // Interpolate j_hat(n).
+        interpolate_fields_aligned<double,order>(nt_r_curr,coeffs_j_hat,j_hat,conf);
+        double time_interpolate_j_hat = timer.elapsed();
+        std::cout << "Interpolate j_hat took " << time_interpolate_j_hat << " s." << std::endl;
+        timer.reset();
+
+        // Analyze data if wanted.
+        // Compute time measurement.
+        double time_for_step = time_compute_EB + time_interpolate_EB + time_eval_j_hat + time_interpolate_j_hat;
+        total_time += time_for_step;
+        std::cout << "Time step " << n << " took a total of " << time_for_step << " s." << std::endl;
+
+        do_stats<double,order>(nt_r_curr, 64, stat_file, coeffs_E, coeffs_B, conf, true, n);
+        if(n % (steps_per_1) == 0){
+            plot_f<double,order>(nt_r_curr,coeffs_E, coeffs_B, coeffs_j_hat, conf, true, n);
+        }
+        write_coeffs<double,order>(nt_r_curr, coeffs_E, coeffs_B, coeffs_j_hat, conf, 
+                                    coeff_out_str_E, coeff_out_str_B, coeff_out_str_j_hat );
+        std::cout << "Do stats took: " << double(timer.elapsed()) << " s." << std::endl;
+        std::cout << " ---------------------------------- " << std::endl;
+
+        if(nt_r_curr == nt_restart){
+            timer.reset();
+            std::cout << "Restart simulation. " << std::endl;
+            // Compute first restart matrix.
+            #pragma omp parallel for collapse(6)
+            for(size_t ix = 0; ix <= nx_r; ix++)
+            for(size_t iy = 0; iy <= ny_r; iy++)
+            for(size_t iz = 0; iz <= nz_r; iz++)
+            for(size_t iu = 0; iu <= nu_r; iu++)
+            for(size_t iv = 0; iv <= nv_r; iv++)
+            for(size_t iw = 0; iw <= nw_r; iw++){
+                double x = conf.x_min + ix*dx_r;
+                double y = conf.y_min + iy*dy_r;
+                double z = conf.z_min + iz*dz_r;
+
+                double u = conf.u_min + iu*du_r;
+                double v = conf.v_min + iv*dv_r;
+                double w = conf.w_min + iw*dw_r;
+
+                size_t index_0 = ix + (nx_r+1)*(iy + (ny_r+1)*iz);
+                size_t index_1 = iu + (nu_r+1)*(iv + (nv_r+1)*iw);
+
+                double f = eval_f_lie_fBE<double,order>(nt_r_curr, x, y, z, u, v, w, 
+                                                    coeffs_E, coeffs_B, coeffs_j_hat, conf);
+                copy_mat(index_0,index_1) = f;
+            }
+            double timer_fill_restart_matrix = timer.elapsed();
+            timer.reset();
+            std::cout << "Filling restart matrix took " << timer_fill_restart_matrix << " s." << std::endl;
+
+            restart_matrix = copy_mat;
+            double timer_copy_mat = timer.elapsed();
+            timer.reset();
+            std::cout << "Copying restart matrix took " << timer_copy_mat << " s." << std::endl;
+            
+            // Copy last entries of coeff vectors.
+            #pragma omp parallel for collapse(2)
+            for(size_t k = 0; k < 3; k++){
+                for(size_t ix = 0; ix < Nx_ext; ix++)
+                for(size_t iy = 0; iy < Ny_ext; iy++)
+                for(size_t iz = 0; iz < Nz_ext; iz++){
+                    coeffs_E[idx_base(0,k,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,conf.Nt)] 
+                                    = coeffs_E[idx_base(nt_r_curr,k,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,conf.Nt)];
+                    coeffs_B[idx_base(0,k,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,conf.Nt)] 
+                                    = coeffs_B[idx_base(nt_r_curr,k,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,conf.Nt)];
+                    coeffs_j_hat[idx_base(0,k,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,conf.Nt)] 
+                                    = coeffs_j_hat[idx_base(nt_r_curr,k,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,conf.Nt)];
+                }
+            }
+
+            conf = config_t<double>(Nx, Ny, Nz, Nu, Nv, Nw, Nt, dt, 
+                0, Lx, 0, Ly, 0, Lz, umin, umax, 
+                vmin, vmax, wmin, wmax,
+                &linear_interpolation_6d);
+
+            nt_r_curr = 1;
+            double time_restart = timer.elapsed();
+            std::cout << "Restart took: " << time_restart << std::endl;
+            total_time += time_restart;
+        } else {
+            nt_r_curr++;
+        }
+    }
+
+    std::cout << "Total simulation time " << total_time << " s." << std::endl;
+}
+
+
+
+
 }
 }
 
@@ -1456,7 +1958,9 @@ int main()
 
     //nufi::dim3::restarted_from_disk_nufi_maxwell_lie_fBE<4>();
 
-    nufi::dim3::periodically_restarted_nufi_maxwell_lie_fBE<4>();
+    //nufi::dim3::periodically_restarted_nufi_maxwell_lie_fBE<4>();
+    
+    nufi::dim3::periodically_restarted_nufi_maxwell_lie_fBE_aligned<4>();
 
     return 0;
 }
