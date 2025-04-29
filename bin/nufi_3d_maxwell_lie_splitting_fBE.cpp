@@ -23,10 +23,10 @@ namespace dim3
 arma::mat restart_matrix;
 
 //const double k = 1.25; // Weibel Instability by Einkemmer
-const double k = 0.5; // "Normal" choice
-const double Lx = 2*M_PI/k;
+//const double k = 0.5; // "Normal" choice
+/* const double Lx = 2*M_PI/k;
 const double Ly = Lx;
-const double Lz = Lx;
+const double Lz = Lx; */
 
 // Magnetic Two Stream Instability by Einkemmer 
 /* const double Lx = 2*M_PI;
@@ -34,9 +34,9 @@ const double Ly = Lx;
 const double Lz = Lx; */
 
 // Two Stream Instability by Fabio 
-/* const double Lx = 12.8;
+const double Lx = 12.8;
 const double Ly = Lx;
-const double Lz = Lx; */
+const double Lz = Lx;
 
 // Weibel Instability by Einkemmer
 /* const double umin = -0.15;
@@ -53,12 +53,12 @@ const double vmax = 0.22;
 const double wmin = -1;
 const double wmax = 1; */
 // Paul's test
-const double umin = -5;
-const double umax = 5;
-const double vmin = -2;
-const double vmax = 2;
-const double wmin = -1;
-const double wmax = 1;
+const double umin = -1;
+const double umax = 1;
+const double vmin = -1.2;
+const double vmax = 1.2;
+const double wmin = -0.5;
+const double wmax = 0.5;
 // Magnetic Two Stream Instability by Fabio (perturbation in v direction)
 /* const double umin = -0.01;
 const double umax = 0.01;
@@ -70,9 +70,9 @@ const size_t Nx = 32;
 const size_t Ny = 1;
 const size_t Nz = 1;
 const size_t Nu = 32;
-const size_t Nv = 1/* 64 */;
+const size_t Nv = 64;
 const size_t Nw = 1;
-const double   dt = 1e-1;
+const double   dt = 2e-2;
 const size_t Nt = 100/dt;
 
 
@@ -80,8 +80,8 @@ const size_t nx_r = 2*Nx;
 const size_t ny_r = 1;
 const size_t nz_r = 1;
 const size_t nu_r = 2*Nu;
-const size_t nv_r = 1/* 2*Nv */;
-const size_t nw_r = 1;
+const size_t nv_r = 2*Nv;
+const size_t nw_r = 2*Nw;
 const size_t nt_restart = 200;
 
 const double dx_r = Lx / nx_r;
@@ -216,9 +216,15 @@ real f0(real x, real y, real z, real u, real v, real w) noexcept
 /*    constexpr real c  = 1.0 / std::pow(2.0 * M_PI, 3.0/2.0); 
     return c * ( 1. + alpha*cos(k*x)) 
              * exp( -(u*u+v*v+w*w)/2 ); */
+/*  
+    // Careful: If using 1d Maxwellian and constant function along some 
+    // velocity directions it is important to normalize away the size of
+    // the velocity space in that direction or just choose the velocity
+    // domain in that direction as [-0.5,0.5].
     constexpr real alpha = 0.01;
     constexpr real k = 0.5;
-    return ( 1. + alpha*cos(k*x)) * maxwellian_1d<real>(u,1);
+    return ( 1. + alpha*cos(k*x)) * maxwellian_1d<real>(u,1); */ 
+    //return ( 1. + alpha*cos(k*x)) * maxwellian<real>(u,v,w,1);
 
     // Two Stream Instability in x direction:
 /*    constexpr real c = 1.0 / std::pow(2.0 * M_PI, 3.0/2.0);
@@ -231,9 +237,9 @@ real f0(real x, real y, real z, real u, real v, real w) noexcept
     return perturbation * 0.5 * (maxwellian<real>(u,v-v_beam,w,vth) + maxwellian<real>(u,v+v_beam,w,vth)); */
 
     // Two Stream in y direction by Fabio
-/*     real v_beam = 0.4;
-    real vth = 0.001;
-    return 0.5 * (maxwellian_2d<real>(u,v-v_beam,vth) + maxwellian_2d<real>(u,v+v_beam,vth)); */
+    real v_beam = 0.4;
+    real vth = 0.1;
+    return 0.5 * (maxwellian_2d<real>(u,v-v_beam,vth) + maxwellian_2d<real>(u,v+v_beam,vth));
 
     // Magnetic Two Stream by Einkemmer
 /*     real v_beam = 0.2;
@@ -259,16 +265,16 @@ arma::Col<real> E0(real x, real y, real z)
     constexpr real k     = 1.25;
     return  arma::Col<real>({-alpha / k * std::sin(k*x), 0, 0}); */
 
-    // Electro-static Two Stream Instability
-    constexpr real alpha = 1e-2;
+    // Electro-static (Landau Damping or Two Stream Instability)
+/*     constexpr real alpha = 1e-2;
     constexpr real k     = 0.5;
-    return  arma::Col<real>({-alpha / k * std::sin(k*x), 0, 0});
+    return  arma::Col<real>({-alpha / k * std::sin(k*x), 0, 0}); */
 
     // Electro-static Two Stream Instability by Fabio & Paul
     // Note that if we assume only a x-dependent perturbation for f it can only 
     // induce a electric field in the x- but not y-component. This however means 
     // that to induce dynamics along y we need an initial B instead of E.
-    //return  arma::Col<real>({0, 0, 0});  
+    return  arma::Col<real>({0, 0, 0});  
 }
 
 // Function to generate random smooth periodic function using Fourier series
@@ -430,37 +436,60 @@ void do_stats(size_t nt, size_t nx_plot, std::ofstream& stat_file,
     double dx_plot = conf.Lx/nx_plot; // Assuming that Lx = Ly = Lz.
     double electric_energy = 0;
     double magnetic_energy = 0;
-    std::ofstream Ex_str("Ex_" + std::to_string(nt*conf.dt) + ".txt");
-    std::ofstream Ey_str("Ey_" + std::to_string(nt*conf.dt) + ".txt");
-    std::ofstream Ez_str("Ez_" + std::to_string(nt*conf.dt) + ".txt");
-    std::ofstream Bx_str("Bx_" + std::to_string(nt*conf.dt) + ".txt");
-    std::ofstream By_str("By_" + std::to_string(nt*conf.dt) + ".txt");
-    std::ofstream Bz_str("Bz_" + std::to_string(nt*conf.dt) + ".txt");
-    for(size_t ix = 0; ix < nx_plot; ix++){
-        for(size_t iy = 0; iy < nx_plot; iy++){
-            for(size_t iz = 0; iz < nx_plot; iz++){
-                double x = (ix+0.5)*dx_plot;
-                double y = (iy+0.5)*dx_plot;
-                double z = (iz+0.5)*dx_plot;
+    if(nt % 10 == 0){
+        std::ofstream Ex_str("Ex_" + std::to_string(nt*conf.dt) + ".txt");
+        std::ofstream Ey_str("Ey_" + std::to_string(nt*conf.dt) + ".txt");
+        std::ofstream Ez_str("Ez_" + std::to_string(nt*conf.dt) + ".txt");
+        std::ofstream Bx_str("Bx_" + std::to_string(nt*conf.dt) + ".txt");
+        std::ofstream By_str("By_" + std::to_string(nt*conf.dt) + ".txt");
+        std::ofstream Bz_str("Bz_" + std::to_string(nt*conf.dt) + ".txt");
+        for(size_t ix = 0; ix < nx_plot; ix++){
+            for(size_t iy = 0; iy < nx_plot; iy++){
+                for(size_t iz = 0; iz < nx_plot; iz++){
+                    double x = (ix+0.5)*dx_plot;
+                    double y = (iy+0.5)*dx_plot;
+                    double z = (iz+0.5)*dx_plot;
 
-                double Ex = eval<real,order>(x,y,z,coeffs_E.data() + idx_base(nt,0,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf);
-                double Ey = eval<real,order>(x,y,z,coeffs_E.data() + idx_base(nt,1,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf);
-                double Ez = eval<real,order>(x,y,z,coeffs_E.data() + idx_base(nt,2,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf);
+                    double Ex = eval<real,order>(x,y,z,coeffs_E.data() + idx_base(nt,0,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf);
+                    double Ey = eval<real,order>(x,y,z,coeffs_E.data() + idx_base(nt,1,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf);
+                    double Ez = eval<real,order>(x,y,z,coeffs_E.data() + idx_base(nt,2,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf);
 
-                double Bx = eval<real,order>(x,y,z,coeffs_B.data() + idx_base(nt,0,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf);
-                double By = eval<real,order>(x,y,z,coeffs_B.data() + idx_base(nt,1,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf);
-                double Bz = eval<real,order>(x,y,z,coeffs_B.data() + idx_base(nt,2,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf);
+                    double Bx = eval<real,order>(x,y,z,coeffs_B.data() + idx_base(nt,0,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf);
+                    double By = eval<real,order>(x,y,z,coeffs_B.data() + idx_base(nt,1,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf);
+                    double Bz = eval<real,order>(x,y,z,coeffs_B.data() + idx_base(nt,2,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf);
 
-                electric_energy += Ex*Ex + Ey*Ey + Ez*Ez;
-                magnetic_energy += Bx*Bx + By*By + Bz*Bz;
+                    electric_energy += Ex*Ex + Ey*Ey + Ez*Ez;
+                    magnetic_energy += Bx*Bx + By*By + Bz*Bz;
 
-                if(iy == nx_plot/2 && iz == nx_plot/2){
-                    Ex_str << x << " " << Ex << std::endl;
-                    Ey_str << x << " " << Ey << std::endl;
-                    Ez_str << x << " " << Ez << std::endl;
-                    Bx_str << x << " " << Bx << std::endl;
-                    By_str << x << " " << By << std::endl;
-                    Bz_str << x << " " << Bz << std::endl;
+                    if(iy == nx_plot/2 && iz == nx_plot/2 && (nt % 10 == 0)){
+                        Ex_str << x << " " << Ex << std::endl;
+                        Ey_str << x << " " << Ey << std::endl;
+                        Ez_str << x << " " << Ez << std::endl;
+                        Bx_str << x << " " << Bx << std::endl;
+                        By_str << x << " " << By << std::endl;
+                        Bz_str << x << " " << Bz << std::endl;
+                    }
+                }
+            }
+        }
+    } else {
+        for(size_t ix = 0; ix < nx_plot; ix++){
+            for(size_t iy = 0; iy < nx_plot; iy++){
+                for(size_t iz = 0; iz < nx_plot; iz++){
+                    double x = (ix+0.5)*dx_plot;
+                    double y = (iy+0.5)*dx_plot;
+                    double z = (iz+0.5)*dx_plot;
+
+                    double Ex = eval<real,order>(x,y,z,coeffs_E.data() + idx_base(nt,0,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf);
+                    double Ey = eval<real,order>(x,y,z,coeffs_E.data() + idx_base(nt,1,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf);
+                    double Ez = eval<real,order>(x,y,z,coeffs_E.data() + idx_base(nt,2,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf);
+
+                    double Bx = eval<real,order>(x,y,z,coeffs_B.data() + idx_base(nt,0,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf);
+                    double By = eval<real,order>(x,y,z,coeffs_B.data() + idx_base(nt,1,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf);
+                    double Bz = eval<real,order>(x,y,z,coeffs_B.data() + idx_base(nt,2,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf);
+
+                    electric_energy += Ex*Ex + Ey*Ey + Ez*Ez;
+                    magnetic_energy += Bx*Bx + By*By + Bz*Bz;
                 }
             }
         }
@@ -1667,21 +1696,27 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned()
         double y = conf.y_min + iy*conf.dy; 
         double z = conf.z_min + iz*conf.dz; 
         
-        arma::Col<double> E0_vec = E0(x,y,z);
+        // Normal initialization:        
+/*        arma::Col<double> E0_vec = E0(x,y,z);
         arma::Col<double> B0_vec = B0(x,y,z);
 
-        for(size_t d = 0; d < 3; d++){
+         for(size_t d = 0; d < 3; d++){
             size_t index = d*conf.Nx*conf.Ny*conf.Nz + l;
             E[index] = E0_vec(d);
             B[index] = B0_vec(d);
         }
-
+ */
         // Fabio's magnetic Two Stream Instability:
-        /* double B0 = 1e-3;
+        for(size_t d = 0; d < 3; d++){
+            size_t index = d*conf.Nx*conf.Ny*conf.Nz + l;
+            E[index] = 0;
+            if(d < 2){
+                B[index] = 0;
+            } else{
+                B[index] = 1e-3 * B_z_values[ix];
+            }
+        }
 
-        B[0][l] = 0;
-        B[1][l] = 0;
-        B[2][l] = B0*B_z_values[ix]; */
     }
 
     // Interpolate E(0) and B(0).
