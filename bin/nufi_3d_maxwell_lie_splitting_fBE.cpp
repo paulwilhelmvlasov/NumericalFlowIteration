@@ -408,6 +408,8 @@ void do_stats(size_t nt, size_t nx_plot, std::ofstream& stat_file,
     electric_energy = 0.5*dx_plot*dx_plot*dx_plot*electric_energy;
     magnetic_energy = 0.5*dx_plot*dx_plot*dx_plot*magnetic_energy;
 
+
+
     if(restarted){
         stat_file << n_full*conf.dt << " " << electric_energy << " " << magnetic_energy << std::endl;
         std::cout << n_full*conf.dt << " " << electric_energy << " " << magnetic_energy << std::endl;
@@ -438,7 +440,7 @@ void do_stats(size_t nt, size_t nx_plot, std::ofstream& stat_file,
     double electric_energy = 0;
     double magnetic_energy = 0;
     if(nt % 10 == 0){
-        std::ofstream Ex_str("Ex_" + std::to_string(nt*conf.dt) + ".txt");
+        std::ofstream Ex_str("Ex_" + std::to_string(nt*conf.dt) + ".txt"); // Naming does not take restart into account. Fix!
         std::ofstream Ey_str("Ey_" + std::to_string(nt*conf.dt) + ".txt");
         std::ofstream Ez_str("Ez_" + std::to_string(nt*conf.dt) + ".txt");
         std::ofstream Bx_str("Bx_" + std::to_string(nt*conf.dt) + ".txt");
