@@ -1776,7 +1776,8 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned()
     
     // Compute j_hat(0).
     std::cout << "Compute j_hat(0)." << std::endl;
-    eval_j_hat<double,order>(0, j_hat, coeffs_E, coeffs_B, coeffs_j_hat, conf);
+    //eval_j_hat<double,order>(0, j_hat, coeffs_E, coeffs_B, coeffs_j_hat, conf);
+    eval_j_hat_adaptive<double,order>(0, j_hat, coeffs_E, coeffs_B, coeffs_j_hat, conf);
 
     // Interpolate j_hat(0).
     std::cout << "Interpolate j_hat(0)." << std::endl;
@@ -1853,7 +1854,8 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned()
         timer.reset();
 
         // Compute j_hat(n).
-        eval_j_hat<double,order>(nt_r_curr, j_hat, coeffs_E, coeffs_B, coeffs_j_hat, conf);
+        //eval_j_hat<double,order>(nt_r_curr, j_hat, coeffs_E, coeffs_B, coeffs_j_hat, conf);
+        eval_j_hat_adaptive<double,order>(nt_r_curr, j_hat, coeffs_E, coeffs_B, coeffs_j_hat, conf);
         double time_eval_j_hat = timer.elapsed();
         std::cout << "Eval j_hat took " << time_eval_j_hat << " s." << std::endl;
         timer.reset();

@@ -871,6 +871,8 @@ real eval_f_lie_fBE(size_t n, real x, real y, real z,
     return conf.f0(x_vec(0), x_vec(1), x_vec(2), v_vec(0), v_vec(1), v_vec(2));
 }
 
+
+
 template <typename real, size_t order>
 void eval_j_hat(size_t n, std::vector<real>& j_hat, const std::vector<real>& coeffs_E, 
     const std::vector<real>& coeffs_B, const std::vector<real>& coeffs_j_hat, const config_t<real> &conf )
@@ -993,7 +995,7 @@ std::vector<real> sub_integral_j_hat_adaptive_trapezoidal_simpson_rule(size_t n,
     bool max_depth_crit_satisfied = (depth < conf.max_depth_refinement);
 
     if(tol_crit_violated && max_depth_crit_satisfied){
-        std::vector<real> sub_int_000 = sub_integral_j_hat_adaptive_trapezoidal_simpson_rule(
+        std::vector<real> sub_int_000 = sub_integral_j_hat_adaptive_trapezoidal_simpson_rule<real,order>(
             n,x,y,z,coeffs_E,coeffs_B,coeffs_j_hat,conf,eval_f,
             u0,um,v0,vm,w0,wm,
             f000,f00m, // (u0,v0,wo)    (u0,v0,wm)
@@ -1002,7 +1004,7 @@ std::vector<real> sub_integral_j_hat_adaptive_trapezoidal_simpson_rule(size_t n,
             fmm0,fmmm, // (um,vm,wo)    (um,vm,wm)
             depth+1
         );
-        std::vector<real> sub_int_001 = sub_integral_j_hat_adaptive_trapezoidal_simpson_rule(n,x,y,z,coeffs_E,coeffs_B,coeffs_j_hat,conf,eval_f,
+        std::vector<real> sub_int_001 = sub_integral_j_hat_adaptive_trapezoidal_simpson_rule<real,order>(n,x,y,z,coeffs_E,coeffs_B,coeffs_j_hat,conf,eval_f,
             u0,um,v0,vm,wm,w1,
             f00m,f001, // (u0,v0,wm)    (u0,v0,w1)
             f0mm,f0m1, // (u0,vm,wm)    (u0,vm,w1)
@@ -1010,7 +1012,7 @@ std::vector<real> sub_integral_j_hat_adaptive_trapezoidal_simpson_rule(size_t n,
             fmmm,fmm1, // (um,vm,wm)    (um,vm,w1)
             depth+1
         );
-        std::vector<real> sub_int_010 = sub_integral_j_hat_adaptive_trapezoidal_simpson_rule(
+        std::vector<real> sub_int_010 = sub_integral_j_hat_adaptive_trapezoidal_simpson_rule<real,order>(
             n,x,y,z,coeffs_E,coeffs_B,coeffs_j_hat,conf,eval_f,
             u0,um,v0,vm,w0,wm,
             f0m0,f0mm, // (u0,vm,wo)    (u0,vm,wm)
@@ -1019,7 +1021,7 @@ std::vector<real> sub_integral_j_hat_adaptive_trapezoidal_simpson_rule(size_t n,
             fm10,fm1m, // (um,v1,wo)    (um,v1,wm)
             depth+1
         );
-        std::vector<real> sub_int_011 = sub_integral_j_hat_adaptive_trapezoidal_simpson_rule(
+        std::vector<real> sub_int_011 = sub_integral_j_hat_adaptive_trapezoidal_simpson_rule<real,order>(
             n,x,y,z,coeffs_E,coeffs_B,coeffs_j_hat,conf,eval_f,
             u0,um,v0,vm,w0,wm,
             f0mm,f0m1, // (u0,vm,wm)    (u0,vm,w1)
@@ -1028,7 +1030,7 @@ std::vector<real> sub_integral_j_hat_adaptive_trapezoidal_simpson_rule(size_t n,
             fm1m,fm11, // (um,v1,wm)    (um,v1,w1)
             depth+1
         );
-        std::vector<real> sub_int_100 = sub_integral_j_hat_adaptive_trapezoidal_simpson_rule(
+        std::vector<real> sub_int_100 = sub_integral_j_hat_adaptive_trapezoidal_simpson_rule<real,order>(
             n,x,y,z,coeffs_E,coeffs_B,coeffs_j_hat,conf,eval_f,
             u0,um,v0,vm,w0,wm,
             fm00,fm0m, // (um,v0,wo)    (um,v0,wm)
@@ -1037,7 +1039,7 @@ std::vector<real> sub_integral_j_hat_adaptive_trapezoidal_simpson_rule(size_t n,
             f1m0,f1mm, // (u1,vm,wo)    (u1,vm,wm)
             depth+1
         );
-        std::vector<real> sub_int_101 = sub_integral_j_hat_adaptive_trapezoidal_simpson_rule(
+        std::vector<real> sub_int_101 = sub_integral_j_hat_adaptive_trapezoidal_simpson_rule<real,order>(
             n,x,y,z,coeffs_E,coeffs_B,coeffs_j_hat,conf,eval_f,
             u0,um,v0,vm,w0,wm,
             fm0m,fm01, // (um,v0,wm)    (um,v0,w1)
@@ -1046,7 +1048,7 @@ std::vector<real> sub_integral_j_hat_adaptive_trapezoidal_simpson_rule(size_t n,
             f1mm,f1m1, // (u1,vm,wm)    (u1,vm,w1)
             depth+1
         );
-        std::vector<real> sub_int_110 = sub_integral_j_hat_adaptive_trapezoidal_simpson_rule(
+        std::vector<real> sub_int_110 = sub_integral_j_hat_adaptive_trapezoidal_simpson_rule<real,order>(
             n,x,y,z,coeffs_E,coeffs_B,coeffs_j_hat,conf,eval_f,
             u0,um,v0,vm,w0,wm,
             fmm0,fmmm, // (um,vm,wo)    (um,vm,wm)
@@ -1055,7 +1057,7 @@ std::vector<real> sub_integral_j_hat_adaptive_trapezoidal_simpson_rule(size_t n,
             f110,f11m, // (u1,v1,wo)    (u1,v1,wm)
             depth+1
         );
-        std::vector<real> sub_int_111 = sub_integral_j_hat_adaptive_trapezoidal_simpson_rule(
+        std::vector<real> sub_int_111 = sub_integral_j_hat_adaptive_trapezoidal_simpson_rule<real,order>(
             n,x,y,z,coeffs_E,coeffs_B,coeffs_j_hat,conf,eval_f,
             u0,um,v0,vm,w0,wm,
             fmmm,fmm1, // (um,vm,wm)    (um,vm,w1)
@@ -1077,17 +1079,29 @@ std::vector<real> sub_integral_j_hat_adaptive_trapezoidal_simpson_rule(size_t n,
 }
 
 template <typename real, size_t order>
+real eval_f_lie_fBE_shifted(size_t n, real x, real y, real z,
+    real u, real v, real w, const std::vector<real>& coeffs_E,
+    const std::vector<real>& coeffs_B, const std::vector<real>& coeffs_j_hat,
+    const config_t<real>& conf)
+{
+    return eval_f_lie_fBE<real,order>(n, x - 0.5*conf.dt*u, y - 0.5*conf.dt*v, z - 0.5*conf.dt*w, 
+        u, v, w, coeffs_E, coeffs_B, coeffs_j_hat, conf );
+}
+
+template <typename real, size_t order>
 void eval_j_hat_adaptive(size_t n, std::vector<real>& j_hat, const std::vector<real>& coeffs_E, 
-            const std::vector<real>& coeffs_B, const std::vector<real>& coeffs_j_hat, const config_t<real> &conf,  
-            real (*eval_f)( real x, real y, real z, real u, real v, real w, const std::vector<real>& coeffs_E,
-                            const std::vector<real>& coeffs_B, const std::vector<real>& coeffs_j_hat, 
-                            const config_t<real>& conf ),
-            /* std::vector<real>& velocity_boundary, const std::vector<size_t>& n_q_init */)
+            const std::vector<real>& coeffs_B, const std::vector<real>& coeffs_j_hat, const config_t<real> &conf
+            /*, std::vector<real>& velocity_boundary, const std::vector<size_t>& n_q_init */)
 {
     // In its current form I haven't implemented tracking of the velocity support yet. 
     // There were some issues with it in the previous version (see electro static multi species 
     // branch). For now the (Nu, Nv, Nw) and (du, dv, dw) are the minimal velocity space grid
     // from the adaptive integration starts.
+    //
+    // Right now I pass a ton of parameters. Even if most of them (especially the large type ones) are 
+    // const refs, I think it would be good to define an object which stores all of these coefficients 
+    // vectors etc to pass around. This would reduce the function signature and thereby may improve 
+    // performance as well.
 
     #pragma omp parallel for
     for(size_t l = 0; l < conf.Nx*conf.Ny*conf.Nz; l++){
@@ -1106,21 +1120,37 @@ void eval_j_hat_adaptive(size_t n, std::vector<real>& j_hat, const std::vector<r
         for(size_t iu = 0; iu < conf.Nu; iu++)
         for(size_t iv = 0; iv < conf.Nv; iv++)
         for(size_t iw = 0; iw < conf.Nw; iw++){
-            // Todo: The offset in velocity space has to be taken into account for each f evaluation (depending on (u,v,w))
+            // The offset in velocity space has to be taken into account for each f evaluation (depending on (u,v,w))
             // but how to implement the offset in an efficient way?! Should I just pass the offset as an additional
             // parameter or is there some "nicer way" of doing it?
-            /* std::vector<real> j = sub_integral_j_hat_adaptive_trapezoidal_simpson_rule<real,order>(n,x,y,z,coeffs_E,coeffs_B,coeffs_j_hat,conf,eval_f_lie_fBE,
-                                        ) */
-            /* real f_half = eval_f_lie_fBE<real,order>(n, x - 0.5*conf.dt*u, y - 0.5*conf.dt*v, z - 0.5*conf.dt*w, 
-                                                        u, v, w, coeffs_E, coeffs_B, coeffs_j_hat, conf ); */
+            // => The simplest solution is to define a couple custom "overloads" of eval_f to take the shift into account!
 
-            /* sum0 += u * f_half;
-            sum1 += v * f_half;
-            sum2 += w * f_half; */
+            real u0 = iu*conf.du;
+            real u1 = u0 + conf.du;
+            real v0 = iv*conf.dv;
+            real v1 = v0 + conf.dv;
+            real w0 = iw*conf.dw;
+            real w1 = w0 + conf.dw;
+
+            real f000 = eval_f_lie_fBE_shifted<real,order>(n,x,y,z,u0,v0,w0,coeffs_E,coeffs_B,coeffs_j_hat,conf);
+            real f001 = eval_f_lie_fBE_shifted<real,order>(n,x,y,z,u0,v0,w1,coeffs_E,coeffs_B,coeffs_j_hat,conf);
+            real f010 = eval_f_lie_fBE_shifted<real,order>(n,x,y,z,u0,v1,w0,coeffs_E,coeffs_B,coeffs_j_hat,conf); 
+            real f011 = eval_f_lie_fBE_shifted<real,order>(n,x,y,z,u0,v1,w1,coeffs_E,coeffs_B,coeffs_j_hat,conf); 
+            real f100 = eval_f_lie_fBE_shifted<real,order>(n,x,y,z,u1,v0,w0,coeffs_E,coeffs_B,coeffs_j_hat,conf); 
+            real f101 = eval_f_lie_fBE_shifted<real,order>(n,x,y,z,u1,v0,w1,coeffs_E,coeffs_B,coeffs_j_hat,conf); 
+            real f110 = eval_f_lie_fBE_shifted<real,order>(n,x,y,z,u1,v1,w0,coeffs_E,coeffs_B,coeffs_j_hat,conf); 
+            real f111 = eval_f_lie_fBE_shifted<real,order>(n,x,y,z,u1,v1,w1,coeffs_E,coeffs_B,coeffs_j_hat,conf);
+
+            std::vector<real> j_loc = sub_integral_j_hat_adaptive_trapezoidal_simpson_rule<real,order>(n,x,y,z,coeffs_E,coeffs_B,coeffs_j_hat,
+                                        conf, &(eval_f_lie_fBE_shifted<real,order>), u0, u1, v0, v1, w0, w1, f000, f001, f010, f011,
+                                    f100, f101, f110, f111, 1);
+            sum0 += j_loc[0];
+            sum1 += j_loc[1];
+            sum2 += j_loc[2];
         }
-        j_hat[l] = sum0 * conf.du * conf.dv * conf.dw;
-        j_hat[l + conf.Nx*conf.Ny*conf.Nz] = sum1 * conf.du * conf.dv * conf.dw;
-        j_hat[l + 2*conf.Nx*conf.Ny*conf.Nz] = sum2 * conf.du * conf.dv * conf.dw;
+        j_hat[l] = sum0;
+        j_hat[l + conf.Nx*conf.Ny*conf.Nz] = sum1;
+        j_hat[l + 2*conf.Nx*conf.Ny*conf.Nz] = sum2;
     }
 
 }
