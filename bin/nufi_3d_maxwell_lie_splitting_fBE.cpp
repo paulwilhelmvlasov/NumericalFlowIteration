@@ -66,15 +66,15 @@ const double vmin = -0.85;
 const double vmax = 0.85;
 const double wmin = -0.01;
 const double wmax = 0.01; */
-const size_t Nx = 16;
+const size_t Nx = 32;
 const size_t Ny = 1;
 const size_t Nz = 1;
 const size_t Nu = 16;
 const size_t Nv = 32;
 const size_t Nw = 1;
-const size_t steps_per_1 = 2;
+const size_t steps_per_1 = 200;
 const double   dt = 1.0 / steps_per_1;
-const size_t Nt = 1/dt;
+const size_t Nt = 5/dt;
 
 
 const size_t nx_r = 2*Nx;
@@ -1777,24 +1777,24 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned()
     // Compute j_hat(0).
     std::cout << "Compute j_hat(0)." << std::endl;
 
-    for(size_t i = 0; i < j_hat.size(); i++){
+    /* for(size_t i = 0; i < j_hat.size(); i++){
         std::cout << i << " " << j_hat[i] << std::endl;
-    }
+    } */
 
-    eval_j_hat<double,order>(0, j_hat, coeffs_E, coeffs_B, coeffs_j_hat, conf);
-    //eval_j_hat_adaptive<double,order>(0, j_hat, coeffs_E, coeffs_B, coeffs_j_hat, conf);
+    //eval_j_hat<double,order>(0, j_hat, coeffs_E, coeffs_B, coeffs_j_hat, conf);
+    eval_j_hat_adaptive<double,order>(0, j_hat, coeffs_E, coeffs_B, coeffs_j_hat, conf);
 
-    for(size_t i = 0; i < j_hat.size(); i++){
+    /* for(size_t i = 0; i < j_hat.size(); i++){
         std::cout << i << " " << j_hat[i] << std::endl;
-    }
+    } */
 
     // Interpolate j_hat(0).
     std::cout << "Interpolate j_hat(0)." << std::endl;
     interpolate_fields_aligned<double,order>(0, coeffs_j_hat, j_hat, conf);
 
-    for(size_t i = 0; i < 3*stride_t; i++){
+    /* for(size_t i = 0; i < 3*stride_t; i++){
         std::cout << i << " " << coeffs_j_hat[i] << std::endl;
-    }
+    } */
 
     std::cout << "First output." << std::endl;
     std::ofstream stat_file( "stats.txt" );
@@ -1867,8 +1867,8 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned()
         timer.reset();
 
         // Compute j_hat(n).
-        eval_j_hat<double,order>(nt_r_curr, j_hat, coeffs_E, coeffs_B, coeffs_j_hat, conf);
-        //eval_j_hat_adaptive<double,order>(nt_r_curr, j_hat, coeffs_E, coeffs_B, coeffs_j_hat, conf);
+        //eval_j_hat<double,order>(nt_r_curr, j_hat, coeffs_E, coeffs_B, coeffs_j_hat, conf);
+        eval_j_hat_adaptive<double,order>(nt_r_curr, j_hat, coeffs_E, coeffs_B, coeffs_j_hat, conf);
         double time_eval_j_hat = timer.elapsed();
         std::cout << "Eval j_hat took " << time_eval_j_hat << " s." << std::endl;
         timer.reset();
