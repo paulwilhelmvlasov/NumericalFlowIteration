@@ -14,6 +14,16 @@ AC_PROG_FC
 AC_OPENMP
 AC_SUBST([AM_CXXFLAGS],["$OPENMP_CXXFLAGS"]) 
 AX_CXX_COMPILE_STDCXX(20,[noext],[mandatory])
+
+# Check for MPI C++ compiler
+AC_CHECK_PROGS([MPICXX], [mpic++], [no])
+if test "$MPICXX" != "no"; then
+    AC_MSG_NOTICE([MPI C++ compiler found: $MPICXX])
+    CXX=$MPICXX
+else
+    AC_MSG_ERROR([MPI C++ compiler (mpic++) not found])
+fi
+
 #AX_CHECK_CUDA
 AX_BLAS
 

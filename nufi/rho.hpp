@@ -21,6 +21,7 @@
 #define NUFI_RHO_HPP
 
 #include <armadillo>
+#include <mpi.h>
 
 #include <nufi/fields.hpp>
 #include <nufi/stopwatch.hpp>
@@ -1154,6 +1155,109 @@ void eval_j_hat_adaptive(size_t n, std::vector<real>& j_hat, const std::vector<r
     }
 
 }
+
+
+template <typename real, size_t order>
+void eval_j_hat_adaptive_mpi(size_t n, std::vector<real>& j_hat, const std::vector<real>& coeffs_E, 
+            const std::vector<real>& coeffs_B, const std::vector<real>& coeffs_j_hat, const config_t<real> &conf)
+{
+    // In its current form I haven't implemented tracking of the velocity support yet. 
+    // There were some issues with it in the previous version (see electro static multi species 
+    // branch). For now the (Nu, Nv, Nw) and (du, dv, dw) are the minimal velocity space grid
+    // from the adaptive integration starts.
+    //
+    // Right now I pass a ton of parameters. Even if most of them (especially the large type ones) are 
+    // const refs, I think it would be good to define an object which stores all of these coefficients 
+    // vectors etc to pass around. This would reduce the function signature and thereby may improve 
+    // performance as well.
+
+    // MPI parallelization only over spatial degrees of freedom for simplicity. 
+    // OpenMP parallelization for velocity degrees of freedom.
+
+    int rank, size;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+
+    size_t Ncells = conf.Nx * conf.Ny * conf.Nz;
+    size_t chunk_size = Ncells / size;
+    size_t remainder = Ncells % size;
+
+    // Assign each rank a block of indices in the flattened space
+    size_t start_idx = rank * chunk_size + std::min(static_cast<size_t>(rank), remainder);
+    size_t end_idx = start_idx + chunk_size + (rank < remainder ? 1 : 0);
+
+    size_t local_N = end_idx - start_idx;
+
+    std::vector<real> j_hat_local(3 * local_N, 0.0);
+
+    #pragma omp parallel for
+    for(size_t k = 0; k < conf.Nx*conf.Ny*conf.Nz; k++){
+        size_t l = start_idx + k;
+
+        size_t iz   = l   / (conf.Nx * conf.Ny);
+        size_t tmp  = l   % (conf.Nx * conf.Ny);
+        size_t iy   = tmp / conf.Nx;
+        size_t ix   = tmp % conf.Nx;
+    
+        real x = conf.x_min + ix*conf.dx; 
+        real y = conf.y_min + iy*conf.dy; 
+        real z = conf.z_min + iz*conf.dz; 
+
+        real sum0 = 0, sum1 = 0, sum2 = 0;
+        #pragma omp parallel for collapse(3) reduction(+:sum0,sum1,sum2)
+        for(size_t iu = 0; iu < conf.Nu; iu++)
+        for(size_t iv = 0; iv < conf.Nv; iv++)
+        for(size_t iw = 0; iw < conf.Nw; iw++){
+            // The offset in velocity space has to be taken into account for each f evaluation (depending on (u,v,w))
+            // but how to implement the offset in an efficient way?! Should I just pass the offset as an additional
+            // parameter or is there some "nicer way" of doing it?
+            // => The simplest solution is to define a couple custom "overloads" of eval_f to take the shift into account!
+
+            real u0 = iu*conf.du;
+            real u1 = u0 + conf.du;
+            real v0 = iv*conf.dv;
+            real v1 = v0 + conf.dv;
+            real w0 = iw*conf.dw;
+            real w1 = w0 + conf.dw;
+
+            real f000 = eval_f_lie_fBE_shifted<real,order>(n,x,y,z,u0,v0,w0,coeffs_E,coeffs_B,coeffs_j_hat,conf);
+            real f001 = eval_f_lie_fBE_shifted<real,order>(n,x,y,z,u0,v0,w1,coeffs_E,coeffs_B,coeffs_j_hat,conf);
+            real f010 = eval_f_lie_fBE_shifted<real,order>(n,x,y,z,u0,v1,w0,coeffs_E,coeffs_B,coeffs_j_hat,conf); 
+            real f011 = eval_f_lie_fBE_shifted<real,order>(n,x,y,z,u0,v1,w1,coeffs_E,coeffs_B,coeffs_j_hat,conf); 
+            real f100 = eval_f_lie_fBE_shifted<real,order>(n,x,y,z,u1,v0,w0,coeffs_E,coeffs_B,coeffs_j_hat,conf); 
+            real f101 = eval_f_lie_fBE_shifted<real,order>(n,x,y,z,u1,v0,w1,coeffs_E,coeffs_B,coeffs_j_hat,conf); 
+            real f110 = eval_f_lie_fBE_shifted<real,order>(n,x,y,z,u1,v1,w0,coeffs_E,coeffs_B,coeffs_j_hat,conf); 
+            real f111 = eval_f_lie_fBE_shifted<real,order>(n,x,y,z,u1,v1,w1,coeffs_E,coeffs_B,coeffs_j_hat,conf);
+
+            std::vector<real> j_loc = sub_integral_j_hat_adaptive_trapezoidal_simpson_rule<real,order>(n,x,y,z,coeffs_E,coeffs_B,coeffs_j_hat,
+                                        conf, &(eval_f_lie_fBE_shifted<real,order>), u0, u1, v0, v1, w0, w1, f000, f001, f010, f011,
+                                    f100, f101, f110, f111, 1);
+            sum0 += j_loc[0];
+            sum1 += j_loc[1];
+            sum2 += j_loc[2];
+        }
+        j_hat_local[l] = sum0;
+        j_hat_local[l + conf.Nx*conf.Ny*conf.Nz] = sum1;
+        j_hat_local[l + 2*conf.Nx*conf.Ny*conf.Nz] = sum2;
+    }
+
+    // Gather global j_hat
+    // Sets the indices for the MPI_Gatherv call.
+    std::vector<int> recvcounts(size), displs(size);
+    for (int r = 0; r < size; ++r) {
+        size_t r_start = r * chunk_size + std::min(static_cast<size_t>(r), remainder);
+        size_t r_N = chunk_size + (r < remainder ? 1 : 0);
+        recvcounts[r] = 3 * r_N;
+        displs[r] = (r_start) * 3;
+    }
+
+    // This gathers the local j_hat data into the global j_hat. 
+    MPI_Gatherv(j_hat_local.data(), 3 * local_N, MPI_DOUBLE,
+                j_hat.data(), recvcounts.data(), displs.data(), MPI_DOUBLE,
+                0, MPI_COMM_WORLD);
+
+}
+
 
 }
 
