@@ -69,12 +69,12 @@ const double wmax = 0.01; */
 const size_t Nx = 32;
 const size_t Ny = 1;
 const size_t Nz = 1;
-const size_t Nu = 16;
-const size_t Nv = 32;
+const size_t Nu = 8;
+const size_t Nv = 16;
 const size_t Nw = 1;
 const size_t steps_per_1 = 200;
 const double   dt = 1.0 / steps_per_1;
-const size_t Nt = 5/dt;
+const size_t Nt = 100/dt;
 
 
 const size_t nx_r = 2*Nx;
@@ -439,7 +439,7 @@ void do_stats(size_t nt, size_t nx_plot, std::ofstream& stat_file,
     double dx_plot = conf.Lx/nx_plot; // Assuming that Lx = Ly = Lz.
     double electric_energy = 0;
     double magnetic_energy = 0;
-    if(nt % 10 == 0){
+    if(nt % steps_per_1 == 0){
         std::ofstream Ex_str("Ex_" + std::to_string(nt*conf.dt) + ".txt"); // Naming does not take restart into account. Fix!
         std::ofstream Ey_str("Ey_" + std::to_string(nt*conf.dt) + ".txt");
         std::ofstream Ez_str("Ez_" + std::to_string(nt*conf.dt) + ".txt");
@@ -657,22 +657,6 @@ void write_coeffs(size_t n, const std::vector<real>& coeffs_E,
     }
 
 }    
-
-
-
-/* const double Lx = 4*M_PI;
-const double umin = -6;
-const double umax = 6;
-const size_t Nx = 8;  
-const size_t Ny = 1;  
-const size_t Nz = 1;  
-const size_t Nu = 8;  
-const double   dt = 0.1;  
-const size_t Nt = 3/dt;  
-config_t<double> conf(Nx, Nx, Nx, Nu, Nu, Nu, Nt, dt, 
-                    0, Lx, 0, Lx, 0, Lx, umin, umax, 
-                    umin, umax, umin, umax,  &f0); */
-
 
 config_t<double> conf(Nx, Ny, Nz, Nu, Nv, Nw, Nt, dt,
                     0, Lx, 0, Lx, 0, Lx, umin, umax,
@@ -1968,6 +1952,10 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned_mpi()
     int mpi_rank, mpi_size;
     MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
     MPI_Comm_size(MPI_COMM_WORLD, &mpi_size);
+
+    if(mpi_rank == 0){
+        std::cout << "Start Simulation with MPI support. Number of MPI processes: " << mpi_size << std::endl;
+    }
     
     // Storage of coefficients now via: 
     // index = nt + Nt * (d + dim * (ix + Nx * (iy + Ny * iz)))
@@ -2087,7 +2075,9 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned_mpi()
     if(mpi_rank == 0){
         std::cout << "Compute j_hat(0)." << std::endl;
     }
+    std::cout << "I'm rank " << mpi_rank << " and before eval_j_hat." << std::endl;
     eval_j_hat_adaptive_mpi<double,order>(0, j_hat, coeffs_E, coeffs_B, coeffs_j_hat, conf);
+    std::cout << "I'm rank " << mpi_rank << " and after eval_j_hat." << std::endl;
 
     // Interpolate j_hat(0).
     if(mpi_rank == 0){

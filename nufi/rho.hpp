@@ -23,6 +23,8 @@
 #include <armadillo>
 #include <mpi.h>
 
+#include <iostream>
+
 #include <nufi/fields.hpp>
 #include <nufi/stopwatch.hpp>
 
@@ -1191,7 +1193,7 @@ void eval_j_hat_adaptive_mpi(size_t n, std::vector<real>& j_hat, const std::vect
     std::vector<real> j_hat_local(3 * local_N, 0.0);
 
     #pragma omp parallel for
-    for(size_t k = 0; k < conf.Nx*conf.Ny*conf.Nz; k++){
+    for(size_t k = 0; k < local_N; k++){
         size_t l = start_idx + k;
 
         size_t iz   = l   / (conf.Nx * conf.Ny);
@@ -1236,10 +1238,14 @@ void eval_j_hat_adaptive_mpi(size_t n, std::vector<real>& j_hat, const std::vect
             sum1 += j_loc[1];
             sum2 += j_loc[2];
         }
-        j_hat_local[l] = sum0;
-        j_hat_local[l + conf.Nx*conf.Ny*conf.Nz] = sum1;
-        j_hat_local[l + 2*conf.Nx*conf.Ny*conf.Nz] = sum2;
+        
+        // write into the *local* array at [0..local_N)
+        j_hat_local[      k         ] = sum0;
+        j_hat_local[ local_N + k    ] = sum1;
+        j_hat_local[ 2*local_N + k  ] = sum2;
     }
+
+    std::cout << "Rank " << rank << " after large loop" << std::endl;
 
     // Gather global j_hat
     // Sets the indices for the MPI_Gatherv call.

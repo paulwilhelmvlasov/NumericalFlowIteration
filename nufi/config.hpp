@@ -175,8 +175,8 @@ struct config_t
     real m = 1;
     real q = -1;
 
-    real tol_refinement = 1e-5;
-    size_t max_depth_refinement = 2;
+    real tol_refinement = 1e-3;
+    size_t max_depth_refinement = 3;
 
     config_t(size_t nx, size_t ny, size_t nz, size_t nu, size_t nv, size_t nw,
     		size_t nt, real delta_t, real xmin, real xmax, real ymin, real ymax,
