@@ -69,8 +69,8 @@ const double wmax = 0.01; */
 const size_t Nx = 32;
 const size_t Ny = 1;
 const size_t Nz = 1;
-const size_t Nu = 32;
-const size_t Nv = 64;
+const size_t Nu = 8;
+const size_t Nv = 16;
 const size_t Nw = 1;
 const size_t steps_per_1 = 200;
 const double   dt = 1.0 / steps_per_1;
@@ -408,6 +408,8 @@ void do_stats(size_t nt, size_t nx_plot, std::ofstream& stat_file,
     electric_energy = 0.5*dx_plot*dx_plot*dx_plot*electric_energy;
     magnetic_energy = 0.5*dx_plot*dx_plot*dx_plot*magnetic_energy;
 
+
+
     if(restarted){
         stat_file << n_full*conf.dt << " " << electric_energy << " " << magnetic_energy << std::endl;
         std::cout << n_full*conf.dt << " " << electric_energy << " " << magnetic_energy << std::endl;
@@ -437,8 +439,8 @@ void do_stats(size_t nt, size_t nx_plot, std::ofstream& stat_file,
     double dx_plot = conf.Lx/nx_plot; // Assuming that Lx = Ly = Lz.
     double electric_energy = 0;
     double magnetic_energy = 0;
-    if(nt % 10 == 0){
-        std::ofstream Ex_str("Ex_" + std::to_string(nt*conf.dt) + ".txt");
+    if(nt % steps_per_1 == 0){
+        std::ofstream Ex_str("Ex_" + std::to_string(nt*conf.dt) + ".txt"); // Naming does not take restart into account. Fix!
         std::ofstream Ey_str("Ey_" + std::to_string(nt*conf.dt) + ".txt");
         std::ofstream Ez_str("Ez_" + std::to_string(nt*conf.dt) + ".txt");
         std::ofstream Bx_str("Bx_" + std::to_string(nt*conf.dt) + ".txt");
@@ -655,22 +657,6 @@ void write_coeffs(size_t n, const std::vector<real>& coeffs_E,
     }
 
 }    
-
-
-
-/* const double Lx = 4*M_PI;
-const double umin = -6;
-const double umax = 6;
-const size_t Nx = 8;  
-const size_t Ny = 1;  
-const size_t Nz = 1;  
-const size_t Nu = 8;  
-const double   dt = 0.1;  
-const size_t Nt = 3/dt;  
-config_t<double> conf(Nx, Nx, Nx, Nu, Nu, Nu, Nt, dt, 
-                    0, Lx, 0, Lx, 0, Lx, umin, umax, 
-                    umin, umax, umin, umax,  &f0); */
-
 
 config_t<double> conf(Nx, Ny, Nz, Nu, Nv, Nw, Nt, dt,
                     0, Lx, 0, Lx, 0, Lx, umin, umax,
@@ -1667,7 +1653,7 @@ void interpolate_fields_aligned(size_t n, std::vector<real>& coeffs,
 template<size_t order>
 void periodically_restarted_nufi_maxwell_lie_fBE_aligned()
 {
-    omp_set_num_threads(8);
+    //omp_set_num_threads(8);
 
     // Storage of coefficients now via: 
     // index = nt + Nt * (d + dim * (ix + Nx * (iy + Ny * iz)))
@@ -1774,11 +1760,25 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned()
     
     // Compute j_hat(0).
     std::cout << "Compute j_hat(0)." << std::endl;
-    eval_j_hat<double,order>(0, j_hat, coeffs_E, coeffs_B, coeffs_j_hat, conf);
+
+    /* for(size_t i = 0; i < j_hat.size(); i++){
+        std::cout << i << " " << j_hat[i] << std::endl;
+    } */
+
+    //eval_j_hat<double,order>(0, j_hat, coeffs_E, coeffs_B, coeffs_j_hat, conf);
+    eval_j_hat_adaptive<double,order>(0, j_hat, coeffs_E, coeffs_B, coeffs_j_hat, conf);
+
+    /* for(size_t i = 0; i < j_hat.size(); i++){
+        std::cout << i << " " << j_hat[i] << std::endl;
+    } */
 
     // Interpolate j_hat(0).
     std::cout << "Interpolate j_hat(0)." << std::endl;
     interpolate_fields_aligned<double,order>(0, coeffs_j_hat, j_hat, conf);
+
+    /* for(size_t i = 0; i < 3*stride_t; i++){
+        std::cout << i << " " << coeffs_j_hat[i] << std::endl;
+    } */
 
     std::cout << "First output." << std::endl;
     std::ofstream stat_file( "stats.txt" );
@@ -1851,7 +1851,8 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned()
         timer.reset();
 
         // Compute j_hat(n).
-        eval_j_hat<double,order>(nt_r_curr, j_hat, coeffs_E, coeffs_B, coeffs_j_hat, conf);
+        //eval_j_hat<double,order>(nt_r_curr, j_hat, coeffs_E, coeffs_B, coeffs_j_hat, conf);
+        eval_j_hat_adaptive<double,order>(nt_r_curr, j_hat, coeffs_E, coeffs_B, coeffs_j_hat, conf);
         double time_eval_j_hat = timer.elapsed();
         std::cout << "Eval j_hat took " << time_eval_j_hat << " s." << std::endl;
         timer.reset();
@@ -1945,12 +1946,395 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned()
 }
 
 
+template<size_t order>
+void periodically_restarted_nufi_maxwell_lie_fBE_aligned_mpi()
+{
+    int mpi_rank, mpi_size;
+    MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &mpi_size);
+
+    if(mpi_rank == 0){
+        std::cout << "Start Simulation with MPI support. Number of MPI processes: " << mpi_size << std::endl;
+    }
+    
+    // Storage of coefficients now via: 
+    // index = nt + Nt * (d + dim * (ix + Nx * (iy + Ny * iz)))
+    size_t stride_t = (conf.Nx + order - 1) *
+                        (conf.Ny + order - 1) *
+                        (conf.Nz + order - 1);
+
+    const size_t dim = 3;
+    const size_t Nx_ext = conf.Nx + order - 1;
+    const size_t Ny_ext = conf.Ny + order - 1;
+    const size_t Nz_ext = conf.Nz + order - 1;
+    const size_t Nspace = Nx_ext * Ny_ext * Nz_ext;
+    
+    if(mpi_rank == 0){
+        std::cout << "Start NuFI Vlasov-Maxwell-Solver with fBE-Lie-Splitting." << std::endl;
+        std::cout << "Init helper variables." << std::endl;
+    }
+
+    // Flattened 1D coefficient storage
+    std::vector<double> coeffs_E(3 * (conf.Nt + 1) * stride_t, 0);
+    std::vector<double> coeffs_B(3 * (conf.Nt + 1) * stride_t, 0);
+    std::vector<double> coeffs_j_hat(3 * (conf.Nt + 1) * stride_t, 0);
+    std::vector<double> E(3 * conf.Nx * conf.Ny * conf.Nz, 0);
+    std::vector<double> B(3 * conf.Nx * conf.Ny * conf.Nz, 0);
+    std::vector<double> j_hat(3 * conf.Nx * conf.Ny * conf.Nz, 0);
+
+
+    // Init restart matrices.
+    
+    if(mpi_rank == 0){
+        std::cout << "Initialize restart matrices." << std::endl;
+    }
+    size_t size_x_r = (nx_r+1)*(ny_r+1)*(nz_r+1);
+    size_t size_v_r = (nu_r+1)*(nv_r+1)*(nw_r+1);
+    restart_matrix.resize(size_x_r, size_v_r);
+    arma::mat copy_mat(size_x_r, size_v_r, arma::fill::zeros);
+
+    // Set up config.
+    conf = config_t<double>(Nx, Ny, Nz, Nu, Nv, Nw, Nt, dt, 
+                            0, Lx, 0, Ly, 0, Lz, umin, umax, 
+                            vmin, vmax, wmin, wmax,
+                            &f0);
+
+    // Print out config.
+    if(mpi_rank == 0){
+        conf.print_config(std::cout);
+        std::cout << "order = " << order << std::endl;
+        std::cout << "Restart parameters: " << std::endl;
+        std::cout << "nx_r " << nx_r << std::endl;
+        std::cout << "ny_r " << ny_r << std::endl;
+        std::cout << "nz_r " << nz_r << std::endl;
+        std::cout << "nu_r " << nu_r << std::endl;
+        std::cout << "nv_r " << nv_r << std::endl;
+        std::cout << "nw_r " << nw_r << std::endl;
+        std::cout << "nt_restart " << nt_restart << std::endl;
+        std::ofstream config_out_str("config.txt");
+        conf.print_config(config_out_str);
+        config_out_str << "order = " << order << std::endl;
+        config_out_str << "nx_r " << nx_r << std::endl;
+        config_out_str << "ny_r " << ny_r << std::endl;
+        config_out_str << "nz_r " << nz_r << std::endl;
+        config_out_str << "nu_r " << nu_r << std::endl;
+        config_out_str << "nv_r " << nv_r << std::endl;
+        config_out_str << "nw_r " << nw_r << std::endl;
+        config_out_str << "nt_restart " << nt_restart << std::endl;
+
+        std::vector<double> B_z_values = generateRandomSmoothFunction(Lx, 100, Nx);
+
+        // Compute E(0) and B(0).
+        std::cout << "Compute E(0) and B(0)." << std::endl;
+        #pragma omp parallel for
+        for(size_t l = 0; l < conf.Nx*conf.Ny*conf.Nz; l++){
+            size_t iz   = l   / (conf.Nx * conf.Ny);
+            size_t tmp  = l   % (conf.Nx * conf.Ny);
+            size_t iy   = tmp / conf.Nx;
+            size_t ix   = tmp % conf.Nx;
+        
+            double x = conf.x_min + ix*conf.dx; 
+            double y = conf.y_min + iy*conf.dy; 
+            double z = conf.z_min + iz*conf.dz; 
+            
+            // Normal initialization:        
+    /*        arma::Col<double> E0_vec = E0(x,y,z);
+            arma::Col<double> B0_vec = B0(x,y,z);
+
+            for(size_t d = 0; d < 3; d++){
+                size_t index = d*conf.Nx*conf.Ny*conf.Nz + l;
+                E[index] = E0_vec(d);
+                B[index] = B0_vec(d);
+            }
+    */
+            // Fabio's magnetic Two Stream Instability:
+            for(size_t d = 0; d < 3; d++){
+                size_t index = d*conf.Nx*conf.Ny*conf.Nz + l;
+                E[index] = 0;
+                if(d < 2){
+                    B[index] = 0;
+                } else{
+                    B[index] = 1e-3 * B_z_values[ix];
+                }
+            }
+
+        }
+
+        // Interpolate E(0) and B(0).
+        std::cout << "Interpolate E(0)." << std::endl;
+        interpolate_fields_aligned<double,order>(0, coeffs_E, E, conf);
+        std::cout << "Interpolate B(0)." << std::endl;
+        interpolate_fields_aligned<double,order>(0, coeffs_B, B, conf);    
+    }
+
+    // Communicate new E and B coefficients.
+    MPI_Bcast(coeffs_E.data(), 3*stride_t, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    MPI_Bcast(coeffs_B.data(), 3*stride_t, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    
+    // Compute j_hat(0).
+    if(mpi_rank == 0){
+        std::cout << "Compute j_hat(0)." << std::endl;
+    }
+    std::cout << "I'm rank " << mpi_rank << " and before eval_j_hat." << std::endl;
+    eval_j_hat_adaptive_mpi<double,order>(0, j_hat, coeffs_E, coeffs_B, coeffs_j_hat, conf);
+    std::cout << "I'm rank " << mpi_rank << " and after eval_j_hat." << std::endl;
+
+    // Interpolate j_hat(0).
+    if(mpi_rank == 0){
+        std::cout << "Interpolate j_hat(0)." << std::endl;
+        interpolate_fields_aligned<double,order>(0, coeffs_j_hat, j_hat, conf);
+    }
+
+    // Communicate new j_hat coefficients.
+    MPI_Bcast(coeffs_j_hat.data(), 3*stride_t, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+
+    std::ofstream stat_file, coeff_out_str_E, coeff_out_str_B, coeff_out_str_j_hat;
+    if(mpi_rank == 0){
+        std::cout << "First output." << std::endl;
+        stat_file.open( "stats.txt" );
+        // Output stats (Electric/magnetic energy).
+        do_stats<double,order>(0, 64, stat_file,coeffs_E, coeffs_B, conf);
+        plot_f<double,order>(0,coeffs_E, coeffs_B, coeffs_j_hat, conf);
+        coeff_out_str_E.open("coeffs_E.txt");
+        coeff_out_str_B.open("coeffs_B.txt");
+        coeff_out_str_j_hat.open("coeffs_j_hat.txt");
+        write_coeffs<double,order>(0, coeffs_E, coeffs_B, coeffs_j_hat, conf, coeff_out_str_E, coeff_out_str_B, coeff_out_str_j_hat );
+    }
+
+    if(mpi_rank){
+        std::cout << "Start time-loop." << std::endl;    
+        std::cout << " ---------------------------------- " << std::endl;
+    }
+    double total_time = 0;
+    double time_compute_EB, time_interpolate_EB, time_eval_j_hat, time_interpolate_j_hat;
+    size_t nt_r_curr = 1;
+    for(size_t n = 1; n <= conf.Nt; n++)
+    {
+        nufi::stopwatch<double> timer;
+        if(mpi_rank){
+            // Compute E(n) and B(n).
+            #pragma omp parallel for
+            for(size_t l = 0; l < conf.Nx*conf.Ny*conf.Nz; l++){
+                size_t iz   = l   / (conf.Nx * conf.Ny);
+                size_t tmp  = l   % (conf.Nx * conf.Ny);
+                size_t iy   = tmp / conf.Nx;
+                size_t ix   = tmp % conf.Nx;
+            
+                double x = conf.x_min + ix*conf.dx; 
+                double y = conf.y_min + iy*conf.dy; 
+                double z = conf.z_min + iz*conf.dz; 
+        
+                arma::Col<double> E0_vec({
+                                    eval<double,order>(x,y,z,coeffs_E.data() + idx_base(nt_r_curr-1,0,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf),
+                                    eval<double,order>(x,y,z,coeffs_E.data() + idx_base(nt_r_curr-1,1,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf),
+                                    eval<double,order>(x,y,z,coeffs_E.data() + idx_base(nt_r_curr-1,2,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf),
+                                });
+                arma::Col<double> B0_vec({
+                                    eval<double,order>(x,y,z,coeffs_B.data() + idx_base(nt_r_curr-1,0,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf),
+                                    eval<double,order>(x,y,z,coeffs_B.data() + idx_base(nt_r_curr-1,1,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf),
+                                    eval<double,order>(x,y,z,coeffs_B.data() + idx_base(nt_r_curr-1,2,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf)
+                                });
+                
+                arma::Col<double> j_hat({
+                    eval<double,order>(x,y,z,coeffs_j_hat.data() + idx_base(nt_r_curr-1,0,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf),
+                    eval<double,order>(x,y,z,coeffs_j_hat.data() + idx_base(nt_r_curr-1,1,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf),
+                    eval<double,order>(x,y,z,coeffs_j_hat.data() + idx_base(nt_r_curr-1,2,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf)
+                });
+
+                E0_vec = E0_vec - conf.dt*conf.q/conf.m*j_hat + conf.dt*rot<double,order>(nt_r_curr-1,x,y,z,coeffs_B,conf);
+                B0_vec = B0_vec - conf.dt*rot<double,order>(nt_r_curr-1,x,y,z,coeffs_E,conf) 
+                        - conf.dt*conf.dt*conf.q/conf.m*rot<double,order>(nt_r_curr-1,x,y,z,coeffs_j_hat,conf)
+                        + conf.dt*conf.dt*rot_rot<double,order>(nt_r_curr-1,x,y,z,coeffs_B,conf);
+
+                for(size_t d = 0; d < 3; d++){
+                    size_t index = d*conf.Nx*conf.Ny*conf.Nz + l;
+                    E[index] = E0_vec(d);
+                    B[index] = B0_vec(d);
+                }
+            }
+            time_compute_EB = timer.elapsed();
+            std::cout << "Compute EB took " << time_compute_EB << " s." << std::endl;
+            timer.reset();
+        }
+
+        // Interpolate E(n) and B(n).
+        //std::cout << "Interpolate E(n) and B(n)." << std::endl;
+        if(mpi_rank == 0){
+            interpolate_fields_aligned<double,order>(nt_r_curr,coeffs_E, E, conf);
+            interpolate_fields_aligned<double,order>(nt_r_curr,coeffs_B, B, conf);
+
+            time_interpolate_EB = timer.elapsed();
+            std::cout << "EB interpolation took " << time_interpolate_EB << " s." << std::endl;
+            timer.reset();
+        }
+
+        // Communicate new E and B coefficients.
+        MPI_Bcast(coeffs_E.data() +  nt_r_curr*3*stride_t, 3*stride_t, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+        MPI_Bcast(coeffs_B.data() +  nt_r_curr*3*stride_t, 3*stride_t, MPI_DOUBLE, 0, MPI_COMM_WORLD);        
+
+        // Compute j_hat(n).
+        eval_j_hat_adaptive_mpi<double,order>(nt_r_curr, j_hat, coeffs_E, coeffs_B, coeffs_j_hat, conf);
+        if(mpi_rank == 0){
+            time_eval_j_hat = timer.elapsed();
+            std::cout << "Eval j_hat took " << time_eval_j_hat << " s." << std::endl;
+            timer.reset();
+        }
+
+        // Interpolate j_hat(n).
+        if(mpi_rank == 0){
+            interpolate_fields_aligned<double,order>(nt_r_curr,coeffs_j_hat,j_hat,conf);
+            time_interpolate_j_hat = timer.elapsed();
+            std::cout << "Interpolate j_hat took " << time_interpolate_j_hat << " s." << std::endl;
+            timer.reset();
+        }
+        MPI_Bcast(coeffs_j_hat.data() +  nt_r_curr*3*stride_t, 3*stride_t, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+
+        // Analyze data if wanted.
+        // Compute time measurement.
+        if(mpi_rank == 0){
+            double time_for_step = time_compute_EB + time_interpolate_EB + time_eval_j_hat + time_interpolate_j_hat;
+            total_time += time_for_step;
+            std::cout << "Time step " << n << " took a total of " << time_for_step << " s." << std::endl;
+
+            do_stats<double,order>(nt_r_curr, 64, stat_file, coeffs_E, coeffs_B, conf, true, n);
+            if(n % (steps_per_1) == 0){
+                plot_f<double,order>(nt_r_curr,coeffs_E, coeffs_B, coeffs_j_hat, conf, true, n);
+            }
+            write_coeffs<double,order>(nt_r_curr, coeffs_E, coeffs_B, coeffs_j_hat, conf, 
+                                        coeff_out_str_E, coeff_out_str_B, coeff_out_str_j_hat );
+            std::cout << "Do stats took: " << double(timer.elapsed()) << " s." << std::endl;
+            std::cout << " ---------------------------------- " << std::endl;
+        }
+
+        if(nt_r_curr == nt_restart){
+            timer.reset();
+            if(mpi_rank == 0){
+                std::cout << "Restart simulation. " << std::endl;
+            }
+
+            // 1) compute how many spatial “rows” each rank owns
+            const size_t Nx_r = nx_r+1, Ny_r = ny_r+1, Nz_r = nz_r+1;
+            const size_t X_total = Nx_r * Ny_r * Nz_r;
+            const size_t V_total = (nu_r+1) * (nv_r+1) * (nw_r+1);
+
+            size_t base = X_total / mpi_size;
+            size_t rem  = X_total % mpi_size;
+            size_t start = mpi_rank * base + std::min<size_t>(mpi_rank, rem);
+            size_t count = base + (mpi_rank < rem ? 1 : 0);
+
+            // 2) allocate a local buffer for your rows × all V
+            std::vector<double> local_mat(count * V_total);
+
+            // 3) fill local_mat
+            #pragma omp parallel for
+            for (size_t idx = 0; idx < count * V_total; ++idx) {
+                size_t lx = idx / V_total;
+                size_t lv = idx % V_total;
+        
+                size_t global_x = start + lx;
+                size_t plane = Nx_r * Ny_r;
+                size_t iz    = global_x / plane;
+                size_t rem1  = global_x % plane;
+                size_t iy    = rem1 / Nx_r;
+                size_t ix    = rem1 % Nx_r;
+        
+                size_t plane_v = (nu_r+1)*(nv_r+1);
+                size_t iw = lv / plane_v;
+                size_t rem2 = lv % plane_v;
+                size_t iv = rem2 / (nu_r+1);
+                size_t iu = rem2 % (nu_r+1);
+        
+                double x = conf.x_min + ix*dx_r,
+                       y = conf.y_min + iy*dy_r,
+                       z = conf.z_min + iz*dz_r;
+                double u = conf.u_min + iu*du_r,
+                       v = conf.v_min + iv*dv_r,
+                       w = conf.w_min + iw*dw_r;
+        
+                double f = eval_f_lie_fBE<double,order>(
+                               nt_r_curr, x,y,z, u,v,w,
+                               coeffs_E, coeffs_B, coeffs_j_hat, conf);
+        
+                // Armadillo expects column-major:
+                local_mat[lx + lv * count] = f;
+            }
+
+            // 4) prepare for the gather on rank 0
+            std::vector<int> recvcounts(mpi_size), displs(mpi_size);
+            for (int r = 0; r < mpi_size; ++r) {
+            size_t rstart = r*base + std::min<size_t>(r,rem);
+            size_t rcnt   = base + (r < rem ? 1 : 0);
+            recvcounts[r] = rcnt * V_total;
+            displs[r]     = rstart * V_total;
+            }
+
+            // 5) Allocate full matrix buffer on every rank
+            std::vector<double> full_copy_mat(X_total * V_total);
+
+            // 6) All‐gather into copy_mat
+            MPI_Allgatherv(
+                local_mat.data(),          // sendbuf
+                count * V_total,           // sendcount
+                MPI_DOUBLE,
+                full_copy_mat.data(),           // recvbuf (all ranks)
+                recvcounts.data(),         // recvcounts
+                displs.data(),             // displacements
+                MPI_DOUBLE,
+                MPI_COMM_WORLD
+            );
+
+
+            // 7) Copy into your Armadillo matrix or whatever container
+            restart_matrix = arma::Mat<double>(full_copy_mat.data(), 
+            X_total,    // rows
+            V_total,    // cols
+            /* copy_aux_mem = */ true);
+  
+            double timer_fill_restart_matrix = timer.elapsed();
+            timer.reset();
+            if(mpi_rank == 0){
+                std::cout << "Filling restart matrix took " << timer_fill_restart_matrix << " s." << std::endl;
+            }
+
+            // Copy last entries of coeff vectors.
+            #pragma omp parallel for collapse(2)
+            for(size_t k = 0; k < 3; k++){
+                for(size_t ix = 0; ix < Nx_ext; ix++)
+                for(size_t iy = 0; iy < Ny_ext; iy++)
+                for(size_t iz = 0; iz < Nz_ext; iz++){
+                    coeffs_E[idx_base(0,k,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,conf.Nt)] 
+                                    = coeffs_E[idx_base(nt_r_curr,k,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,conf.Nt)];
+                    coeffs_B[idx_base(0,k,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,conf.Nt)] 
+                                    = coeffs_B[idx_base(nt_r_curr,k,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,conf.Nt)];
+                    coeffs_j_hat[idx_base(0,k,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,conf.Nt)] 
+                                    = coeffs_j_hat[idx_base(nt_r_curr,k,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,conf.Nt)];
+                }
+            }
+
+            conf = config_t<double>(Nx, Ny, Nz, Nu, Nv, Nw, Nt, dt, 
+                0, Lx, 0, Ly, 0, Lz, umin, umax, 
+                vmin, vmax, wmin, wmax,
+                &linear_interpolation_6d);
+
+            nt_r_curr = 1;
+            double time_restart = timer.elapsed();
+            if(mpi_rank == 0){
+                std::cout << "Restart took: " << time_restart << std::endl;
+                total_time += time_restart;
+            }
+        } else {
+            nt_r_curr++;
+        }
+    }
+
+    std::cout << "Total simulation time " << total_time << " s." << std::endl;
+}
 
 
 }
 }
 
-int main()
+int main(int argc, char** argv)
 {
     //nufi::dim3::nufi_maxwell_lie_fBE<double,4>();
     
@@ -1960,7 +2344,11 @@ int main()
 
     //nufi::dim3::periodically_restarted_nufi_maxwell_lie_fBE<4>();
     
-    nufi::dim3::periodically_restarted_nufi_maxwell_lie_fBE_aligned<4>();
+    //nufi::dim3::periodically_restarted_nufi_maxwell_lie_fBE_aligned<4>();
+
+    MPI_Init(&argc, &argv);
+    nufi::dim3::periodically_restarted_nufi_maxwell_lie_fBE_aligned_mpi<4>();
+    MPI_Finalize();
 
     return 0;
 }

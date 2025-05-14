@@ -21,6 +21,9 @@
 #define NUFI_RHO_HPP
 
 #include <armadillo>
+#include <mpi.h>
+
+#include <iostream>
 
 #include <nufi/fields.hpp>
 #include <nufi/stopwatch.hpp>
@@ -871,6 +874,8 @@ real eval_f_lie_fBE(size_t n, real x, real y, real z,
     return conf.f0(x_vec(0), x_vec(1), x_vec(2), v_vec(0), v_vec(1), v_vec(2));
 }
 
+
+
 template <typename real, size_t order>
 void eval_j_hat(size_t n, std::vector<real>& j_hat, const std::vector<real>& coeffs_E, 
     const std::vector<real>& coeffs_B, const std::vector<real>& coeffs_j_hat, const config_t<real> &conf )
@@ -908,6 +913,357 @@ void eval_j_hat(size_t n, std::vector<real>& j_hat, const std::vector<real>& coe
         j_hat[l + 2*conf.Nx*conf.Ny*conf.Nz] = sum2 * conf.du * conf.dv * conf.dw;
     }
 }
+
+template<typename real, size_t order>
+std::vector<real> sub_integral_j_hat_adaptive_trapezoidal_simpson_rule(size_t n, real x, real y, real z, const std::vector<real>& coeffs_E, 
+    const std::vector<real>& coeffs_B, const std::vector<real>& coeffs_j_hat, const config_t<real> &conf,  
+    real (*eval_f)( size_t n, real x, real y, real z, real u, real v, real w, const std::vector<real>& coeffs_E,
+                    const std::vector<real>& coeffs_B, const std::vector<real>& coeffs_j_hat, 
+                    const config_t<real>& conf ),
+    real u0, real u1, real v0, real v1, real w0, real w1, real f000, real f001, real f010, real f011, 
+    real f100, real f101, real f110, real f111, size_t depth)
+{
+    // The adaptive integration is done via a combination of Trapezoidal and Simpson rule. 
+    // The splitting criteria is that the relative error between the result of the
+    // Trapezoidal and Simpson rule is more than a given tolerance and the maximum
+    // depth is not yet reached. 
+    // In case we split we compute the subintegral in each of the 8 subdomains.
+    // Note that as we are actually computing the current density, which has 3 components 
+    // we are computing 3 integrals at same time. However, as the integrals are only different 
+    // due to the different velocity directions weighing the integral differently, which is cancelled
+    // out when considering the relative error, we can still use the same refinement for each direction.
+    // But we still check the errors in each direction and refine if any of them exceeds the given 
+    // tolerance to avoid missing dynamics, when e.g. one of the directions is set to be constant
+    // or similar.
+
+    real du = u1 - u0;
+    real dv = v1 - v0;
+    real dw = w1 - w0;
+
+    real um = 0.5 * (u1 + u0);
+    real vm = 0.5 * (v1 + v0);
+    real wm = 0.5 * (w1 + w0);
+
+    // 27 quadrature points in total 8 of which are known from before.
+    // Therefore we need 19 more quadrature points here.
+    real f00m = eval_f(n,x,y,z,u0,v0,wm,coeffs_E,coeffs_B,coeffs_j_hat,conf);
+    real f0m0 = eval_f(n,x,y,z,u0,vm,w0,coeffs_E,coeffs_B,coeffs_j_hat,conf);
+    real f0mm = eval_f(n,x,y,z,u0,vm,wm,coeffs_E,coeffs_B,coeffs_j_hat,conf);
+    real fm00 = eval_f(n,x,y,z,um,v0,w0,coeffs_E,coeffs_B,coeffs_j_hat,conf);
+    real fm0m = eval_f(n,x,y,z,um,v0,wm,coeffs_E,coeffs_B,coeffs_j_hat,conf);
+    real fmm0 = eval_f(n,x,y,z,um,vm,w0,coeffs_E,coeffs_B,coeffs_j_hat,conf);
+    real fmmm = eval_f(n,x,y,z,um,vm,wm,coeffs_E,coeffs_B,coeffs_j_hat,conf);
+
+    real f01m = eval_f(n,x,y,z,u0,v1,wm,coeffs_E,coeffs_B,coeffs_j_hat,conf);
+    real f10m = eval_f(n,x,y,z,u1,v0,wm,coeffs_E,coeffs_B,coeffs_j_hat,conf);
+    real f0m1 = eval_f(n,x,y,z,u0,vm,w1,coeffs_E,coeffs_B,coeffs_j_hat,conf);
+    real f1m0 = eval_f(n,x,y,z,u1,vm,w0,coeffs_E,coeffs_B,coeffs_j_hat,conf);
+    real fm01 = eval_f(n,x,y,z,um,v0,w1,coeffs_E,coeffs_B,coeffs_j_hat,conf);
+    real fm10 = eval_f(n,x,y,z,um,v1,w0,coeffs_E,coeffs_B,coeffs_j_hat,conf);
+    
+    real f11m = eval_f(n,x,y,z,u1,v1,wm,coeffs_E,coeffs_B,coeffs_j_hat,conf);
+    real f1m1 = eval_f(n,x,y,z,u1,vm,w1,coeffs_E,coeffs_B,coeffs_j_hat,conf);
+    real fm11 = eval_f(n,x,y,z,um,v1,w1,coeffs_E,coeffs_B,coeffs_j_hat,conf);
+
+    real fmm1 = eval_f(n,x,y,z,um,vm,w1,coeffs_E,coeffs_B,coeffs_j_hat,conf);
+    real fm1m = eval_f(n,x,y,z,um,v1,wm,coeffs_E,coeffs_B,coeffs_j_hat,conf);
+    real f1mm = eval_f(n,x,y,z,u1,vm,wm,coeffs_E,coeffs_B,coeffs_j_hat,conf);
+    
+    real QT_u = 1.0/8.0 * du*dv*dw * ( u0*(f000 + f001 + f010 + f011) + u1*(f100 + f101 + f110 + f111));
+    real QS_u = 1.0/216.0 * du*dv*dw * (
+          u0 * (f000 + f001 + f010 + f011 + f00m + f0m0 + f0mm + f01m + f0m1)
+        + um * (fm00 + fm0m + fmm0 + fmmm + fm01 + fm10 + fmm1 + fm1m + fm11)
+        + u1 * (f100 + f101 + f110 + f111 + f10m + f11m + f1m1 + f1m0 + f1mm)
+    );
+
+    real QT_v = 1.0/8.0 * du*dv*dw * ( v0*(f000 + f001 + f100 + f101) + v1*(f110 + f010 + f011 + f111));
+    real QS_v = 1.0/216.0 * du*dv*dw * (
+        v0 * (f000 + f001 + f00m + fm00 + fm0m + fm01 + f100 + f101 + f10m)
+      + vm * (fmm0 + fmmm + fmm1 + f0m0 + f0mm  + f0m1 + f1m1 + f1m0 + f1mm)
+      + v1 * (f110 + f111 + f11m  + f010 + f011 + f01m + fm10 + fm11 + fm1m)
+    );
+
+    real QT_w = 1.0/8.0 * du*dv*dw * ( w0*(f000 + f100 + f110 + f010) + w1*( f011 + f111 + f001 + f101));
+    real QS_w = 1.0/216.0 * du*dv*dw * (
+        w0 * (f000 + fm00 + f100 + fm10 + f1m0 + fmm0 + f0m0 + f110 + f010)
+      + wm * (fmmm + f0mm + f10m + f1mm + fm1m + f01m + f00m + fm0m + f11m)
+      + w1 * (f111 + f011  + fm11 + f001 + f101 + fm01 + fmm1 + f0m1 + f1m1)
+    );
+
+    real error_j_u = std::abs(QT_u - QS_u) / std::abs(QS_u);
+    real error_j_v = std::abs(QT_v - QS_v) / std::abs(QS_v);
+    real error_j_w = std::abs(QT_w - QS_w) / std::abs(QS_w);
+
+    bool tol_crit_violated = error_j_u > conf.tol_refinement || error_j_v > conf.tol_refinement || error_j_w > conf.tol_refinement;
+    bool max_depth_crit_satisfied = (depth < conf.max_depth_refinement);
+
+    if(tol_crit_violated && max_depth_crit_satisfied){
+        std::vector<real> sub_int_000 = sub_integral_j_hat_adaptive_trapezoidal_simpson_rule<real,order>(
+            n,x,y,z,coeffs_E,coeffs_B,coeffs_j_hat,conf,eval_f,
+            u0,um,v0,vm,w0,wm,
+            f000,f00m, // (u0,v0,wo)    (u0,v0,wm)
+            f0m0,f0mm, // (u0,vm,wo)    (u0,vm,wm)
+            fm00,fm0m, // (um,v0,wo)    (um,v0,wm)
+            fmm0,fmmm, // (um,vm,wo)    (um,vm,wm)
+            depth+1
+        );
+        std::vector<real> sub_int_001 = sub_integral_j_hat_adaptive_trapezoidal_simpson_rule<real,order>(n,x,y,z,coeffs_E,coeffs_B,coeffs_j_hat,conf,eval_f,
+            u0,um,v0,vm,wm,w1,
+            f00m,f001, // (u0,v0,wm)    (u0,v0,w1)
+            f0mm,f0m1, // (u0,vm,wm)    (u0,vm,w1)
+            fm0m,fm01, // (um,v0,wm)    (um,vm,w1)
+            fmmm,fmm1, // (um,vm,wm)    (um,vm,w1)
+            depth+1
+        );
+        std::vector<real> sub_int_010 = sub_integral_j_hat_adaptive_trapezoidal_simpson_rule<real,order>(
+            n,x,y,z,coeffs_E,coeffs_B,coeffs_j_hat,conf,eval_f,
+            u0,um,v0,vm,w0,wm,
+            f0m0,f0mm, // (u0,vm,wo)    (u0,vm,wm)
+            f010,f01m, // (u0,v1,wo)    (u0,v1,wm)
+            fmm0,fmmm, // (um,vm,wo)    (um,vm,wm)
+            fm10,fm1m, // (um,v1,wo)    (um,v1,wm)
+            depth+1
+        );
+        std::vector<real> sub_int_011 = sub_integral_j_hat_adaptive_trapezoidal_simpson_rule<real,order>(
+            n,x,y,z,coeffs_E,coeffs_B,coeffs_j_hat,conf,eval_f,
+            u0,um,v0,vm,w0,wm,
+            f0mm,f0m1, // (u0,vm,wm)    (u0,vm,w1)
+            f01m,f011, // (u0,v1,wm)    (u0,v1,w1)
+            fmmm,fmm1, // (um,vm,wm)    (um,vm,w1)
+            fm1m,fm11, // (um,v1,wm)    (um,v1,w1)
+            depth+1
+        );
+        std::vector<real> sub_int_100 = sub_integral_j_hat_adaptive_trapezoidal_simpson_rule<real,order>(
+            n,x,y,z,coeffs_E,coeffs_B,coeffs_j_hat,conf,eval_f,
+            u0,um,v0,vm,w0,wm,
+            fm00,fm0m, // (um,v0,wo)    (um,v0,wm)
+            fmm0,fmmm, // (um,vm,wo)    (um,vm,wm)
+            f100,f10m, // (u1,v0,wo)    (u1,v0,wm)
+            f1m0,f1mm, // (u1,vm,wo)    (u1,vm,wm)
+            depth+1
+        );
+        std::vector<real> sub_int_101 = sub_integral_j_hat_adaptive_trapezoidal_simpson_rule<real,order>(
+            n,x,y,z,coeffs_E,coeffs_B,coeffs_j_hat,conf,eval_f,
+            u0,um,v0,vm,w0,wm,
+            fm0m,fm01, // (um,v0,wm)    (um,v0,w1)
+            fmmm,fmm1, // (um,vm,wm)    (um,vm,w1)
+            f10m,f101, // (u1,v0,wm)    (u1,v0,w1)
+            f1mm,f1m1, // (u1,vm,wm)    (u1,vm,w1)
+            depth+1
+        );
+        std::vector<real> sub_int_110 = sub_integral_j_hat_adaptive_trapezoidal_simpson_rule<real,order>(
+            n,x,y,z,coeffs_E,coeffs_B,coeffs_j_hat,conf,eval_f,
+            u0,um,v0,vm,w0,wm,
+            fmm0,fmmm, // (um,vm,wo)    (um,vm,wm)
+            fm10,fm1m, // (um,v1,wo)    (um,v1,wm)
+            f1m0,f1mm, // (u1,vm,wo)    (u1,vm,wm)
+            f110,f11m, // (u1,v1,wo)    (u1,v1,wm)
+            depth+1
+        );
+        std::vector<real> sub_int_111 = sub_integral_j_hat_adaptive_trapezoidal_simpson_rule<real,order>(
+            n,x,y,z,coeffs_E,coeffs_B,coeffs_j_hat,conf,eval_f,
+            u0,um,v0,vm,w0,wm,
+            fmmm,fmm1, // (um,vm,wm)    (um,vm,w1)
+            fm1m,fm11, // (um,v1,wm)    (um,v1,w1)
+            f1mm,f1m1, // (u1,vm,wm)    (u1,vm,w1)
+            f11m,f111, // (u1,v1,wm)    (u1,v1,w1)
+            depth+1
+        );
+
+
+        return {
+            sub_int_000[0] + sub_int_001[0] + sub_int_010[0] + sub_int_011[0] + sub_int_100[0] + sub_int_101[0] + sub_int_110[0] + sub_int_111[0],
+            sub_int_000[1] + sub_int_001[1] + sub_int_010[1] + sub_int_011[1] + sub_int_100[1] + sub_int_101[1] + sub_int_110[1] + sub_int_111[1],
+            sub_int_000[2] + sub_int_001[2] + sub_int_010[2] + sub_int_011[2] + sub_int_100[2] + sub_int_101[2] + sub_int_110[2] + sub_int_111[2]
+        };
+    } else {
+        return {QS_u, QS_v, QS_w};
+    }
+}
+
+template <typename real, size_t order>
+real eval_f_lie_fBE_shifted(size_t n, real x, real y, real z,
+    real u, real v, real w, const std::vector<real>& coeffs_E,
+    const std::vector<real>& coeffs_B, const std::vector<real>& coeffs_j_hat,
+    const config_t<real>& conf)
+{
+    return eval_f_lie_fBE<real,order>(n, x - 0.5*conf.dt*u, y - 0.5*conf.dt*v, z - 0.5*conf.dt*w, 
+        u, v, w, coeffs_E, coeffs_B, coeffs_j_hat, conf );
+}
+
+template <typename real, size_t order>
+void eval_j_hat_adaptive(size_t n, std::vector<real>& j_hat, const std::vector<real>& coeffs_E, 
+            const std::vector<real>& coeffs_B, const std::vector<real>& coeffs_j_hat, const config_t<real> &conf
+            /*, std::vector<real>& velocity_boundary, const std::vector<size_t>& n_q_init */)
+{
+    // In its current form I haven't implemented tracking of the velocity support yet. 
+    // There were some issues with it in the previous version (see electro static multi species 
+    // branch). For now the (Nu, Nv, Nw) and (du, dv, dw) are the minimal velocity space grid
+    // from the adaptive integration starts.
+    //
+    // Right now I pass a ton of parameters. Even if most of them (especially the large type ones) are 
+    // const refs, I think it would be good to define an object which stores all of these coefficients 
+    // vectors etc to pass around. This would reduce the function signature and thereby may improve 
+    // performance as well.
+
+    #pragma omp parallel for
+    for(size_t l = 0; l < conf.Nx*conf.Ny*conf.Nz; l++){
+        
+        size_t iz   = l   / (conf.Nx * conf.Ny);
+        size_t tmp  = l   % (conf.Nx * conf.Ny);
+        size_t iy   = tmp / conf.Nx;
+        size_t ix   = tmp % conf.Nx;
+    
+        real x = conf.x_min + ix*conf.dx; 
+        real y = conf.y_min + iy*conf.dy; 
+        real z = conf.z_min + iz*conf.dz; 
+
+        real sum0 = 0, sum1 = 0, sum2 = 0;
+        #pragma omp parallel for collapse(3) reduction(+:sum0,sum1,sum2)
+        for(size_t iu = 0; iu < conf.Nu; iu++)
+        for(size_t iv = 0; iv < conf.Nv; iv++)
+        for(size_t iw = 0; iw < conf.Nw; iw++){
+            // The offset in velocity space has to be taken into account for each f evaluation (depending on (u,v,w))
+            // but how to implement the offset in an efficient way?! Should I just pass the offset as an additional
+            // parameter or is there some "nicer way" of doing it?
+            // => The simplest solution is to define a couple custom "overloads" of eval_f to take the shift into account!
+
+            real u0 = iu*conf.du;
+            real u1 = u0 + conf.du;
+            real v0 = iv*conf.dv;
+            real v1 = v0 + conf.dv;
+            real w0 = iw*conf.dw;
+            real w1 = w0 + conf.dw;
+
+            real f000 = eval_f_lie_fBE_shifted<real,order>(n,x,y,z,u0,v0,w0,coeffs_E,coeffs_B,coeffs_j_hat,conf);
+            real f001 = eval_f_lie_fBE_shifted<real,order>(n,x,y,z,u0,v0,w1,coeffs_E,coeffs_B,coeffs_j_hat,conf);
+            real f010 = eval_f_lie_fBE_shifted<real,order>(n,x,y,z,u0,v1,w0,coeffs_E,coeffs_B,coeffs_j_hat,conf); 
+            real f011 = eval_f_lie_fBE_shifted<real,order>(n,x,y,z,u0,v1,w1,coeffs_E,coeffs_B,coeffs_j_hat,conf); 
+            real f100 = eval_f_lie_fBE_shifted<real,order>(n,x,y,z,u1,v0,w0,coeffs_E,coeffs_B,coeffs_j_hat,conf); 
+            real f101 = eval_f_lie_fBE_shifted<real,order>(n,x,y,z,u1,v0,w1,coeffs_E,coeffs_B,coeffs_j_hat,conf); 
+            real f110 = eval_f_lie_fBE_shifted<real,order>(n,x,y,z,u1,v1,w0,coeffs_E,coeffs_B,coeffs_j_hat,conf); 
+            real f111 = eval_f_lie_fBE_shifted<real,order>(n,x,y,z,u1,v1,w1,coeffs_E,coeffs_B,coeffs_j_hat,conf);
+
+            std::vector<real> j_loc = sub_integral_j_hat_adaptive_trapezoidal_simpson_rule<real,order>(n,x,y,z,coeffs_E,coeffs_B,coeffs_j_hat,
+                                        conf, &(eval_f_lie_fBE_shifted<real,order>), u0, u1, v0, v1, w0, w1, f000, f001, f010, f011,
+                                    f100, f101, f110, f111, 1);
+            sum0 += j_loc[0];
+            sum1 += j_loc[1];
+            sum2 += j_loc[2];
+        }
+        j_hat[l] = sum0;
+        j_hat[l + conf.Nx*conf.Ny*conf.Nz] = sum1;
+        j_hat[l + 2*conf.Nx*conf.Ny*conf.Nz] = sum2;
+    }
+
+}
+
+
+template <typename real, size_t order>
+void eval_j_hat_adaptive_mpi(size_t n, std::vector<real>& j_hat, const std::vector<real>& coeffs_E, 
+            const std::vector<real>& coeffs_B, const std::vector<real>& coeffs_j_hat, const config_t<real> &conf)
+{
+    // In its current form I haven't implemented tracking of the velocity support yet. 
+    // There were some issues with it in the previous version (see electro static multi species 
+    // branch). For now the (Nu, Nv, Nw) and (du, dv, dw) are the minimal velocity space grid
+    // from the adaptive integration starts.
+    //
+    // Right now I pass a ton of parameters. Even if most of them (especially the large type ones) are 
+    // const refs, I think it would be good to define an object which stores all of these coefficients 
+    // vectors etc to pass around. This would reduce the function signature and thereby may improve 
+    // performance as well.
+
+    // MPI parallelization only over spatial degrees of freedom for simplicity. 
+    // OpenMP parallelization for velocity degrees of freedom.
+
+    int rank, size;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+
+    size_t Ncells = conf.Nx * conf.Ny * conf.Nz;
+    size_t chunk_size = Ncells / size;
+    size_t remainder = Ncells % size;
+
+    // Assign each rank a block of indices in the flattened space
+    size_t start_idx = rank * chunk_size + std::min(static_cast<size_t>(rank), remainder);
+    size_t end_idx = start_idx + chunk_size + (rank < remainder ? 1 : 0);
+
+    size_t local_N = end_idx - start_idx;
+
+    std::vector<real> j_hat_local(3 * local_N, 0.0);
+
+    #pragma omp parallel for
+    for(size_t k = 0; k < local_N; k++){
+        size_t l = start_idx + k;
+
+        size_t iz   = l   / (conf.Nx * conf.Ny);
+        size_t tmp  = l   % (conf.Nx * conf.Ny);
+        size_t iy   = tmp / conf.Nx;
+        size_t ix   = tmp % conf.Nx;
+    
+        real x = conf.x_min + ix*conf.dx; 
+        real y = conf.y_min + iy*conf.dy; 
+        real z = conf.z_min + iz*conf.dz; 
+
+        real sum0 = 0, sum1 = 0, sum2 = 0;
+        #pragma omp parallel for collapse(3) reduction(+:sum0,sum1,sum2)
+        for(size_t iu = 0; iu < conf.Nu; iu++)
+        for(size_t iv = 0; iv < conf.Nv; iv++)
+        for(size_t iw = 0; iw < conf.Nw; iw++){
+            // The offset in velocity space has to be taken into account for each f evaluation (depending on (u,v,w))
+            // but how to implement the offset in an efficient way?! Should I just pass the offset as an additional
+            // parameter or is there some "nicer way" of doing it?
+            // => The simplest solution is to define a couple custom "overloads" of eval_f to take the shift into account!
+
+            real u0 = iu*conf.du;
+            real u1 = u0 + conf.du;
+            real v0 = iv*conf.dv;
+            real v1 = v0 + conf.dv;
+            real w0 = iw*conf.dw;
+            real w1 = w0 + conf.dw;
+
+            real f000 = eval_f_lie_fBE_shifted<real,order>(n,x,y,z,u0,v0,w0,coeffs_E,coeffs_B,coeffs_j_hat,conf);
+            real f001 = eval_f_lie_fBE_shifted<real,order>(n,x,y,z,u0,v0,w1,coeffs_E,coeffs_B,coeffs_j_hat,conf);
+            real f010 = eval_f_lie_fBE_shifted<real,order>(n,x,y,z,u0,v1,w0,coeffs_E,coeffs_B,coeffs_j_hat,conf); 
+            real f011 = eval_f_lie_fBE_shifted<real,order>(n,x,y,z,u0,v1,w1,coeffs_E,coeffs_B,coeffs_j_hat,conf); 
+            real f100 = eval_f_lie_fBE_shifted<real,order>(n,x,y,z,u1,v0,w0,coeffs_E,coeffs_B,coeffs_j_hat,conf); 
+            real f101 = eval_f_lie_fBE_shifted<real,order>(n,x,y,z,u1,v0,w1,coeffs_E,coeffs_B,coeffs_j_hat,conf); 
+            real f110 = eval_f_lie_fBE_shifted<real,order>(n,x,y,z,u1,v1,w0,coeffs_E,coeffs_B,coeffs_j_hat,conf); 
+            real f111 = eval_f_lie_fBE_shifted<real,order>(n,x,y,z,u1,v1,w1,coeffs_E,coeffs_B,coeffs_j_hat,conf);
+
+            std::vector<real> j_loc = sub_integral_j_hat_adaptive_trapezoidal_simpson_rule<real,order>(n,x,y,z,coeffs_E,coeffs_B,coeffs_j_hat,
+                                        conf, &(eval_f_lie_fBE_shifted<real,order>), u0, u1, v0, v1, w0, w1, f000, f001, f010, f011,
+                                    f100, f101, f110, f111, 1);
+            sum0 += j_loc[0];
+            sum1 += j_loc[1];
+            sum2 += j_loc[2];
+        }
+        
+        // write into the *local* array at [0..local_N)
+        j_hat_local[      k         ] = sum0;
+        j_hat_local[ local_N + k    ] = sum1;
+        j_hat_local[ 2*local_N + k  ] = sum2;
+    }
+
+    std::cout << "Rank " << rank << " after large loop" << std::endl;
+
+    // Gather global j_hat
+    // Sets the indices for the MPI_Gatherv call.
+    std::vector<int> recvcounts(size), displs(size);
+    for (int r = 0; r < size; ++r) {
+        size_t r_start = r * chunk_size + std::min(static_cast<size_t>(r), remainder);
+        size_t r_N = chunk_size + (r < remainder ? 1 : 0);
+        recvcounts[r] = 3 * r_N;
+        displs[r] = (r_start) * 3;
+    }
+
+    // This gathers the local j_hat data into the global j_hat. 
+    MPI_Gatherv(j_hat_local.data(), 3 * local_N, MPI_DOUBLE,
+                j_hat.data(), recvcounts.data(), displs.data(), MPI_DOUBLE,
+                0, MPI_COMM_WORLD);
+
+}
+
 
 }
 
