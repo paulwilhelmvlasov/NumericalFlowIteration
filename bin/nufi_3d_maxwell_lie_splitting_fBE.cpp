@@ -29,14 +29,14 @@ const double Ly = Lx;
 const double Lz = Lx; */
 
 // Magnetic Two Stream Instability by Einkemmer 
-/* const double Lx = 2*M_PI;
-const double Ly = Lx;
-const double Lz = Lx; */
-
-// Two Stream Instability by Fabio 
-const double Lx = 12.8;
+const double Lx = 2*M_PI;
 const double Ly = Lx;
 const double Lz = Lx;
+
+// Two Stream Instability by Fabio 
+/* const double Lx = 12.8;
+const double Ly = Lx;
+const double Lz = Lx; */
 
 // Weibel Instability by Einkemmer
 /* const double umin = -0.15;
@@ -74,7 +74,7 @@ const size_t Nv = 16;
 const size_t Nw = 1;
 const size_t steps_per_1 = 200;
 const double   dt = 1.0 / steps_per_1;
-const size_t Nt = 100/dt;
+const size_t Nt = 2/dt;
 
 
 const size_t nx_r = 2*Nx;
@@ -83,7 +83,7 @@ const size_t nz_r = 1;
 const size_t nu_r = 2*Nu;
 const size_t nv_r = 2*Nv;
 const size_t nw_r = 2*Nw;
-const size_t nt_restart = 200;
+const size_t nt_restart = 500;
 
 const double dx_r = Lx / nx_r;
 const double dy_r = Ly / ny_r;
@@ -328,11 +328,11 @@ arma::Col<real> B0(real x, real y, real z)
     return arma::Col<real>({0, 0, beta*std::cos(k*x)}); */
 
     // Electro-static
-    return arma::Col<real>({0, 0, 0});
+    //return arma::Col<real>({0, 0, 0});
 
     // Magnetic Two Stream Instability by Einkemmer.
-/*     constexpr real alpha = 1e-3;
-    return arma::Col<real>({0, 0, alpha*std::sin(x)}); */
+    constexpr real alpha = 1e-3;
+    return arma::Col<real>({0, 0, alpha*std::sin(x)});
 }
 
 template <typename real, size_t order>
@@ -1730,7 +1730,7 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned()
         double z = conf.z_min + iz*conf.dz; 
         
         // Normal initialization:        
-/*        arma::Col<double> E0_vec = E0(x,y,z);
+       arma::Col<double> E0_vec = E0(x,y,z);
         arma::Col<double> B0_vec = B0(x,y,z);
 
          for(size_t d = 0; d < 3; d++){
@@ -1738,9 +1738,9 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned()
             E[index] = E0_vec(d);
             B[index] = B0_vec(d);
         }
- */
+
         // Fabio's magnetic Two Stream Instability:
-        for(size_t d = 0; d < 3; d++){
+        /* for(size_t d = 0; d < 3; d++){
             size_t index = d*conf.Nx*conf.Ny*conf.Nz + l;
             E[index] = 0;
             if(d < 2){
@@ -1748,7 +1748,7 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned()
             } else{
                 B[index] = 1e-3 * B_z_values[ix];
             }
-        }
+        } */
 
     }
 
@@ -1761,16 +1761,8 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned()
     // Compute j_hat(0).
     std::cout << "Compute j_hat(0)." << std::endl;
 
-    /* for(size_t i = 0; i < j_hat.size(); i++){
-        std::cout << i << " " << j_hat[i] << std::endl;
-    } */
-
     //eval_j_hat<double,order>(0, j_hat, coeffs_E, coeffs_B, coeffs_j_hat, conf);
     eval_j_hat_adaptive<double,order>(0, j_hat, coeffs_E, coeffs_B, coeffs_j_hat, conf);
-
-    /* for(size_t i = 0; i < j_hat.size(); i++){
-        std::cout << i << " " << j_hat[i] << std::endl;
-    } */
 
     // Interpolate j_hat(0).
     std::cout << "Interpolate j_hat(0)." << std::endl;
@@ -2038,7 +2030,7 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned_mpi()
             double z = conf.z_min + iz*conf.dz; 
             
             // Normal initialization:        
-    /*        arma::Col<double> E0_vec = E0(x,y,z);
+            arma::Col<double> E0_vec = E0(x,y,z);
             arma::Col<double> B0_vec = B0(x,y,z);
 
             for(size_t d = 0; d < 3; d++){
@@ -2046,9 +2038,9 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned_mpi()
                 E[index] = E0_vec(d);
                 B[index] = B0_vec(d);
             }
-    */
+   
             // Fabio's magnetic Two Stream Instability:
-            for(size_t d = 0; d < 3; d++){
+            /* for(size_t d = 0; d < 3; d++){
                 size_t index = d*conf.Nx*conf.Ny*conf.Nz + l;
                 E[index] = 0;
                 if(d < 2){
@@ -2056,7 +2048,7 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned_mpi()
                 } else{
                     B[index] = 1e-3 * B_z_values[ix];
                 }
-            }
+            } */
 
         }
 
@@ -2075,9 +2067,9 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned_mpi()
     if(mpi_rank == 0){
         std::cout << "Compute j_hat(0)." << std::endl;
     }
-    std::cout << "I'm rank " << mpi_rank << " and before eval_j_hat." << std::endl;
+    //std::cout << "I'm rank " << mpi_rank << " and before eval_j_hat." << std::endl;
     eval_j_hat_adaptive_mpi<double,order>(0, j_hat, coeffs_E, coeffs_B, coeffs_j_hat, conf);
-    std::cout << "I'm rank " << mpi_rank << " and after eval_j_hat." << std::endl;
+    //std::cout << "I'm rank " << mpi_rank << " and after eval_j_hat." << std::endl;
 
     // Interpolate j_hat(0).
     if(mpi_rank == 0){
@@ -2344,11 +2336,11 @@ int main(int argc, char** argv)
 
     //nufi::dim3::periodically_restarted_nufi_maxwell_lie_fBE<4>();
     
-    //nufi::dim3::periodically_restarted_nufi_maxwell_lie_fBE_aligned<4>();
+    nufi::dim3::periodically_restarted_nufi_maxwell_lie_fBE_aligned<4>();
 
-    MPI_Init(&argc, &argv);
+    /* MPI_Init(&argc, &argv);
     nufi::dim3::periodically_restarted_nufi_maxwell_lie_fBE_aligned_mpi<4>();
-    MPI_Finalize();
+    MPI_Finalize(); */
 
     return 0;
 }
