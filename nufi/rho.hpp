@@ -1257,11 +1257,11 @@ void eval_j_hat_adaptive(size_t n, std::vector<real>& j_hat, const std::vector<r
             // parameter or is there some "nicer way" of doing it?
             // => The simplest solution is to define a couple custom "overloads" of eval_f to take the shift into account!
 
-            real u0 = iu*conf.du;
+            real u0 = conf.u_min + iu*conf.du;
             real u1 = u0 + conf.du;
-            real v0 = iv*conf.dv;
+            real v0 = conf.v_min + iv*conf.dv;
             real v1 = v0 + conf.dv;
-            real w0 = iw*conf.dw;
+            real w0 = conf.w_min + iw*conf.dw;
             real w1 = w0 + conf.dw;
 
             real f000 = eval_f_lie_fBE_shifted<real,order>(n,x,y,z,u0,v0,w0,coeffs_E,coeffs_B,coeffs_j_hat,conf);
@@ -1344,11 +1344,11 @@ void eval_j_hat_adaptive_mpi(size_t n, std::vector<real>& j_hat, const std::vect
             // parameter or is there some "nicer way" of doing it?
             // => The simplest solution is to define a couple custom "overloads" of eval_f to take the shift into account!
 
-            real u0 = iu*conf.du;
+            real u0 = conf.u_min + iu*conf.du;
             real u1 = u0 + conf.du;
-            real v0 = iv*conf.dv;
+            real v0 = conf.v_min + iv*conf.dv;
             real v1 = v0 + conf.dv;
-            real w0 = iw*conf.dw;
+            real w0 = conf.w_min + iw*conf.dw;
             real w1 = w0 + conf.dw;
 
             real f000 = eval_f_lie_fBE_shifted<real,order>(n,x,y,z,u0,v0,w0,coeffs_E,coeffs_B,coeffs_j_hat,conf);

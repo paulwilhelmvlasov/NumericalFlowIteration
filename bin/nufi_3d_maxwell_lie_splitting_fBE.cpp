@@ -514,6 +514,10 @@ void plot_f(size_t n, const std::vector<real>& coeffs_E, const std::vector<real>
     const std::vector<real>& coeffs_j_hat, const config_t<double>& conf, bool restarted = false, 
     size_t n_full = 0)
 {
+    const size_t Nx_ext = conf.Nx + order - 1;
+    const size_t Ny_ext = conf.Ny + order - 1;
+    const size_t Nz_ext = conf.Nz + order - 1;
+
     size_t nt_plot = n;
     if(restarted){
         nt_plot = n_full;
@@ -530,6 +534,7 @@ void plot_f(size_t n, const std::vector<real>& coeffs_E, const std::vector<real>
     double du_plot = (umax - umin) / nu_plot;
     double dv_plot = (vmax - vmin) / nu_plot;
 
+    // Plot f:
     for(size_t ix = 0; ix <= nx_plot; ix++){
         for(size_t iu = 0; iu <= nu_plot; iu++){
             double x = conf.x_min + ix * dx_plot;
@@ -550,6 +555,24 @@ void plot_f(size_t n, const std::vector<real>& coeffs_E, const std::vector<real>
         f_x_vy_str << std::endl;
         f_minux_eq_x_vx_str << std::endl;
         f_minux_eq_x_vy_str << std::endl;
+    }
+
+    // Plot j_hat:
+    std::ofstream j_u_hat_str("j_u_hat_" + std::to_string(nt_plot*conf.dt) + ".txt");
+    std::ofstream j_v_hat_str("j_v_hat_" + std::to_string(nt_plot*conf.dt) + ".txt");
+    std::ofstream j_w_hat_str("j_w_hat_" + std::to_string(nt_plot*conf.dt) + ".txt");
+    for(size_t ix = 0; ix <= nx_plot; ix++){
+        double x = conf.x_min + ix *dx_plot;
+        double y = 0.5*(conf.y_max + conf.y_min);
+        double z = 0.5*(conf.z_max + conf.z_min);
+
+        double j_u_hat = eval<real,order>(x,y,z,&coeffs_j_hat[idx_base(n, 0, 0, 0, 0, Nx_ext, Ny_ext, Nz_ext, conf.Nt)],conf);
+        double j_v_hat = eval<real,order>(x,y,z,&coeffs_j_hat[idx_base(n, 1, 0, 0, 0, Nx_ext, Ny_ext, Nz_ext, conf.Nt)],conf);
+        double j_w_hat = eval<real,order>(x,y,z,&coeffs_j_hat[idx_base(n, 2, 0, 0, 0, Nx_ext, Ny_ext, Nz_ext, conf.Nt)],conf);
+
+        j_u_hat_str << x << " " << j_u_hat << std::endl;
+        j_v_hat_str << x << " " << j_v_hat << std::endl;
+        j_w_hat_str << x << " " << j_w_hat << std::endl;
     }
 }
 
@@ -1768,10 +1791,6 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned()
     std::cout << "Interpolate j_hat(0)." << std::endl;
     interpolate_fields_aligned<double,order>(0, coeffs_j_hat, j_hat, conf);
 
-    /* for(size_t i = 0; i < 3*stride_t; i++){
-        std::cout << i << " " << coeffs_j_hat[i] << std::endl;
-    } */
-
     std::cout << "First output." << std::endl;
     std::ofstream stat_file( "stats.txt" );
     // Output stats (Electric/magnetic energy).
@@ -1862,7 +1881,7 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned()
         std::cout << "Time step " << n << " took a total of " << time_for_step << " s." << std::endl;
 
         do_stats<double,order>(nt_r_curr, 64, stat_file, coeffs_E, coeffs_B, conf, true, n);
-        if(n % (steps_per_1) == 0){
+        if(n % (steps_per_1/4) == 0){
             plot_f<double,order>(nt_r_curr,coeffs_E, coeffs_B, coeffs_j_hat, conf, true, n);
         }
         write_coeffs<double,order>(nt_r_curr, coeffs_E, coeffs_B, coeffs_j_hat, conf, 
