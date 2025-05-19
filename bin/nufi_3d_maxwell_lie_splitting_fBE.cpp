@@ -2208,7 +2208,7 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned_mpi()
             std::cout << "Time step " << n << " took a total of " << time_for_step << " s." << std::endl;
 
             do_stats<double,order>(nt_r_curr, 64, stat_file, coeffs_E, coeffs_B, conf, true, n);
-            if(n % (steps_per_1/4) == 0){
+            if(n % (steps_per_1/8) == 0){
                 plot_f<double,order>(nt_r_curr,coeffs_E, coeffs_B, coeffs_j_hat, conf, true, n);
             }
             write_coeffs<double,order>(nt_r_curr, coeffs_E, coeffs_B, coeffs_j_hat, conf, 

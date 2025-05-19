@@ -1321,7 +1321,7 @@ void eval_j_hat_adaptive_mpi(size_t n, std::vector<real>& j_hat, const std::vect
 
     std::vector<real> j_hat_local(3 * local_N, 0.0);
 
-    //#pragma omp parallel for
+    #pragma omp parallel for
     for(size_t k = 0; k < local_N; k++){
         size_t l = start_idx + k;
 
