@@ -1321,7 +1321,7 @@ void eval_j_hat_adaptive_mpi(size_t n, std::vector<real>& j_hat, const std::vect
 
     std::vector<real> j_hat_local(3 * local_N, 0.0);
 
-    #pragma omp parallel for
+    //#pragma omp parallel for
     for(size_t k = 0; k < local_N; k++){
         size_t l = start_idx + k;
 
@@ -1374,22 +1374,53 @@ void eval_j_hat_adaptive_mpi(size_t n, std::vector<real>& j_hat, const std::vect
         j_hat_local[ 2*local_N + k  ] = sum2;
     }
 
-    //std::cout << "Rank " << rank << " after large loop" << std::endl;
-
     // Gather global j_hat
-    // Sets the indices for the MPI_Gatherv call.
-    std::vector<int> recvcounts(size), displs(size);
+    // Build per‑rank counts/displs for each component
+    std::vector<int> rc(size), dp(size);
     for (int r = 0; r < size; ++r) {
-        size_t r_start = r * chunk_size + std::min(static_cast<size_t>(r), remainder);
-        size_t r_N = chunk_size + (r < remainder ? 1 : 0);
-        recvcounts[r] = 3 * r_N;
-        displs[r] = (r_start) * 3;
+        size_t r_start = r * chunk_size + std::min<size_t>(r, remainder);
+        size_t r_N     = chunk_size + (r < remainder ? 1 : 0);
+        rc[r] = static_cast<int>(r_N);
+        dp[r] = static_cast<int>(r_start);
     }
+    // 1) Gather j_u into j_hat[0 ..   Ncells-1]
+    MPI_Gatherv(
+        /* sendbuf    */ j_hat_local.data() +     0*local_N,
+        /* sendcount  */         static_cast<int>(local_N),
+        /* sendtype   */ MPI_DOUBLE,
+        /* recvbuf    */ j_hat.data() +     0*static_cast<int>(Ncells),
+        /* recvcounts */ rc.data(),
+        /* displs     */ dp.data(),
+        /* recvtype   */ MPI_DOUBLE,
+        /* root       */           0,
+        MPI_COMM_WORLD
+    );
 
-    // This gathers the local j_hat data into the global j_hat. 
-    MPI_Gatherv(j_hat_local.data(), 3 * local_N, MPI_DOUBLE,
-                j_hat.data(), recvcounts.data(), displs.data(), MPI_DOUBLE,
-                0, MPI_COMM_WORLD);
+    // 2) Gather j_v into j_hat[Ncells .. 2*Ncells-1]
+    MPI_Gatherv(
+        j_hat_local.data() +     1*local_N,
+        static_cast<int>(local_N),
+        MPI_DOUBLE,
+        j_hat.data()     +     1*static_cast<int>(Ncells),
+        rc.data(),
+        dp.data(),
+        MPI_DOUBLE,
+        0,
+        MPI_COMM_WORLD
+    );
+
+    // 3) Gather j_w into j_hat[2*Ncells .. 3*Ncells-1]
+    MPI_Gatherv(
+        j_hat_local.data() +     2*local_N,
+        static_cast<int>(local_N),
+        MPI_DOUBLE,
+        j_hat.data()     +     2*static_cast<int>(Ncells),
+        rc.data(),
+        dp.data(),
+        MPI_DOUBLE,
+        0,
+        MPI_COMM_WORLD
+    );
 
 }
 

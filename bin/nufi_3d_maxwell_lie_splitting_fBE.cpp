@@ -2112,7 +2112,7 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned_mpi()
         write_coeffs<double,order>(0, coeffs_E, coeffs_B, coeffs_j_hat, conf, coeff_out_str_E, coeff_out_str_B, coeff_out_str_j_hat );
     }
 
-    if(mpi_rank){
+    if(mpi_rank == 0){
         std::cout << "Start time-loop." << std::endl;    
         std::cout << " ---------------------------------- " << std::endl;
     }
@@ -2122,7 +2122,7 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned_mpi()
     for(size_t n = 1; n <= conf.Nt; n++)
     {
         nufi::stopwatch<double> timer;
-        if(mpi_rank){
+        if(mpi_rank == 0){
             // Compute E(n) and B(n).
             #pragma omp parallel for
             for(size_t l = 0; l < conf.Nx*conf.Ny*conf.Nz; l++){
@@ -2208,7 +2208,7 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned_mpi()
             std::cout << "Time step " << n << " took a total of " << time_for_step << " s." << std::endl;
 
             do_stats<double,order>(nt_r_curr, 64, stat_file, coeffs_E, coeffs_B, conf, true, n);
-            if(n % (steps_per_1) == 0){
+            if(n % (steps_per_1/4) == 0){
                 plot_f<double,order>(nt_r_curr,coeffs_E, coeffs_B, coeffs_j_hat, conf, true, n);
             }
             write_coeffs<double,order>(nt_r_curr, coeffs_E, coeffs_B, coeffs_j_hat, conf, 
@@ -2355,11 +2355,11 @@ int main(int argc, char** argv)
 
     //nufi::dim3::periodically_restarted_nufi_maxwell_lie_fBE<4>();
     
-    nufi::dim3::periodically_restarted_nufi_maxwell_lie_fBE_aligned<4>();
+    //nufi::dim3::periodically_restarted_nufi_maxwell_lie_fBE_aligned<4>();
 
-    /* MPI_Init(&argc, &argv);
+    MPI_Init(&argc, &argv);
     nufi::dim3::periodically_restarted_nufi_maxwell_lie_fBE_aligned_mpi<4>();
-    MPI_Finalize(); */
+    MPI_Finalize();
 
     return 0;
 }
