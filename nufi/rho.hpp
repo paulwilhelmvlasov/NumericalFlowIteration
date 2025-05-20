@@ -819,7 +819,7 @@ void eval_j_hat(size_t n, std::vector<std::vector<real>>& j_hat,
 }
 
 
-template <typename real, size_t order>
+template <typename real, size_t order, bool single_species = true>
 real eval_f_lie_fBE(size_t n, real x, real y, real z,
     real u, real v, real w, const std::vector<real>& coeffs_E,
     const std::vector<real>& coeffs_B, const std::vector<real>& coeffs_j_hat,
@@ -858,8 +858,11 @@ real eval_f_lie_fBE(size_t n, real x, real y, real z,
         }
 
         // Apply the correction to E2
-        E2 -= conf.dt * conf.q / conf.m * j_hat;
-        
+        if(single_species){
+            E2 -= conf.dt * conf.q * j_hat;
+        } else {
+            E2 -= conf.dt * j_hat;
+        }
         // Add the curl(B) term for E2
         E2 += conf.dt * rot<real,order>(n-1,x_vec(0),x_vec(1),x_vec(2),coeffs_B,conf);
 
@@ -873,8 +876,6 @@ real eval_f_lie_fBE(size_t n, real x, real y, real z,
     // Final return using f0 function
     return conf.f0(x_vec(0), x_vec(1), x_vec(2), v_vec(0), v_vec(1), v_vec(2));
 }
-
-
 
 template <typename real, size_t order>
 void eval_j_hat(size_t n, std::vector<real>& j_hat, const std::vector<real>& coeffs_E, 
@@ -1210,13 +1211,13 @@ std::vector<real> sub_integral_j_hat_adaptive_trapezoidal_simpson_rule(size_t n,
     }
 }
 
-template <typename real, size_t order>
+template <typename real, size_t order, bool single_species = true>
 real eval_f_lie_fBE_shifted(size_t n, real x, real y, real z,
     real u, real v, real w, const std::vector<real>& coeffs_E,
     const std::vector<real>& coeffs_B, const std::vector<real>& coeffs_j_hat,
     const config_t<real>& conf)
 {
-    return eval_f_lie_fBE<real,order>(n, x - 0.5*conf.dt*u, y - 0.5*conf.dt*v, z - 0.5*conf.dt*w, 
+    return eval_f_lie_fBE<real,order,single_species>(n, x - 0.5*conf.dt*u, y - 0.5*conf.dt*v, z - 0.5*conf.dt*w, 
         u, v, w, coeffs_E, coeffs_B, coeffs_j_hat, conf );
 }
 
@@ -1288,7 +1289,7 @@ void eval_j_hat_adaptive(size_t n, std::vector<real>& j_hat, const std::vector<r
 }
 
 
-template <typename real, size_t order>
+template <typename real, size_t order, bool single_species = true>
 void eval_j_hat_adaptive_mpi(size_t n, std::vector<real>& j_hat, const std::vector<real>& coeffs_E, 
             const std::vector<real>& coeffs_B, const std::vector<real>& coeffs_j_hat, const config_t<real> &conf)
 {
@@ -1351,17 +1352,17 @@ void eval_j_hat_adaptive_mpi(size_t n, std::vector<real>& j_hat, const std::vect
             real w0 = conf.w_min + iw*conf.dw;
             real w1 = w0 + conf.dw;
 
-            real f000 = eval_f_lie_fBE_shifted<real,order>(n,x,y,z,u0,v0,w0,coeffs_E,coeffs_B,coeffs_j_hat,conf);
-            real f001 = eval_f_lie_fBE_shifted<real,order>(n,x,y,z,u0,v0,w1,coeffs_E,coeffs_B,coeffs_j_hat,conf);
-            real f010 = eval_f_lie_fBE_shifted<real,order>(n,x,y,z,u0,v1,w0,coeffs_E,coeffs_B,coeffs_j_hat,conf); 
-            real f011 = eval_f_lie_fBE_shifted<real,order>(n,x,y,z,u0,v1,w1,coeffs_E,coeffs_B,coeffs_j_hat,conf); 
-            real f100 = eval_f_lie_fBE_shifted<real,order>(n,x,y,z,u1,v0,w0,coeffs_E,coeffs_B,coeffs_j_hat,conf); 
-            real f101 = eval_f_lie_fBE_shifted<real,order>(n,x,y,z,u1,v0,w1,coeffs_E,coeffs_B,coeffs_j_hat,conf); 
-            real f110 = eval_f_lie_fBE_shifted<real,order>(n,x,y,z,u1,v1,w0,coeffs_E,coeffs_B,coeffs_j_hat,conf); 
-            real f111 = eval_f_lie_fBE_shifted<real,order>(n,x,y,z,u1,v1,w1,coeffs_E,coeffs_B,coeffs_j_hat,conf);
+            real f000 = eval_f_lie_fBE_shifted<real,order,single_species>(n,x,y,z,u0,v0,w0,coeffs_E,coeffs_B,coeffs_j_hat,conf);
+            real f001 = eval_f_lie_fBE_shifted<real,order,single_species>(n,x,y,z,u0,v0,w1,coeffs_E,coeffs_B,coeffs_j_hat,conf);
+            real f010 = eval_f_lie_fBE_shifted<real,order,single_species>(n,x,y,z,u0,v1,w0,coeffs_E,coeffs_B,coeffs_j_hat,conf); 
+            real f011 = eval_f_lie_fBE_shifted<real,order,single_species>(n,x,y,z,u0,v1,w1,coeffs_E,coeffs_B,coeffs_j_hat,conf); 
+            real f100 = eval_f_lie_fBE_shifted<real,order,single_species>(n,x,y,z,u1,v0,w0,coeffs_E,coeffs_B,coeffs_j_hat,conf); 
+            real f101 = eval_f_lie_fBE_shifted<real,order,single_species>(n,x,y,z,u1,v0,w1,coeffs_E,coeffs_B,coeffs_j_hat,conf); 
+            real f110 = eval_f_lie_fBE_shifted<real,order,single_species>(n,x,y,z,u1,v1,w0,coeffs_E,coeffs_B,coeffs_j_hat,conf); 
+            real f111 = eval_f_lie_fBE_shifted<real,order,single_species>(n,x,y,z,u1,v1,w1,coeffs_E,coeffs_B,coeffs_j_hat,conf);
 
             std::vector<real> j_loc = sub_integral_j_hat_adaptive_trapezoidal_simpson_rule<real,order>(n,x,y,z,coeffs_E,coeffs_B,coeffs_j_hat,
-                                        conf, &(eval_f_lie_fBE_shifted<real,order>), u0, u1, v0, v1, w0, w1, f000, f001, f010, f011,
+                                        conf, &(eval_f_lie_fBE_shifted<real,order,single_species>), u0, u1, v0, v1, w0, w1, f000, f001, f010, f011,
                                     f100, f101, f110, f111, 1);
             sum0 += j_loc[0];
             sum1 += j_loc[1];

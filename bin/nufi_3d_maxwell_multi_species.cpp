@@ -663,8 +663,8 @@ void plot_f(size_t n, const std::vector<real>& coeffs_E, const std::vector<real>
 
             double f_x_vx = eval_f_lie_fBE<real,order>(n, x, 0, 0, u, 0, 0, coeffs_E, coeffs_B, coeffs_j_hat, conf);
             double f_x_vy = eval_f_lie_fBE<real,order>(n, x, 0, 0, 0, v, 0, coeffs_E, coeffs_B, coeffs_j_hat, conf);
-            double f_minus_equilbrium_vx = std::abs(f_x_vx - f0<real>(x,0,0,u,0,0));
-            double f_minus_equilbrium_vy = std::abs(f_x_vy - f0<real>(x,0,0,0,v,0));
+            double f_minus_equilbrium_vx = std::abs(f_x_vx - f0<real,is_electron>(x,0,0,u,0,0));
+            double f_minus_equilbrium_vy = std::abs(f_x_vy - f0<real,is_electron>(x,0,0,0,v,0));
 
             f_x_vx_str << x << " " << u << " " << f_x_vx << std::endl;
             f_x_vy_str << x << " " << v << " " << f_x_vy << std::endl;
@@ -1101,41 +1101,45 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned_mpi()
         if(mpi_rank == 0){
             // Compute E(n) and B(n).
             #pragma omp parallel for
-            for(size_t l = 0; l < conf.Nx*conf.Ny*conf.Nz; l++){
-                size_t iz   = l   / (conf.Nx * conf.Ny);
-                size_t tmp  = l   % (conf.Nx * conf.Ny);
-                size_t iy   = tmp / conf.Nx;
-                size_t ix   = tmp % conf.Nx;
+            for(size_t l = 0; l < Nx*Ny*Nz; l++){
+                size_t iz   = l   / (Nx * Ny);
+                size_t tmp  = l   % (Nx * Ny);
+                size_t iy   = tmp / Nx;
+                size_t ix   = tmp % Nx;
             
-                double x = conf.x_min + ix*conf.dx; 
-                double y = conf.y_min + iy*conf.dy; 
-                double z = conf.z_min + iz*conf.dz; 
+                double x = ix*conf_elec.dx; 
+                double y = iy*conf_elec.dy; 
+                double z = iz*conf_elec.dz; 
         
                 arma::Col<double> E0_vec({
-                                    eval<double,order>(x,y,z,coeffs_E.data() + idx_base(nt_r_curr-1,0,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf_elec),
-                                    eval<double,order>(x,y,z,coeffs_E.data() + idx_base(nt_r_curr-1,1,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf_elec),
-                                    eval<double,order>(x,y,z,coeffs_E.data() + idx_base(nt_r_curr-1,2,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf_elec),
+                                    eval<double,order>(x,y,z,coeffs_E.data() + idx_base(nt_r_curr-1,0,0,0,0,Nx_ext,Ny_ext,Nz_ext,Nt),conf_elec),
+                                    eval<double,order>(x,y,z,coeffs_E.data() + idx_base(nt_r_curr-1,1,0,0,0,Nx_ext,Ny_ext,Nz_ext,Nt),conf_elec),
+                                    eval<double,order>(x,y,z,coeffs_E.data() + idx_base(nt_r_curr-1,2,0,0,0,Nx_ext,Ny_ext,Nz_ext,Nt),conf_elec),
                                 });
                 arma::Col<double> B0_vec({
-                                    eval<double,order>(x,y,z,coeffs_B.data() + idx_base(nt_r_curr-1,0,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf_elec),
-                                    eval<double,order>(x,y,z,coeffs_B.data() + idx_base(nt_r_curr-1,1,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf_elec),
-                                    eval<double,order>(x,y,z,coeffs_B.data() + idx_base(nt_r_curr-1,2,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf_elec)
+                                    eval<double,order>(x,y,z,coeffs_B.data() + idx_base(nt_r_curr-1,0,0,0,0,Nx_ext,Ny_ext,Nz_ext,Nt),conf_elec),
+                                    eval<double,order>(x,y,z,coeffs_B.data() + idx_base(nt_r_curr-1,1,0,0,0,Nx_ext,Ny_ext,Nz_ext,Nt),conf_elec),
+                                    eval<double,order>(x,y,z,coeffs_B.data() + idx_base(nt_r_curr-1,2,0,0,0,Nx_ext,Ny_ext,Nz_ext,Nt),conf_elec)
                                 });
                 
                 arma::Col<double> j_hat({
-                    eval<double,order>(x,y,z,coeffs_j_hat.data() + idx_base(nt_r_curr-1,0,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf_elec),
-                    eval<double,order>(x,y,z,coeffs_j_hat.data() + idx_base(nt_r_curr-1,1,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf_elec),
-                    eval<double,order>(x,y,z,coeffs_j_hat.data() + idx_base(nt_r_curr-1,2,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf_elec)
+                    eval<double,order>(x,y,z,coeffs_j_hat.data() + idx_base(nt_r_curr-1,0,0,0,0,Nx_ext,Ny_ext,Nz_ext,Nt),conf_elec),
+                    eval<double,order>(x,y,z,coeffs_j_hat.data() + idx_base(nt_r_curr-1,1,0,0,0,Nx_ext,Ny_ext,Nz_ext,Nt),conf_elec),
+                    eval<double,order>(x,y,z,coeffs_j_hat.data() + idx_base(nt_r_curr-1,2,0,0,0,Nx_ext,Ny_ext,Nz_ext,Nt),conf_elec)
                 });
 
-                // Todo: Check this part here. Which q and m have to be used here?!
-                E0_vec = E0_vec - conf.dt*conf.q/conf.m*j_hat + conf.dt*rot<double,order>(nt_r_curr-1,x,y,z,coeffs_B,conf);
-                B0_vec = B0_vec - conf.dt*rot<double,order>(nt_r_curr-1,x,y,z,coeffs_E,conf) 
-                        - conf.dt*conf.dt*conf.q/conf.m*rot<double,order>(nt_r_curr-1,x,y,z,coeffs_j_hat,conf)
-                        + conf.dt*conf.dt*rot_rot<double,order>(nt_r_curr-1,x,y,z,coeffs_B,conf);
+                // Note that compared to the single-species case, where the ion current density vanishes
+                // due to us assuming that the distribution is Maxwellian (or uniform), in the case of 2
+                // or more particle species in the simulation j_hat becomes the sum of the current
+                // densities of each species. Therefore we no longer need the q factor as it is 
+                // already incorporated in j_hat.
+                E0_vec = E0_vec - dt*j_hat + dt*rot<double,order>(nt_r_curr-1,x,y,z,coeffs_B,conf_elec);
+                B0_vec = B0_vec - dt*rot<double,order>(nt_r_curr-1,x,y,z,coeffs_E,conf_elec) 
+                        - dt*dt*rot<double,order>(nt_r_curr-1,x,y,z,coeffs_j_hat,conf_elec)
+                        + dt*dt*rot_rot<double,order>(nt_r_curr-1,x,y,z,coeffs_B,conf_elec);
 
                 for(size_t d = 0; d < 3; d++){
-                    size_t index = d*conf.Nx*conf.Ny*conf.Nz + l;
+                    size_t index = d*Nx*Ny*Nz + l;
                     E[index] = E0_vec(d);
                     B[index] = B0_vec(d);
                 }
@@ -1147,8 +1151,8 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned_mpi()
 
         // Interpolate E(n) and B(n).
         if(mpi_rank == 0){
-            interpolate_fields_aligned<double,order>(nt_r_curr,coeffs_E, E, conf);
-            interpolate_fields_aligned<double,order>(nt_r_curr,coeffs_B, B, conf);
+            interpolate_fields_aligned<double,order>(nt_r_curr,coeffs_E, E, conf_elec);
+            interpolate_fields_aligned<double,order>(nt_r_curr,coeffs_B, B, conf_elec);
 
             time_interpolate_EB = timer.elapsed();
             std::cout << "EB interpolation took " << time_interpolate_EB << " s." << std::endl;
@@ -1195,7 +1199,7 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned_mpi()
                 plot_f<double,order,true,true>(nt_r_curr,coeffs_E, coeffs_B, coeffs_j_hat, conf_elec, true, n);
                 plot_f<double,order,false,false>(nt_r_curr,coeffs_E, coeffs_B, coeffs_j_hat, conf_ion, true, n);
             }
-            write_coeffs<double,order>(nt_r_curr, coeffs_E, coeffs_B, coeffs_j_hat, conf, 
+            write_coeffs<double,order>(nt_r_curr, coeffs_E, coeffs_B, coeffs_j_hat, conf_elec, 
                                         coeff_out_str_E, coeff_out_str_B, coeff_out_str_j_hat );
             std::cout << "Do stats took: " << double(timer.elapsed()) << " s." << std::endl;
             std::cout << " ---------------------------------- " << std::endl;
@@ -1229,12 +1233,12 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned_mpi()
                 for(size_t ix = 0; ix < Nx_ext; ix++)
                 for(size_t iy = 0; iy < Ny_ext; iy++)
                 for(size_t iz = 0; iz < Nz_ext; iz++){
-                    coeffs_E[idx_base(0,k,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,conf.Nt)] 
-                                    = coeffs_E[idx_base(nt_r_curr,k,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,conf.Nt)];
-                    coeffs_B[idx_base(0,k,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,conf.Nt)] 
-                                    = coeffs_B[idx_base(nt_r_curr,k,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,conf.Nt)];
-                    coeffs_j_hat[idx_base(0,k,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,conf.Nt)] 
-                                    = coeffs_j_hat[idx_base(nt_r_curr,k,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,conf.Nt)];
+                    coeffs_E[idx_base(0,k,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,Nt)] 
+                                    = coeffs_E[idx_base(nt_r_curr,k,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,Nt)];
+                    coeffs_B[idx_base(0,k,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,Nt)] 
+                                    = coeffs_B[idx_base(nt_r_curr,k,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,Nt)];
+                    coeffs_j_hat[idx_base(0,k,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,Nt)] 
+                                    = coeffs_j_hat[idx_base(nt_r_curr,k,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,Nt)];
                 }
             }
 
