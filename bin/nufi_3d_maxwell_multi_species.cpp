@@ -13,6 +13,7 @@
 #include <nufi/poisson.hpp>
 #include <nufi/rho.hpp>
 #include <nufi/stopwatch.hpp>
+#include <nufi/input_file_reader.hpp>
 
 namespace nufi
 {
@@ -991,12 +992,16 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned_mpi()
     conf_elec = config_t<double>(Nx, Ny, Nz, Nu_e, Nv_e, Nw_e, Nt, dt, 
                             0, Lx, 0, Ly, 0, Lz, umin_e, umax_e, 
                             vmin_e, vmax_e, wmin_e, wmax_e,
-                            &f0<double,true>);
+                            &f0<double,true>, 
+                            m_e, q_e, tol_refinement_electron, 
+                            max_depth_electron);
 
     conf_ion = config_t<double>(Nx, Ny, Nz, Nu_i, Nv_i, Nw_i, Nt, dt, 
                             0, Lx, 0, Ly, 0, Lz, umin_i, umax_i, 
                             vmin_i, vmax_i, wmin_i, wmax_i,
-                            &f0<double,false>);
+                            &f0<double,false>,
+                            m_i, q_i, tol_refinement_ion,
+                            max_depth_ion);
 
     // Print out config.
     if(mpi_rank == 0){
@@ -1265,6 +1270,130 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned_mpi()
 
 int main(int argc, char** argv)
 {
+    if (argc < 2) {
+        std::cerr << "Usage: " << argv[0] << " <input_file>\n";
+        return 1;
+    }
+
+    std::string input_file = argv[1];
+    
+    ConfigReader config;
+    try {
+        config.load(input_file);
+    } catch (const std::exception& e) {
+        std::cerr << "Error loading config: " << e.what() << "\n";
+        return 1;
+    }
+
+    nufi::dim3::Lx =  config.read<double>("Lx");
+    nufi::dim3::Ly =  config.read<double>("Ly");
+    nufi::dim3::Lz =  config.read<double>("Lz");
+
+    nufi::dim3::umin_e =  config.read<double>("umin_e");
+    nufi::dim3::umax_e =  config.read<double>("umax_e");
+    nufi::dim3::vmin_e =  config.read<double>("vmin_e");
+    nufi::dim3::vmax_e =  config.read<double>("vmax_e");
+    nufi::dim3::wmin_e =  config.read<double>("wmin_e");
+    nufi::dim3::wmax_e =  config.read<double>("wmax_e");
+    
+    nufi::dim3::umin_i =  config.read<double>("umin_i");
+    nufi::dim3::umax_i =  config.read<double>("umax_i");
+    nufi::dim3::vmin_i =  config.read<double>("vmin_i");
+    nufi::dim3::vmax_i =  config.read<double>("vmax_i");
+    nufi::dim3::wmin_i =  config.read<double>("wmin_i");
+    nufi::dim3::wmax_i =  config.read<double>("wmax_i");
+
+    nufi::dim3::Nx =  config.read<double>("Nx");
+    nufi::dim3::Ny =  config.read<double>("Ny");
+    nufi::dim3::Nz =  config.read<double>("Nz");
+
+    nufi::dim3::steps_per_1 =  config.read<double>("steps_per_1");
+    nufi::dim3::dt =  1.0 / nufi::dim3::steps_per_1;
+    nufi::dim3::Nt =  config.read<double>("Nt");
+
+    nufi::dim3::Nu_e =  config.read<double>("Nu_e");
+    nufi::dim3::Nv_e =  config.read<double>("Nv_e");
+    nufi::dim3::Nw_e =  config.read<double>("Nw_e");
+    nufi::dim3::Nu_i =  config.read<double>("Nu_i");
+    nufi::dim3::Nv_i =  config.read<double>("Nv_i");
+    nufi::dim3::Nw_i =  config.read<double>("Nw_i");
+    
+    nufi::dim3::nx_r =  config.read<double>("nx_r");
+    nufi::dim3::ny_r =  config.read<double>("ny_r");
+    nufi::dim3::nz_r =  config.read<double>("nz_r");
+
+    nufi::dim3::nu_r_e =  config.read<double>("nu_r_e");
+    nufi::dim3::nv_r_e =  config.read<double>("nv_r_e");
+    nufi::dim3::nw_r_e =  config.read<double>("nw_r_e");
+
+    nufi::dim3::nu_r_i =  config.read<double>("nu_r_i");
+    nufi::dim3::nv_r_i =  config.read<double>("nv_r_i");
+    nufi::dim3::nw_r_i =  config.read<double>("nw_r_i");
+
+    nufi::dim3::nt_restart =  config.read<double>("nt_restart");
+
+    nufi::dim3::dx_r = nufi::dim3::Lx / nufi::dim3::nx_r;
+    nufi::dim3::dy_r = nufi::dim3::Ly / nufi::dim3::ny_r;
+    nufi::dim3::dz_r = nufi::dim3::Lz / nufi::dim3::nz_r;
+
+    nufi::dim3::du_r_e = (nufi::dim3::umax_e - nufi::dim3::umin_e) / nufi::dim3::nu_r_e;
+    nufi::dim3::dv_r_e = (nufi::dim3::vmax_e - nufi::dim3::vmin_e) / nufi::dim3::nv_r_e;
+    nufi::dim3::dw_r_e = (nufi::dim3::wmax_e - nufi::dim3::wmin_e) / nufi::dim3::nw_r_e;
+
+    nufi::dim3::du_r_i = (nufi::dim3::umax_i - nufi::dim3::umin_i) / nufi::dim3::nu_r_i;
+    nufi::dim3::dv_r_i = (nufi::dim3::vmax_i - nufi::dim3::vmin_i) / nufi::dim3::nv_r_i;
+    nufi::dim3::dw_r_i = (nufi::dim3::wmax_i - nufi::dim3::wmin_i) / nufi::dim3::nw_r_i;
+
+    nufi::dim3::u_th_core_e =  config.read<double>("u_th_core_e");
+    nufi::dim3::v_th_core_e =  config.read<double>("v_th_core_e");
+    nufi::dim3::w_th_core_e =  config.read<double>("w_th_core_e");
+    nufi::dim3::u_th_beam_e =  config.read<double>("u_th_beam_e");
+    nufi::dim3::v_th_beam_e =  config.read<double>("v_th_beam_e");
+    nufi::dim3::w_th_beam_e =  config.read<double>("w_th_beam_e");
+
+    nufi::dim3::u_core_e =  config.read<double>("u_core_e");
+    nufi::dim3::v_core_e =  config.read<double>("v_core_e");
+    nufi::dim3::w_core_e =  config.read<double>("w_core_e");
+    nufi::dim3::u_beam_e =  config.read<double>("u_beam_e");
+    nufi::dim3::v_beam_e =  config.read<double>("v_beam_e");
+    nufi::dim3::w_beam_e =  config.read<double>("w_beam_e");
+
+    nufi::dim3::ratio_core_beam_u_e =  config.read<double>("ratio_core_beam_u_e");
+    nufi::dim3::ratio_core_beam_v_e =  config.read<double>("ratio_core_beam_v_e");
+    nufi::dim3::ratio_core_beam_w_e =  config.read<double>("ratio_core_beam_w_e");
+
+    nufi::dim3::u_th_core_i =  config.read<double>("u_th_core_i");
+    nufi::dim3::v_th_core_i =  config.read<double>("v_th_core_i");
+    nufi::dim3::w_th_core_i =  config.read<double>("w_th_core_i");
+    nufi::dim3::u_th_beam_i =  config.read<double>("u_th_beam_i");
+    nufi::dim3::v_th_beam_i =  config.read<double>("v_th_beam_i");
+    nufi::dim3::w_th_beam_i =  config.read<double>("w_th_beam_i");
+
+    nufi::dim3::u_core_i =  config.read<double>("u_core_i");
+    nufi::dim3::v_core_i =  config.read<double>("v_core_i");
+    nufi::dim3::w_core_i =  config.read<double>("w_core_i");
+    nufi::dim3::u_beam_i =  config.read<double>("u_beam_i");
+    nufi::dim3::v_beam_i =  config.read<double>("v_beam_i");
+    nufi::dim3::w_beam_i =  config.read<double>("w_beam_i");
+
+    nufi::dim3::ratio_core_beam_u_i =  config.read<double>("ratio_core_beam_u_i");
+    nufi::dim3::ratio_core_beam_v_i =  config.read<double>("ratio_core_beam_v_i");
+    nufi::dim3::ratio_core_beam_w_i =  config.read<double>("ratio_core_beam_w_i");
+
+    nufi::dim3::dim =  config.read<double>("dim");
+
+    nufi::dim3::m_e =  config.read<double>("m_e");
+    nufi::dim3::m_i =  config.read<double>("m_i");
+
+    nufi::dim3::q_e =  config.read<double>("q_e");
+    nufi::dim3::q_i =  config.read<double>("q_i");
+
+    nufi::dim3::tol_refinement_electron =  config.read<double>("tol_refinement_electron");
+    nufi::dim3::tol_refinement_ion =  config.read<double>("tol_refinement_ion");
+
+    nufi::dim3::max_depth_electron =  config.read<double>("max_depth_electron");
+    nufi::dim3::max_depth_ion =  config.read<double>("max_depth_ion");
+
     MPI_Init(&argc, &argv);
     nufi::dim3::periodically_restarted_nufi_maxwell_lie_fBE_aligned_mpi<4>();
     MPI_Finalize();
