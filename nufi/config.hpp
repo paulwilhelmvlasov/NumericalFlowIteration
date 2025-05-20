@@ -181,7 +181,8 @@ struct config_t
     config_t(size_t nx, size_t ny, size_t nz, size_t nu, size_t nv, size_t nw,
     		size_t nt, real delta_t, real xmin, real xmax, real ymin, real ymax,
 			real zmin, real zmax, real umin, real umax, real vmin, real vmax,
-			real wmin, real wmax, real(*init_data)(real,real,real,real,real,real)) noexcept;
+			real wmin, real wmax, real(*init_data)(real,real,real,real,real,real),
+            real mass = 1, real charge = -1, real tol_ref = 1e-2, size_t max_dep = 2) noexcept;
 
     real (*f0)( real x, real y, real z, real u, real v, real w );
 
@@ -193,7 +194,8 @@ template <typename real>
 config_t<real>::config_t(size_t nx, size_t ny, size_t nz, size_t nu, size_t nv, size_t nw,
 		size_t nt, real delta_t, real xmin, real xmax, real ymin, real ymax,
 		real zmin, real zmax, real umin, real umax, real vmin, real vmax,
-		real wmin, real wmax, real(*init_data)(real,real,real,real,real,real)) noexcept
+		real wmin, real wmax, real(*init_data)(real,real,real,real,real,real),
+        real mass, real charge, real tol_ref, size_t max_dep) noexcept
 {
     Nx = nx;
     Ny = ny;
@@ -229,6 +231,11 @@ config_t<real>::config_t(size_t nx, size_t ny, size_t nz, size_t nu, size_t nv, 
     dw = (w_max - w_min)/Nw;
 
     f0 = init_data;
+
+    m = mass;
+    q = charge;
+    tol_refinement = tol_ref;
+    max_depth_refinement = max_dep;
 }
 
 template <typename real>
