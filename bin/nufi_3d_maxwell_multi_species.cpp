@@ -432,7 +432,7 @@ arma::Col<real> B0(real x, real y, real z)
 {
     real k = 0.5;
     real alpha = 1e-2;
-    real beta = 1e-2;
+    real beta = 0.00270; // From Luca's paper (taken from PSP measurements).
 
     return  arma::Col<real>({
                 beta*( 1 + alpha*std::sin(2*M_PI*x/(k*Lx))), 

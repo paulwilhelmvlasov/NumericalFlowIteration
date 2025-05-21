@@ -1,0 +1,97 @@
+### This is a input file for simulating the results from Pezzini et. al.
+# c = 1
+# The length scales are given in the proton skin depth d_p.
+# The time scales are in the proton plasma frequency.
+
+Lx = 64;
+Ly = 256;
+Lz = 1;
+
+umin_e = -50;
+umax_e = 50;
+vmin_e = -50;
+vmax_e = 50;
+wmin_e = -50;
+wmax_e = 50;
+
+umin_i = -5;
+umax_i = 5;
+vmin_i = -4;
+vmax_i = 4;
+wmin_i = -4;
+wmax_i = 4;
+
+Nx = 32;
+Ny = 128;
+Nz = 1;
+steps_per_1 = 0.01;
+Nt = 5000;
+
+Nu_e = 8;
+Nv_e = 8;
+Nw_e = 8;
+
+Nu_i = 16;
+Nv_i = 16;
+Nw_i = 8;
+
+nx_r = 32;
+ny_r = 64;
+nz_r = 1;
+
+nu_r_e = 64;
+nv_r_e = 64;
+nw_r_e = 64;
+
+nu_r_i = 128;
+nv_r_i = 128;
+nw_r_i = 128;
+
+nt_restart = 200;
+
+u_th_core_e = 7.12;
+v_th_core_e = 7.12;
+w_th_core_e = 7.12;
+u_th_beam_e = 1;
+v_th_beam_e = 1;
+w_th_beam_e = 1;
+u_core_e = 0;
+v_core_e = 0;
+w_core_e = 0;
+u_beam_e = 0;
+v_beam_e = 0;
+w_beam_e = 0;
+
+ratio_core_beam_u_e = 1;
+ratio_core_beam_v_e = 1;
+ratio_core_beam_w_e = 1;
+
+u_th_core_i = 0.64;
+v_th_core_i = 0.56;
+w_th_core_i = 0.56;
+u_th_beam_i = 1;
+v_th_beam_i = 0.79;
+w_th_beam_i = 0.79;
+u_core_i = 0.18;
+v_core_i = 0;
+w_core_i = 0;
+u_beam_i = -1.16;
+v_beam_i = 0;
+w_beam_i = 0;
+
+ratio_core_beam_u_i = 0.864;
+ratio_core_beam_v_i = 1;
+ratio_core_beam_w_i = 1;
+
+dim = 3;
+
+m_e = 1;
+m_i = 183.6;
+q_e = -1;
+q_i = 1;
+
+tol_refinement_electron = 1e-2;
+tol_refinement_ion = 1e-2;
+
+max_depth_electron = 3;
+max_depth_ion = 4;
