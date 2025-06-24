@@ -29,7 +29,7 @@ const double Ly = Lx;
 const double Lz = Lx; */
 
 // 1d electro-static
-const double Lx = 4*M_PI;
+/* const double Lx = 4*M_PI;
 const double Ly = 1;
 const double Lz = 1;
 const double umin = -5;
@@ -37,7 +37,7 @@ const double umax = 5;
 const double vmin = -0.5;
 const double vmax = 0.5;
 const double wmin = -0.5;
-const double wmax = 0.5;
+const double wmax = 0.5; */
 
 
 // Magnetic Two Stream Instability by Einkemmer 
@@ -46,9 +46,9 @@ const double Ly = Lx;
 const double Lz = Lx; */
 
 // Two Stream Instability by Fabio 
-/* const double Lx = 12.8;
+const double Lx = 12.8;
 const double Ly = Lx;
-const double Lz = Lx; */
+const double Lz = Lx;
 
 // Weibel Instability by Einkemmer
 /* const double umin = -0.15;
@@ -72,21 +72,21 @@ const double vmax = 1.2;
 const double wmin = -0.5;
 const double wmax = 0.5; */
 // Magnetic Two Stream Instability by Fabio (perturbation in v direction)
-/* const double umin = -0.01;
+const double umin = -0.01;
 const double umax = 0.01;
 const double vmin = -0.85;
 const double vmax = 0.85;
 const double wmin = -0.01;
-const double wmax = 0.01; */
+const double wmax = 0.01;
 const size_t Nx = 32;
 const size_t Ny = 1;
 const size_t Nz = 1;
 const size_t Nu = 32;
-const size_t Nv = 1;
+const size_t Nv = 32;
 const size_t Nw = 1;
-const size_t steps_per_1 = 10;
+const size_t steps_per_1 = 200;
 const double   dt = 1.0 / steps_per_1;
-const size_t Nt = 30/dt;
+const size_t Nt = 100/dt;
 
 
 const size_t nx_r = 2*Nx;
@@ -94,7 +94,7 @@ const size_t ny_r = 1;
 const size_t nz_r = 1;
 const size_t nu_r = 2*Nu;
 const size_t nv_r = 2*Nv;
-const size_t nw_r = 2*Nw;
+const size_t nw_r = 1;
 const size_t nt_restart = 500;
 
 const double dx_r = Lx / nx_r;
@@ -234,9 +234,9 @@ real f0(real x, real y, real z, real u, real v, real w) noexcept
     // velocity directions it is important to normalize away the size of
     // the velocity space in that direction or just choose the velocity
     // domain in that direction as [-0.5,0.5].
-    constexpr real alpha = 0.01;
+    /* constexpr real alpha = 0.01;
     constexpr real k = 0.5;
-    return ( 1. + alpha*cos(k*x)) * maxwellian_1d<real>(u,1); 
+    return ( 1. + alpha*cos(k*x)) * maxwellian_1d<real>(u,1);  */
     //return ( 1. + alpha*cos(k*x)) * maxwellian<real>(u,v,w,1);
 
     // Two Stream Instability in x direction:
@@ -244,15 +244,15 @@ real f0(real x, real y, real z, real u, real v, real w) noexcept
     return c * ( 1. + alpha*cos(k*x)) * u*u * exp( -(u*u+v*v+w*w)/2 );*/
 
 // Two Stream in y direction
-/*     real v_beam = 1;
+    /* real v_beam = 1;
     real vth = v_beam / 10;
     real perturbation = 1;
     return perturbation * 0.5 * (maxwellian<real>(u,v-v_beam,w,vth) + maxwellian<real>(u,v+v_beam,w,vth)); */
 
     // Two Stream in y direction by Fabio
-    /* real v_beam = 0.4;
+    real v_beam = 0.4;
     real vth = 0.1;
-    return 0.5 * (maxwellian_2d<real>(u,v-v_beam,vth) + maxwellian_2d<real>(u,v+v_beam,vth)); */
+    return 0.5 * (maxwellian_2d<real>(u,v-v_beam,vth) + maxwellian_2d<real>(u,v+v_beam,vth));
 
     // Magnetic Two Stream by Einkemmer
 /*     real v_beam = 0.2;
@@ -279,15 +279,15 @@ arma::Col<real> E0(real x, real y, real z)
     return  arma::Col<real>({-alpha / k * std::sin(k*x), 0, 0}); */
 
     // Electro-static (Landau Damping or Two Stream Instability)
-    constexpr real alpha = 1e-2;
+    /* constexpr real alpha = 1e-2;
     constexpr real k     = 0.5;
-    return  arma::Col<real>({-alpha / k * std::sin(k*x), 0, 0});
+    return  arma::Col<real>({-alpha / k * std::sin(k*x), 0, 0}); */
 
     // Magnetic Two Stream Instability by Fabio & Paul
     // Note that if we assume only a x-dependent perturbation for f it can only 
     // induce a electric field in the x- but not y-component. This however means 
     // that to induce dynamics along y we need an initial B instead of E.
-    //return  arma::Col<real>({0, 0, 0});
+    return  arma::Col<real>({0, 0, 0});
 }
 
 // Function to generate random smooth periodic function using Fourier series
@@ -302,8 +302,9 @@ std::vector<double> generateRandomSmoothFunction(double L, int N, int num_points
     }
     
     // Generate random Fourier coefficients
-    std::random_device rd;
-    std::mt19937 gen(rd());
+    //std::random_device rd;
+    //std::mt19937 gen(rd()); // Random seed for "true" randomness.
+    std::mt19937 gen(42); // Fixed seed for reproducibility. 
     std::normal_distribution<> dist(0.0, 1.0);  // Normal distribution with mean 0, stddev 1
 
     std::vector<double> a_n(N), b_n(N);
@@ -2067,14 +2068,14 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned_mpi()
             arma::Col<double> E0_vec = E0(x,y,z);
             arma::Col<double> B0_vec = B0(x,y,z);
 
-            for(size_t d = 0; d < 3; d++){
+            /* for(size_t d = 0; d < 3; d++){
                 size_t index = d*conf.Nx*conf.Ny*conf.Nz + l;
                 E[index] = E0_vec(d);
                 B[index] = B0_vec(d);
-            }
+            } */
    
             // Fabio's magnetic Two Stream Instability:
-            /* for(size_t d = 0; d < 3; d++){
+            for(size_t d = 0; d < 3; d++){
                 size_t index = d*conf.Nx*conf.Ny*conf.Nz + l;
                 E[index] = 0;
                 if(d < 2){
@@ -2082,7 +2083,7 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned_mpi()
                 } else{
                     B[index] = 1e-3 * B_z_values[ix];
                 }
-            } */
+            }
 
         }
 
