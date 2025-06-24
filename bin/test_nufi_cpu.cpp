@@ -40,6 +40,13 @@ namespace dim1
 {
 
 template <typename real>
+real maxwellian_1d(real u, real vth) noexcept
+{
+    real c = 1.0 / std::sqrt(2*M_PI*vth*vth);
+    return c*std::exp(-(u*u) / (2*vth*vth) );
+}
+
+template <typename real>
 real f0(real x, real u) noexcept
 {
 	real alpha = 1e-2; // Linear Landau Damping or Two Stream instability
@@ -111,7 +118,7 @@ void run_restarted_simulation()
     size_t Nx = 32;  // Number of grid points in physical space.
     size_t Nu = 32;  // Number of quadrature points in velocity space.
     double   dt = 0.1;  // Time-step size.
-    size_t Nt = 500/dt;  // Number of time-steps.
+    size_t Nt = 50/dt;  // Number of time-steps.
 
     // Dimensions of physical domain.
     double x_min = 0;
@@ -168,13 +175,12 @@ void run_restarted_simulation()
     		rho.get()[i] = periodic::eval_rho<double,order>(nt_r_curr, i, coeffs_restart.get(), conf);
     	}
 
-/*         std::ofstream rho_str("rho_restart_" + std::to_string(n) + ".txt");
-        //std::ofstream rho_str("rho_correct_" + std::to_string(n) + ".txt");
+        std::ofstream rho_str("rho_" + std::to_string(n*conf.dt) + ".txt");
         for(size_t i = 0; i < conf.Nx; i++){
             rho_str << i*conf.dx << " " << rho.get()[i] << std::endl;
-        }  */
+        } 
 
-        poiss.solve( rho.get() );
+        double elec_energy = poiss.solve( rho.get() );
 
         //std::ofstream phi_str("phi_correct_" + std::to_string(n) + ".txt");
 /*         std::ofstream phi_str("phi_restart_" + std::to_string(n) + ".txt");
@@ -199,20 +205,22 @@ void run_restarted_simulation()
         total_time += timer_elapsed;
 
         double Emax = 0;
-	    double E_l2 = 0; // Electric energy
-        size_t plot_n_x = 1024;
+	    /* double E_l2 = 0; // Electric energy */
+        size_t plot_n_x = 128;
         double dx_plot = conf.Lx / plot_n_x;
-        for ( size_t i = 0; i < plot_n_x; ++i )
+        std::ofstream E_str("E_" + std::to_string(n*conf.dt) + ".txt");
+        for ( size_t i = 0; i <= plot_n_x; ++i )
         {
             double x = conf.x_min + i*dx_plot;
-            double E_abs = abs( periodic::eval<double,order,1>(x,coeffs_restart.get()+nt_r_curr*stride_t,conf));
-            Emax = max( Emax, E_abs );
-	        E_l2 += E_abs*E_abs;
+            double E = periodic::eval<double,order,1>(x,coeffs_restart.get()+nt_r_curr*stride_t,conf);
+            Emax = max( Emax, std::abs(E) );
+	        /* E_l2 += E_abs*E_abs; */
+            E_str << x << " " << E << std::endl;
         }
-	    E_l2 =  0.5*dx_plot*E_l2;
+	    /* E_l2 =  0.5*dx_plot*E_l2; */
 
 	    double t = n*conf.dt;
-        stat_file << std::setw(15) << t << std::setw(15) << std::setprecision(5) << std::scientific << Emax  << " " << E_l2 << std::endl;
+        stat_file << std::setw(15) << t << std::setw(15) << std::setprecision(5) << std::scientific << Emax  << " " << elec_energy << std::endl;
         std::cout << std::setw(15) << t << std::setw(15) << std::setprecision(5) << std::scientific << Emax << " Comp-time: " << timer_elapsed;
         std::cout << " Total comp time s.f.: " << total_time << std::endl; 
 
@@ -247,11 +255,11 @@ void run_restarted_simulation()
             entropy *= weight;
             l1_norm *= weight;
             l2_norm *= weight;
-            double total_energy = kinetic_energy + E_l2;
+            double total_energy = kinetic_energy + elec_energy;
             stat_full_file << std::setprecision(16) << t << "; "
                             << l1_norm              << "; "
                             << l2_norm              << "; "
-                            << E_l2                 << "; "
+                            << elec_energy                 << "; "
                             << kinetic_energy       << "; "
                             << total_energy         << "; "
                             << entropy              << ";" << std::endl;
@@ -295,19 +303,22 @@ void run_restarted_simulation()
             total_time += restart_time;
             std::cout << "Restart took: " << restart_time << ". Total comp time s.f.: " << total_time << std::endl;
     	} else {
-/*             if((n % (5)) == 0){
-                //std::ofstream f_str("f_normal_correct" + std::to_string(n*dt) + ".txt");
-                std::ofstream f_str("f_normal_restart" + std::to_string(n) + ".txt");
+            if((n % (50)) == 0){
+                std::ofstream f_str("f_" + std::to_string(n) + ".txt");
+                std::ofstream f_minus_eq_str("f_minus_eq_" + std::to_string(n) + ".txt");
                 for(size_t i = 0; i <= nx_r; i++ ){
                     for(size_t j = 0; j <= nu_r; j++){
                         double x = i*dx_r;
                         double u = conf.u_min + j*du_r;
                         double f = periodic::eval_f<double,order>(nt_r_curr,x,u,coeffs_restart.get(),conf);
+                        double f_minus_eq = std::abs(f - maxwellian_1d<double>(u,1));
                         f_str << x << " " << u << " " << f << std::endl;
+                        f_minus_eq_str << x << " " << u << " " << f_minus_eq << std::endl;
                     }
                     f_str << std::endl;
+                    f_minus_eq_str << std::endl;
                 }
-            } */
+            }
             nt_r_curr++;
         }
     }

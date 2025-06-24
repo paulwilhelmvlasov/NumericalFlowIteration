@@ -267,6 +267,9 @@ void config_t<real>::print_config(std::ostream &output)
 
     output << "q = " << q << std::endl;
     output << "m = " << m << std::endl;
+
+    output << "tol refinement = " << tol_refinement << std::endl;
+    output << "max depth = " << max_depth_refinement << std::endl;
 }
 
 }

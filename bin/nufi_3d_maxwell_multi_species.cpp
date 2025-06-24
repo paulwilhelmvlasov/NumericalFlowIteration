@@ -384,7 +384,7 @@ template <typename real>
 arma::Col<real> E0(real x, real y, real z)
 {
     return  arma::Col<real>({
-                0.02*std::sin(0.5*x), 
+                -0.02*std::sin(0.5*x), 
                 0, 
                 0
             });  
@@ -635,10 +635,16 @@ void plot_f(size_t n, const std::vector<real>& coeffs_E, const std::vector<real>
         nt_plot = n_full;
     }
 
-    std::ofstream f_x_vx_str("f_x_vx_" + std::to_string(nt_plot*conf.dt) + ".txt");
-    std::ofstream f_x_vy_str("f_x_vy_" + std::to_string(nt_plot*conf.dt) + ".txt");
-    std::ofstream f_minux_eq_x_vx_str("f_minux_eq_x_vx_" + std::to_string(nt_plot*conf.dt) + ".txt");
-    std::ofstream f_minux_eq_x_vy_str("f_minux_eq_x_vy_" + std::to_string(nt_plot*conf.dt) + ".txt");
+    std::string species_str = "";
+    if(is_electron){
+        species_str = "electron_";
+    } else {
+        species_str = "ion_";
+    }
+    std::ofstream f_x_vx_str("f_x_vx_" + species_str + std::to_string(nt_plot*conf.dt) + ".txt");
+    std::ofstream f_x_vy_str("f_x_vy_" + species_str + std::to_string(nt_plot*conf.dt) + ".txt");
+    std::ofstream f_minux_eq_x_vx_str("f_minux_eq_x_vx_" + species_str + std::to_string(nt_plot*conf.dt) + ".txt");
+    /* std::ofstream f_minux_eq_x_vy_str("f_minux_eq_x_vy_" + species_str + std::to_string(nt_plot*conf.dt) + ".txt"); */
 
     size_t nx_plot = 128;
     size_t nu_plot = 128;
@@ -654,10 +660,12 @@ void plot_f(size_t n, const std::vector<real>& coeffs_E, const std::vector<real>
         dv_plot = (vmax_i - vmin_i) / nu_plot;
     }
 
+    std::ofstream rho_str("rho" + species_str + std::to_string(nt_plot*conf.dt) + ".txt");
     // Plot f:
     for(size_t ix = 0; ix <= nx_plot; ix++){
+        double x = conf.x_min + ix * dx_plot;
+        double rho = 0;
         for(size_t iu = 0; iu <= nu_plot; iu++){
-            double x = conf.x_min + ix * dx_plot;
             double u = 0;
             double v = 0;
             if(is_electron){
@@ -670,18 +678,23 @@ void plot_f(size_t n, const std::vector<real>& coeffs_E, const std::vector<real>
 
             double f_x_vx = eval_f_lie_fBE<real,order>(n, x, 0, 0, u, 0, 0, coeffs_E, coeffs_B, coeffs_j_hat, conf);
             double f_x_vy = eval_f_lie_fBE<real,order>(n, x, 0, 0, 0, v, 0, coeffs_E, coeffs_B, coeffs_j_hat, conf);
-            double f_minus_equilbrium_vx = std::abs(f_x_vx - f0<real,is_electron>(x,0,0,u,0,0));
-            double f_minus_equilbrium_vy = std::abs(f_x_vy - f0<real,is_electron>(x,0,0,0,v,0));
+            double f_minus_equilbrium_vx = std::abs(f_x_vx - maxwellian_1d<real>(u,1) /* f0<real,is_electron>(x,0,0,u,0,0) */);
+            /* double f_minus_equilbrium_vy = std::abs(f_x_vy - f0<real,is_electron>(x,0,0,0,v,0)); */
 
             f_x_vx_str << x << " " << u << " " << f_x_vx << std::endl;
             f_x_vy_str << x << " " << v << " " << f_x_vy << std::endl;
             f_minux_eq_x_vx_str << x << " " << u << " " << f_minus_equilbrium_vx << std::endl;
-            f_minux_eq_x_vy_str << x << " " << v << " " << f_minus_equilbrium_vy << std::endl;
+            /* f_minux_eq_x_vy_str << x << " " << v << " " << f_minus_equilbrium_vy << std::endl; */
+
+            rho += f_x_vx;
         }
         f_x_vx_str << std::endl;
         f_x_vy_str << std::endl;
         f_minux_eq_x_vx_str << std::endl;
-        f_minux_eq_x_vy_str << std::endl;
+        /* f_minux_eq_x_vy_str << std::endl; */
+
+        rho *= du_plot;
+        rho_str << x << " " << rho << std::endl;
     }
 
     // Plot j_hat:
@@ -840,12 +853,12 @@ void interpolate_fields_aligned(size_t n, std::vector<real>& coeffs,
 config_t<double> conf_elec(Nx, Ny, Nz, Nu_e, Nv_e, Nw_e, Nt, dt, 
                             0, Lx, 0, Ly, 0, Lz, umin_e, umax_e, 
                             vmin_e, vmax_e, wmin_e, wmax_e,
-                            &f0<double,true>);
+                            &f0<double,true>,m_e,q_e,tol_refinement_electron,max_depth_electron);
 
 config_t<double> conf_ion(Nx, Ny, Nz, Nu_i, Nv_i, Nw_i, Nt, dt, 
                             0, Lx, 0, Ly, 0, Lz, umin_i, umax_i, 
                             vmin_i, vmax_i, wmin_i, wmax_i,
-                            &f0<double,false>);                  
+                            &f0<double,false>,m_i,q_i,tol_refinement_ion,max_depth_ion);                  
 
 
 template<size_t order, bool single_species = true>
@@ -938,6 +951,16 @@ void compute_restart_matrix(size_t nx_r, size_t ny_r, size_t nz_r, size_t nu_r, 
 template<size_t order>
 void periodically_restarted_nufi_maxwell_lie_fBE_aligned_mpi()
 {
+    conf_elec = config_t<double>(Nx, Ny, Nz, Nu_e, Nv_e, Nw_e, Nt, dt, 
+                            0, Lx, 0, Ly, 0, Lz, umin_e, umax_e, 
+                            vmin_e, vmax_e, wmin_e, wmax_e,
+                            &f0<double,true>,m_e,q_e,tol_refinement_electron,max_depth_electron);
+
+    conf_ion = config_t<double> (Nx, Ny, Nz, Nu_i, Nv_i, Nw_i, Nt, dt, 
+                            0, Lx, 0, Ly, 0, Lz, umin_i, umax_i, 
+                            vmin_i, vmax_i, wmin_i, wmax_i,
+                            &f0<double,false>,m_i,q_i,tol_refinement_ion,max_depth_ion);                  
+
     int mpi_rank, mpi_size;
     MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
     MPI_Comm_size(MPI_COMM_WORLD, &mpi_size);
@@ -1010,21 +1033,11 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned_mpi()
 
     // Print out config.
     if(mpi_rank == 0){
-/*         conf_elec.print_config(std::cout);
-        conf_ion.print_config(std::cout);
-        std::cout << "order = " << order << std::endl;
-        std::cout << "Restart parameters: " << std::endl;
-        std::cout << "nx_r " << nx_r << std::endl;
-        std::cout << "ny_r " << ny_r << std::endl;
-        std::cout << "nz_r " << nz_r << std::endl;
-        std::cout << "nu_r_e " << nu_r_e << std::endl;
-        std::cout << "nv_r_e " << nv_r_e << std::endl;
-        std::cout << "nw_r_e " << nw_r_e << std::endl;
-        std::cout << "nu_r_i " << nu_r_i << std::endl;
-        std::cout << "nv_r_i " << nv_r_i << std::endl;
-        std::cout << "nw_r_i " << nw_r_i << std::endl;
-        std::cout << "nt_restart " << nt_restart << std::endl;
- */
+        std::ofstream conf_elec_str("conf_elec_str.txt");
+        std::ofstream conf_ion_str("conf_ion_str.txt");
+        conf_elec.print_config(conf_elec_str);
+        conf_ion.print_config(conf_ion_str);
+
         // Compute E(0) and B(0).
         std::cout << "Compute E(0) and B(0)." << std::endl;
         #pragma omp parallel for
@@ -1073,6 +1086,11 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned_mpi()
     #pragma omp parallel for
     for(size_t l = 0; l < j_hat.size(); l++){
         j_hat[l] = conf_ion.q * j_hat_ion[l] + conf_elec.q * j_hat_elec[l];
+    }
+
+    std::ofstream j_0("j_" + std::to_string(0*dt) +  ".txt");
+    for(size_t i = 0; i < conf_elec.Nx; i++){
+        j_0 << i*conf_elec.dx << " " << j_hat_elec[i] << " " << j_hat_ion[i] << " " << j_hat[i] << std::endl;
     }
 
     // Interpolate j_hat(0).
@@ -1176,10 +1194,15 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned_mpi()
         // Compute j_hat(n).
         eval_j_hat_adaptive_mpi<double,order,false>(nt_r_curr, j_hat_elec, coeffs_E, coeffs_B, coeffs_j_hat, conf_elec);
         eval_j_hat_adaptive_mpi<double,order,false>(nt_r_curr, j_hat_ion, coeffs_E, coeffs_B, coeffs_j_hat, conf_ion);
-    
+
         #pragma omp parallel for
         for(size_t l = 0; l < j_hat.size(); l++){
             j_hat[l] = conf_ion.q * j_hat_ion[l] + conf_elec.q * j_hat_elec[l];
+        }
+
+        std::ofstream j_n("j_" + std::to_string(n*dt) +  ".txt");
+        for(size_t i = 0; i < conf_elec.Nx; i++){
+            j_n << i*conf_elec.dx << " " << j_hat_elec[i] << " " << j_hat_ion[i] << " " << j_hat[i] << std::endl;
         }
 
         if(mpi_rank == 0){
@@ -1205,7 +1228,7 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned_mpi()
             std::cout << "Time step " << n << " took a total of " << time_for_step << " s." << std::endl;
 
             do_stats<double,order>(nt_r_curr, 64, stat_file, coeffs_E, coeffs_B, conf_elec, true, n);
-            if(n % (5*steps_per_1) == 0){
+            if(n % (steps_per_1/2) == 0){
                 plot_f<double,order,true,true>(nt_r_curr,coeffs_E, coeffs_B, coeffs_j_hat, conf_elec, true, n);
                 plot_f<double,order,false,false>(nt_r_curr,coeffs_E, coeffs_B, coeffs_j_hat, conf_ion, true, n);
             }
