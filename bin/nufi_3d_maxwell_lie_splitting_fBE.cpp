@@ -28,15 +28,27 @@ arma::mat restart_matrix;
 const double Ly = Lx;
 const double Lz = Lx; */
 
+// 1d electro-static
+const double Lx = 4*M_PI;
+const double Ly = 1;
+const double Lz = 1;
+const double umin = -5;
+const double umax = 5;
+const double vmin = -0.5;
+const double vmax = 0.5;
+const double wmin = -0.5;
+const double wmax = 0.5;
+
+
 // Magnetic Two Stream Instability by Einkemmer 
 /* const double Lx = 2*M_PI;
 const double Ly = Lx;
 const double Lz = Lx; */
 
 // Two Stream Instability by Fabio 
-const double Lx = 12.8;
+/* const double Lx = 12.8;
 const double Ly = Lx;
-const double Lz = Lx;
+const double Lz = Lx; */
 
 // Weibel Instability by Einkemmer
 /* const double umin = -0.15;
@@ -53,12 +65,12 @@ const double vmax = 0.22;
 const double wmin = -1;
 const double wmax = 1; */
 // Paul's test
-const double umin = -1;
+/* const double umin = -1;
 const double umax = 1;
 const double vmin = -1.2;
 const double vmax = 1.2;
 const double wmin = -0.5;
-const double wmax = 0.5;
+const double wmax = 0.5; */
 // Magnetic Two Stream Instability by Fabio (perturbation in v direction)
 /* const double umin = -0.01;
 const double umax = 0.01;
@@ -69,12 +81,12 @@ const double wmax = 0.01; */
 const size_t Nx = 32;
 const size_t Ny = 1;
 const size_t Nz = 1;
-const size_t Nu = 8;
-const size_t Nv = 16;
+const size_t Nu = 32;
+const size_t Nv = 1;
 const size_t Nw = 1;
-const size_t steps_per_1 = 200;
+const size_t steps_per_1 = 10;
 const double   dt = 1.0 / steps_per_1;
-const size_t Nt = 100/dt;
+const size_t Nt = 30/dt;
 
 
 const size_t nx_r = 2*Nx;
@@ -83,7 +95,7 @@ const size_t nz_r = 1;
 const size_t nu_r = 2*Nu;
 const size_t nv_r = 2*Nv;
 const size_t nw_r = 2*Nw;
-const size_t nt_restart = 200;
+const size_t nt_restart = 500;
 
 const double dx_r = Lx / nx_r;
 const double dy_r = Ly / ny_r;
@@ -217,14 +229,14 @@ real f0(real x, real y, real z, real u, real v, real w) noexcept
 /*    constexpr real c  = 1.0 / std::pow(2.0 * M_PI, 3.0/2.0); 
     return c * ( 1. + alpha*cos(k*x)) 
              * exp( -(u*u+v*v+w*w)/2 ); */
-/*  
+ 
     // Careful: If using 1d Maxwellian and constant function along some 
     // velocity directions it is important to normalize away the size of
     // the velocity space in that direction or just choose the velocity
     // domain in that direction as [-0.5,0.5].
     constexpr real alpha = 0.01;
     constexpr real k = 0.5;
-    return ( 1. + alpha*cos(k*x)) * maxwellian_1d<real>(u,1); */ 
+    return ( 1. + alpha*cos(k*x)) * maxwellian_1d<real>(u,1); 
     //return ( 1. + alpha*cos(k*x)) * maxwellian<real>(u,v,w,1);
 
     // Two Stream Instability in x direction:
@@ -238,9 +250,9 @@ real f0(real x, real y, real z, real u, real v, real w) noexcept
     return perturbation * 0.5 * (maxwellian<real>(u,v-v_beam,w,vth) + maxwellian<real>(u,v+v_beam,w,vth)); */
 
     // Two Stream in y direction by Fabio
-    real v_beam = 0.4;
+    /* real v_beam = 0.4;
     real vth = 0.1;
-    return 0.5 * (maxwellian_2d<real>(u,v-v_beam,vth) + maxwellian_2d<real>(u,v+v_beam,vth));
+    return 0.5 * (maxwellian_2d<real>(u,v-v_beam,vth) + maxwellian_2d<real>(u,v+v_beam,vth)); */
 
     // Magnetic Two Stream by Einkemmer
 /*     real v_beam = 0.2;
@@ -267,15 +279,15 @@ arma::Col<real> E0(real x, real y, real z)
     return  arma::Col<real>({-alpha / k * std::sin(k*x), 0, 0}); */
 
     // Electro-static (Landau Damping or Two Stream Instability)
-/*     constexpr real alpha = 1e-2;
+    constexpr real alpha = 1e-2;
     constexpr real k     = 0.5;
-    return  arma::Col<real>({-alpha / k * std::sin(k*x), 0, 0}); */
+    return  arma::Col<real>({-alpha / k * std::sin(k*x), 0, 0});
 
-    // Electro-static Two Stream Instability by Fabio & Paul
+    // Magnetic Two Stream Instability by Fabio & Paul
     // Note that if we assume only a x-dependent perturbation for f it can only 
     // induce a electric field in the x- but not y-component. This however means 
     // that to induce dynamics along y we need an initial B instead of E.
-    return  arma::Col<real>({0, 0, 0});
+    //return  arma::Col<real>({0, 0, 0});
 }
 
 // Function to generate random smooth periodic function using Fourier series
@@ -331,7 +343,7 @@ arma::Col<real> B0(real x, real y, real z)
     return arma::Col<real>({0, 0, 0});
 
     // Magnetic Two Stream Instability by Einkemmer.
-/*     constexpr real alpha = 1e-3;
+    /* constexpr real alpha = 1e-3;
     return arma::Col<real>({0, 0, alpha*std::sin(x)}); */
 }
 
@@ -436,7 +448,9 @@ void do_stats(size_t nt, size_t nx_plot, std::ofstream& stat_file,
     const size_t Nz_ext = conf.Nz + order - 1;
     const size_t Nspace = Nx_ext * Ny_ext * Nz_ext;
 
-    double dx_plot = conf.Lx/nx_plot; // Assuming that Lx = Ly = Lz.
+    double dx_plot = conf.Lx/nx_plot; 
+    double dy_plot = conf.Ly/nx_plot; 
+    double dz_plot = conf.Lz/nx_plot; 
     double electric_energy = 0;
     double magnetic_energy = 0;
     if(nt % steps_per_1 == 0){
@@ -450,8 +464,8 @@ void do_stats(size_t nt, size_t nx_plot, std::ofstream& stat_file,
             for(size_t iy = 0; iy < nx_plot; iy++){
                 for(size_t iz = 0; iz < nx_plot; iz++){
                     double x = (ix+0.5)*dx_plot;
-                    double y = (iy+0.5)*dx_plot;
-                    double z = (iz+0.5)*dx_plot;
+                    double y = (iy+0.5)*dy_plot;
+                    double z = (iz+0.5)*dz_plot;
 
                     double Ex = eval<real,order>(x,y,z,coeffs_E.data() + idx_base(nt,0,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf);
                     double Ey = eval<real,order>(x,y,z,coeffs_E.data() + idx_base(nt,1,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf);
@@ -464,7 +478,7 @@ void do_stats(size_t nt, size_t nx_plot, std::ofstream& stat_file,
                     electric_energy += Ex*Ex + Ey*Ey + Ez*Ez;
                     magnetic_energy += Bx*Bx + By*By + Bz*Bz;
 
-                    if(iy == nx_plot/2 && iz == nx_plot/2 && (nt % 10 == 0)){
+                    if(iy == nx_plot/2 && iz == nx_plot/2){
                         Ex_str << x << " " << Ex << std::endl;
                         Ey_str << x << " " << Ey << std::endl;
                         Ez_str << x << " " << Ez << std::endl;
@@ -480,8 +494,8 @@ void do_stats(size_t nt, size_t nx_plot, std::ofstream& stat_file,
             for(size_t iy = 0; iy < nx_plot; iy++){
                 for(size_t iz = 0; iz < nx_plot; iz++){
                     double x = (ix+0.5)*dx_plot;
-                    double y = (iy+0.5)*dx_plot;
-                    double z = (iz+0.5)*dx_plot;
+                    double y = (iy+0.5)*dy_plot;
+                    double z = (iz+0.5)*dz_plot;
 
                     double Ex = eval<real,order>(x,y,z,coeffs_E.data() + idx_base(nt,0,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf);
                     double Ey = eval<real,order>(x,y,z,coeffs_E.data() + idx_base(nt,1,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf);
@@ -497,8 +511,8 @@ void do_stats(size_t nt, size_t nx_plot, std::ofstream& stat_file,
             }
         }
     }
-    electric_energy *= 0.5*dx_plot*dx_plot*dx_plot;
-    magnetic_energy *= 0.5*dx_plot*dx_plot*dx_plot;
+    electric_energy *= 0.5*dx_plot*dy_plot*dz_plot;
+    magnetic_energy *= 0.5*dx_plot*dy_plot*dz_plot;
 
     if(restarted){
         stat_file << n_full*conf.dt << " " << electric_energy << " " << magnetic_energy << std::endl;
@@ -514,6 +528,10 @@ void plot_f(size_t n, const std::vector<real>& coeffs_E, const std::vector<real>
     const std::vector<real>& coeffs_j_hat, const config_t<double>& conf, bool restarted = false, 
     size_t n_full = 0)
 {
+    const size_t Nx_ext = conf.Nx + order - 1;
+    const size_t Ny_ext = conf.Ny + order - 1;
+    const size_t Nz_ext = conf.Nz + order - 1;
+
     size_t nt_plot = n;
     if(restarted){
         nt_plot = n_full;
@@ -522,7 +540,7 @@ void plot_f(size_t n, const std::vector<real>& coeffs_E, const std::vector<real>
     std::ofstream f_x_vx_str("f_x_vx_" + std::to_string(nt_plot*conf.dt) + ".txt");
     std::ofstream f_x_vy_str("f_x_vy_" + std::to_string(nt_plot*conf.dt) + ".txt");
     std::ofstream f_minux_eq_x_vx_str("f_minux_eq_x_vx_" + std::to_string(nt_plot*conf.dt) + ".txt");
-    std::ofstream f_minux_eq_x_vy_str("f_minux_eq_x_vy_" + std::to_string(nt_plot*conf.dt) + ".txt");
+    //std::ofstream f_minux_eq_x_vy_str("f_minux_eq_x_vy_" + std::to_string(nt_plot*conf.dt) + ".txt");
 
     size_t nx_plot = 128;
     size_t nu_plot = 128;
@@ -530,6 +548,7 @@ void plot_f(size_t n, const std::vector<real>& coeffs_E, const std::vector<real>
     double du_plot = (umax - umin) / nu_plot;
     double dv_plot = (vmax - vmin) / nu_plot;
 
+    // Plot f:
     for(size_t ix = 0; ix <= nx_plot; ix++){
         for(size_t iu = 0; iu <= nu_plot; iu++){
             double x = conf.x_min + ix * dx_plot;
@@ -538,18 +557,37 @@ void plot_f(size_t n, const std::vector<real>& coeffs_E, const std::vector<real>
 
             double f_x_vx = eval_f_lie_fBE<real,order>(n, x, 0, 0, u, 0, 0, coeffs_E, coeffs_B, coeffs_j_hat, conf);
             double f_x_vy = eval_f_lie_fBE<real,order>(n, x, 0, 0, 0, v, 0, coeffs_E, coeffs_B, coeffs_j_hat, conf);
-            double f_minus_equilbrium_vx = std::abs(f_x_vx - f0<real>(x,0,0,u,0,0));
-            double f_minus_equilbrium_vy = std::abs(f_x_vy - f0<real>(x,0,0,0,v,0));
+            /* double f_minus_equilbrium_vx = std::abs(f_x_vx - f0<real>(x,0,0,u,0,0)); */
+            double f_minus_equilbrium_vx = std::abs(f_x_vx - maxwellian_1d<double>(u,1));
+            /* double f_minus_equilbrium_vy = std::abs(f_x_vy - f0<real>(x,0,0,0,v,0)); */
 
             f_x_vx_str << x << " " << u << " " << f_x_vx << std::endl;
             f_x_vy_str << x << " " << v << " " << f_x_vy << std::endl;
             f_minux_eq_x_vx_str << x << " " << u << " " << f_minus_equilbrium_vx << std::endl;
-            f_minux_eq_x_vy_str << x << " " << v << " " << f_minus_equilbrium_vy << std::endl;
+            //f_minux_eq_x_vy_str << x << " " << v << " " << f_minus_equilbrium_vy << std::endl;
         }
         f_x_vx_str << std::endl;
         f_x_vy_str << std::endl;
         f_minux_eq_x_vx_str << std::endl;
-        f_minux_eq_x_vy_str << std::endl;
+        //f_minux_eq_x_vy_str << std::endl;
+    }
+
+    // Plot j_hat:
+    std::ofstream j_u_hat_str("j_u_hat_" + std::to_string(nt_plot*conf.dt) + ".txt");
+    std::ofstream j_v_hat_str("j_v_hat_" + std::to_string(nt_plot*conf.dt) + ".txt");
+    std::ofstream j_w_hat_str("j_w_hat_" + std::to_string(nt_plot*conf.dt) + ".txt");
+    for(size_t ix = 0; ix <= nx_plot; ix++){
+        double x = conf.x_min + ix *dx_plot;
+        double y = 0.5*(conf.y_max + conf.y_min);
+        double z = 0.5*(conf.z_max + conf.z_min);
+
+        double j_u_hat = eval<real,order>(x,y,z,&coeffs_j_hat[idx_base(n, 0, 0, 0, 0, Nx_ext, Ny_ext, Nz_ext, conf.Nt)],conf);
+        double j_v_hat = eval<real,order>(x,y,z,&coeffs_j_hat[idx_base(n, 1, 0, 0, 0, Nx_ext, Ny_ext, Nz_ext, conf.Nt)],conf);
+        double j_w_hat = eval<real,order>(x,y,z,&coeffs_j_hat[idx_base(n, 2, 0, 0, 0, Nx_ext, Ny_ext, Nz_ext, conf.Nt)],conf);
+
+        j_u_hat_str << x << " " << j_u_hat << std::endl;
+        j_v_hat_str << x << " " << j_v_hat << std::endl;
+        j_w_hat_str << x << " " << j_w_hat << std::endl;
     }
 }
 
@@ -1730,7 +1768,7 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned()
         double z = conf.z_min + iz*conf.dz; 
         
         // Normal initialization:        
-/*        arma::Col<double> E0_vec = E0(x,y,z);
+       arma::Col<double> E0_vec = E0(x,y,z);
         arma::Col<double> B0_vec = B0(x,y,z);
 
          for(size_t d = 0; d < 3; d++){
@@ -1738,9 +1776,9 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned()
             E[index] = E0_vec(d);
             B[index] = B0_vec(d);
         }
- */
+
         // Fabio's magnetic Two Stream Instability:
-        for(size_t d = 0; d < 3; d++){
+        /* for(size_t d = 0; d < 3; d++){
             size_t index = d*conf.Nx*conf.Ny*conf.Nz + l;
             E[index] = 0;
             if(d < 2){
@@ -1748,7 +1786,7 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned()
             } else{
                 B[index] = 1e-3 * B_z_values[ix];
             }
-        }
+        } */
 
     }
 
@@ -1761,24 +1799,12 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned()
     // Compute j_hat(0).
     std::cout << "Compute j_hat(0)." << std::endl;
 
-    /* for(size_t i = 0; i < j_hat.size(); i++){
-        std::cout << i << " " << j_hat[i] << std::endl;
-    } */
-
     //eval_j_hat<double,order>(0, j_hat, coeffs_E, coeffs_B, coeffs_j_hat, conf);
     eval_j_hat_adaptive<double,order>(0, j_hat, coeffs_E, coeffs_B, coeffs_j_hat, conf);
-
-    /* for(size_t i = 0; i < j_hat.size(); i++){
-        std::cout << i << " " << j_hat[i] << std::endl;
-    } */
 
     // Interpolate j_hat(0).
     std::cout << "Interpolate j_hat(0)." << std::endl;
     interpolate_fields_aligned<double,order>(0, coeffs_j_hat, j_hat, conf);
-
-    /* for(size_t i = 0; i < 3*stride_t; i++){
-        std::cout << i << " " << coeffs_j_hat[i] << std::endl;
-    } */
 
     std::cout << "First output." << std::endl;
     std::ofstream stat_file( "stats.txt" );
@@ -1870,7 +1896,7 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned()
         std::cout << "Time step " << n << " took a total of " << time_for_step << " s." << std::endl;
 
         do_stats<double,order>(nt_r_curr, 64, stat_file, coeffs_E, coeffs_B, conf, true, n);
-        if(n % (steps_per_1) == 0){
+        if(n % (steps_per_1/4) == 0){
             plot_f<double,order>(nt_r_curr,coeffs_E, coeffs_B, coeffs_j_hat, conf, true, n);
         }
         write_coeffs<double,order>(nt_r_curr, coeffs_E, coeffs_B, coeffs_j_hat, conf, 
@@ -2038,7 +2064,7 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned_mpi()
             double z = conf.z_min + iz*conf.dz; 
             
             // Normal initialization:        
-    /*        arma::Col<double> E0_vec = E0(x,y,z);
+            arma::Col<double> E0_vec = E0(x,y,z);
             arma::Col<double> B0_vec = B0(x,y,z);
 
             for(size_t d = 0; d < 3; d++){
@@ -2046,9 +2072,9 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned_mpi()
                 E[index] = E0_vec(d);
                 B[index] = B0_vec(d);
             }
-    */
+   
             // Fabio's magnetic Two Stream Instability:
-            for(size_t d = 0; d < 3; d++){
+            /* for(size_t d = 0; d < 3; d++){
                 size_t index = d*conf.Nx*conf.Ny*conf.Nz + l;
                 E[index] = 0;
                 if(d < 2){
@@ -2056,7 +2082,7 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned_mpi()
                 } else{
                     B[index] = 1e-3 * B_z_values[ix];
                 }
-            }
+            } */
 
         }
 
@@ -2075,9 +2101,9 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned_mpi()
     if(mpi_rank == 0){
         std::cout << "Compute j_hat(0)." << std::endl;
     }
-    std::cout << "I'm rank " << mpi_rank << " and before eval_j_hat." << std::endl;
+    //std::cout << "I'm rank " << mpi_rank << " and before eval_j_hat." << std::endl;
     eval_j_hat_adaptive_mpi<double,order>(0, j_hat, coeffs_E, coeffs_B, coeffs_j_hat, conf);
-    std::cout << "I'm rank " << mpi_rank << " and after eval_j_hat." << std::endl;
+    //std::cout << "I'm rank " << mpi_rank << " and after eval_j_hat." << std::endl;
 
     // Interpolate j_hat(0).
     if(mpi_rank == 0){
@@ -2101,7 +2127,7 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned_mpi()
         write_coeffs<double,order>(0, coeffs_E, coeffs_B, coeffs_j_hat, conf, coeff_out_str_E, coeff_out_str_B, coeff_out_str_j_hat );
     }
 
-    if(mpi_rank){
+    if(mpi_rank == 0){
         std::cout << "Start time-loop." << std::endl;    
         std::cout << " ---------------------------------- " << std::endl;
     }
@@ -2111,7 +2137,7 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned_mpi()
     for(size_t n = 1; n <= conf.Nt; n++)
     {
         nufi::stopwatch<double> timer;
-        if(mpi_rank){
+        if(mpi_rank == 0){
             // Compute E(n) and B(n).
             #pragma omp parallel for
             for(size_t l = 0; l < conf.Nx*conf.Ny*conf.Nz; l++){
@@ -2197,7 +2223,7 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned_mpi()
             std::cout << "Time step " << n << " took a total of " << time_for_step << " s." << std::endl;
 
             do_stats<double,order>(nt_r_curr, 64, stat_file, coeffs_E, coeffs_B, conf, true, n);
-            if(n % (steps_per_1) == 0){
+            if(n % (steps_per_1/10) == 0){
                 plot_f<double,order>(nt_r_curr,coeffs_E, coeffs_B, coeffs_j_hat, conf, true, n);
             }
             write_coeffs<double,order>(nt_r_curr, coeffs_E, coeffs_B, coeffs_j_hat, conf, 

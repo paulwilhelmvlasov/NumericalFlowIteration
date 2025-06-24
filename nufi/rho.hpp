@@ -819,7 +819,7 @@ void eval_j_hat(size_t n, std::vector<std::vector<real>>& j_hat,
 }
 
 
-template <typename real, size_t order>
+template <typename real, size_t order, bool single_species = true>
 real eval_f_lie_fBE(size_t n, real x, real y, real z,
     real u, real v, real w, const std::vector<real>& coeffs_E,
     const std::vector<real>& coeffs_B, const std::vector<real>& coeffs_j_hat,
@@ -858,8 +858,11 @@ real eval_f_lie_fBE(size_t n, real x, real y, real z,
         }
 
         // Apply the correction to E2
-        E2 -= conf.dt * conf.q / conf.m * j_hat;
-        
+        if(single_species){
+            E2 -= conf.dt * conf.q * j_hat;
+        } else {
+            E2 -= conf.dt * j_hat;
+        }
         // Add the curl(B) term for E2
         E2 += conf.dt * rot<real,order>(n-1,x_vec(0),x_vec(1),x_vec(2),coeffs_B,conf);
 
@@ -873,8 +876,6 @@ real eval_f_lie_fBE(size_t n, real x, real y, real z,
     // Final return using f0 function
     return conf.f0(x_vec(0), x_vec(1), x_vec(2), v_vec(0), v_vec(1), v_vec(2));
 }
-
-
 
 template <typename real, size_t order>
 void eval_j_hat(size_t n, std::vector<real>& j_hat, const std::vector<real>& coeffs_E, 
@@ -970,31 +971,160 @@ std::vector<real> sub_integral_j_hat_adaptive_trapezoidal_simpson_rule(size_t n,
     real f1mm = eval_f(n,x,y,z,u1,vm,wm,coeffs_E,coeffs_B,coeffs_j_hat,conf);
     
     real QT_u = 1.0/8.0 * du*dv*dw * ( u0*(f000 + f001 + f010 + f011) + u1*(f100 + f101 + f110 + f111));
-    real QS_u = 1.0/216.0 * du*dv*dw * (
-          u0 * (f000 + f001 + f010 + f011 + f00m + f0m0 + f0mm + f01m + f0m1)
-        + um * (fm00 + fm0m + fmm0 + fmmm + fm01 + fm10 + fmm1 + fm1m + fm11)
-        + u1 * (f100 + f101 + f110 + f111 + f10m + f11m + f1m1 + f1m0 + f1mm)
-    );
+    // Note that we have 3d Simpson rule here. Therefore:
+    // -> Corners (no mid) get weight = 1.
+    // -> 1 mid gets weight = 4.
+    // -> 2 mid gets weight = 16.
+    // -> True mid (3 mid) gets weight = 64.
+    real QS_u = du*dv*dw/216.0 * (
+        // u = u0 slice 
+        u0 * (
+             /*(0,0,0)*/   1 * f000
+           + /*(0,0,m)*/   4 * f00m
+           + /*(0,0,1)*/   1 * f001
+      
+           + /*(0,m,0)*/   4 * f0m0
+           + /*(0,m,m)*/  16 * f0mm
+           + /*(0,m,1)*/   4 * f0m1
+      
+           + /*(0,1,0)*/   1 * f010
+           + /*(0,1,m)*/   4 * f01m
+           + /*(0,1,1)*/   1 * f011
+        )
+      
+        // u = um slice 
+      + um * (
+             /*(m,0,0)*/   4 * fm00
+           + /*(m,0,m)*/  16 * fm0m
+           + /*(m,0,1)*/   4 * fm01
+      
+           + /*(m,m,0)*/  16 * fmm0
+           + /*(m,m,m)*/  64 * fmmm    // <-- this is the true “center” weight!
+           + /*(m,m,1)*/  16 * fmm1
+      
+           + /*(m,1,0)*/   4 * fm10
+           + /*(m,1,m)*/  16 * fm1m
+           + /*(m,1,1)*/   4 * fm11
+        )
+      
+        // u = u1 slice 
+      + u1 * (
+             /*(1,0,0)*/   1 * f100
+           + /*(1,0,m)*/   4 * f10m
+           + /*(1,0,1)*/   1 * f101
+      
+           + /*(1,m,0)*/   4 * f1m0
+           + /*(1,m,m)*/  16 * f1mm
+           + /*(1,m,1)*/   4 * f1m1
+      
+           + /*(1,1,0)*/   1 * f110
+           + /*(1,1,1)*/   4 * f11m
+           + /*(1,1,1)*/   1 * f111
+        )
+      );
+      
 
     real QT_v = 1.0/8.0 * du*dv*dw * ( v0*(f000 + f001 + f100 + f101) + v1*(f110 + f010 + f011 + f111));
-    real QS_v = 1.0/216.0 * du*dv*dw * (
-        v0 * (f000 + f001 + f00m + fm00 + fm0m + fm01 + f100 + f101 + f10m)
-      + vm * (fmm0 + fmmm + fmm1 + f0m0 + f0mm  + f0m1 + f1m1 + f1m0 + f1mm)
-      + v1 * (f110 + f111 + f11m  + f010 + f011 + f01m + fm10 + fm11 + fm1m)
-    );
+    real QS_v = du*dv*dw/216.0 * (
+        // v = v0 slice 
+        v0 * (
+             /*(0,0,0)*/   1 * f000
+           + /*(0,0,m)*/   4 * f00m
+           + /*(0,0,1)*/   1 * f001
+      
+           + /*(m,0,0)*/   4 * fm00
+           + /*(m,0,m)*/  16 * fm0m
+           + /*(m,0,1)*/   4 * fm01
+      
+           + /*(1,0,0)*/   1 * f100
+           + /*(1,0,m)*/   4 * f10m
+           + /*(1,0,1)*/   1 * f101
+        )
+      
+        // v = vm slice 
+      + vm * (
+             /*(0,m,0)*/   4 * f0m0
+           + /*(0,m,m)*/  16 * f0mm
+           + /*(0,m,1)*/   4 * f0m1
+      
+           + /*(m,m,0)*/  16 * fmm0
+           + /*(m,m,m)*/  64 * fmmm    // center of the box
+           + /*(m,m,1)*/  16 * fmm1
+      
+           + /*(1,m,0)*/   4 * f1m0
+           + /*(1,m,m)*/  16 * f1mm
+           + /*(1,m,1)*/   4 * f1m1
+        )
+      
+        // v = v1 slice 
+      + v1 * (
+             /*(0,1,0)*/   1 * f010
+           + /*(0,1,m)*/   4 * f01m
+           + /*(0,1,1)*/   1 * f011
+      
+           + /*(m,1,0)*/   4 * fm10
+           + /*(m,1,m)*/  16 * fm1m
+           + /*(m,1,1)*/   4 * fm11
+      
+           + /*(1,1,0)*/   1 * f110
+           + /*(1,1,m)*/   4 * f11m
+           + /*(1,1,1)*/   1 * f111
+        )
+      );      
 
     real QT_w = 1.0/8.0 * du*dv*dw * ( w0*(f000 + f100 + f110 + f010) + w1*( f011 + f111 + f001 + f101));
-    real QS_w = 1.0/216.0 * du*dv*dw * (
-        w0 * (f000 + fm00 + f100 + fm10 + f1m0 + fmm0 + f0m0 + f110 + f010)
-      + wm * (fmmm + f0mm + f10m + f1mm + fm1m + f01m + f00m + fm0m + f11m)
-      + w1 * (f111 + f011  + fm11 + f001 + f101 + fm01 + fmm1 + f0m1 + f1m1)
-    );
+    real QS_w = du*dv*dw/216.0 * (
+        // w = w0 slice (k=0, w_k=1)
+        w0 * (
+             /*(0,0,0)*/   1 * f000
+           + /*(0,m,0)*/   4 * f0m0
+           + /*(0,1,0)*/   1 * f010
+      
+           + /*(m,0,0)*/   4 * fm00
+           + /*(m,m,0)*/  16 * fmm0
+           + /*(m,1,0)*/   4 * fm10
+      
+           + /*(1,0,0)*/   1 * f100
+           + /*(1,m,0)*/   4 * f1m0
+           + /*(1,1,0)*/   1 * f110
+        )
+      
+        // w = wm slice (k=1, w_k=4)
+      + wm * (
+             /*(0,0,m)*/   4 * f00m
+           + /*(0,m,m)*/  16 * f0mm
+           + /*(0,1,m)*/   4 * f01m
+      
+           + /*(m,0,m)*/  16 * fm0m
+           + /*(m,m,m)*/  64 * fmmm    // true center
+           + /*(m,1,m)*/  16 * fm1m
+      
+           + /*(1,0,m)*/   4 * f10m
+           + /*(1,m,m)*/  16 * f1mm
+           + /*(1,1,m)*/   4 * f11m
+        )
+      
+        // w = w1 slice (k=2, w_k=1)
+      + w1 * (
+             /*(0,0,1)*/   1 * f001
+           + /*(0,m,1)*/   4 * f0m1
+           + /*(0,1,1)*/   1 * f011
+      
+           + /*(m,0,1)*/   4 * fm01
+           + /*(m,m,1)*/  16 * fmm1
+           + /*(m,1,1)*/   4 * fm11
+      
+           + /*(1,0,1)*/   1 * f101
+           + /*(1,m,1)*/   4 * f1m1
+           + /*(1,1,1)*/   1 * f111
+        )
+      );      
 
     real error_j_u = std::abs(QT_u - QS_u) / std::abs(QS_u);
     real error_j_v = std::abs(QT_v - QS_v) / std::abs(QS_v);
     real error_j_w = std::abs(QT_w - QS_w) / std::abs(QS_w);
 
-    bool tol_crit_violated = error_j_u > conf.tol_refinement || error_j_v > conf.tol_refinement || error_j_w > conf.tol_refinement;
+    bool tol_crit_violated = (error_j_u > conf.tol_refinement) || (error_j_v > conf.tol_refinement) || (error_j_w > conf.tol_refinement);
     bool max_depth_crit_satisfied = (depth < conf.max_depth_refinement);
 
     if(tol_crit_violated && max_depth_crit_satisfied){
@@ -1017,7 +1147,7 @@ std::vector<real> sub_integral_j_hat_adaptive_trapezoidal_simpson_rule(size_t n,
         );
         std::vector<real> sub_int_010 = sub_integral_j_hat_adaptive_trapezoidal_simpson_rule<real,order>(
             n,x,y,z,coeffs_E,coeffs_B,coeffs_j_hat,conf,eval_f,
-            u0,um,v0,vm,w0,wm,
+            u0,um,vm,v1,w0,wm,
             f0m0,f0mm, // (u0,vm,wo)    (u0,vm,wm)
             f010,f01m, // (u0,v1,wo)    (u0,v1,wm)
             fmm0,fmmm, // (um,vm,wo)    (um,vm,wm)
@@ -1026,7 +1156,7 @@ std::vector<real> sub_integral_j_hat_adaptive_trapezoidal_simpson_rule(size_t n,
         );
         std::vector<real> sub_int_011 = sub_integral_j_hat_adaptive_trapezoidal_simpson_rule<real,order>(
             n,x,y,z,coeffs_E,coeffs_B,coeffs_j_hat,conf,eval_f,
-            u0,um,v0,vm,w0,wm,
+            u0,um,vm,v1,wm,w1,
             f0mm,f0m1, // (u0,vm,wm)    (u0,vm,w1)
             f01m,f011, // (u0,v1,wm)    (u0,v1,w1)
             fmmm,fmm1, // (um,vm,wm)    (um,vm,w1)
@@ -1035,7 +1165,7 @@ std::vector<real> sub_integral_j_hat_adaptive_trapezoidal_simpson_rule(size_t n,
         );
         std::vector<real> sub_int_100 = sub_integral_j_hat_adaptive_trapezoidal_simpson_rule<real,order>(
             n,x,y,z,coeffs_E,coeffs_B,coeffs_j_hat,conf,eval_f,
-            u0,um,v0,vm,w0,wm,
+            um,u1,v0,vm,w0,wm,
             fm00,fm0m, // (um,v0,wo)    (um,v0,wm)
             fmm0,fmmm, // (um,vm,wo)    (um,vm,wm)
             f100,f10m, // (u1,v0,wo)    (u1,v0,wm)
@@ -1044,7 +1174,7 @@ std::vector<real> sub_integral_j_hat_adaptive_trapezoidal_simpson_rule(size_t n,
         );
         std::vector<real> sub_int_101 = sub_integral_j_hat_adaptive_trapezoidal_simpson_rule<real,order>(
             n,x,y,z,coeffs_E,coeffs_B,coeffs_j_hat,conf,eval_f,
-            u0,um,v0,vm,w0,wm,
+            um,u1,v0,vm,wm,w1,
             fm0m,fm01, // (um,v0,wm)    (um,v0,w1)
             fmmm,fmm1, // (um,vm,wm)    (um,vm,w1)
             f10m,f101, // (u1,v0,wm)    (u1,v0,w1)
@@ -1053,7 +1183,7 @@ std::vector<real> sub_integral_j_hat_adaptive_trapezoidal_simpson_rule(size_t n,
         );
         std::vector<real> sub_int_110 = sub_integral_j_hat_adaptive_trapezoidal_simpson_rule<real,order>(
             n,x,y,z,coeffs_E,coeffs_B,coeffs_j_hat,conf,eval_f,
-            u0,um,v0,vm,w0,wm,
+            um,u1,vm,v1,w0,wm,
             fmm0,fmmm, // (um,vm,wo)    (um,vm,wm)
             fm10,fm1m, // (um,v1,wo)    (um,v1,wm)
             f1m0,f1mm, // (u1,vm,wo)    (u1,vm,wm)
@@ -1062,7 +1192,7 @@ std::vector<real> sub_integral_j_hat_adaptive_trapezoidal_simpson_rule(size_t n,
         );
         std::vector<real> sub_int_111 = sub_integral_j_hat_adaptive_trapezoidal_simpson_rule<real,order>(
             n,x,y,z,coeffs_E,coeffs_B,coeffs_j_hat,conf,eval_f,
-            u0,um,v0,vm,w0,wm,
+            um,u1,vm,v1,wm,w1,
             fmmm,fmm1, // (um,vm,wm)    (um,vm,w1)
             fm1m,fm11, // (um,v1,wm)    (um,v1,w1)
             f1mm,f1m1, // (u1,vm,wm)    (u1,vm,w1)
@@ -1081,13 +1211,13 @@ std::vector<real> sub_integral_j_hat_adaptive_trapezoidal_simpson_rule(size_t n,
     }
 }
 
-template <typename real, size_t order>
+template <typename real, size_t order, bool single_species = true>
 real eval_f_lie_fBE_shifted(size_t n, real x, real y, real z,
     real u, real v, real w, const std::vector<real>& coeffs_E,
     const std::vector<real>& coeffs_B, const std::vector<real>& coeffs_j_hat,
     const config_t<real>& conf)
 {
-    return eval_f_lie_fBE<real,order>(n, x - 0.5*conf.dt*u, y - 0.5*conf.dt*v, z - 0.5*conf.dt*w, 
+    return eval_f_lie_fBE<real,order,single_species>(n, x - 0.5*conf.dt*u, y - 0.5*conf.dt*v, z - 0.5*conf.dt*w, 
         u, v, w, coeffs_E, coeffs_B, coeffs_j_hat, conf );
 }
 
@@ -1128,11 +1258,11 @@ void eval_j_hat_adaptive(size_t n, std::vector<real>& j_hat, const std::vector<r
             // parameter or is there some "nicer way" of doing it?
             // => The simplest solution is to define a couple custom "overloads" of eval_f to take the shift into account!
 
-            real u0 = iu*conf.du;
+            real u0 = conf.u_min + iu*conf.du;
             real u1 = u0 + conf.du;
-            real v0 = iv*conf.dv;
+            real v0 = conf.v_min + iv*conf.dv;
             real v1 = v0 + conf.dv;
-            real w0 = iw*conf.dw;
+            real w0 = conf.w_min + iw*conf.dw;
             real w1 = w0 + conf.dw;
 
             real f000 = eval_f_lie_fBE_shifted<real,order>(n,x,y,z,u0,v0,w0,coeffs_E,coeffs_B,coeffs_j_hat,conf);
@@ -1159,7 +1289,7 @@ void eval_j_hat_adaptive(size_t n, std::vector<real>& j_hat, const std::vector<r
 }
 
 
-template <typename real, size_t order>
+template <typename real, size_t order, bool single_species = true>
 void eval_j_hat_adaptive_mpi(size_t n, std::vector<real>& j_hat, const std::vector<real>& coeffs_E, 
             const std::vector<real>& coeffs_B, const std::vector<real>& coeffs_j_hat, const config_t<real> &conf)
 {
@@ -1215,24 +1345,24 @@ void eval_j_hat_adaptive_mpi(size_t n, std::vector<real>& j_hat, const std::vect
             // parameter or is there some "nicer way" of doing it?
             // => The simplest solution is to define a couple custom "overloads" of eval_f to take the shift into account!
 
-            real u0 = iu*conf.du;
+            real u0 = conf.u_min + iu*conf.du;
             real u1 = u0 + conf.du;
-            real v0 = iv*conf.dv;
+            real v0 = conf.v_min + iv*conf.dv;
             real v1 = v0 + conf.dv;
-            real w0 = iw*conf.dw;
+            real w0 = conf.w_min + iw*conf.dw;
             real w1 = w0 + conf.dw;
 
-            real f000 = eval_f_lie_fBE_shifted<real,order>(n,x,y,z,u0,v0,w0,coeffs_E,coeffs_B,coeffs_j_hat,conf);
-            real f001 = eval_f_lie_fBE_shifted<real,order>(n,x,y,z,u0,v0,w1,coeffs_E,coeffs_B,coeffs_j_hat,conf);
-            real f010 = eval_f_lie_fBE_shifted<real,order>(n,x,y,z,u0,v1,w0,coeffs_E,coeffs_B,coeffs_j_hat,conf); 
-            real f011 = eval_f_lie_fBE_shifted<real,order>(n,x,y,z,u0,v1,w1,coeffs_E,coeffs_B,coeffs_j_hat,conf); 
-            real f100 = eval_f_lie_fBE_shifted<real,order>(n,x,y,z,u1,v0,w0,coeffs_E,coeffs_B,coeffs_j_hat,conf); 
-            real f101 = eval_f_lie_fBE_shifted<real,order>(n,x,y,z,u1,v0,w1,coeffs_E,coeffs_B,coeffs_j_hat,conf); 
-            real f110 = eval_f_lie_fBE_shifted<real,order>(n,x,y,z,u1,v1,w0,coeffs_E,coeffs_B,coeffs_j_hat,conf); 
-            real f111 = eval_f_lie_fBE_shifted<real,order>(n,x,y,z,u1,v1,w1,coeffs_E,coeffs_B,coeffs_j_hat,conf);
+            real f000 = eval_f_lie_fBE_shifted<real,order,single_species>(n,x,y,z,u0,v0,w0,coeffs_E,coeffs_B,coeffs_j_hat,conf);
+            real f001 = eval_f_lie_fBE_shifted<real,order,single_species>(n,x,y,z,u0,v0,w1,coeffs_E,coeffs_B,coeffs_j_hat,conf);
+            real f010 = eval_f_lie_fBE_shifted<real,order,single_species>(n,x,y,z,u0,v1,w0,coeffs_E,coeffs_B,coeffs_j_hat,conf); 
+            real f011 = eval_f_lie_fBE_shifted<real,order,single_species>(n,x,y,z,u0,v1,w1,coeffs_E,coeffs_B,coeffs_j_hat,conf); 
+            real f100 = eval_f_lie_fBE_shifted<real,order,single_species>(n,x,y,z,u1,v0,w0,coeffs_E,coeffs_B,coeffs_j_hat,conf); 
+            real f101 = eval_f_lie_fBE_shifted<real,order,single_species>(n,x,y,z,u1,v0,w1,coeffs_E,coeffs_B,coeffs_j_hat,conf); 
+            real f110 = eval_f_lie_fBE_shifted<real,order,single_species>(n,x,y,z,u1,v1,w0,coeffs_E,coeffs_B,coeffs_j_hat,conf); 
+            real f111 = eval_f_lie_fBE_shifted<real,order,single_species>(n,x,y,z,u1,v1,w1,coeffs_E,coeffs_B,coeffs_j_hat,conf);
 
             std::vector<real> j_loc = sub_integral_j_hat_adaptive_trapezoidal_simpson_rule<real,order>(n,x,y,z,coeffs_E,coeffs_B,coeffs_j_hat,
-                                        conf, &(eval_f_lie_fBE_shifted<real,order>), u0, u1, v0, v1, w0, w1, f000, f001, f010, f011,
+                                        conf, &(eval_f_lie_fBE_shifted<real,order,single_species>), u0, u1, v0, v1, w0, w1, f000, f001, f010, f011,
                                     f100, f101, f110, f111, 1);
             sum0 += j_loc[0];
             sum1 += j_loc[1];
@@ -1245,22 +1375,53 @@ void eval_j_hat_adaptive_mpi(size_t n, std::vector<real>& j_hat, const std::vect
         j_hat_local[ 2*local_N + k  ] = sum2;
     }
 
-    std::cout << "Rank " << rank << " after large loop" << std::endl;
-
     // Gather global j_hat
-    // Sets the indices for the MPI_Gatherv call.
-    std::vector<int> recvcounts(size), displs(size);
+    // Build per‑rank counts/displs for each component
+    std::vector<int> rc(size), dp(size);
     for (int r = 0; r < size; ++r) {
-        size_t r_start = r * chunk_size + std::min(static_cast<size_t>(r), remainder);
-        size_t r_N = chunk_size + (r < remainder ? 1 : 0);
-        recvcounts[r] = 3 * r_N;
-        displs[r] = (r_start) * 3;
+        size_t r_start = r * chunk_size + std::min<size_t>(r, remainder);
+        size_t r_N     = chunk_size + (r < remainder ? 1 : 0);
+        rc[r] = static_cast<int>(r_N);
+        dp[r] = static_cast<int>(r_start);
     }
+    // 1) Gather j_u into j_hat[0 ..   Ncells-1]
+    MPI_Gatherv(
+        /* sendbuf    */ j_hat_local.data() +     0*local_N,
+        /* sendcount  */         static_cast<int>(local_N),
+        /* sendtype   */ MPI_DOUBLE,
+        /* recvbuf    */ j_hat.data() +     0*static_cast<int>(Ncells),
+        /* recvcounts */ rc.data(),
+        /* displs     */ dp.data(),
+        /* recvtype   */ MPI_DOUBLE,
+        /* root       */           0,
+        MPI_COMM_WORLD
+    );
 
-    // This gathers the local j_hat data into the global j_hat. 
-    MPI_Gatherv(j_hat_local.data(), 3 * local_N, MPI_DOUBLE,
-                j_hat.data(), recvcounts.data(), displs.data(), MPI_DOUBLE,
-                0, MPI_COMM_WORLD);
+    // 2) Gather j_v into j_hat[Ncells .. 2*Ncells-1]
+    MPI_Gatherv(
+        j_hat_local.data() +     1*local_N,
+        static_cast<int>(local_N),
+        MPI_DOUBLE,
+        j_hat.data()     +     1*static_cast<int>(Ncells),
+        rc.data(),
+        dp.data(),
+        MPI_DOUBLE,
+        0,
+        MPI_COMM_WORLD
+    );
+
+    // 3) Gather j_w into j_hat[2*Ncells .. 3*Ncells-1]
+    MPI_Gatherv(
+        j_hat_local.data() +     2*local_N,
+        static_cast<int>(local_N),
+        MPI_DOUBLE,
+        j_hat.data()     +     2*static_cast<int>(Ncells),
+        rc.data(),
+        dp.data(),
+        MPI_DOUBLE,
+        0,
+        MPI_COMM_WORLD
+    );
 
 }
 
