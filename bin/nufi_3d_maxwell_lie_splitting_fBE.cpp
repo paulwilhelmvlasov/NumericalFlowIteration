@@ -454,7 +454,7 @@ void do_stats(size_t nt, size_t nx_plot, std::ofstream& stat_file,
     double dz_plot = conf.Lz/nx_plot; 
     double electric_energy = 0;
     double magnetic_energy = 0;
-    if(nt % steps_per_1 == 0){
+    if(nt % (5*steps_per_1) == 0){
         std::ofstream Ex_str("Ex_" + std::to_string(nt*conf.dt) + ".txt"); // Naming does not take restart into account. Fix!
         std::ofstream Ey_str("Ey_" + std::to_string(nt*conf.dt) + ".txt");
         std::ofstream Ez_str("Ez_" + std::to_string(nt*conf.dt) + ".txt");
@@ -2224,7 +2224,7 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned_mpi()
             std::cout << "Time step " << n << " took a total of " << time_for_step << " s." << std::endl;
 
             do_stats<double,order>(nt_r_curr, 64, stat_file, coeffs_E, coeffs_B, conf, true, n);
-            if(n % (steps_per_1/10) == 0){
+            if(n % (5*steps_per_1) == 0){
                 plot_f<double,order>(nt_r_curr,coeffs_E, coeffs_B, coeffs_j_hat, conf, true, n);
             }
             write_coeffs<double,order>(nt_r_curr, coeffs_E, coeffs_B, coeffs_j_hat, conf, 
