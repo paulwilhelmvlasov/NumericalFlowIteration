@@ -2133,7 +2133,7 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned_mpi()
         std::cout << " ---------------------------------- " << std::endl;
     }
     double total_time = 0;
-    double time_compute_EB, time_interpolate_EB, time_eval_j_hat, time_interpolate_j_hat;
+    double time_compute_EB, time_interpolate_EB, time_eval_j_hat, time_interpolate_j_hat, time_communication;
     size_t nt_r_curr = 1;
     for(size_t n = 1; n <= conf.Nt; n++)
     {
@@ -2198,6 +2198,12 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned_mpi()
         // Communicate new E and B coefficients.
         MPI_Bcast(coeffs_E.data() +  nt_r_curr*3*stride_t, 3*stride_t, MPI_DOUBLE, 0, MPI_COMM_WORLD);
         MPI_Bcast(coeffs_B.data() +  nt_r_curr*3*stride_t, 3*stride_t, MPI_DOUBLE, 0, MPI_COMM_WORLD);        
+        if(mpi_rank == 0){
+            double time_passed = timer.elapsed();
+            time_communication = time_passed;
+            std::cout << "Communication of EB took " << time_passed << " s." << std::endl;
+            timer.reset();
+        }
 
         // Compute j_hat(n).
         eval_j_hat_adaptive_mpi<double,order>(nt_r_curr, j_hat, coeffs_E, coeffs_B, coeffs_j_hat, conf);
@@ -2215,11 +2221,17 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned_mpi()
             timer.reset();
         }
         MPI_Bcast(coeffs_j_hat.data() +  nt_r_curr*3*stride_t, 3*stride_t, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+        if(mpi_rank == 0){
+            double time_passed = timer.elapsed();
+            time_communication += time_passed;
+            std::cout << "Communication of j took " << time_passed << " s." << std::endl;
+            timer.reset();
+        }
 
         // Analyze data if wanted.
         // Compute time measurement.
         if(mpi_rank == 0){
-            double time_for_step = time_compute_EB + time_interpolate_EB + time_eval_j_hat + time_interpolate_j_hat;
+            double time_for_step = time_compute_EB + time_interpolate_EB + time_eval_j_hat + time_interpolate_j_hat + time_communication;
             total_time += time_for_step;
             std::cout << "Time step " << n << " took a total of " << time_for_step << " s." << std::endl;
 
