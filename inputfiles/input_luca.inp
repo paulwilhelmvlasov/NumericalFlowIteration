@@ -93,5 +93,5 @@ q_i = 1;
 tol_refinement_electron = 1e-2;
 tol_refinement_ion = 1e-2;
 
-max_depth_electron = 3;
-max_depth_ion = 4;
+max_depth_electron = 2;
+max_depth_ion = 2;

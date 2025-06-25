@@ -347,11 +347,11 @@ real f0(real x, real y, real z, real u, real v, real w) noexcept
         }
     } else {
         if(dim == 1){
-            /* real core = maxwellian_1d<real>(u - u_core_i, u_th_core_i);
+            real core = maxwellian_1d<real>(u - u_core_i, u_th_core_i);
             real beam = maxwellian_1d<real>(u - u_beam_i, u_th_beam_i);
             
-            return ratio_core_beam_u_i * core + (1 - ratio_core_beam_u_i) * beam; */
-            return 1;
+            return ratio_core_beam_u_i * core + (1 - ratio_core_beam_u_i) * beam;
+            /* return 1; */
         }else if(dim == 2){
             real core_u = maxwellian_1d<real>(u - u_core_i, u_th_core_i);
             real beam_u = maxwellian_1d<real>(u - u_beam_i, u_th_beam_i);
@@ -384,7 +384,7 @@ template <typename real>
 arma::Col<real> E0(real x, real y, real z)
 {
     return  arma::Col<real>({
-                -0.02*std::sin(0.5*x), 
+                /* -0.02*std::sin(0.5*x) */ 0, 
                 0, 
                 0
             });  
@@ -439,7 +439,7 @@ arma::Col<real> B0(real x, real y, real z)
     real beta = 0.00270; // From Luca's paper (taken from PSP measurements).
 
     return  arma::Col<real>({
-                0 /* beta*( 1 + alpha*std::sin(2*M_PI*x/(k*Lx))) */, 
+                beta*( 1 + alpha*std::sin(2*M_PI*x/(k*Lx))), 
                 0, 
                 0, 
             }); 
@@ -551,7 +551,7 @@ void do_stats(size_t nt, size_t nx_plot, std::ofstream& stat_file,
     double dz_plot = conf.Lz/nx_plot; 
     double electric_energy = 0;
     double magnetic_energy = 0;
-    if(nt % steps_per_1 == 0){
+    if(nt % (5*steps_per_1) == 0){
         std::ofstream Ex_str("Ex_" + std::to_string(nt*conf.dt) + ".txt"); // Naming does not take restart into account. Fix!
         std::ofstream Ey_str("Ey_" + std::to_string(nt*conf.dt) + ".txt");
         std::ofstream Ez_str("Ez_" + std::to_string(nt*conf.dt) + ".txt");
@@ -1228,7 +1228,7 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned_mpi()
             std::cout << "Time step " << n << " took a total of " << time_for_step << " s." << std::endl;
 
             do_stats<double,order>(nt_r_curr, 64, stat_file, coeffs_E, coeffs_B, conf_elec, true, n);
-            if(n % (steps_per_1/2) == 0){
+            if(n % (5*steps_per_1) == 0){
                 plot_f<double,order,true,true>(nt_r_curr,coeffs_E, coeffs_B, coeffs_j_hat, conf_elec, true, n);
                 plot_f<double,order,false,false>(nt_r_curr,coeffs_E, coeffs_B, coeffs_j_hat, conf_ion, true, n);
             }
