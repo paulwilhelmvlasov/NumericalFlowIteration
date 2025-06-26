@@ -1298,6 +1298,12 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned_mpi()
 
 int main(int argc, char** argv)
 {
+    MPI_Init(&argc, &argv);
+
+    int mpi_rank, mpi_size;
+    MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &mpi_size);
+
     if (argc < 2) {
         std::cerr << "Usage: " << argv[0] << " <input_file>\n";
         return 1;
@@ -1316,9 +1322,12 @@ int main(int argc, char** argv)
     nufi::dim3::Lx =  config.read<double>("Lx");
     nufi::dim3::Ly =  config.read<double>("Ly");
     nufi::dim3::Lz =  config.read<double>("Lz");
-    std::cout << "Lx = " << nufi::dim3::Lx << std::endl;
-    std::cout << "Ly = " << nufi::dim3::Ly << std::endl;
-    std::cout << "Lz = " << nufi::dim3::Lz << std::endl;
+    if(mpi_rank == 0){
+        std::cout << "Lx = " << nufi::dim3::Lx << std::endl;
+        std::cout << "Ly = " << nufi::dim3::Ly << std::endl;
+        std::cout << "Lz = " << nufi::dim3::Lz << std::endl;
+    }
+
 
     nufi::dim3::umin_e =  config.read<double>("umin_e");
     nufi::dim3::umax_e =  config.read<double>("umax_e");
@@ -1326,12 +1335,14 @@ int main(int argc, char** argv)
     nufi::dim3::vmax_e =  config.read<double>("vmax_e");
     nufi::dim3::wmin_e =  config.read<double>("wmin_e");
     nufi::dim3::wmax_e =  config.read<double>("wmax_e");
-    std::cout << "umin_e = " << nufi::dim3::umin_e << std::endl;
-    std::cout << "umax_e = " << nufi::dim3::umax_e << std::endl;
-    std::cout << "vmin_e = " << nufi::dim3::vmin_e << std::endl;
-    std::cout << "vmax_e = " << nufi::dim3::vmax_e << std::endl;
-    std::cout << "wmin_e = " << nufi::dim3::wmin_e << std::endl;
-    std::cout << "wmax_e = " << nufi::dim3::wmax_e << std::endl;
+    if(mpi_rank == 0){
+        std::cout << "umin_e = " << nufi::dim3::umin_e << std::endl;
+        std::cout << "umax_e = " << nufi::dim3::umax_e << std::endl;
+        std::cout << "vmin_e = " << nufi::dim3::vmin_e << std::endl;
+        std::cout << "vmax_e = " << nufi::dim3::vmax_e << std::endl;
+        std::cout << "wmin_e = " << nufi::dim3::wmin_e << std::endl;
+        std::cout << "wmax_e = " << nufi::dim3::wmax_e << std::endl;
+    }
     
     nufi::dim3::umin_i =  config.read<double>("umin_i");
     nufi::dim3::umax_i =  config.read<double>("umax_i");
@@ -1339,180 +1350,232 @@ int main(int argc, char** argv)
     nufi::dim3::vmax_i =  config.read<double>("vmax_i");
     nufi::dim3::wmin_i =  config.read<double>("wmin_i");
     nufi::dim3::wmax_i =  config.read<double>("wmax_i");
-    std::cout << "umin_i = " << nufi::dim3::umin_i << std::endl;
-    std::cout << "umax_i = " << nufi::dim3::umax_i << std::endl;
-    std::cout << "vmin_i = " << nufi::dim3::vmin_i << std::endl;
-    std::cout << "vmax_i = " << nufi::dim3::vmax_i << std::endl;
-    std::cout << "wmin_i = " << nufi::dim3::wmin_i << std::endl;
-    std::cout << "wmax_i = " << nufi::dim3::wmax_i << std::endl;
+    if(mpi_rank == 0){
+        std::cout << "umin_i = " << nufi::dim3::umin_i << std::endl;
+        std::cout << "umax_i = " << nufi::dim3::umax_i << std::endl;
+        std::cout << "vmin_i = " << nufi::dim3::vmin_i << std::endl;
+        std::cout << "vmax_i = " << nufi::dim3::vmax_i << std::endl;
+        std::cout << "wmin_i = " << nufi::dim3::wmin_i << std::endl;
+        std::cout << "wmax_i = " << nufi::dim3::wmax_i << std::endl;
+    }
 
     nufi::dim3::Nx =  config.read<double>("Nx");
     nufi::dim3::Ny =  config.read<double>("Ny");
     nufi::dim3::Nz =  config.read<double>("Nz");
-    std::cout << "Nx = " << nufi::dim3::Nx << std::endl;
-    std::cout << "Ny = " << nufi::dim3::Ny << std::endl;
-    std::cout << "Nz = " << nufi::dim3::Nz << std::endl;
+    if(mpi_rank == 0){
+        std::cout << "Nx = " << nufi::dim3::Nx << std::endl;
+        std::cout << "Ny = " << nufi::dim3::Ny << std::endl;
+        std::cout << "Nz = " << nufi::dim3::Nz << std::endl;
+    }
 
     nufi::dim3::steps_per_1 =  config.read<double>("steps_per_1");
     nufi::dim3::dt =  1.0 / nufi::dim3::steps_per_1;
     nufi::dim3::Nt =  config.read<double>("Nt");
-    std::cout << "steps_per_1 = " << nufi::dim3::steps_per_1 << std::endl;
-    std::cout << "dt = " << nufi::dim3::dt << std::endl;
-    std::cout << "Nt = " << nufi::dim3::Nt << std::endl;
+    if(mpi_rank == 0){
+        std::cout << "steps_per_1 = " << nufi::dim3::steps_per_1 << std::endl;
+        std::cout << "dt = " << nufi::dim3::dt << std::endl;
+        std::cout << "Nt = " << nufi::dim3::Nt << std::endl;
+    }
 
     nufi::dim3::Nu_e =  config.read<double>("Nu_e");
     nufi::dim3::Nv_e =  config.read<double>("Nv_e");
     nufi::dim3::Nw_e =  config.read<double>("Nw_e");
-    std::cout << "Nu_e = " << nufi::dim3::Nu_e << std::endl;
-    std::cout << "Nv_e = " << nufi::dim3::Nv_e << std::endl;
-    std::cout << "Nw_e = " << nufi::dim3::Nw_e << std::endl;
+    if(mpi_rank == 0){
+        std::cout << "Nu_e = " << nufi::dim3::Nu_e << std::endl;
+        std::cout << "Nv_e = " << nufi::dim3::Nv_e << std::endl;
+        std::cout << "Nw_e = " << nufi::dim3::Nw_e << std::endl;
+    }
     
     nufi::dim3::Nu_i =  config.read<double>("Nu_i");
     nufi::dim3::Nv_i =  config.read<double>("Nv_i");
     nufi::dim3::Nw_i =  config.read<double>("Nw_i");
-    std::cout << "Nu_i = " << nufi::dim3::Nu_i << std::endl;
-    std::cout << "Nv_i = " << nufi::dim3::Nv_i << std::endl;
-    std::cout << "Nw_i = " << nufi::dim3::Nw_i << std::endl;
-    
+    if(mpi_rank == 0){
+        std::cout << "Nu_i = " << nufi::dim3::Nu_i << std::endl;
+        std::cout << "Nv_i = " << nufi::dim3::Nv_i << std::endl;
+        std::cout << "Nw_i = " << nufi::dim3::Nw_i << std::endl;
+    }
+
     nufi::dim3::nx_r =  config.read<double>("nx_r");
     nufi::dim3::ny_r =  config.read<double>("ny_r");
     nufi::dim3::nz_r =  config.read<double>("nz_r");
-    std::cout << "nx_r = " << nufi::dim3::nx_r << std::endl;
-    std::cout << "ny_r = " << nufi::dim3::ny_r << std::endl;
-    std::cout << "nz_r = " << nufi::dim3::nz_r << std::endl;
-
+    if(mpi_rank == 0){
+        std::cout << "nx_r = " << nufi::dim3::nx_r << std::endl;
+        std::cout << "ny_r = " << nufi::dim3::ny_r << std::endl;
+        std::cout << "nz_r = " << nufi::dim3::nz_r << std::endl;
+    }
     nufi::dim3::nu_r_e =  config.read<double>("nu_r_e");
     nufi::dim3::nv_r_e =  config.read<double>("nv_r_e");
     nufi::dim3::nw_r_e =  config.read<double>("nw_r_e");
-    std::cout << "nu_r_e = " << nufi::dim3::nu_r_e << std::endl;
-    std::cout << "nv_r_e = " << nufi::dim3::nv_r_e << std::endl;
-    std::cout << "nw_r_e = " << nufi::dim3::nw_r_e << std::endl;
+    if(mpi_rank == 0){
+        std::cout << "nu_r_e = " << nufi::dim3::nu_r_e << std::endl;
+        std::cout << "nv_r_e = " << nufi::dim3::nv_r_e << std::endl;
+        std::cout << "nw_r_e = " << nufi::dim3::nw_r_e << std::endl;
+    }
 
     nufi::dim3::nu_r_i =  config.read<double>("nu_r_i");
     nufi::dim3::nv_r_i =  config.read<double>("nv_r_i");
     nufi::dim3::nw_r_i =  config.read<double>("nw_r_i");
-    std::cout << "nu_r_i = " << nufi::dim3::nu_r_i << std::endl;
-    std::cout << "nv_r_i = " << nufi::dim3::nv_r_i << std::endl;
-    std::cout << "nw_r_i = " << nufi::dim3::nw_r_i << std::endl;
+    if(mpi_rank == 0){
+        std::cout << "nu_r_i = " << nufi::dim3::nu_r_i << std::endl;
+        std::cout << "nv_r_i = " << nufi::dim3::nv_r_i << std::endl;
+        std::cout << "nw_r_i = " << nufi::dim3::nw_r_i << std::endl;
+    }
 
     nufi::dim3::nt_restart =  config.read<double>("nt_restart");
-    std::cout << "nt_restart = " << nufi::dim3::nt_restart << std::endl;
+    if(mpi_rank == 0){
+        std::cout << "nt_restart = " << nufi::dim3::nt_restart << std::endl;
+    }
 
     nufi::dim3::dx_r = nufi::dim3::Lx / nufi::dim3::nx_r;
     nufi::dim3::dy_r = nufi::dim3::Ly / nufi::dim3::ny_r;
     nufi::dim3::dz_r = nufi::dim3::Lz / nufi::dim3::nz_r;
-    std::cout << "dx_r = " << nufi::dim3::dx_r << std::endl;
-    std::cout << "dy_r = " << nufi::dim3::dy_r << std::endl;
-    std::cout << "dz_r = " << nufi::dim3::dz_r << std::endl;
+    if(mpi_rank == 0){
+        std::cout << "dx_r = " << nufi::dim3::dx_r << std::endl;
+        std::cout << "dy_r = " << nufi::dim3::dy_r << std::endl;
+        std::cout << "dz_r = " << nufi::dim3::dz_r << std::endl;
+    }
 
     nufi::dim3::du_r_e = (nufi::dim3::umax_e - nufi::dim3::umin_e) / nufi::dim3::nu_r_e;
     nufi::dim3::dv_r_e = (nufi::dim3::vmax_e - nufi::dim3::vmin_e) / nufi::dim3::nv_r_e;
     nufi::dim3::dw_r_e = (nufi::dim3::wmax_e - nufi::dim3::wmin_e) / nufi::dim3::nw_r_e;
-    std::cout << "du_r_e = " << nufi::dim3::du_r_e << std::endl;
-    std::cout << "dv_r_e = " << nufi::dim3::dv_r_e << std::endl;
-    std::cout << "dw_r_e = " << nufi::dim3::dw_r_e << std::endl;
+    if(mpi_rank == 0){
+        std::cout << "du_r_e = " << nufi::dim3::du_r_e << std::endl;
+        std::cout << "dv_r_e = " << nufi::dim3::dv_r_e << std::endl;
+        std::cout << "dw_r_e = " << nufi::dim3::dw_r_e << std::endl;
+    }
 
     nufi::dim3::du_r_i = (nufi::dim3::umax_i - nufi::dim3::umin_i) / nufi::dim3::nu_r_i;
     nufi::dim3::dv_r_i = (nufi::dim3::vmax_i - nufi::dim3::vmin_i) / nufi::dim3::nv_r_i;
     nufi::dim3::dw_r_i = (nufi::dim3::wmax_i - nufi::dim3::wmin_i) / nufi::dim3::nw_r_i;
-    std::cout << "du_r_i = " << nufi::dim3::du_r_i << std::endl;
-    std::cout << "dv_r_i = " << nufi::dim3::dv_r_i << std::endl;
-    std::cout << "dw_r_i = " << nufi::dim3::dw_r_i << std::endl;
+    if(mpi_rank == 0){
+        std::cout << "du_r_i = " << nufi::dim3::du_r_i << std::endl;
+        std::cout << "dv_r_i = " << nufi::dim3::dv_r_i << std::endl;
+        std::cout << "dw_r_i = " << nufi::dim3::dw_r_i << std::endl;
+    }
 
     nufi::dim3::u_th_core_e =  config.read<double>("u_th_core_e");
     nufi::dim3::v_th_core_e =  config.read<double>("v_th_core_e");
     nufi::dim3::w_th_core_e =  config.read<double>("w_th_core_e");
-    std::cout << "u_th_core_e = " << nufi::dim3::u_th_core_e << std::endl;
-    std::cout << "v_th_core_e = " << nufi::dim3::v_th_core_e << std::endl;
-    std::cout << "w_th_core_e = " << nufi::dim3::w_th_core_e << std::endl;
+    if(mpi_rank == 0){
+        std::cout << "u_th_core_e = " << nufi::dim3::u_th_core_e << std::endl;
+        std::cout << "v_th_core_e = " << nufi::dim3::v_th_core_e << std::endl;
+        std::cout << "w_th_core_e = " << nufi::dim3::w_th_core_e << std::endl;
+    }
     
     nufi::dim3::u_th_beam_e =  config.read<double>("u_th_beam_e");
     nufi::dim3::v_th_beam_e =  config.read<double>("v_th_beam_e");
     nufi::dim3::w_th_beam_e =  config.read<double>("w_th_beam_e");
-    std::cout << "u_th_beam_e = " << nufi::dim3::u_th_beam_e << std::endl;
-    std::cout << "v_th_beam_e = " << nufi::dim3::v_th_beam_e << std::endl;
-    std::cout << "w_th_beam_e = " << nufi::dim3::w_th_beam_e << std::endl;
+    if(mpi_rank == 0){
+        std::cout << "u_th_beam_e = " << nufi::dim3::u_th_beam_e << std::endl;
+        std::cout << "v_th_beam_e = " << nufi::dim3::v_th_beam_e << std::endl;
+        std::cout << "w_th_beam_e = " << nufi::dim3::w_th_beam_e << std::endl;
+    }
 
     nufi::dim3::u_core_e =  config.read<double>("u_core_e");
     nufi::dim3::v_core_e =  config.read<double>("v_core_e");
     nufi::dim3::w_core_e =  config.read<double>("w_core_e");
-    std::cout << "u_core_e = " << nufi::dim3::u_core_e << std::endl;
-    std::cout << "v_core_e = " << nufi::dim3::v_core_e << std::endl;
-    std::cout << "w_core_e = " << nufi::dim3::w_core_e << std::endl;
+    if(mpi_rank == 0){
+        std::cout << "u_core_e = " << nufi::dim3::u_core_e << std::endl;
+        std::cout << "v_core_e = " << nufi::dim3::v_core_e << std::endl;
+        std::cout << "w_core_e = " << nufi::dim3::w_core_e << std::endl;
+    }
     
     nufi::dim3::u_beam_e =  config.read<double>("u_beam_e");
     nufi::dim3::v_beam_e =  config.read<double>("v_beam_e");
     nufi::dim3::w_beam_e =  config.read<double>("w_beam_e");
-    std::cout << "u_beam_e = " << nufi::dim3::u_beam_e << std::endl;
-    std::cout << "v_beam_e = " << nufi::dim3::v_beam_e << std::endl;
-    std::cout << "w_beam_e = " << nufi::dim3::w_beam_e << std::endl;
+    if(mpi_rank == 0){
+        std::cout << "u_beam_e = " << nufi::dim3::u_beam_e << std::endl;
+        std::cout << "v_beam_e = " << nufi::dim3::v_beam_e << std::endl;
+        std::cout << "w_beam_e = " << nufi::dim3::w_beam_e << std::endl;
+    }
 
     nufi::dim3::ratio_core_beam_u_e =  config.read<double>("ratio_core_beam_u_e");
     nufi::dim3::ratio_core_beam_v_e =  config.read<double>("ratio_core_beam_v_e");
     nufi::dim3::ratio_core_beam_w_e =  config.read<double>("ratio_core_beam_w_e");
-    std::cout << "ratio_core_beam_u_e = " << nufi::dim3::ratio_core_beam_u_e << std::endl;
-    std::cout << "ratio_core_beam_v_e = " << nufi::dim3::ratio_core_beam_v_e << std::endl;
-    std::cout << "ratio_core_beam_w_e = " << nufi::dim3::ratio_core_beam_w_e << std::endl;
+    if(mpi_rank == 0){
+        std::cout << "ratio_core_beam_u_e = " << nufi::dim3::ratio_core_beam_u_e << std::endl;
+        std::cout << "ratio_core_beam_v_e = " << nufi::dim3::ratio_core_beam_v_e << std::endl;
+        std::cout << "ratio_core_beam_w_e = " << nufi::dim3::ratio_core_beam_w_e << std::endl;
+    }
 
     nufi::dim3::u_th_core_i =  config.read<double>("u_th_core_i");
     nufi::dim3::v_th_core_i =  config.read<double>("v_th_core_i");
     nufi::dim3::w_th_core_i =  config.read<double>("w_th_core_i");
-    std::cout << "u_th_core_i = " << nufi::dim3::u_th_core_i << std::endl;
-    std::cout << "v_th_core_i = " << nufi::dim3::v_th_core_i << std::endl;
-    std::cout << "w_th_core_i = " << nufi::dim3::w_th_core_i << std::endl;
+    if(mpi_rank == 0){
+        std::cout << "u_th_core_i = " << nufi::dim3::u_th_core_i << std::endl;
+        std::cout << "v_th_core_i = " << nufi::dim3::v_th_core_i << std::endl;
+        std::cout << "w_th_core_i = " << nufi::dim3::w_th_core_i << std::endl;
+    }
     
     nufi::dim3::u_th_beam_i =  config.read<double>("u_th_beam_i");
     nufi::dim3::v_th_beam_i =  config.read<double>("v_th_beam_i");
     nufi::dim3::w_th_beam_i =  config.read<double>("w_th_beam_i");
-    std::cout << "u_th_beam_i = " << nufi::dim3::u_th_beam_i << std::endl;
-    std::cout << "v_th_beam_i = " << nufi::dim3::v_th_beam_i << std::endl;
-    std::cout << "w_th_beam_i = " << nufi::dim3::w_th_beam_i << std::endl;
+    if(mpi_rank == 0){
+        std::cout << "u_th_beam_i = " << nufi::dim3::u_th_beam_i << std::endl;
+        std::cout << "v_th_beam_i = " << nufi::dim3::v_th_beam_i << std::endl;
+        std::cout << "w_th_beam_i = " << nufi::dim3::w_th_beam_i << std::endl;
+    }
 
     nufi::dim3::u_core_i =  config.read<double>("u_core_i");
     nufi::dim3::v_core_i =  config.read<double>("v_core_i");
     nufi::dim3::w_core_i =  config.read<double>("w_core_i");
-    std::cout << "u_core_i = " << nufi::dim3::u_core_i << std::endl;
-    std::cout << "v_core_i = " << nufi::dim3::v_core_i << std::endl;
-    std::cout << "w_core_i = " << nufi::dim3::w_core_i << std::endl;
+    if(mpi_rank == 0){
+        std::cout << "u_core_i = " << nufi::dim3::u_core_i << std::endl;
+        std::cout << "v_core_i = " << nufi::dim3::v_core_i << std::endl;
+        std::cout << "w_core_i = " << nufi::dim3::w_core_i << std::endl;
+    }
     
     nufi::dim3::u_beam_i =  config.read<double>("u_beam_i");
     nufi::dim3::v_beam_i =  config.read<double>("v_beam_i");
     nufi::dim3::w_beam_i =  config.read<double>("w_beam_i");
-    std::cout << "u_beam_i = " << nufi::dim3::u_beam_i << std::endl;
-    std::cout << "v_beam_i = " << nufi::dim3::v_beam_i << std::endl;
-    std::cout << "w_beam_i = " << nufi::dim3::w_beam_i << std::endl;
+    if(mpi_rank == 0){
+        std::cout << "u_beam_i = " << nufi::dim3::u_beam_i << std::endl;
+        std::cout << "v_beam_i = " << nufi::dim3::v_beam_i << std::endl;
+        std::cout << "w_beam_i = " << nufi::dim3::w_beam_i << std::endl;
+    }
 
     nufi::dim3::ratio_core_beam_u_i =  config.read<double>("ratio_core_beam_u_i");
     nufi::dim3::ratio_core_beam_v_i =  config.read<double>("ratio_core_beam_v_i");
     nufi::dim3::ratio_core_beam_w_i =  config.read<double>("ratio_core_beam_w_i");
-    std::cout << "ratio_core_beam_u_i = " << nufi::dim3::ratio_core_beam_u_i << std::endl;
-    std::cout << "ratio_core_beam_v_i = " << nufi::dim3::ratio_core_beam_v_i << std::endl;
-    std::cout << "ratio_core_beam_w_i = " << nufi::dim3::ratio_core_beam_w_i << std::endl;
+    if(mpi_rank == 0){
+        std::cout << "ratio_core_beam_u_i = " << nufi::dim3::ratio_core_beam_u_i << std::endl;
+        std::cout << "ratio_core_beam_v_i = " << nufi::dim3::ratio_core_beam_v_i << std::endl;
+        std::cout << "ratio_core_beam_w_i = " << nufi::dim3::ratio_core_beam_w_i << std::endl;
+    }
 
     nufi::dim3::dim =  config.read<double>("dim");
-    std::cout << "dim = " << nufi::dim3::dim << std::endl;
+    if(mpi_rank == 0){
+        std::cout << "dim = " << nufi::dim3::dim << std::endl;
+    }
 
     nufi::dim3::m_e =  config.read<double>("m_e");
     nufi::dim3::m_i =  config.read<double>("m_i");
-    std::cout << "m_e = " << nufi::dim3::m_e << std::endl;
-    std::cout << "m_i = " << nufi::dim3::m_i << std::endl;
+    if(mpi_rank == 0){
+        std::cout << "m_e = " << nufi::dim3::m_e << std::endl;
+        std::cout << "m_i = " << nufi::dim3::m_i << std::endl;
+    }
 
     nufi::dim3::q_e =  config.read<double>("q_e");
     nufi::dim3::q_i =  config.read<double>("q_i");
-    std::cout << "q_e = " << nufi::dim3::q_e << std::endl;
-    std::cout << "q_i = " << nufi::dim3::q_i << std::endl;
+    if(mpi_rank == 0){
+        std::cout << "q_e = " << nufi::dim3::q_e << std::endl;
+        std::cout << "q_i = " << nufi::dim3::q_i << std::endl;
+    }
 
     nufi::dim3::tol_refinement_electron =  config.read<double>("tol_refinement_electron");
     nufi::dim3::tol_refinement_ion =  config.read<double>("tol_refinement_ion");
-    std::cout << "tol_refinement_electron = " << nufi::dim3::tol_refinement_electron << std::endl;
-    std::cout << "tol_refinement_ion = " << nufi::dim3::tol_refinement_ion << std::endl;
+    if(mpi_rank == 0){
+        std::cout << "tol_refinement_electron = " << nufi::dim3::tol_refinement_electron << std::endl;
+        std::cout << "tol_refinement_ion = " << nufi::dim3::tol_refinement_ion << std::endl;
+    }
 
     nufi::dim3::max_depth_electron =  config.read<double>("max_depth_electron");
     nufi::dim3::max_depth_ion =  config.read<double>("max_depth_ion");
-    std::cout << "max_depth_electron = " << nufi::dim3::max_depth_electron << std::endl;
-    std::cout << "max_depth_ion = " << nufi::dim3::max_depth_ion << std::endl;
+    if(mpi_rank == 0){
+        std::cout << "max_depth_electron = " << nufi::dim3::max_depth_electron << std::endl;
+        std::cout << "max_depth_ion = " << nufi::dim3::max_depth_ion << std::endl;
+    }
 
-    MPI_Init(&argc, &argv);
     nufi::dim3::periodically_restarted_nufi_maxwell_lie_fBE_aligned_mpi<4>();
     MPI_Finalize();
 
