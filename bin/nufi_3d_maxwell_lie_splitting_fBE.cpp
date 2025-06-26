@@ -2315,7 +2315,7 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned_mpi()
                 local_mat.data(),          // sendbuf
                 count * V_total,           // sendcount
                 MPI_DOUBLE,
-                full_copy_mat.data(),           // recvbuf (all ranks)
+                full_copy_mat.data(),      // recvbuf (all ranks)
                 recvcounts.data(),         // recvcounts
                 displs.data(),             // displacements
                 MPI_DOUBLE,

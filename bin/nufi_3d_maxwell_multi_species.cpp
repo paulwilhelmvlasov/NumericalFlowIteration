@@ -933,18 +933,19 @@ void compute_restart_matrix(size_t nx_r, size_t ny_r, size_t nz_r, size_t nu_r, 
         local_mat.data(),          // sendbuf
         count * V_total,           // sendcount
         MPI_DOUBLE,
-        full_copy_mat.data(),           // recvbuf (all ranks)
+        restart_matrix.memptr(),   // recvbuf (all ranks)
+        /* full_copy_mat.data(), */           // recvbuf (all ranks)
         recvcounts.data(),         // recvcounts
         displs.data(),             // displacements
         MPI_DOUBLE,
         MPI_COMM_WORLD
     );
 
-    // 6) Copy into your Armadillo matrix or whatever container
+/*     // 6) Copy into your Armadillo matrix or whatever container
     restart_matrix = arma::Mat<double>(full_copy_mat.data(), 
                                 X_total,    // rows
                                 V_total,    // cols
-                                true /* copy_aux_mem = */);
+                                true // copy_aux_mem ); */
 }
 
 
@@ -1013,8 +1014,8 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned_mpi()
     const size_t X_total = Nx_r * Ny_r * Nz_r;
     const size_t V_total_e = (nu_r_e+1) * (nv_r_e+1) * (nw_r_e+1);
     const size_t V_total_i = (nu_r_i+1) * (nv_r_i+1) * (nw_r_i+1);
-    full_copy_mat_elec.resize(X_total * V_total_e, 0);
-    full_copy_mat_ion.resize(X_total * V_total_i, 0);
+/*     full_copy_mat_elec.resize(X_total * V_total_e, 0);
+    full_copy_mat_ion.resize(X_total * V_total_i, 0); */
 
     // Set up config.
     conf_elec = config_t<double>(Nx, Ny, Nz, Nu_e, Nv_e, Nw_e, Nt, dt, 
