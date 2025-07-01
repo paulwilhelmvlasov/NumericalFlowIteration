@@ -1004,16 +1004,14 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned_mpi()
     if(mpi_rank == 0){
         std::cout << "Initialize restart matrices." << std::endl;
     }
-    size_t size_x_r = (nx_r+1)*(ny_r+1)*(nz_r+1);
-    size_t size_v_r_e = (nu_r_e+1)*(nv_r_e+1)*(nw_r_e+1);
-    size_t size_v_r_i = (nu_r_i+1)*(nv_r_i+1)*(nw_r_i+1);
-    restart_matrix_e.resize(size_x_r, size_v_r_e);
-    restart_matrix_i.resize(size_x_r, size_v_r_i);
 
     const size_t Nx_r = nx_r+1, Ny_r = ny_r+1, Nz_r = nz_r+1;
     const size_t X_total = Nx_r * Ny_r * Nz_r;
     const size_t V_total_e = (nu_r_e+1) * (nv_r_e+1) * (nw_r_e+1);
     const size_t V_total_i = (nu_r_i+1) * (nv_r_i+1) * (nw_r_i+1);
+
+    restart_matrix_e.resize(X_total, V_total_e);
+    restart_matrix_i.resize(X_total, V_total_i);
 /*     full_copy_mat_elec.resize(X_total * V_total_e, 0);
     full_copy_mat_ion.resize(X_total * V_total_i, 0); */
 
