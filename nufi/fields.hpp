@@ -140,7 +140,7 @@ void interpolate( real *coeffs, const real *values, const config_t<real> &config
     };
 
     mat_t M { config }; transposed_mat_t Mt { config };
-    lsmr_options<real> opt; opt.silent = true;
+    lsmr_options<real> opt; //opt.silent = true;
     lsmr( config.Nx, config.Nx, M, Mt, values, tmp.get(), opt );
 
     if ( opt.iter == opt.max_iter )
@@ -484,7 +484,7 @@ void interpolate( real *coeffs, const real *values, const config_t<real> &config
                mat_t M  { config };
     transposed_mat_t Mt { config };
 
-    lsmr_options<real> opt; opt.silent = true;
+    lsmr_options<real> opt; 
     lsmr( config.Nx*config.Ny*config.Nz,
           config.Nx*config.Ny*config.Nz, M, Mt, values, tmp.get(), opt );
 

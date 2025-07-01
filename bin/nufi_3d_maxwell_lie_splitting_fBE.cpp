@@ -94,7 +94,7 @@ const size_t nz_r = 1;
 const size_t nu_r = 32;
 const size_t nv_r = 32;
 const size_t nw_r = 1;
-/* const */ size_t nt_restart = 200;
+/* const */ size_t nt_restart = 20;
 
 const double dx_r = Lx / nx_r;
 const double dy_r = Ly / ny_r;
@@ -2043,6 +2043,19 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned()
     std::cout << "Interpolate j_hat(0)." << std::endl;
     interpolate_fields_aligned<double,order>(0, coeffs_j_hat, j_hat, conf);
 
+    std::ofstream j_hat_str("j_hat_" + std::to_string(0*conf.dt) + ".txt");
+    for(size_t ix = 0; ix < conf.Nx; ix++){
+            double x = ix*conf.dx;
+            j_hat_str << x << " " << j_hat[ix]
+                                << " " << j_hat[ix + conf.Nx]
+                                << " " << j_hat[ix + 2*conf.Nx] << std::endl;
+    }
+
+    std::ofstream j_hat_plain_str("j_hat_plain_" + std::to_string(0*conf.dt) + ".txt");
+    for(size_t l = 0; l < j_hat.size(); l++){
+        j_hat_plain_str << j_hat[l] << std::endl;
+    }
+    
     std::cout << "First output." << std::endl;
     std::ofstream stat_file( "stats.txt" );
     // Output stats (Electric/magnetic energy).
@@ -2120,13 +2133,13 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned()
         std::cout << "Eval j_hat took " << time_eval_j_hat << " s." << std::endl;
         timer.reset();
 
-	std::ofstream j_hat_str("j_hat_" + std::to_string(n*conf.dt) + ".txt");
-	for(size_t ix = 0; ix < conf.Nx; ix++){
-        	double x = ix*conf.dx;
-	        j_hat_str << x << " " << j_hat[ix]
-        	                << " " << j_hat[ix + conf.Nx]
-                	        << " " << j_hat[ix + 2*conf.Nx] << std::endl;
-	}
+        std::ofstream j_hat_str("j_hat_" + std::to_string(n*conf.dt) + ".txt");
+        for(size_t ix = 0; ix < conf.Nx; ix++){
+                double x = ix*conf.dx;
+                j_hat_str << x << " " << j_hat[ix]
+                                << " " << j_hat[ix + conf.Nx]
+                                << " " << j_hat[ix + 2*conf.Nx] << std::endl;
+        }
         
         // Interpolate j_hat(n).
         interpolate_fields_aligned<double,order>(nt_r_curr,coeffs_j_hat,j_hat,conf);
@@ -2184,8 +2197,9 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned()
             timer.reset();
             std::cout << "Copying restart matrix took " << timer_copy_mat << " s." << std::endl;
 
- 	    std::ofstream restart_matrix_str("restart_matrix.txt");
-	    restart_matrix_str << restart_matrix << std::endl;
+            std::ofstream restart_matrix_str("restart_matrix.txt");
+            restart_matrix_str << restart_matrix << std::endl;
+
             // Copy last entries of coeff vectors.
             #pragma omp parallel for collapse(2)
             for(size_t k = 0; k < 3; k++){
@@ -2629,16 +2643,16 @@ int main(int argc, char** argv)
 
     //nufi::dim3::periodically_restarted_nufi_maxwell_lie_fBE<4>();
     
-//    nufi::dim3::periodically_restarted_nufi_maxwell_lie_fBE_aligned<4>();
+    nufi::dim3::periodically_restarted_nufi_maxwell_lie_fBE_aligned<4>();
 
     /* MPI_Init(&argc, &argv);
     nufi::dim3::periodically_restarted_nufi_maxwell_lie_fBE_aligned_mpi<4>();
     MPI_Finalize(); */
 
     //nufi::dim3::read_in_coeff_and_plot_aligned<double,4>();
-
+/* 
     nufi::lsmr_options<double> opts;
-    std::cout << opts.target_residual << std::endl;
+    std::cout << opts.target_residual << std::endl; */
 
     return 0;
 }

@@ -55,7 +55,14 @@ void reorthogonalise( real *buf, size_t n, size_t buffer_max,
         axpy( n, fac, buf + i*n, 1, u, 1 );
     }
 
-    scal( n, 1/norm(n,u), u, 1 );
+    // Careful: The following tolerance is hard-coded but maybe, if using real units, 
+    // it would have to be chosen smaller or bigger to adjust for relative tolerance. 
+    real tol = 1e-20; 
+    real norm_u = norm(n,u);
+    if(norm_u > tol){
+        scal( n, 1/norm(n,u), u, 1 );
+    }
+    
     copy( n, u, 1, buf + ((iter+1)%buffer_max)*n, 1 );
 }
 
@@ -96,9 +103,10 @@ void lsmr( size_t m, size_t n, const mat& A, const transposed_mat& At,
     real *h_bar = h     + n;
     real *vbuf  = h_bar + n;
 
-    At(b,v);
-    const real norm_ATb = norm(n,v);
 
+    At(b,v);
+
+    const real norm_ATb = norm(n,v);
 
     A(x,u); axpy(m,real(-1),b,1,u,1); 
     scal(m, real(-1), u, 1 );         // u = b - Ax;
@@ -120,9 +128,10 @@ void lsmr( size_t m, size_t n, const mat& A, const transposed_mat& At,
     copy(n,v,1,vbuf,1);                // v_buf.col(0) = v
     copy(n,v,1,h,1);                   // h = v
 
+
+
     if ( alpha * beta == real(0) ) return;
 
-    
     real alpha_bar = alpha, zeta_bar = alpha*beta;
     real rho = 1, rho_bar = 1, c_bar = 1, s_bar = 0;
     real c, s, theta, zeta, theta_bar, rho_prev, rho_bar_prev;
@@ -141,6 +150,7 @@ void lsmr( size_t m, size_t n, const mat& A, const transposed_mat& At,
         if ( beta > 0 )
         {
             scal(m, real(1)/beta, u, 1 );
+
             if ( S.reorthogonalise_u )
                 reorthogonalise( ubuf, m, u_buffer_size, u, S.iter );
 
@@ -148,6 +158,7 @@ void lsmr( size_t m, size_t n, const mat& A, const transposed_mat& At,
             S.norm_A_estimate = hypot( beta , S.norm_A_estimate );
 
             At(u,vtmp); axpy(n,-beta,v,1,vtmp,1); swap(v,vtmp); // v = At*u - beta*v
+            
             alpha = norm(n,v);
 
             if ( alpha > 0 )
@@ -180,10 +191,11 @@ void lsmr( size_t m, size_t n, const mat& A, const transposed_mat& At,
             sigma_max    = max( rho_bar_max, c_bar*rho );
             sigma_min    = min( rho_bar_min, c_bar*rho );
         }
+        
         c_bar        = c_bar * rho/rho_bar;
         s_bar        = theta/rho_bar;
         zeta         = c_bar * zeta_bar;
-        zeta_bar     = -s_bar*zeta_bar;
+        zeta_bar     = -s_bar * zeta_bar;
 
 
         // Update h, h_bar, x
