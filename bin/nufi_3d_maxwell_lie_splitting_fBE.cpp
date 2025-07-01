@@ -2620,13 +2620,16 @@ int main(int argc, char** argv)
 
     //nufi::dim3::periodically_restarted_nufi_maxwell_lie_fBE<4>();
     
-    nufi::dim3::periodically_restarted_nufi_maxwell_lie_fBE_aligned<4>();
+//    nufi::dim3::periodically_restarted_nufi_maxwell_lie_fBE_aligned<4>();
 
     /* MPI_Init(&argc, &argv);
     nufi::dim3::periodically_restarted_nufi_maxwell_lie_fBE_aligned_mpi<4>();
     MPI_Finalize(); */
 
     //nufi::dim3::read_in_coeff_and_plot_aligned<double,4>();
+
+    nufi::lsmr_options<double> opts;
+    std::cout << opts.target_residual << std::endl;
 
     return 0;
 }
