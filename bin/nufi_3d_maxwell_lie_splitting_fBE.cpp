@@ -78,16 +78,15 @@ const double vmin = -0.85;
 const double vmax = 0.85;
 const double wmin = -0.01;
 const double wmax = 0.01; */
-const size_t Nx = 32;
+const size_t Nx = 16;
 const size_t Ny = 1;
 const size_t Nz = 1;
 const size_t Nu = 16;
 const size_t Nv = 16;
 const size_t Nw = 1;
-const size_t steps_per_1 = 50;
+const size_t steps_per_1 = 200;
 const double   dt = 1.0 / steps_per_1;
-const size_t Nt = 100/dt;
-
+const size_t Nt = 3/dt;
 
 const size_t nx_r = 32;
 const size_t ny_r = 1;
@@ -95,7 +94,7 @@ const size_t nz_r = 1;
 const size_t nu_r = 32;
 const size_t nv_r = 32;
 const size_t nw_r = 1;
-/* const */ size_t nt_restart = 20;
+/* const */ size_t nt_restart = 200;
 
 const double dx_r = Lx / nx_r;
 const double dy_r = Ly / ny_r;
@@ -2037,8 +2036,8 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned()
     // Compute j_hat(0).
     std::cout << "Compute j_hat(0)." << std::endl;
 
-    //eval_j_hat<double,order>(0, j_hat, coeffs_E, coeffs_B, coeffs_j_hat, conf);
-    eval_j_hat_adaptive<double,order>(0, j_hat, coeffs_E, coeffs_B, coeffs_j_hat, conf);
+    eval_j_hat<double,order>(0, j_hat, coeffs_E, coeffs_B, coeffs_j_hat, conf);
+    //eval_j_hat_adaptive<double,order>(0, j_hat, coeffs_E, coeffs_B, coeffs_j_hat, conf);
 
     // Interpolate j_hat(0).
     std::cout << "Interpolate j_hat(0)." << std::endl;
@@ -2115,11 +2114,19 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned()
         timer.reset();
 
         // Compute j_hat(n).
-        //eval_j_hat<double,order>(nt_r_curr, j_hat, coeffs_E, coeffs_B, coeffs_j_hat, conf);
-        eval_j_hat_adaptive<double,order>(nt_r_curr, j_hat, coeffs_E, coeffs_B, coeffs_j_hat, conf);
+        eval_j_hat<double,order>(nt_r_curr, j_hat, coeffs_E, coeffs_B, coeffs_j_hat, conf);
+        //eval_j_hat_adaptive<double,order>(nt_r_curr, j_hat, coeffs_E, coeffs_B, coeffs_j_hat, conf);
         double time_eval_j_hat = timer.elapsed();
         std::cout << "Eval j_hat took " << time_eval_j_hat << " s." << std::endl;
         timer.reset();
+
+	std::ofstream j_hat_str("j_hat_" + std::to_string(n*conf.dt) + ".txt");
+	for(size_t ix = 0; ix < conf.Nx; ix++){
+        	double x = ix*conf.dx;
+	        j_hat_str << x << " " << j_hat[ix]
+        	                << " " << j_hat[ix + conf.Nx]
+                	        << " " << j_hat[ix + 2*conf.Nx] << std::endl;
+	}
         
         // Interpolate j_hat(n).
         interpolate_fields_aligned<double,order>(nt_r_curr,coeffs_j_hat,j_hat,conf);
@@ -2134,7 +2141,7 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned()
         std::cout << "Time step " << n << " took a total of " << time_for_step << " s." << std::endl;
 
         do_stats<double,order>(nt_r_curr, 64, stat_file, coeffs_E, coeffs_B, conf, true, n);
-        if(n % (steps_per_1/4) == 0){
+        if(n % (steps_per_1) == 0){
             plot_f<double,order>(nt_r_curr,coeffs_E, coeffs_B, coeffs_j_hat, conf, true, n);
         }
         write_coeffs<double,order>(nt_r_curr, coeffs_E, coeffs_B, coeffs_j_hat, conf, 
@@ -2176,7 +2183,9 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned()
             double timer_copy_mat = timer.elapsed();
             timer.reset();
             std::cout << "Copying restart matrix took " << timer_copy_mat << " s." << std::endl;
-            
+
+ 	    std::ofstream restart_matrix_str("restart_matrix.txt");
+	    restart_matrix_str << restart_matrix << std::endl;
             // Copy last entries of coeff vectors.
             #pragma omp parallel for collapse(2)
             for(size_t k = 0; k < 3; k++){
