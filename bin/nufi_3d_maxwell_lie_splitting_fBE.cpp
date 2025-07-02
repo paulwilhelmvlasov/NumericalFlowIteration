@@ -86,14 +86,14 @@ const size_t Nv = 16;
 const size_t Nw = 1;
 const size_t steps_per_1 = 200;
 const double   dt = 1.0 / steps_per_1;
-const size_t Nt = 3/dt;
+const size_t Nt = 20/dt;
 
 const size_t nx_r = 32;
 const size_t ny_r = 1;
 const size_t nz_r = 1;
 const size_t nu_r = 32;
 const size_t nv_r = 32;
-const size_t nw_r = 1;
+const size_t nw_r = 2; // With the current implementation this must be at least 2 (never 1)!
 /* const */ size_t nt_restart = 20;
 
 const double dx_r = Lx / nx_r;
@@ -107,13 +107,18 @@ const double dw_r = (wmax - wmin) / nw_r;
 double linear_interpolation_6d(double x, double y, double z, 
                                 double u, double v, double w)
 {
+    /* std::cout << "Do I reach here?" << std::endl; */
     if( u >= umax || u <= umin 
         || v >= vmax || v <= vmin 
         || w >= wmax || w <= wmin){
+        /* std::cout << umin << " " << u << " " << umax << std::endl;
+        std::cout << vmin << " " << v << " " << vmax << std::endl; */
+        /* std::cout << wmin << " " << w << " " << wmax << std::endl;
+        std::cout << "...and then here?" << std::endl; */
 		return 0;
-	}
-
-    //std::cout << std::setprecision(16) << "Before: " << x << " " << y << " " << z << " " << u << " " << v << " " << w << std::endl;
+	} /* else {
+        std::cout << "or not..." << std::endl;
+    } */
 
     x -= Lx * std::floor(x/Lx);
     y -= Ly * std::floor(y/Ly);
@@ -129,9 +134,6 @@ double linear_interpolation_6d(double x, double y, double z,
     if(std::abs(z - Lz) < tol){
         z -= tol;
     }
-
-/*     std::cout << std::setprecision(16) << "After: " << x << " " << y << " " << z << " " << u << " " << v << " " << w << std::endl;
-    std::cout << std::setprecision(16) << "Lx = " << Lx << std::endl; */
 
     size_t x_ref_pos = std::floor(x/dx_r);
 	size_t y_ref_pos = std::floor(y/dy_r);
@@ -181,13 +183,10 @@ double linear_interpolation_6d(double x, double y, double z,
         size_t index_0 = index_x + (nx_r+1)*(index_y + (ny_r+1)*index_z);
         size_t index_1 = index_u + (nu_r+1)*(index_v + (nv_r+1)*index_w);
 
-        /* std::cout << index_x << " " << index_y << " " << index_z << " "
-                    << index_u << " " << index_v << " " << index_w << std::endl;
-        std::cout << "Debug " << index_0 << " / " << restart_matrix.n_rows << " " 
-                    << index_1 << " / " << restart_matrix.n_cols << std::endl; */
-
         value += factor * restart_matrix(index_0, index_1);
     }
+
+    //std::cout << "Inside linear_interpolation = " << x << " " << y << " " <<  z << " " << u << " " << v << " " << w << " " << value << std::endl;
 
     return value;
 }
@@ -1958,7 +1957,8 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned()
     std::cout << "Initialize restart matrices." << std::endl;
     size_t size_x_r = (nx_r+1)*(ny_r+1)*(nz_r+1);
     size_t size_v_r = (nu_r+1)*(nv_r+1)*(nw_r+1);
-    restart_matrix.resize(size_x_r, size_v_r);
+    //restart_matrix.resize(size_x_r, size_v_r);
+    restart_matrix = arma::mat(size_x_r, size_v_r, arma::fill::zeros);
     arma::mat copy_mat(size_x_r, size_v_r, arma::fill::zeros);
 
     // Set up config.
@@ -2154,7 +2154,7 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned()
         std::cout << "Time step " << n << " took a total of " << time_for_step << " s." << std::endl;
 
         do_stats<double,order>(nt_r_curr, 64, stat_file, coeffs_E, coeffs_B, conf, true, n);
-        if(n % (steps_per_1) == 0){
+        if(/* n % (steps_per_1) == 0 */ false){
             plot_f<double,order>(nt_r_curr,coeffs_E, coeffs_B, coeffs_j_hat, conf, true, n);
         }
         write_coeffs<double,order>(nt_r_curr, coeffs_E, coeffs_B, coeffs_j_hat, conf, 
@@ -2165,6 +2165,8 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned()
         if(nt_r_curr == nt_restart){
             timer.reset();
             std::cout << "Restart simulation. " << std::endl;
+            std::cout << "Min value restart_matrix " << restart_matrix.min() << std::endl;
+            std::cout << "Max value restart_matrix " << restart_matrix.max() << std::endl;
             // Compute first restart matrix.
             #pragma omp parallel for collapse(6)
             for(size_t ix = 0; ix <= nx_r; ix++)
@@ -2184,8 +2186,14 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned()
                 size_t index_0 = ix + (nx_r+1)*(iy + (ny_r+1)*iz);
                 size_t index_1 = iu + (nu_r+1)*(iv + (nv_r+1)*iw);
 
+
                 double f = eval_f_lie_fBE<double,order>(nt_r_curr, x, y, z, u, v, w, 
                                                     coeffs_E, coeffs_B, coeffs_j_hat, conf);
+                /* std::cout << "Pointer conf.f0 before eval_f_lie_fBE: " << reinterpret_cast<void*>(conf.f0) << std::endl;
+                std::cout << "Address of linear_interpolation_6d: " << reinterpret_cast<void*>(linear_interpolation_6d) << std::endl; */
+/*                 std::cout << "Min value restart_matrix " << restart_matrix.min() << std::endl;
+                std::cout << "Max value restart_matrix " << restart_matrix.max() << std::endl;
+                std::cout << f << std::endl; */
                 copy_mat(index_0,index_1) = f;
             }
             double timer_fill_restart_matrix = timer.elapsed();
@@ -2197,8 +2205,14 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned()
             timer.reset();
             std::cout << "Copying restart matrix took " << timer_copy_mat << " s." << std::endl;
 
-            std::ofstream restart_matrix_str("restart_matrix.txt");
+            std::cout << "After restart: " << std::endl;
+            std::cout << "Min value restart_matrix " << restart_matrix.min() << std::endl;
+            std::cout << "Max value restart_matrix " << restart_matrix.max() << std::endl;
+
+            /* std::ofstream restart_matrix_str("restart_matrix" + std::to_string(n*conf.dt) + ".txt");
             restart_matrix_str << restart_matrix << std::endl;
+            std::ofstream copy_matrix_str("copy_matrix" + std::to_string(n*conf.dt) + "txt");
+            copy_matrix_str << copy_mat << std::endl; */
 
             // Copy last entries of coeff vectors.
             #pragma omp parallel for collapse(2)
