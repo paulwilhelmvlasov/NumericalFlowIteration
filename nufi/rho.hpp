@@ -873,7 +873,6 @@ real eval_f_lie_fBE(size_t n, real x, real y, real z,
         x_vec -= conf.dt * v_vec;
     }
 
-    // Final return using f0 function
     return conf.f0(x_vec(0), x_vec(1), x_vec(2), v_vec(0), v_vec(1), v_vec(2));
 }
 

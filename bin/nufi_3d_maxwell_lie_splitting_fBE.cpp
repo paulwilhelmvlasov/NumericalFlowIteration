@@ -107,18 +107,11 @@ const double dw_r = (wmax - wmin) / nw_r;
 double linear_interpolation_6d(double x, double y, double z, 
                                 double u, double v, double w)
 {
-    /* std::cout << "Do I reach here?" << std::endl; */
     if( u >= umax || u <= umin 
         || v >= vmax || v <= vmin 
         || w >= wmax || w <= wmin){
-        /* std::cout << umin << " " << u << " " << umax << std::endl;
-        std::cout << vmin << " " << v << " " << vmax << std::endl; */
-        /* std::cout << wmin << " " << w << " " << wmax << std::endl;
-        std::cout << "...and then here?" << std::endl; */
 		return 0;
-	} /* else {
-        std::cout << "or not..." << std::endl;
-    } */
+	} 
 
     x -= Lx * std::floor(x/Lx);
     y -= Ly * std::floor(y/Ly);
@@ -185,8 +178,6 @@ double linear_interpolation_6d(double x, double y, double z,
 
         value += factor * restart_matrix(index_0, index_1);
     }
-
-    //std::cout << "Inside linear_interpolation = " << x << " " << y << " " <<  z << " " << u << " " << v << " " << w << " " << value << std::endl;
 
     return value;
 }
@@ -2189,11 +2180,6 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned()
 
                 double f = eval_f_lie_fBE<double,order>(nt_r_curr, x, y, z, u, v, w, 
                                                     coeffs_E, coeffs_B, coeffs_j_hat, conf);
-                /* std::cout << "Pointer conf.f0 before eval_f_lie_fBE: " << reinterpret_cast<void*>(conf.f0) << std::endl;
-                std::cout << "Address of linear_interpolation_6d: " << reinterpret_cast<void*>(linear_interpolation_6d) << std::endl; */
-/*                 std::cout << "Min value restart_matrix " << restart_matrix.min() << std::endl;
-                std::cout << "Max value restart_matrix " << restart_matrix.max() << std::endl;
-                std::cout << f << std::endl; */
                 copy_mat(index_0,index_1) = f;
             }
             double timer_fill_restart_matrix = timer.elapsed();
@@ -2208,11 +2194,6 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned()
             std::cout << "After restart: " << std::endl;
             std::cout << "Min value restart_matrix " << restart_matrix.min() << std::endl;
             std::cout << "Max value restart_matrix " << restart_matrix.max() << std::endl;
-
-            /* std::ofstream restart_matrix_str("restart_matrix" + std::to_string(n*conf.dt) + ".txt");
-            restart_matrix_str << restart_matrix << std::endl;
-            std::ofstream copy_matrix_str("copy_matrix" + std::to_string(n*conf.dt) + "txt");
-            copy_matrix_str << copy_mat << std::endl; */
 
             // Copy last entries of coeff vectors.
             #pragma omp parallel for collapse(2)
@@ -2235,9 +2216,10 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned()
                 &linear_interpolation_6d);
 
             nt_r_curr = 1;
-            double time_restart = timer.elapsed();
-            std::cout << "Restart took: " << time_restart << std::endl;
-            total_time += time_restart;
+            double timer_copy_coeff = timer.elapsed();
+            double timer_restart = timer_fill_restart_matrix + timer_copy_mat + timer_copy_coeff;
+            std::cout << "Restart took: " << timer_restart << std::endl;
+            total_time += timer_restart;
         } else {
             nt_r_curr++;
         }
