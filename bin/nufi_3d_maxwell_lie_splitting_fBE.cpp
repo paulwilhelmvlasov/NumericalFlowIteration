@@ -2033,19 +2033,6 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned()
     // Interpolate j_hat(0).
     std::cout << "Interpolate j_hat(0)." << std::endl;
     interpolate_fields_aligned<double,order>(0, coeffs_j_hat, j_hat, conf);
-/*
-    std::ofstream j_hat_str("j_hat_" + std::to_string(0*conf.dt) + ".txt");
-    for(size_t ix = 0; ix < conf.Nx; ix++){
-            double x = ix*conf.dx;
-            j_hat_str << x << " " << j_hat[ix]
-                                << " " << j_hat[ix + conf.Nx]
-                                << " " << j_hat[ix + 2*conf.Nx] << std::endl;
-    }
-
-    std::ofstream j_hat_plain_str("j_hat_plain_" + std::to_string(0*conf.dt) + ".txt");
-    for(size_t l = 0; l < j_hat.size(); l++){
-        j_hat_plain_str << j_hat[l] << std::endl;
-    }*/
     
     std::cout << "First output." << std::endl;
     std::ofstream stat_file( "stats.txt" );
@@ -2123,14 +2110,6 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned()
         double time_eval_j_hat = timer.elapsed();
         std::cout << "Eval j_hat took " << time_eval_j_hat << " s." << std::endl;
         timer.reset();
-/*
-        std::ofstream j_hat_str("j_hat_" + std::to_string(n*conf.dt) + ".txt");
-        for(size_t ix = 0; ix < conf.Nx; ix++){
-                double x = ix*conf.dx;
-                j_hat_str << x << " " << j_hat[ix]
-                                << " " << j_hat[ix + conf.Nx]
-                                << " " << j_hat[ix + 2*conf.Nx] << std::endl;
-        }*/
         
         // Interpolate j_hat(n).
         interpolate_fields_aligned<double,order>(nt_r_curr,coeffs_j_hat,j_hat,conf);

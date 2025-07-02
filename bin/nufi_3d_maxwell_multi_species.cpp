@@ -144,24 +144,12 @@ double linear_interpolation_6d(double x, double y, double z,
             return 0;
         }
 
-        x -= Lx * std::floor(x/Lx);
-        y -= Ly * std::floor(y/Ly);
-        z -= Lz * std::floor(z/Lz);
-
-        constexpr double tol = 1e-15;
-        if(std::abs(x - Lx) < tol){
-            x -= tol;
-        }
-        if(std::abs(y - Ly) < tol){
-            y -= tol;
-        }
-        if(std::abs(z - Lz) < tol){
-            z -= tol;
-        }
-
-        size_t x_ref_pos = std::floor(x/dx_r);
-        size_t y_ref_pos = std::floor(y/dy_r);
-        size_t z_ref_pos = std::floor(z/dz_r);
+        x = std::fmod(std::fmod(y, Ly) + Ly, Ly);
+        size_t x_ref_pos = std::min(static_cast<size_t>(std::floor(x / dx_r)), nx_r - 1);
+        y = std::fmod(std::fmod(y, Ly) + Ly, Ly);
+        size_t y_ref_pos = std::min(static_cast<size_t>(std::floor(y / dy_r)), ny_r - 1);
+        z = std::fmod(std::fmod(z, Lz) + Lz, Lz);
+        size_t z_ref_pos = std::min(static_cast<size_t>(std::floor(z / dz_r)), nz_r - 1);
 
         size_t u_ref_pos = std::floor((u-umin_e)/du_r_e);
         size_t v_ref_pos = std::floor((v-vmin_e)/dv_r_e);
@@ -218,24 +206,12 @@ double linear_interpolation_6d(double x, double y, double z,
             return 0;
         }
 
-        x -= Lx * std::floor(x/Lx);
-        y -= Ly * std::floor(y/Ly);
-        z -= Lz * std::floor(z/Lz);
-
-        constexpr double tol = 1e-15;
-        if(std::abs(x - Lx) < tol){
-            x -= tol;
-        }
-        if(std::abs(y - Ly) < tol){
-            y -= tol;
-        }
-        if(std::abs(z - Lz) < tol){
-            z -= tol;
-        }
-
-        size_t x_ref_pos = std::floor(x/dx_r);
-        size_t y_ref_pos = std::floor(y/dy_r);
-        size_t z_ref_pos = std::floor(z/dz_r);
+        x = std::fmod(std::fmod(y, Ly) + Ly, Ly);
+        size_t x_ref_pos = std::min(static_cast<size_t>(std::floor(x / dx_r)), nx_r - 1);
+        y = std::fmod(std::fmod(y, Ly) + Ly, Ly);
+        size_t y_ref_pos = std::min(static_cast<size_t>(std::floor(y / dy_r)), ny_r - 1);
+        z = std::fmod(std::fmod(z, Lz) + Lz, Lz);
+        size_t z_ref_pos = std::min(static_cast<size_t>(std::floor(z / dz_r)), nz_r - 1);
 
         size_t u_ref_pos = std::floor((u-umin_i)/du_r_i);
         size_t v_ref_pos = std::floor((v-vmin_i)/dv_r_i);
@@ -1198,18 +1174,21 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned_mpi()
         }
 
         // Compute j_hat(n).
+        std::cout << "Start j_elec compute: " << std::endl;
         eval_j_hat_adaptive_mpi<double,order,false>(nt_r_curr, j_hat_elec, coeffs_E, coeffs_B, coeffs_j_hat, conf_elec);
+        std::cout << "Start j_ion compute: " << std::endl;
         eval_j_hat_adaptive_mpi<double,order,false>(nt_r_curr, j_hat_ion, coeffs_E, coeffs_B, coeffs_j_hat, conf_ion);
+        std::cout << "Finished j compute: " << std::endl;
 
         #pragma omp parallel for
         for(size_t l = 0; l < j_hat.size(); l++){
             j_hat[l] = conf_ion.q * j_hat_ion[l] + conf_elec.q * j_hat_elec[l];
         }
 
-        /* std::ofstream j_n("j_" + std::to_string(n*dt) +  ".txt");
+        std::ofstream j_n("j_" + std::to_string(n*dt) +  ".txt");
         for(size_t i = 0; i < conf_elec.Nx; i++){
             j_n << i*conf_elec.dx << " " << j_hat_elec[i] << " " << j_hat_ion[i] << " " << j_hat[i] << std::endl;
-        } */
+        }
 
         if(mpi_rank == 0){
             time_eval_j_hat = timer.elapsed();
@@ -1266,7 +1245,8 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned_mpi()
                                 coeffs_B, coeffs_j_hat, conf_ion, full_copy_mat_ion,
                                 restart_matrix_i);                                
             
-
+            std::cout << "Restart_matrix electron " << restart_matrix_e.min() << " " << restart_matrix_e.max() << std::endl;
+            std::cout << "Restart_matrix ion " << restart_matrix_i.min() << " " << restart_matrix_i.max() << std::endl;
             double timer_fill_restart_matrix = timer.elapsed();
             timer.reset();
             if(mpi_rank == 0){
