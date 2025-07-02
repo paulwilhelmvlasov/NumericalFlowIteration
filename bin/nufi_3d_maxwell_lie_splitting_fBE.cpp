@@ -78,22 +78,22 @@ const double vmin = -0.85;
 const double vmax = 0.85;
 const double wmin = -0.01;
 const double wmax = 0.01; */
-const size_t Nx = 16;
+const size_t Nx = 64;
 const size_t Ny = 1;
 const size_t Nz = 1;
-const size_t Nu = 16;
-const size_t Nv = 16;
+const size_t Nu = 64;
+const size_t Nv = 64;
 const size_t Nw = 1;
 const size_t steps_per_1 = 200;
 const double   dt = 1.0 / steps_per_1;
-const size_t Nt = 20/dt;
+const size_t Nt = 100/dt;
 
-const size_t nx_r = 32;
+const size_t nx_r = 2*Nx;
 const size_t ny_r = 1;
 const size_t nz_r = 1;
-const size_t nu_r = 32;
-const size_t nv_r = 32;
-const size_t nw_r = 2; // With the current implementation this must be at least 2 (never 1)!
+const size_t nu_r = 2*Nu;
+const size_t nv_r = 2*Nv;
+const size_t nw_r = 2*Nw; // With the current implementation this must be at least 2 (never 1)!
 /* const */ size_t nt_restart = 20;
 
 const double dx_r = Lx / nx_r;
@@ -2033,7 +2033,7 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned()
     // Interpolate j_hat(0).
     std::cout << "Interpolate j_hat(0)." << std::endl;
     interpolate_fields_aligned<double,order>(0, coeffs_j_hat, j_hat, conf);
-
+/*
     std::ofstream j_hat_str("j_hat_" + std::to_string(0*conf.dt) + ".txt");
     for(size_t ix = 0; ix < conf.Nx; ix++){
             double x = ix*conf.dx;
@@ -2045,7 +2045,7 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned()
     std::ofstream j_hat_plain_str("j_hat_plain_" + std::to_string(0*conf.dt) + ".txt");
     for(size_t l = 0; l < j_hat.size(); l++){
         j_hat_plain_str << j_hat[l] << std::endl;
-    }
+    }*/
     
     std::cout << "First output." << std::endl;
     std::ofstream stat_file( "stats.txt" );
@@ -2123,14 +2123,14 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned()
         double time_eval_j_hat = timer.elapsed();
         std::cout << "Eval j_hat took " << time_eval_j_hat << " s." << std::endl;
         timer.reset();
-
+/*
         std::ofstream j_hat_str("j_hat_" + std::to_string(n*conf.dt) + ".txt");
         for(size_t ix = 0; ix < conf.Nx; ix++){
                 double x = ix*conf.dx;
                 j_hat_str << x << " " << j_hat[ix]
                                 << " " << j_hat[ix + conf.Nx]
                                 << " " << j_hat[ix + 2*conf.Nx] << std::endl;
-        }
+        }*/
         
         // Interpolate j_hat(n).
         interpolate_fields_aligned<double,order>(nt_r_curr,coeffs_j_hat,j_hat,conf);
