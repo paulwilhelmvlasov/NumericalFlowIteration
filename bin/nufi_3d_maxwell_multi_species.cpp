@@ -1185,10 +1185,11 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned_mpi()
             j_hat[l] = conf_ion.q * j_hat_ion[l] + conf_elec.q * j_hat_elec[l];
         }
 
+/*
         std::ofstream j_n("j_" + std::to_string(n*dt) +  ".txt");
         for(size_t i = 0; i < conf_elec.Nx; i++){
             j_n << i*conf_elec.dx << " " << j_hat_elec[i] << " " << j_hat_ion[i] << " " << j_hat[i] << std::endl;
-        }
+        }*/
 
         if(mpi_rank == 0){
             time_eval_j_hat = timer.elapsed();
