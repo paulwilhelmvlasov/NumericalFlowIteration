@@ -1182,11 +1182,8 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned_mpi()
         }
 
         // Compute j_hat(n).
-        std::cout << "Start j_elec compute: " << std::endl;
         eval_j_hat_adaptive_mpi<double,order,false>(nt_r_curr, j_hat_elec, coeffs_E, coeffs_B, coeffs_j_hat, conf_elec);
-        std::cout << "Start j_ion compute: " << std::endl;
         eval_j_hat_adaptive_mpi<double,order,false>(nt_r_curr, j_hat_ion, coeffs_E, coeffs_B, coeffs_j_hat, conf_ion);
-        std::cout << "Finished j compute: " << std::endl;
 
         #pragma omp parallel for
         for(size_t l = 0; l < j_hat.size(); l++){
@@ -1247,9 +1244,10 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned_mpi()
                                 nt_r_curr, du_r_i, dv_r_i, dw_r_i, coeffs_E, 
                                 coeffs_B, coeffs_j_hat, conf_ion, full_copy_mat_ion,
                                 restart_matrix_i);                                
-            
-            std::cout << "Restart_matrix electron " << restart_matrix_e.min() << " " << restart_matrix_e.max() << std::endl;
-            std::cout << "Restart_matrix ion " << restart_matrix_i.min() << " " << restart_matrix_i.max() << std::endl;
+            if(mpi_rank == 0){
+                std::cout << "Restart_matrix electron " << restart_matrix_e.min() << " " << restart_matrix_e.max() << std::endl;
+                std::cout << "Restart_matrix ion " << restart_matrix_i.min() << " " << restart_matrix_i.max() << std::endl;
+            }
             double timer_fill_restart_matrix = timer.elapsed();
             timer.reset();
             if(mpi_rank == 0){
@@ -1285,8 +1283,118 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned_mpi()
         }
     }
 
-    std::cout << "Total simulation time " << total_time << " s." << std::endl;
+    if(mpi_rank == 0){
+        std::cout << "Total simulation time " << total_time << " s." << std::endl;
+    }
 }
+
+template <typename real, size_t order>
+void read_in_coeff_and_plot_aligned()
+{
+    std::ifstream coeff_str_E("../coeffs_E.txt");
+    std::ifstream coeff_str_B("../coeffs_B.txt");
+    std::ifstream coeff_str_j_hat("../coeffs_j_hat.txt");
+
+    size_t stride_t = (Nx + order - 1) *
+                        (Ny + order - 1) *
+                        (Nz + order - 1);
+
+    const size_t Nx_ext = Nx + order - 1;
+    const size_t Ny_ext = Ny + order - 1;
+    const size_t Nz_ext = Nz + order - 1;
+    const size_t Nspace = Nx_ext * Ny_ext * Nz_ext;
+
+    std::vector<double> coeffs_E(3 * (Nt + 1) * stride_t, 0);
+    std::vector<double> coeffs_B(3 * (Nt + 1) * stride_t, 0);
+    std::vector<double> coeffs_j_hat(3 * (Nt + 1) * stride_t, 0);
+
+    std::cout << "Read in coeffs." << std::endl;
+
+    size_t end_n = 30*100;
+
+    for(size_t n = 0; n <= end_n; n++){
+        for(size_t ix = 0; ix < Nx; ix++)
+        for(size_t iy = 0; iy < Ny; iy++)
+        for(size_t iz = 0; iz < Nz; iz++)
+        {
+            coeff_str_E >> coeffs_E[idx_base(n,0,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,Nt)] 
+                        >> coeffs_E[idx_base(n,1,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,Nt)] 
+                        >> coeffs_E[idx_base(n,2,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,Nt)];
+        }
+            
+
+        for(size_t ix = 0; ix < Nx; ix++)
+        for(size_t iy = 0; iy < Ny; iy++)
+        for(size_t iz = 0; iz < Nz; iz++)
+        {
+            coeff_str_B >> coeffs_B[idx_base(n,0,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,Nt)]
+                         >> coeffs_B[idx_base(n,1,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,Nt)]
+                         >> coeffs_B[idx_base(n,2,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,Nt)];
+        }
+
+        for(size_t ix = 0; ix < Nx; ix++)
+        for(size_t iy = 0; iy < Ny; iy++)
+        for(size_t iz = 0; iz < Nz; iz++)
+        {
+            coeff_str_j_hat >> coeffs_j_hat[idx_base(n,0,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,Nt)]
+                            >> coeffs_j_hat[idx_base(n,1,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,Nt)]
+                            >> coeffs_j_hat[idx_base(n,2,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,Nt)];
+        }
+    }
+
+    std::cout << "Analyze data." << std::endl;
+
+    size_t n_plot = 128;
+    double dx_plot = Lx/n_plot;
+    double dy_plot = Ly/n_plot;
+    double dz_plot = Lz/n_plot;
+
+    for(size_t n = 0; n <= 65; n += 1){
+        plot_f<real,order,true,false>(n,coeffs_E,coeffs_B, coeffs_j_hat, conf_elec);
+        plot_f<real,order,false,false>(n,coeffs_E,coeffs_B, coeffs_j_hat, conf_ion);
+
+/*         std::ofstream Ex_str("Ex_" + std::to_string(n*conf.dt) + ".txt");
+        std::ofstream Ey_str("Ey_" + std::to_string(n*conf.dt) + ".txt");
+        std::ofstream Ez_str("Ez_" + std::to_string(n*conf.dt) + ".txt");
+        std::ofstream Bx_str("Bx_" + std::to_string(n*conf.dt) + ".txt");
+        std::ofstream By_str("By_" + std::to_string(n*conf.dt) + ".txt");
+        std::ofstream Bz_str("Bz_" + std::to_string(n*conf.dt) + ".txt"); */
+        std::ofstream j_u_str("j_u_" + std::to_string(n*dt) + ".txt");
+        std::ofstream j_v_str("j_v_" + std::to_string(n*dt) + ".txt");
+        std::ofstream j_w_str("j_w_" + std::to_string(n*dt) + ".txt");
+        for(size_t ix = 0; ix <= n_plot; ix++){
+            double x = ix * dx_plot;
+            double y = Ly / 2.0;
+            double z = Lz / 2.0;
+
+/*             double Ex = eval<real,order>(x,y,z,coeffs_E.data() + idx_base(n,0,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf);
+            double Ey = eval<real,order>(x,y,z,coeffs_E.data() + idx_base(n,1,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf);
+            double Ez = eval<real,order>(x,y,z,coeffs_E.data() + idx_base(n,2,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf);
+
+            double Bx = eval<real,order>(x,y,z,coeffs_B.data() + idx_base(n,0,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf);
+            double By = eval<real,order>(x,y,z,coeffs_B.data() + idx_base(n,1,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf);
+            double Bz = eval<real,order>(x,y,z,coeffs_B.data() + idx_base(n,2,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf); */
+
+            double j_u = eval<real,order>(x,y,z,coeffs_j_hat.data() + idx_base(n,0,0,0,0,Nx_ext,Ny_ext,Nz_ext,Nt),conf_elec);
+            double j_v = eval<real,order>(x,y,z,coeffs_j_hat.data() + idx_base(n,1,0,0,0,Nx_ext,Ny_ext,Nz_ext,Nt),conf_elec);
+            double j_w = eval<real,order>(x,y,z,coeffs_j_hat.data() + idx_base(n,2,0,0,0,Nx_ext,Ny_ext,Nz_ext,Nt),conf_elec);
+
+
+/*             Ex_str << x << " " << Ex << std::endl;
+            Ey_str << x << " " << Ey << std::endl;
+            Ez_str << x << " " << Ez << std::endl;
+
+            Bx_str << x << " " << Bx << std::endl;
+            By_str << x << " " << By << std::endl;
+            Bz_str << x << " " << Bz << std::endl; */
+
+            j_u_str << x << " " << j_u << std::endl;
+            j_v_str << x << " " << j_v << std::endl;
+            j_w_str << x << " " << j_w << std::endl;
+        }
+    }
+}
+
 
 
 }
@@ -1572,7 +1680,21 @@ int main(int argc, char** argv)
         std::cout << "max_depth_ion = " << nufi::dim3::max_depth_ion << std::endl;
     }
 
-    nufi::dim3::periodically_restarted_nufi_maxwell_lie_fBE_aligned_mpi<4>();
+    using namespace nufi::dim3;
+    conf_elec = config_t<double>(Nx, Ny, Nz, Nu_e, Nv_e, Nw_e, Nt, dt, 
+                            0, Lx, 0, Ly, 0, Lz, umin_e, umax_e, 
+                            vmin_e, vmax_e, wmin_e, wmax_e,
+                            &f0<double,true>,m_e,q_e,tol_refinement_electron,max_depth_electron);
+
+    conf_ion = config_t<double> (Nx, Ny, Nz, Nu_i, Nv_i, Nw_i, Nt, dt, 
+                            0, Lx, 0, Ly, 0, Lz, umin_i, umax_i, 
+                            vmin_i, vmax_i, wmin_i, wmax_i,
+                            &f0<double,false>,m_i,q_i,tol_refinement_ion,max_depth_ion);                  
+
+    if(mpi_rank == 0){
+        nufi::dim3::read_in_coeff_and_plot_aligned<double,4>();
+    }
+    //nufi::dim3::periodically_restarted_nufi_maxwell_lie_fBE_aligned_mpi<4>();
     MPI_Finalize();
 
     return 0;
