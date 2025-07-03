@@ -535,7 +535,7 @@ void do_stats(size_t nt, size_t nx_plot, std::ofstream& stat_file,
         current_time = nt * conf.dt;
     }
 
-    if(nt % (5*steps_per_1) == 0){
+    if(/* nt % (5*steps_per_1) == 0 */ true){
         std::ofstream Ex_str("Ex_" + std::to_string(current_time) + ".txt");
         std::ofstream Ey_str("Ey_" + std::to_string(current_time) + ".txt");
         std::ofstream Ez_str("Ez_" + std::to_string(current_time) + ".txt");
@@ -560,7 +560,7 @@ void do_stats(size_t nt, size_t nx_plot, std::ofstream& stat_file,
                     electric_energy += Ex*Ex + Ey*Ey + Ez*Ez;
                     magnetic_energy += Bx*Bx + By*By + Bz*Bz;
 
-                    if(iy == nx_plot/2 && iz == nx_plot/2 && (nt % 10 == 0)){
+                    if(iy == nx_plot/2 && iz == nx_plot/2){
                         Ex_str << x << " " << Ex << std::endl;
                         Ey_str << x << " " << Ey << std::endl;
                         Ez_str << x << " " << Ez << std::endl;
