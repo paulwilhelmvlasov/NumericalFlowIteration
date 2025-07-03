@@ -443,13 +443,21 @@ void do_stats(size_t nt, size_t nx_plot, std::ofstream& stat_file,
     double dz_plot = conf.Lz/nx_plot; 
     double electric_energy = 0;
     double magnetic_energy = 0;
+
+    double current_time = 0;
+    if(restarted){
+        current_time = n_full * conf.dt;
+    } else {
+        current_time = nt * conf.dt;
+    }
+
     if(nt % (5*steps_per_1) == 0){
-        std::ofstream Ex_str("Ex_" + std::to_string(nt*conf.dt) + ".txt"); // Naming does not take restart into account. Fix!
-        std::ofstream Ey_str("Ey_" + std::to_string(nt*conf.dt) + ".txt");
-        std::ofstream Ez_str("Ez_" + std::to_string(nt*conf.dt) + ".txt");
-        std::ofstream Bx_str("Bx_" + std::to_string(nt*conf.dt) + ".txt");
-        std::ofstream By_str("By_" + std::to_string(nt*conf.dt) + ".txt");
-        std::ofstream Bz_str("Bz_" + std::to_string(nt*conf.dt) + ".txt");
+        std::ofstream Ex_str("Ex_" + std::to_string(current_time) + ".txt");
+        std::ofstream Ey_str("Ey_" + std::to_string(current_time) + ".txt");
+        std::ofstream Ez_str("Ez_" + std::to_string(current_time) + ".txt");
+        std::ofstream Bx_str("Bx_" + std::to_string(current_time) + ".txt");
+        std::ofstream By_str("By_" + std::to_string(current_time) + ".txt");
+        std::ofstream Bz_str("Bz_" + std::to_string(current_time) + ".txt");
         for(size_t ix = 0; ix < nx_plot; ix++){
             for(size_t iy = 0; iy < nx_plot; iy++){
                 for(size_t iz = 0; iz < nx_plot; iz++){

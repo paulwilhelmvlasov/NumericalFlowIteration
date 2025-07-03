@@ -527,13 +527,21 @@ void do_stats(size_t nt, size_t nx_plot, std::ofstream& stat_file,
     double dz_plot = conf.Lz/nx_plot; 
     double electric_energy = 0;
     double magnetic_energy = 0;
+
+    double current_time = 0;
+    if(restarted){
+        current_time = n_full * conf.dt;
+    } else {
+        current_time = nt * conf.dt;
+    }
+
     if(nt % (5*steps_per_1) == 0){
-        std::ofstream Ex_str("Ex_" + std::to_string(nt*conf.dt) + ".txt"); // Naming does not take restart into account. Fix!
-        std::ofstream Ey_str("Ey_" + std::to_string(nt*conf.dt) + ".txt");
-        std::ofstream Ez_str("Ez_" + std::to_string(nt*conf.dt) + ".txt");
-        std::ofstream Bx_str("Bx_" + std::to_string(nt*conf.dt) + ".txt");
-        std::ofstream By_str("By_" + std::to_string(nt*conf.dt) + ".txt");
-        std::ofstream Bz_str("Bz_" + std::to_string(nt*conf.dt) + ".txt");
+        std::ofstream Ex_str("Ex_" + std::to_string(current_time) + ".txt");
+        std::ofstream Ey_str("Ey_" + std::to_string(current_time) + ".txt");
+        std::ofstream Ez_str("Ez_" + std::to_string(current_time) + ".txt");
+        std::ofstream Bx_str("Bx_" + std::to_string(current_time) + ".txt");
+        std::ofstream By_str("By_" + std::to_string(current_time) + ".txt");
+        std::ofstream Bz_str("Bz_" + std::to_string(current_time) + ".txt");
         for(size_t ix = 0; ix < nx_plot; ix++){
             for(size_t iy = 0; iy < nx_plot; iy++){
                 for(size_t iz = 0; iz < nx_plot; iz++){
@@ -1184,12 +1192,6 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned_mpi()
         for(size_t l = 0; l < j_hat.size(); l++){
             j_hat[l] = conf_ion.q * j_hat_ion[l] + conf_elec.q * j_hat_elec[l];
         }
-
-/*
-        std::ofstream j_n("j_" + std::to_string(n*dt) +  ".txt");
-        for(size_t i = 0; i < conf_elec.Nx; i++){
-            j_n << i*conf_elec.dx << " " << j_hat_elec[i] << " " << j_hat_ion[i] << " " << j_hat[i] << std::endl;
-        }*/
 
         if(mpi_rank == 0){
             time_eval_j_hat = timer.elapsed();
