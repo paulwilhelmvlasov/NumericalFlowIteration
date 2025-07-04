@@ -151,9 +151,13 @@ double linear_interpolation_6d(double x, double y, double z,
         z = std::fmod(std::fmod(z, Lz) + Lz, Lz);
         size_t z_ref_pos = std::min(static_cast<size_t>(std::floor(z / dz_r)), nz_r - 1);
 
-        size_t u_ref_pos = std::floor((u-umin_e)/du_r_e);
+/*         size_t u_ref_pos = std::floor((u-umin_e)/du_r_e);
         size_t v_ref_pos = std::floor((v-vmin_e)/dv_r_e);
-        size_t w_ref_pos = std::floor((w-wmin_e)/dw_r_e);
+        size_t w_ref_pos = std::floor((w-wmin_e)/dw_r_e); */
+
+        size_t u_ref_pos = std::min(static_cast<size_t>(std::floor(u-umin_e)/du_r_e), nu_r_e - 1);
+        size_t v_ref_pos = std::min(static_cast<size_t>(std::floor(v-vmin_e)/dv_r_e), nv_r_e - 1);
+        size_t w_ref_pos = std::min(static_cast<size_t>(std::floor(w-wmin_e)/dw_r_e), nw_r_e - 1);
 
 
         double x0 = x_ref_pos*dx_r;
@@ -213,9 +217,13 @@ double linear_interpolation_6d(double x, double y, double z,
         z = std::fmod(std::fmod(z, Lz) + Lz, Lz);
         size_t z_ref_pos = std::min(static_cast<size_t>(std::floor(z / dz_r)), nz_r - 1);
 
-        size_t u_ref_pos = std::floor((u-umin_i)/du_r_i);
+/*         size_t u_ref_pos = std::floor((u-umin_i)/du_r_i);
         size_t v_ref_pos = std::floor((v-vmin_i)/dv_r_i);
-        size_t w_ref_pos = std::floor((w-wmin_i)/dw_r_i);
+        size_t w_ref_pos = std::floor((w-wmin_i)/dw_r_i); */
+
+        size_t u_ref_pos = std::min(static_cast<size_t>(std::floor(u-umin_i)/du_r_i), nu_r_i - 1);
+        size_t v_ref_pos = std::min(static_cast<size_t>(std::floor(v-vmin_i)/dv_r_i), nv_r_i - 1);
+        size_t w_ref_pos = std::min(static_cast<size_t>(std::floor(w-wmin_i)/dw_r_i), nw_r_i - 1);
 
 
         double x0 = x_ref_pos*dx_r;
@@ -899,7 +907,7 @@ void compute_restart_matrix(size_t nx_r, size_t ny_r, size_t nz_r, size_t nu_r, 
                     nt_r_curr, x,y,z, u,v,w,
                     coeffs_E, coeffs_B, coeffs_j_hat, conf);
         
-                // Armadillo expects column-major:
+        // Armadillo expects column-major:
         local_mat[lx + lv * count] = f;
     }
 
@@ -924,12 +932,6 @@ void compute_restart_matrix(size_t nx_r, size_t ny_r, size_t nz_r, size_t nu_r, 
         MPI_DOUBLE,
         MPI_COMM_WORLD
     );
-
-/*     // 6) Copy into your Armadillo matrix or whatever container
-    restart_matrix = arma::Mat<double>(full_copy_mat.data(), 
-                                X_total,    // rows
-                                V_total,    // cols
-                                true // copy_aux_mem ); */
 }
 
 
