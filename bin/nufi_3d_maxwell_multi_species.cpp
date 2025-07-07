@@ -24,9 +24,6 @@ namespace dim3
 arma::mat restart_matrix_e;
 arma::mat restart_matrix_i;
 
-std::vector<double> full_copy_mat_elec;
-std::vector<double> full_copy_mat_ion;
-
 // Careful: We always assume x_min = 0 in this implementation!
 double Lx = 2*M_PI;
 double Ly = Lx;
@@ -138,26 +135,28 @@ double linear_interpolation_6d(double x, double y, double z,
                                 double u, double v, double w)
 {
     if(is_electron){    
-        if( u >= umax_e || u <= umin_e 
+        /* if( u >= umax_e || u <= umin_e 
             || v >= vmax_e || v <= vmin_e 
             || w >= wmax_e || w <= wmin_e){
             return 0;
+        } */
+
+        if( u > umax_e || u < umin_e 
+            || v > vmax_e || v < vmin_e 
+            || w > wmax_e || w < wmin_e){
+            return 0;
         }
 
-        x = std::fmod(std::fmod(y, Ly) + Ly, Ly);
+        x = std::fmod(std::fmod(x, Lx) + Lx, Lx);
         size_t x_ref_pos = std::min(static_cast<size_t>(std::floor(x / dx_r)), nx_r - 1);
         y = std::fmod(std::fmod(y, Ly) + Ly, Ly);
         size_t y_ref_pos = std::min(static_cast<size_t>(std::floor(y / dy_r)), ny_r - 1);
         z = std::fmod(std::fmod(z, Lz) + Lz, Lz);
         size_t z_ref_pos = std::min(static_cast<size_t>(std::floor(z / dz_r)), nz_r - 1);
 
-/*         size_t u_ref_pos = std::floor((u-umin_e)/du_r_e);
-        size_t v_ref_pos = std::floor((v-vmin_e)/dv_r_e);
-        size_t w_ref_pos = std::floor((w-wmin_e)/dw_r_e); */
-
-        size_t u_ref_pos = std::min(static_cast<size_t>(std::floor(u-umin_e)/du_r_e), nu_r_e - 1);
-        size_t v_ref_pos = std::min(static_cast<size_t>(std::floor(v-vmin_e)/dv_r_e), nv_r_e - 1);
-        size_t w_ref_pos = std::min(static_cast<size_t>(std::floor(w-wmin_e)/dw_r_e), nw_r_e - 1);
+        size_t u_ref_pos = std::min(static_cast<size_t>(std::floor((u-umin_e)/du_r_e)), nu_r_e - 1);
+        size_t v_ref_pos = std::min(static_cast<size_t>(std::floor((v-vmin_e)/dv_r_e)), nv_r_e - 1);
+        size_t w_ref_pos = std::min(static_cast<size_t>(std::floor((w-wmin_e)/dw_r_e)), nw_r_e - 1);
 
 
         double x0 = x_ref_pos*dx_r;
@@ -166,7 +165,6 @@ double linear_interpolation_6d(double x, double y, double z,
         double u0 = umin_e + u_ref_pos*du_r_e;    
         double v0 = vmin_e + v_ref_pos*dv_r_e;    
         double w0 = wmin_e + w_ref_pos*dw_r_e;    
-
 
         double w_x = (x - x0)/dx_r;
         double w_y = (y - y0)/dy_r;
@@ -204,26 +202,29 @@ double linear_interpolation_6d(double x, double y, double z,
 
         return value;
     } else {
-        if( u >= umax_i || u <= umin_i 
+        /* if( u >= umax_i || u <= umin_i 
             || v >= vmax_i || v <= vmin_i 
             || w >= wmax_i || w <= wmin_i){
             return 0;
+        } */
+
+        if( u > umax_i || u < umin_i 
+            || v > vmax_i || v < vmin_i 
+            || w > wmax_i || w < wmin_i){
+            return 0;
         }
 
-        x = std::fmod(std::fmod(y, Ly) + Ly, Ly);
+        x = std::fmod(std::fmod(x, Lx) + Lx, Lx);
         size_t x_ref_pos = std::min(static_cast<size_t>(std::floor(x / dx_r)), nx_r - 1);
         y = std::fmod(std::fmod(y, Ly) + Ly, Ly);
         size_t y_ref_pos = std::min(static_cast<size_t>(std::floor(y / dy_r)), ny_r - 1);
         z = std::fmod(std::fmod(z, Lz) + Lz, Lz);
         size_t z_ref_pos = std::min(static_cast<size_t>(std::floor(z / dz_r)), nz_r - 1);
 
-/*         size_t u_ref_pos = std::floor((u-umin_i)/du_r_i);
-        size_t v_ref_pos = std::floor((v-vmin_i)/dv_r_i);
-        size_t w_ref_pos = std::floor((w-wmin_i)/dw_r_i); */
 
-        size_t u_ref_pos = std::min(static_cast<size_t>(std::floor(u-umin_i)/du_r_i), nu_r_i - 1);
-        size_t v_ref_pos = std::min(static_cast<size_t>(std::floor(v-vmin_i)/dv_r_i), nv_r_i - 1);
-        size_t w_ref_pos = std::min(static_cast<size_t>(std::floor(w-wmin_i)/dw_r_i), nw_r_i - 1);
+        size_t u_ref_pos = std::min(static_cast<size_t>(std::floor((u-umin_i)/du_r_i)), nu_r_i - 1);
+        size_t v_ref_pos = std::min(static_cast<size_t>(std::floor((v-vmin_i)/dv_r_i)), nv_r_i - 1);
+        size_t w_ref_pos = std::min(static_cast<size_t>(std::floor((w-wmin_i)/dw_r_i)), nw_r_i - 1);
 
 
         double x0 = x_ref_pos*dx_r;
@@ -418,7 +419,7 @@ std::vector<double> generateRandomSmoothFunction(double L, int N, int num_points
 template <typename real>
 arma::Col<real> B0(real x, real y, real z)
 {
-    real k = 0.5;
+/*     real k = 0.5;
     real alpha = 1e-2;
     real beta = 0.00270; // From Luca's paper (taken from PSP measurements).
 
@@ -426,7 +427,11 @@ arma::Col<real> B0(real x, real y, real z)
                 beta*( 1 + alpha*std::sin(2*M_PI*x/(k*Lx))), 
                 0, 
                 0, 
-            }); 
+            });  */
+
+    // Magnetic Two Stream Instability by Einkemmer.
+    constexpr real alpha = 1e-3;
+    return arma::Col<real>({0, 0, alpha*std::sin(x)});
 }
 
 template <typename real, size_t order>
@@ -852,88 +857,147 @@ config_t<double> conf_ion(Nx, Ny, Nz, Nu_i, Nv_i, Nw_i, Nt, dt,
                             vmin_i, vmax_i, wmin_i, wmax_i,
                             &f0<double,false>,m_i,q_i,tol_refinement_ion,max_depth_ion);                  
 
+template<size_t order, bool single_species = true>
+void compute_restart_matrix_no_mpi(size_t nx_r, size_t ny_r, size_t nz_r,
+                            size_t nu_r, size_t nv_r, size_t nw_r,
+                            size_t nt_r_curr,
+                            double du_r, double dv_r, double dw_r,
+                            const std::vector<double>& coeffs_E,
+                            const std::vector<double>& coeffs_B,
+                            const std::vector<double>& coeffs_j_hat,
+                            const config_t<double>& conf,
+                            arma::mat& restart_matrix)
+{
+    arma::mat copy_mat(restart_matrix.n_rows,restart_matrix.n_cols,arma::fill::zeros);
+
+    std::cout << "Restart simulation. " << std::endl;
+    std::cout << "Min value restart_matrix " << restart_matrix.min() << std::endl;
+    std::cout << "Max value restart_matrix " << restart_matrix.max() << std::endl;
+    // Compute first restart matrix.
+    #pragma omp parallel for collapse(6)
+    for(size_t ix = 0; ix <= nx_r; ix++)
+    for(size_t iy = 0; iy <= ny_r; iy++)
+    for(size_t iz = 0; iz <= nz_r; iz++)
+    for(size_t iu = 0; iu <= nu_r; iu++)
+    for(size_t iv = 0; iv <= nv_r; iv++)
+    for(size_t iw = 0; iw <= nw_r; iw++){
+        double x = conf.x_min + ix*dx_r;
+        double y = conf.y_min + iy*dy_r;
+        double z = conf.z_min + iz*dz_r;
+
+        double u = conf.u_min + iu*du_r;
+        double v = conf.v_min + iv*dv_r;
+        double w = conf.w_min + iw*dw_r;
+
+        size_t index_0 = ix + (nx_r+1)*(iy + (ny_r+1)*iz);
+        size_t index_1 = iu + (nu_r+1)*(iv + (nv_r+1)*iw);
+
+
+        double f = eval_f_lie_fBE<double,order>(nt_r_curr, x, y, z, u, v, w, 
+                                                    coeffs_E, coeffs_B, coeffs_j_hat, conf);
+        copy_mat(index_0,index_1) = f;
+    }
+
+    restart_matrix = copy_mat;
+    std::cout << "After restart: " << std::endl;
+    std::cout << "Min value restart_matrix " << restart_matrix.min() << std::endl;
+    std::cout << "Max value restart_matrix " << restart_matrix.max() << std::endl;
+}
+
 
 template<size_t order, bool single_species = true>
-void compute_restart_matrix(size_t nx_r, size_t ny_r, size_t nz_r, size_t nu_r, size_t nv_r, 
-                            size_t nw_r, size_t nt_r_curr, double du_r, double dv_r, double dw_r, 
-                            const std::vector<double>& coeffs_E, const std::vector<double>& coeffs_B, 
-                            const std::vector<double>& coeffs_j_hat,  const config_t<double>& conf, 
-                            std::vector<double> &full_copy_mat, arma::mat& restart_matrix
-                        )
+void compute_restart_matrix(size_t nx_r, size_t ny_r, size_t nz_r,
+                            size_t nu_r, size_t nv_r, size_t nw_r,
+                            size_t nt_r_curr,
+                            double du_r, double dv_r, double dw_r,
+                            const std::vector<double>& coeffs_E,
+                            const std::vector<double>& coeffs_B,
+                            const std::vector<double>& coeffs_j_hat,
+                            const config_t<double>& conf,
+                            arma::mat& restart_matrix)
 {
     int mpi_rank, mpi_size;
     MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
     MPI_Comm_size(MPI_COMM_WORLD, &mpi_size);
 
-    // 1) compute how many spatial “rows” each rank owns
-    size_t Nx_r = nx_r+1, Ny_r = ny_r+1, Nz_r = nz_r+1;
+    // Dimensions of the restart matrix
+    size_t Nx_r    = nx_r + 1;
+    size_t Ny_r    = ny_r + 1;
+    size_t Nz_r    = nz_r + 1;
     size_t X_total = Nx_r * Ny_r * Nz_r;
-    size_t V_total = (nu_r+1) * (nv_r+1) * (nw_r+1);
+    size_t V_total = (nu_r + 1) * (nv_r + 1) * (nw_r + 1);
+
+    // How many spatial rows per rank
     size_t base = X_total / mpi_size;
     size_t rem  = X_total % mpi_size;
     size_t start = mpi_rank * base + std::min<size_t>(mpi_rank, rem);
     size_t count = base + (mpi_rank < rem ? 1 : 0);
 
-    // 2) allocate a local buffer for your rows × all V
+    // Allocate local buffer: rows × all-velocity
     std::vector<double> local_mat(count * V_total);
 
-    // 3) fill local_mat
+    // Fill local_mat: column-major relative to (row, col) = (lx, lv)
     #pragma omp parallel for
     for (size_t idx = 0; idx < count * V_total; ++idx) {
-        size_t lx = idx / V_total;
-        size_t lv = idx % V_total;
-        
+        size_t lx = idx / V_total;      // local row
+        size_t lv = idx % V_total;      // column
+
+        // Decode global spatial index
         size_t global_x = start + lx;
-        size_t plane = Nx_r * Ny_r;
-        size_t iz    = global_x / plane;
-        size_t rem1  = global_x % plane;
-        size_t iy    = rem1 / Nx_r;
-        size_t ix    = rem1 % Nx_r;
-        
+        size_t plane    = Nx_r * Ny_r;
+        size_t iz       = global_x / plane;
+        size_t rem1     = global_x % plane;
+        size_t iy       = rem1 / Nx_r;
+        size_t ix       = rem1 % Nx_r;
+
+        // Decode velocity indices
         size_t plane_v = (nu_r+1)*(nv_r+1);
-        size_t iw = lv / plane_v;
-        size_t rem2 = lv % plane_v;
-        size_t iv = rem2 / (nu_r+1);
-        size_t iu = rem2 % (nu_r+1);
-        
-        double x = conf.x_min + ix*dx_r,
-                y = conf.y_min + iy*dy_r,
-                z = conf.z_min + iz*dz_r;
-        double u = conf.u_min + iu*du_r,
-                v = conf.v_min + iv*dv_r,
-                w = conf.w_min + iw*dw_r;
-        
+        size_t iw      = lv / plane_v;
+        size_t rem2    = lv % plane_v;
+        size_t iv      = rem2 / (nu_r+1);
+        size_t iu      = rem2 % (nu_r+1);
+
+        // Physical coords
+        double x = conf.x_min + ix * dx_r;
+        double y = conf.y_min + iy * dy_r;
+        double z = conf.z_min + iz * dz_r;
+        double u = conf.u_min + iu * du_r;
+        double v = conf.v_min + iv * dv_r;
+        double w = conf.w_min + iw * dw_r;
+
+        // Evaluate f at that point
         double f = eval_f_lie_fBE<double,order,single_species>(
-                    nt_r_curr, x,y,z, u,v,w,
-                    coeffs_E, coeffs_B, coeffs_j_hat, conf);
-        
-        // Armadillo expects column-major:
+                      nt_r_curr, x,y,z, u,v,w,
+                      coeffs_E, coeffs_B, coeffs_j_hat, conf);
+
+        // Store in column-major layout
         local_mat[lx + lv * count] = f;
     }
 
-    // 4) prepare for the gather on rank 0
-    std::vector<int> recvcounts(mpi_size), displs(mpi_size);
+    // Prepare per-rank row counts and displacements (in rows)
+    std::vector<int> counts_rows(mpi_size), displs_rows(mpi_size);
     for (int r = 0; r < mpi_size; ++r) {
-        size_t rstart = r*base + std::min<size_t>(r,rem);
+        size_t rstart = r * base + std::min<size_t>(r, rem);
         size_t rcnt   = base + (r < rem ? 1 : 0);
-        recvcounts[r] = rcnt * V_total;
-        displs[r]     = rstart * V_total;
+        counts_rows[r] = static_cast<int>(rcnt);
+        displs_rows[r] = static_cast<int>(rstart);
     }
 
-    // 5) All‐gather into copy_mat
-    MPI_Allgatherv(
-        local_mat.data(),          // sendbuf
-        count * V_total,           // sendcount
-        MPI_DOUBLE,
-        restart_matrix.memptr(),   // recvbuf (all ranks)
-        /* full_copy_mat.data(), */           // recvbuf (all ranks)
-        recvcounts.data(),         // recvcounts
-        displs.data(),             // displacements
-        MPI_DOUBLE,
-        MPI_COMM_WORLD
-    );
+    // Gather **each column** separately into the column-major Armadillo buffer
+    double* colptr = restart_matrix.memptr();
+    for (size_t col = 0; col < V_total; ++col) {
+        MPI_Allgatherv(
+            /* sendbuf    */ local_mat.data() + col * count,
+            /* sendcount  */ static_cast<int>(count),
+            /* sendtype   */ MPI_DOUBLE,
+            /* recvbuf    */ colptr   + col * X_total,
+            /* recvcounts */ counts_rows.data(),
+            /* displs     */ displs_rows.data(),
+            /* recvtype   */ MPI_DOUBLE,
+            /* comm       */ MPI_COMM_WORLD
+        );
+    }
 }
-
 
 template<size_t order>
 void periodically_restarted_nufi_maxwell_lie_fBE_aligned_mpi()
@@ -998,8 +1062,6 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned_mpi()
 
     restart_matrix_e.resize(X_total, V_total_e);
     restart_matrix_i.resize(X_total, V_total_i);
-/*     full_copy_mat_elec.resize(X_total * V_total_e, 0);
-    full_copy_mat_ion.resize(X_total * V_total_i, 0); */
 
     // Set up config.
     conf_elec = config_t<double>(Nx, Ny, Nz, Nu_e, Nv_e, Nw_e, Nt, dt, 
@@ -1073,9 +1135,11 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned_mpi()
         j_hat[l] = conf_ion.q * j_hat_ion[l] + conf_elec.q * j_hat_elec[l];
     }
 
-    std::ofstream j_0("j_" + std::to_string(0*dt) +  ".txt");
-    for(size_t i = 0; i < conf_elec.Nx; i++){
-        j_0 << i*conf_elec.dx << " " << j_hat_elec[i] << " " << j_hat_ion[i] << " " << j_hat[i] << std::endl;
+    if(mpi_rank == 0){
+        std::ofstream j_0("j_" + std::to_string(0*dt) +  ".txt");
+        for(size_t i = 0; i < conf_elec.Nx; i++){
+            j_0 << i*conf_elec.dx << " " << j_hat_elec[i] << " " << j_hat_ion[i] << " " << j_hat[i] << std::endl;
+        }
     }
 
     // Interpolate j_hat(0).
@@ -1184,12 +1248,24 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned_mpi()
         }
 
         // Compute j_hat(n).
-        eval_j_hat_adaptive_mpi<double,order,false>(nt_r_curr, j_hat_elec, coeffs_E, coeffs_B, coeffs_j_hat, conf_elec);
-        eval_j_hat_adaptive_mpi<double,order,false>(nt_r_curr, j_hat_ion, coeffs_E, coeffs_B, coeffs_j_hat, conf_ion);
+        /* eval_j_hat_adaptive_mpi<double,order,false>(nt_r_curr, j_hat_elec, coeffs_E, coeffs_B, coeffs_j_hat, conf_elec);
+        eval_j_hat_adaptive_mpi<double,order,false>(nt_r_curr, j_hat_ion, coeffs_E, coeffs_B, coeffs_j_hat, conf_ion); */
+        /* eval_j_hat<double,order,false>(nt_r_curr, j_hat_elec, coeffs_E, coeffs_B, coeffs_j_hat, conf_elec);
+        eval_j_hat<double,order,false>(nt_r_curr, j_hat_ion, coeffs_E, coeffs_B, coeffs_j_hat, conf_ion); */
+
+        eval_j_hat_adaptive<double,order,false>(nt_r_curr, j_hat_elec, coeffs_E, coeffs_B, coeffs_j_hat, conf_elec);
+        eval_j_hat_adaptive<double,order,false>(nt_r_curr, j_hat_ion, coeffs_E, coeffs_B, coeffs_j_hat, conf_ion);
 
         #pragma omp parallel for
         for(size_t l = 0; l < j_hat.size(); l++){
             j_hat[l] = conf_ion.q * j_hat_ion[l] + conf_elec.q * j_hat_elec[l];
+        }
+
+        if(mpi_rank == 0){
+            std::ofstream j_n("j_" + std::to_string(n*dt) +  ".txt");
+            for(size_t i = 0; i < conf_elec.Nx; i++){
+                j_n << i*conf_elec.dx << " " << j_hat_elec[i] << " " << j_hat_ion[i] << " " << j_hat[i] << std::endl;
+            }
         }
 
         if(mpi_rank == 0){
@@ -1238,14 +1314,19 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned_mpi()
                 std::cout << "Restart simulation. " << std::endl;
             }
 
-            compute_restart_matrix<order,false>(nx_r, ny_r, nz_r, nu_r_e, nv_r_e, nw_r_e,
+/*             compute_restart_matrix<order,false>(nx_r, ny_r, nz_r, nu_r_e, nv_r_e, nw_r_e,
                                 nt_r_curr, du_r_e, dv_r_e, dw_r_e, coeffs_E, 
-                                coeffs_B, coeffs_j_hat, conf_elec, full_copy_mat_elec,
-                                restart_matrix_e);
+                                coeffs_B, coeffs_j_hat, conf_elec, restart_matrix_e);
             compute_restart_matrix<order,false>(nx_r, ny_r, nz_r, nu_r_i, nv_r_i, nw_r_i,
                                 nt_r_curr, du_r_i, dv_r_i, dw_r_i, coeffs_E, 
-                                coeffs_B, coeffs_j_hat, conf_ion, full_copy_mat_ion,
-                                restart_matrix_i);                                
+                                coeffs_B, coeffs_j_hat, conf_ion, restart_matrix_i);  */                               
+
+            compute_restart_matrix_no_mpi<order,false>(nx_r, ny_r, nz_r, nu_r_e, nv_r_e, nw_r_e,
+                                nt_r_curr, du_r_e, dv_r_e, dw_r_e, coeffs_E, 
+                                coeffs_B, coeffs_j_hat, conf_elec, restart_matrix_e);
+            compute_restart_matrix_no_mpi<order,false>(nx_r, ny_r, nz_r, nu_r_i, nv_r_i, nw_r_i,
+                                nt_r_curr, du_r_i, dv_r_i, dw_r_i, coeffs_E, 
+                                coeffs_B, coeffs_j_hat, conf_ion, restart_matrix_i);                                 
             if(mpi_rank == 0){
                 std::cout << "Restart_matrix electron " << restart_matrix_e.min() << " " << restart_matrix_e.max() << std::endl;
                 std::cout << "Restart_matrix ion " << restart_matrix_i.min() << " " << restart_matrix_i.max() << std::endl;
@@ -1293,9 +1374,9 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned_mpi()
 template <typename real, size_t order>
 void read_in_coeff_and_plot_aligned()
 {
-    std::ifstream coeff_str_E("../coeffs_E.txt");
-    std::ifstream coeff_str_B("../coeffs_B.txt");
-    std::ifstream coeff_str_j_hat("../coeffs_j_hat.txt");
+    std::ifstream coeff_str_E("coeffs_E.txt");
+    std::ifstream coeff_str_B("coeffs_B.txt");
+    std::ifstream coeff_str_j_hat("coeffs_j_hat.txt");
 
     size_t stride_t = (Nx + order - 1) *
                         (Ny + order - 1) *
@@ -1309,6 +1390,10 @@ void read_in_coeff_and_plot_aligned()
     std::vector<double> coeffs_E(3 * (Nt + 1) * stride_t, 0);
     std::vector<double> coeffs_B(3 * (Nt + 1) * stride_t, 0);
     std::vector<double> coeffs_j_hat(3 * (Nt + 1) * stride_t, 0);
+
+    std::vector<double> coeffs_E_restart(3 * (Nt + 1) * stride_t, 0);
+    std::vector<double> coeffs_B_restart(3 * (Nt + 1) * stride_t, 0);
+    std::vector<double> coeffs_j_hat_restart(3 * (Nt + 1) * stride_t, 0);
 
     std::cout << "Read in coeffs." << std::endl;
 
@@ -1351,16 +1436,16 @@ void read_in_coeff_and_plot_aligned()
     double dy_plot = Ly/n_plot;
     double dz_plot = Lz/n_plot;
 
-    for(size_t n = 0; n <= 65; n += 1){
+    /* for(size_t n = 0; n <= 5; n += 1){
         plot_f<real,order,true,false>(n,coeffs_E,coeffs_B, coeffs_j_hat, conf_elec);
         plot_f<real,order,false,false>(n,coeffs_E,coeffs_B, coeffs_j_hat, conf_ion);
 
-/*         std::ofstream Ex_str("Ex_" + std::to_string(n*conf.dt) + ".txt");
+        std::ofstream Ex_str("Ex_" + std::to_string(n*conf.dt) + ".txt");
         std::ofstream Ey_str("Ey_" + std::to_string(n*conf.dt) + ".txt");
         std::ofstream Ez_str("Ez_" + std::to_string(n*conf.dt) + ".txt");
         std::ofstream Bx_str("Bx_" + std::to_string(n*conf.dt) + ".txt");
         std::ofstream By_str("By_" + std::to_string(n*conf.dt) + ".txt");
-        std::ofstream Bz_str("Bz_" + std::to_string(n*conf.dt) + ".txt"); */
+        std::ofstream Bz_str("Bz_" + std::to_string(n*conf.dt) + ".txt");
         std::ofstream j_u_str("j_u_" + std::to_string(n*dt) + ".txt");
         std::ofstream j_v_str("j_v_" + std::to_string(n*dt) + ".txt");
         std::ofstream j_w_str("j_w_" + std::to_string(n*dt) + ".txt");
@@ -1369,32 +1454,198 @@ void read_in_coeff_and_plot_aligned()
             double y = Ly / 2.0;
             double z = Lz / 2.0;
 
-/*             double Ex = eval<real,order>(x,y,z,coeffs_E.data() + idx_base(n,0,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf);
+            double Ex = eval<real,order>(x,y,z,coeffs_E.data() + idx_base(n,0,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf);
             double Ey = eval<real,order>(x,y,z,coeffs_E.data() + idx_base(n,1,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf);
             double Ez = eval<real,order>(x,y,z,coeffs_E.data() + idx_base(n,2,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf);
 
             double Bx = eval<real,order>(x,y,z,coeffs_B.data() + idx_base(n,0,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf);
             double By = eval<real,order>(x,y,z,coeffs_B.data() + idx_base(n,1,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf);
-            double Bz = eval<real,order>(x,y,z,coeffs_B.data() + idx_base(n,2,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf); */
+            double Bz = eval<real,order>(x,y,z,coeffs_B.data() + idx_base(n,2,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf);
 
             double j_u = eval<real,order>(x,y,z,coeffs_j_hat.data() + idx_base(n,0,0,0,0,Nx_ext,Ny_ext,Nz_ext,Nt),conf_elec);
             double j_v = eval<real,order>(x,y,z,coeffs_j_hat.data() + idx_base(n,1,0,0,0,Nx_ext,Ny_ext,Nz_ext,Nt),conf_elec);
             double j_w = eval<real,order>(x,y,z,coeffs_j_hat.data() + idx_base(n,2,0,0,0,Nx_ext,Ny_ext,Nz_ext,Nt),conf_elec);
 
 
-/*             Ex_str << x << " " << Ex << std::endl;
+            Ex_str << x << " " << Ex << std::endl;
             Ey_str << x << " " << Ey << std::endl;
             Ez_str << x << " " << Ez << std::endl;
 
             Bx_str << x << " " << Bx << std::endl;
             By_str << x << " " << By << std::endl;
-            Bz_str << x << " " << Bz << std::endl; */
+            Bz_str << x << " " << Bz << std::endl;
 
             j_u_str << x << " " << j_u << std::endl;
             j_v_str << x << " " << j_v << std::endl;
             j_w_str << x << " " << j_w << std::endl;
         }
+    } */
+
+    // Let's debug restart.
+    const size_t Nx_r = nx_r+1, Ny_r = ny_r+1, Nz_r = nz_r+1;
+    const size_t X_total = Nx_r * Ny_r * Nz_r;
+    const size_t V_total_e = (nu_r_e+1) * (nv_r_e+1) * (nw_r_e+1);
+    const size_t V_total_i = (nu_r_i+1) * (nv_r_i+1) * (nw_r_i+1);
+
+    restart_matrix_e.resize(X_total, V_total_e);
+    restart_matrix_i.resize(X_total, V_total_i);
+    size_t nt_r_curr = 5;
+    size_t nt_test = 1;
+    compute_restart_matrix_no_mpi<order,false>(nx_r, ny_r, nz_r, nu_r_e, nv_r_e, nw_r_e,
+                                nt_r_curr, du_r_e, dv_r_e, dw_r_e, coeffs_E, 
+                                coeffs_B, coeffs_j_hat, conf_elec, restart_matrix_e);
+
+/*     compute_restart_matrix_no_mpi<order,false>(nx_r, ny_r, nz_r, nu_r_i, nv_r_i, nw_r_i,
+                                nt_r_curr, du_r_i, dv_r_i, dw_r_i, coeffs_E, 
+                                coeffs_B, coeffs_j_hat, conf_ion, restart_matrix_i); */
+    
+    #pragma omp parallel for collapse(2)
+    for(size_t k = 0; k < 3; k++){
+    for(size_t ix = 0; ix < Nx_ext; ix++)
+    for(size_t iy = 0; iy < Ny_ext; iy++)
+    for(size_t iz = 0; iz < Nz_ext; iz++){
+        coeffs_E_restart[idx_base(0,k,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,Nt)] 
+                        = coeffs_E[idx_base(nt_r_curr,k,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,Nt)];
+        coeffs_B_restart[idx_base(0,k,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,Nt)] 
+                                    = coeffs_B[idx_base(nt_r_curr,k,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,Nt)];
+        coeffs_j_hat_restart[idx_base(0,k,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,Nt)] 
+                                    = coeffs_j_hat[idx_base(nt_r_curr,k,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,Nt)];
+        }
     }
+
+    std::vector<double> j_hat_elec_restart(3 * Nx * Ny * Nz, 0);
+    std::vector<double> j_hat_elec_correct(3 * Nx * Ny * Nz, 0);
+
+    std::vector<double> j_hat_ion_restart(3 * Nx * Ny * Nz, 0);
+    std::vector<double> j_hat_ion_correct(3 * Nx * Ny * Nz, 0);
+
+    config_t<double> conf_elec_restart(Nx, Ny, Nz, Nu_e, Nv_e, Nw_e, Nt, dt, 
+                            0, Lx, 0, Ly, 0, Lz, umin_e, umax_e, 
+                            vmin_e, vmax_e, wmin_e, wmax_e,
+                            &linear_interpolation_6d<true>,m_e,q_e,tol_refinement_electron,max_depth_electron);
+
+    config_t<double> conf_ion_restart(Nx, Ny, Nz, Nu_i, Nv_i, Nw_i, Nt, dt, 
+                            0, Lx, 0, Ly, 0, Lz, umin_i, umax_i, 
+                            vmin_i, vmax_i, wmin_i, wmax_i,
+                            &linear_interpolation_6d<false>,m_i,q_i,tol_refinement_ion,max_depth_ion);
+
+
+    omp_set_num_threads(1);
+    //eval_j_hat_adaptive_mpi<double,order,false>(nt_r_curr+nt_test, j_hat_elec_correct, coeffs_E, coeffs_B, coeffs_j_hat, conf_elec);
+    std::cout << "Correct:" << std::endl;
+    eval_j_hat_adaptive<double,order,false>(nt_r_curr+nt_test, j_hat_elec_correct, coeffs_E, coeffs_B, coeffs_j_hat, conf_elec);
+    //eval_j_hat<double,order,false>(nt_r_curr+nt_test, j_hat_elec_correct, coeffs_E_restart,coeffs_B_restart,coeffs_j_hat_restart, conf_elec_restart);
+//    eval_j_hat_adaptive_mpi<double,order,false>(nt_test, j_hat_elec_restart, coeffs_E_restart,coeffs_B_restart,coeffs_j_hat_restart, conf_elec_restart);
+    std::cout << "Adaptive:" << std::endl;
+    eval_j_hat_adaptive<double,order,false>(nt_test, j_hat_elec_restart, coeffs_E_restart,coeffs_B_restart,coeffs_j_hat_restart, conf_elec_restart);
+    //eval_j_hat<double,order,false>(nt_test, j_hat_elec_restart, coeffs_E_restart,coeffs_B_restart,coeffs_j_hat_restart, conf_elec_restart);
+    
+    /* std::cout << std::scientific;
+    std::cout << std::setprecision(10);
+    std::cout << "Electron j hat difference: " << std::endl;
+    for(size_t l = 0; l < 3*Nx*Ny*Nz; l++){
+        double error = std::abs(j_hat_elec_correct[l] - j_hat_elec_restart[l]); 
+        double rel_error = error/std::abs(j_hat_elec_correct[l]);
+        std::cout << l << " " << j_hat_elec_correct[l] << " " << j_hat_elec_restart[l] << " " << error << " " << rel_error << std::endl;
+    }
+
+    std::ofstream j_x_u_hat_correct_str("j_x_u_hat_correct.txt");
+    std::ofstream j_x_u_hat_restart_str("j_x_u_hat_restarted.txt");
+    std::ofstream j_x_u_hat_dist_str("j_x_u_hat_dist.txt");
+
+    std::ofstream j_x_v_hat_correct_str("j_x_v_hat_correct.txt");
+    std::ofstream j_x_v_hat_restart_str("j_x_v_hat_restarted.txt");
+    std::ofstream j_x_v_hat_dist_str("j_x_v_hat_dist.txt");
+    for(size_t i = 0; i < Nx; i++){
+        double x = i*conf_elec.dx;
+        double j_x_u_hat_correct = j_hat_elec_correct[i];
+        double j_x_u_hat_restart = j_hat_elec_restart[i];
+        double j_x_u_hat_dist = std::abs( j_x_u_hat_correct - j_x_u_hat_restart);
+
+        double j_x_v_hat_correct = j_hat_elec_correct[i + Nx];
+        double j_x_v_hat_restart = j_hat_elec_restart[i + Nx];
+        double j_x_v_hat_dist = std::abs( j_x_v_hat_correct - j_x_v_hat_restart);
+
+        j_x_u_hat_correct_str << x << " " << j_x_u_hat_correct << std::endl;
+        j_x_u_hat_restart_str << x << " " << j_x_u_hat_restart << std::endl;
+        j_x_u_hat_dist_str << x << " " << j_x_u_hat_dist << std::endl;
+
+        j_x_v_hat_correct_str << x << " " << j_x_v_hat_correct << std::endl;
+        j_x_v_hat_restart_str << x << " " << j_x_v_hat_restart << std::endl;
+        j_x_v_hat_dist_str << x << " " << j_x_v_hat_dist << std::endl;
+    }
+
+
+    double du_plot = (umax_e - umin_e) / n_plot;
+    double dv_plot = (vmax_e - vmin_e) / n_plot;
+    std::ofstream f_crosssection_u_str("f_crossection_u.txt");
+    std::ofstream f_crosssection_v_str("f_crossection_v.txt");
+    for(size_t iu = 0; iu <= n_plot; iu++){
+        double x = 7*conf_elec.dx;
+        double u = umin_e + iu*du_plot;
+        double v = vmin_e + iu*dv_plot;
+
+        double f_u_correct = eval_f_lie_fBE<double,4>(nt_r_curr+nt_test,x,0.5,0.5,u,0,0,coeffs_E,coeffs_B,coeffs_j_hat,conf_elec);
+        double f_v_correct = eval_f_lie_fBE<double,4>(nt_r_curr+nt_test,x,0.5,0.5,0,v,0,coeffs_E,coeffs_B,coeffs_j_hat,conf_elec);
+
+        double f_u_restart = eval_f_lie_fBE<double,4>(nt_test,x,0.5,0.5,u,0,0,coeffs_E_restart,coeffs_B_restart,coeffs_j_hat_restart,conf_elec_restart);
+        double f_v_restart = eval_f_lie_fBE<double,4>(nt_test,x,0.5,0.5,0,v,0,coeffs_E_restart,coeffs_B_restart,coeffs_j_hat_restart,conf_elec_restart);
+
+        double f_u_dist = std::abs(f_u_correct - f_u_restart);
+        double f_v_dist = std::abs(f_v_correct - f_v_restart);
+
+        f_crosssection_u_str << u << " " << f_u_correct << " " << f_u_restart << " " << f_u_dist << std::endl;
+        f_crosssection_v_str << v << " " << f_v_correct << " " << f_v_restart << " " << f_v_dist << std::endl;
+    }
+
+    std::ofstream f_correct_x_u_str("f_correct_x_u.txt");
+    std::ofstream f_restarted_x_u_str("f_restarted_x_u.txt");
+    std::ofstream f_dist_x_u_str("f_dist_x_u.txt");
+    std::ofstream f_correct_x_v_str("f_correct_x_v.txt");
+    std::ofstream f_restarted_x_v_str("f_restarted_x_v.txt");
+    std::ofstream f_dist_x_v_str("f_dist_x_v.txt");
+    for(size_t ix = 0; ix <= n_plot; ix++){
+        for(size_t iu = 0; iu <= n_plot; iu++){
+            double x = ix*dx_plot;
+            double u = umin_e + iu*du_plot;
+            double v = vmin_e + iu*dv_plot;
+            
+            double f_corr_x_u = eval_f_lie_fBE<double,4>(nt_r_curr+nt_test,x,0.5,0.5,u,0, 0,coeffs_E,coeffs_B,coeffs_j_hat,conf_elec);
+            double f_re_x_u = eval_f_lie_fBE<double,4>(nt_test,x,0.5,0.5,u,0, 0,coeffs_E_restart,coeffs_B_restart,coeffs_j_hat_restart,conf_elec_restart);
+            double f_dist_x_u = std::abs(f_corr_x_u - f_re_x_u);
+            
+            double f_corr_x_v = eval_f_lie_fBE<double,4>(nt_r_curr+nt_test,x,0.5,0.5,0,v,0,coeffs_E,coeffs_B,coeffs_j_hat,conf_elec);
+            double f_re_x_v = eval_f_lie_fBE<double,4>(nt_test,x,0.5,0.5,0,v,0,coeffs_E_restart,coeffs_B_restart,coeffs_j_hat_restart,conf_elec_restart);
+            double f_dist_x_v = std::abs(f_corr_x_v - f_re_x_v);
+
+            f_correct_x_u_str << x << " " << u << " " << f_corr_x_u << std::endl;
+            f_restarted_x_u_str << x << " " << u << " " << f_re_x_u << std::endl;
+            f_dist_x_u_str << x << " " << u << " " << f_dist_x_u << std::endl;
+
+            f_correct_x_v_str << x << " " << v << " " << f_corr_x_v << std::endl;
+            f_restarted_x_v_str << x << " " << v << " " << f_re_x_v << std::endl;
+            f_dist_x_v_str << x << " " << v << " " << f_dist_x_v << std::endl;
+        }
+        f_correct_x_u_str << std::endl;
+        f_restarted_x_u_str << std::endl;
+        f_dist_x_u_str << std::endl;
+
+        f_correct_x_v_str << std::endl;
+        f_restarted_x_v_str << std::endl;
+        f_dist_x_v_str << std::endl;
+    } */
+
+    
+
+/*     eval_j_hat_adaptive_mpi<double,order,false>(nt_r_curr, j_hat_ion_correct, coeffs_E, coeffs_B, coeffs_j_hat, conf_ion);
+    eval_j_hat_adaptive_mpi<double,order,false>(0, j_hat_ion_restart, coeffs_E, coeffs_B, coeffs_j_hat, conf_ion_restart);
+    
+    std::cout << "Ion j hat difference: " << std::endl;
+    for(size_t l = 0; l < 3*Nx*Ny*Nz; l++){
+        double error = std::abs(j_hat_ion_correct[l] - j_hat_ion_restart[l]); 
+        double rel_error = error/std::abs(j_hat_ion_correct[l]);
+        std::cout << l << " " << j_hat_ion_correct[l] << " " << j_hat_ion_restart[l] << " " << error << " " << rel_error << std::endl;
+    } */
 }
 
 
@@ -1693,10 +1944,10 @@ int main(int argc, char** argv)
                             vmin_i, vmax_i, wmin_i, wmax_i,
                             &f0<double,false>,m_i,q_i,tol_refinement_ion,max_depth_ion);                  
 
-    if(mpi_rank == 0){
+    /* if(mpi_rank == 0){
         nufi::dim3::read_in_coeff_and_plot_aligned<double,4>();
-    }
-    //nufi::dim3::periodically_restarted_nufi_maxwell_lie_fBE_aligned_mpi<4>();
+    } */
+    nufi::dim3::periodically_restarted_nufi_maxwell_lie_fBE_aligned_mpi<4>();
     MPI_Finalize();
 
     return 0;
