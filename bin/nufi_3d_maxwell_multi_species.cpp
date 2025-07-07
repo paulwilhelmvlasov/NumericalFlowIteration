@@ -419,7 +419,7 @@ std::vector<double> generateRandomSmoothFunction(double L, int N, int num_points
 template <typename real>
 arma::Col<real> B0(real x, real y, real z)
 {
-/*     real k = 0.5;
+    real k = 0.5;
     real alpha = 1e-2;
     real beta = 0.00270; // From Luca's paper (taken from PSP measurements).
 
@@ -427,11 +427,11 @@ arma::Col<real> B0(real x, real y, real z)
                 beta*( 1 + alpha*std::sin(2*M_PI*x/(k*Lx))), 
                 0, 
                 0, 
-            });  */
+            }); 
 
     // Magnetic Two Stream Instability by Einkemmer.
-    constexpr real alpha = 1e-3;
-    return arma::Col<real>({0, 0, alpha*std::sin(x)});
+    /* constexpr real alpha = 1e-3;
+    return arma::Col<real>({0, 0, alpha*std::sin(x)}); */
 }
 
 template <typename real, size_t order>
@@ -1248,13 +1248,13 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned_mpi()
         }
 
         // Compute j_hat(n).
-        /* eval_j_hat_adaptive_mpi<double,order,false>(nt_r_curr, j_hat_elec, coeffs_E, coeffs_B, coeffs_j_hat, conf_elec);
-        eval_j_hat_adaptive_mpi<double,order,false>(nt_r_curr, j_hat_ion, coeffs_E, coeffs_B, coeffs_j_hat, conf_ion); */
+        eval_j_hat_adaptive_mpi<double,order,false>(nt_r_curr, j_hat_elec, coeffs_E, coeffs_B, coeffs_j_hat, conf_elec);
+        eval_j_hat_adaptive_mpi<double,order,false>(nt_r_curr, j_hat_ion, coeffs_E, coeffs_B, coeffs_j_hat, conf_ion);
         /* eval_j_hat<double,order,false>(nt_r_curr, j_hat_elec, coeffs_E, coeffs_B, coeffs_j_hat, conf_elec);
         eval_j_hat<double,order,false>(nt_r_curr, j_hat_ion, coeffs_E, coeffs_B, coeffs_j_hat, conf_ion); */
 
-        eval_j_hat_adaptive<double,order,false>(nt_r_curr, j_hat_elec, coeffs_E, coeffs_B, coeffs_j_hat, conf_elec);
-        eval_j_hat_adaptive<double,order,false>(nt_r_curr, j_hat_ion, coeffs_E, coeffs_B, coeffs_j_hat, conf_ion);
+        /* eval_j_hat_adaptive<double,order,false>(nt_r_curr, j_hat_elec, coeffs_E, coeffs_B, coeffs_j_hat, conf_elec);
+        eval_j_hat_adaptive<double,order,false>(nt_r_curr, j_hat_ion, coeffs_E, coeffs_B, coeffs_j_hat, conf_ion); */
 
         #pragma omp parallel for
         for(size_t l = 0; l < j_hat.size(); l++){
@@ -1314,19 +1314,19 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned_mpi()
                 std::cout << "Restart simulation. " << std::endl;
             }
 
-/*             compute_restart_matrix<order,false>(nx_r, ny_r, nz_r, nu_r_e, nv_r_e, nw_r_e,
+            compute_restart_matrix<order,false>(nx_r, ny_r, nz_r, nu_r_e, nv_r_e, nw_r_e,
                                 nt_r_curr, du_r_e, dv_r_e, dw_r_e, coeffs_E, 
                                 coeffs_B, coeffs_j_hat, conf_elec, restart_matrix_e);
             compute_restart_matrix<order,false>(nx_r, ny_r, nz_r, nu_r_i, nv_r_i, nw_r_i,
                                 nt_r_curr, du_r_i, dv_r_i, dw_r_i, coeffs_E, 
-                                coeffs_B, coeffs_j_hat, conf_ion, restart_matrix_i);  */                               
+                                coeffs_B, coeffs_j_hat, conf_ion, restart_matrix_i);                                
 
-            compute_restart_matrix_no_mpi<order,false>(nx_r, ny_r, nz_r, nu_r_e, nv_r_e, nw_r_e,
+            /* compute_restart_matrix_no_mpi<order,false>(nx_r, ny_r, nz_r, nu_r_e, nv_r_e, nw_r_e,
                                 nt_r_curr, du_r_e, dv_r_e, dw_r_e, coeffs_E, 
                                 coeffs_B, coeffs_j_hat, conf_elec, restart_matrix_e);
             compute_restart_matrix_no_mpi<order,false>(nx_r, ny_r, nz_r, nu_r_i, nv_r_i, nw_r_i,
                                 nt_r_curr, du_r_i, dv_r_i, dw_r_i, coeffs_E, 
-                                coeffs_B, coeffs_j_hat, conf_ion, restart_matrix_i);                                 
+                                coeffs_B, coeffs_j_hat, conf_ion, restart_matrix_i); */                                 
             if(mpi_rank == 0){
                 std::cout << "Restart_matrix electron " << restart_matrix_e.min() << " " << restart_matrix_e.max() << std::endl;
                 std::cout << "Restart_matrix ion " << restart_matrix_i.min() << " " << restart_matrix_i.max() << std::endl;
