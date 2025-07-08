@@ -424,7 +424,7 @@ arma::Col<real> B0(real x, real y, real z)
     real beta = 0.00270; // From Luca's paper (taken from PSP measurements).
 
     return  arma::Col<real>({
-                beta*( 1 + alpha*std::sin(2*M_PI*x/(k*Lx))), 
+                beta*( 1 + alpha*std::sin(2*M_PI*x/(k*Lx))), // maybe bigger perturbation
                 0, 
                 0, 
             }); 
