@@ -107,13 +107,13 @@ const double dw_r = (wmax - wmin) / nw_r;
 double linear_interpolation_6d(double x, double y, double z, 
                                 double u, double v, double w)
 {
-    if( u >= umax || u <= umin 
+    /* if( u >= umax || u <= umin 
         || v >= vmax || v <= vmin 
         || w >= wmax || w <= wmin){
 		return 0;
-	} 
+	}  */
 
-    x -= Lx * std::floor(x/Lx);
+/*     x -= Lx * std::floor(x/Lx);
     y -= Ly * std::floor(y/Ly);
     z -= Lz * std::floor(z/Lz);
 
@@ -134,7 +134,25 @@ double linear_interpolation_6d(double x, double y, double z,
 
 	size_t u_ref_pos = std::floor((u-umin)/du_r);
     size_t v_ref_pos = std::floor((v-vmin)/dv_r);
-    size_t w_ref_pos = std::floor((w-wmin)/dw_r);
+    size_t w_ref_pos = std::floor((w-wmin)/dw_r); */
+
+    // This version is more stable.
+    if( u > umax || u < umin 
+        || v > vmax || v < vmin 
+        || w > wmax || w < wmin){
+		return 0;
+	} 
+
+    x = std::fmod(std::fmod(x, Lx) + Lx, Lx);
+    size_t x_ref_pos = std::min(static_cast<size_t>(std::floor(x / dx_r)), nx_r - 1);
+    y = std::fmod(std::fmod(y, Ly) + Ly, Ly);
+    size_t y_ref_pos = std::min(static_cast<size_t>(std::floor(y / dy_r)), ny_r - 1);
+    z = std::fmod(std::fmod(z, Lz) + Lz, Lz);
+    size_t z_ref_pos = std::min(static_cast<size_t>(std::floor(z / dz_r)), nz_r - 1);
+
+    size_t u_ref_pos = std::min(static_cast<size_t>(std::floor((u-umin)/du_r)), nu_r - 1);
+    size_t v_ref_pos = std::min(static_cast<size_t>(std::floor((v-vmin)/dv_r)), nv_r - 1);
+    size_t w_ref_pos = std::min(static_cast<size_t>(std::floor((w-wmin)/dw_r)), nw_r - 1);
 
 
     double x0 = x_ref_pos*dx_r;

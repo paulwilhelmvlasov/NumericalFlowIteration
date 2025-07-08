@@ -1530,7 +1530,7 @@ void read_in_coeff_and_plot_aligned()
                             &linear_interpolation_6d<false>,m_i,q_i,tol_refinement_ion,max_depth_ion);
 
 
-    omp_set_num_threads(1);
+    //omp_set_num_threads(1);
     //eval_j_hat_adaptive_mpi<double,order,false>(nt_r_curr+nt_test, j_hat_elec_correct, coeffs_E, coeffs_B, coeffs_j_hat, conf_elec);
     std::cout << "Correct:" << std::endl;
     eval_j_hat_adaptive<double,order,false>(nt_r_curr+nt_test, j_hat_elec_correct, coeffs_E, coeffs_B, coeffs_j_hat, conf_elec);
