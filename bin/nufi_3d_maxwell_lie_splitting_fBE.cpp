@@ -107,35 +107,6 @@ const double dw_r = (wmax - wmin) / nw_r;
 double linear_interpolation_6d(double x, double y, double z, 
                                 double u, double v, double w)
 {
-    /* if( u >= umax || u <= umin 
-        || v >= vmax || v <= vmin 
-        || w >= wmax || w <= wmin){
-		return 0;
-	}  */
-
-/*     x -= Lx * std::floor(x/Lx);
-    y -= Ly * std::floor(y/Ly);
-    z -= Lz * std::floor(z/Lz);
-
-    constexpr double tol = 1e-15;
-    if(std::abs(x - Lx) < tol){
-        x -= tol;
-    }
-    if(std::abs(y - Ly) < tol){
-        y -= tol;
-    }
-    if(std::abs(z - Lz) < tol){
-        z -= tol;
-    }
-
-    size_t x_ref_pos = std::floor(x/dx_r);
-	size_t y_ref_pos = std::floor(y/dy_r);
-    size_t z_ref_pos = std::floor(z/dz_r);
-
-	size_t u_ref_pos = std::floor((u-umin)/du_r);
-    size_t v_ref_pos = std::floor((v-vmin)/dv_r);
-    size_t w_ref_pos = std::floor((w-wmin)/dw_r); */
-
     // This version is more stable.
     if( u > umax || u < umin 
         || v > vmax || v < vmin 

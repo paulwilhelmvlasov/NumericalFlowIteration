@@ -135,12 +135,6 @@ double linear_interpolation_6d(double x, double y, double z,
                                 double u, double v, double w)
 {
     if(is_electron){    
-        /* if( u >= umax_e || u <= umin_e 
-            || v >= vmax_e || v <= vmin_e 
-            || w >= wmax_e || w <= wmin_e){
-            return 0;
-        } */
-
         if( u > umax_e || u < umin_e 
             || v > vmax_e || v < vmin_e 
             || w > wmax_e || w < wmin_e){
@@ -202,12 +196,6 @@ double linear_interpolation_6d(double x, double y, double z,
 
         return value;
     } else {
-        /* if( u >= umax_i || u <= umin_i 
-            || v >= vmax_i || v <= vmin_i 
-            || w >= wmax_i || w <= wmin_i){
-            return 0;
-        } */
-
         if( u > umax_i || u < umin_i 
             || v > vmax_i || v < vmin_i 
             || w > wmax_i || w < wmin_i){
