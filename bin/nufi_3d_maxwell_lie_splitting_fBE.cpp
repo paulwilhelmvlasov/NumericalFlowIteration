@@ -78,11 +78,11 @@ const double vmin = -0.85;
 const double vmax = 0.85;
 const double wmin = -0.01;
 const double wmax = 0.01; */
-const size_t Nx = 64;
+const size_t Nx = 32;
 const size_t Ny = 1;
 const size_t Nz = 1;
-const size_t Nu = 64;
-const size_t Nv = 64;
+const size_t Nu = 32;
+const size_t Nv = 32;
 const size_t Nw = 1;
 const size_t steps_per_1 = 200;
 const double   dt = 1.0 / steps_per_1;
@@ -575,6 +575,50 @@ void plot_f(size_t n, const std::vector<real>& coeffs_E, const std::vector<real>
         j_u_hat_str << x << " " << j_u_hat << std::endl;
         j_v_hat_str << x << " " << j_v_hat << std::endl;
         j_w_hat_str << x << " " << j_w_hat << std::endl;
+    }
+}
+
+template<typename real, size_t order>
+void plot_f_x_vx(size_t n, const std::vector<real>& coeffs_E, const std::vector<real>& coeffs_B, 
+    const std::vector<real>& coeffs_j_hat, const config_t<double>& conf, real xmin_p = 0, real xmax_p = Lx,
+    real umin_p = umin, real umax_p = umax, size_t nx_plot = 128, size_t nu_plot = 128, real y = Ly/2.0, 
+    real z = Lz/2.0, real v = 0, real w = 0, const std::string& add_on_str = "")
+{
+    // Careful: Implementation is not compatible with a restart!
+    real dx_plot = (xmax_p - xmin_p) / nx_plot;
+    real du_plot = (umax_p - umin_p) / nu_plot;
+    std::ofstream f_str("f_x_vx_" + std::to_string(n*conf.dt) + add_on_str + ".txt");
+    for(size_t ix = 0; ix <= nx_plot; ix++){
+        for(size_t iu = 0; iu <= nu_plot; iu++){
+            real x = xmin_p + ix*dx_plot;
+            real u = umin_p + iu*du_plot;
+            real f = eval_f_lie_fBE<real,order>(n,x,y,z,u,v,w,coeffs_E,coeffs_B,coeffs_j_hat,conf);
+
+            f_str << x << " " << u << " " << f << std::endl;
+        }
+        f_str << std::endl;
+    }
+}
+
+template<typename real, size_t order>
+void plot_f_x_vy(size_t n, const std::vector<real>& coeffs_E, const std::vector<real>& coeffs_B, 
+    const std::vector<real>& coeffs_j_hat, const config_t<double>& conf, real xmin_p = 0, real xmax_p = Lx,
+    real vmin_p = vmin, real vmax_p = vmax, size_t nx_plot = 128, size_t nv_plot = 128, real y = Ly/2.0, 
+    real z = Lz/2.0, real u = 0, real w = 0, const std::string& add_on_str = "")
+{
+    // Careful: Implementation is not compatible with a restart!
+    real dx_plot = (xmax_p - xmin_p) / nx_plot;
+    real dv_plot = (vmax_p - vmin_p) / nv_plot;
+    std::ofstream f_str("f_x_vy_" + std::to_string(n*conf.dt) + add_on_str + ".txt");
+    for(size_t ix = 0; ix <= nx_plot; ix++){
+        for(size_t iv = 0; iv <= nv_plot; iv++){
+            real x = xmin_p + ix*dx_plot;
+            real v = vmin_p + iv*dv_plot;
+            real f = eval_f_lie_fBE<real,order>(n,x,y,z,u,v,w,coeffs_E,coeffs_B,coeffs_j_hat,conf);
+
+            f_str << x << " " << u << " " << f << std::endl;
+        }
+        f_str << std::endl;
     }
 }
 
@@ -1082,7 +1126,7 @@ void read_in_coeff_and_plot_aligned()
 
     std::cout << "Read in coeffs." << std::endl;
 
-    size_t end_n = 30*100;
+    size_t end_n = 20000;
 
     for(size_t n = 0; n <= end_n; n++){
         for(size_t ix = 0; ix < conf.Nx; ix++)
@@ -1124,8 +1168,10 @@ void read_in_coeff_and_plot_aligned()
     double dv_plot = (conf.v_max - conf.v_min)/n_plot;
     double dw_plot = (conf.w_max - conf.w_min)/n_plot;
 
-    for(size_t n = 0; n <= 201; n++){
-        std::ofstream Ex_str("Ex_" + std::to_string(n*conf.dt) + ".txt");
+    #pragma omp parallel for
+    for(size_t n = 0; n <= end_n; n+=(200*10)){
+        std::cout << "Plot data from time " << n*conf.dt << std::endl;
+/*         std::ofstream Ex_str("Ex_" + std::to_string(n*conf.dt) + ".txt");
         std::ofstream Ey_str("Ey_" + std::to_string(n*conf.dt) + ".txt");
         std::ofstream Ez_str("Ez_" + std::to_string(n*conf.dt) + ".txt");
         std::ofstream Bx_str("Bx_" + std::to_string(n*conf.dt) + ".txt");
@@ -1164,135 +1210,11 @@ void read_in_coeff_and_plot_aligned()
             j_v_str << x << " " << j_v << std::endl;
             j_w_str << x << " " << j_w << std::endl;
         }
+ */
+        plot_f_x_vx<double,4>(n,coeffs_E,coeffs_B,coeffs_j_hat,conf,conf.x_min,conf.x_max,conf.u_min,conf.u_max,128,128,2,2,0,0,"");
+        plot_f_x_vy<double,4>(n,coeffs_E,coeffs_B,coeffs_j_hat,conf,conf.x_min,conf.x_max,conf.v_min,conf.v_max,128,128,2,2,0,0,"");
     }
 
-    // Let's debug the restart:
-    nt_restart = 100;
-    std::cout << "Initialize restart matrices." << std::endl;
-    size_t size_x_r = (nx_r+1)*(ny_r+1)*(nz_r+1);
-    size_t size_v_r = (nu_r+1)*(nv_r+1)*(nw_r+1);
-    restart_matrix.resize(size_x_r, size_v_r);
-    arma::mat copy_mat(size_x_r, size_v_r, arma::fill::zeros);
-    std::cout << "Restart simulation. " << std::endl;
-    // Compute first restart matrix.
-    #pragma omp parallel for collapse(6)
-    for(size_t ix = 0; ix <= nx_r; ix++)
-    for(size_t iy = 0; iy <= ny_r; iy++)
-    for(size_t iz = 0; iz <= nz_r; iz++)
-    for(size_t iu = 0; iu <= nu_r; iu++)
-    for(size_t iv = 0; iv <= nv_r; iv++)
-    for(size_t iw = 0; iw <= nw_r; iw++){
-        double x = conf.x_min + ix*dx_r;
-        double y = conf.y_min + iy*dy_r;
-        double z = conf.z_min + iz*dz_r;
-
-        double u = conf.u_min + iu*du_r;
-        double v = conf.v_min + iv*dv_r;
-        double w = conf.w_min + iw*dw_r;
-
-        size_t index_0 = ix + (nx_r+1)*(iy + (ny_r+1)*iz);
-        size_t index_1 = iu + (nu_r+1)*(iv + (nv_r+1)*iw);
-
-        double f = eval_f_lie_fBE<double,order>(nt_restart, x, y, z, u, v, w, 
-                                                    coeffs_E, coeffs_B, coeffs_j_hat, conf);
-        copy_mat(index_0,index_1) = f;
-    }
-
-    restart_matrix = copy_mat;
-
-    config_t<double> conf_restart(Nx, Ny, Nz, Nu, Nv, Nw, Nt, dt, 
-                0, Lx, 0, Ly, 0, Lz, umin, umax, 
-                vmin, vmax, wmin, wmax,
-                &linear_interpolation_6d);
-
-    std::cout << "Restart done. Plotting now." << std::endl;
-
-    double l2_f = 0;
-    double l2_error = 0;
-    for(size_t n = nt_restart; n <= nt_restart+1; n++){                
-    l2_f = 0;
-    l2_error = 0;
-    std::ofstream f_correct_str("f_correct_x_u_" + std::to_string(n*conf.dt) + ".txt");
-    std::ofstream f_restart_str("f_restart_x_u_" + std::to_string(n*conf.dt) + ".txt");
-    std::ofstream f_dist_str("f_dist_x_u_" + std::to_string(n*conf.dt) + ".txt");
-    for(size_t ix = 0; ix <= n_plot; ix++){
-        for(size_t iu = 0; iu <= n_plot; iu++){
-            double x = ix*dx_plot;
-            double y = Ly/2;
-            double z = Lz/2;
-            double u = umin + iu*du_plot;
-            double v = 0;
-            double w = 0;
-
-            double f_correct = eval_f_lie_fBE<real,order>(n,x,y,z,u,v,w,coeffs_E,coeffs_B,coeffs_j_hat,conf);
-            double f_restart = eval_f_lie_fBE<real,order>(n-nt_restart,x,y,z,u,v,w,coeffs_E,coeffs_B,coeffs_j_hat,conf_restart);
-            double f_dist = f_correct - f_restart;
-
-            l2_error += f_dist*f_dist;
-            l2_f += f_correct*f_correct;
-
-            f_correct_str << x << " " << u << " " << f_correct << std::endl;
-            f_restart_str << x << " " << u << " " << f_restart << std::endl;
-            f_dist_str << x << " " << u << " " << f_dist << std::endl;
-        }
-        f_restart_str << std::endl;
-        f_correct_str << std::endl;
-        f_dist_str << std::endl;
-    }
-    l2_f = dx_plot*du_plot*std::sqrt(l2_f);
-    l2_error = dx_plot*du_plot*std::sqrt(l2_error);
-    std::cout << "L2 error of (x,u) at " << n << " is " << l2_error << std::endl;
-    std::cout << "Relative L2 error of (x,u) at " << n << " is " << l2_error/l2_f << std::endl;
-    }
-
-    for(size_t n = nt_restart; n <= nt_restart+1; n++){                
-    l2_f = 0;
-    l2_error = 0;
-    std::ofstream f_correct_str("f_correct_x_v_" + std::to_string(n*conf.dt) + ".txt");
-    std::ofstream f_restart_str("f_restart_x_v_" + std::to_string(n*conf.dt) + ".txt");
-    std::ofstream f_dist_str("f_dist_x_v_" + std::to_string(n*conf.dt) + ".txt");
-    for(size_t ix = 0; ix <= n_plot; ix++){
-        for(size_t iu = 0; iu <= n_plot; iu++){
-            double x = ix*dx_plot;
-            double y = Ly/2;
-            double z = Lz/2;
-            double u = 0;
-            double v = vmin + iu * dv_plot;
-            double w = 0;
-
-            double f_correct = eval_f_lie_fBE<real,order>(n,x,y,z,u,v,w,coeffs_E,coeffs_B,coeffs_j_hat,conf);
-            double f_restart = eval_f_lie_fBE<real,order>(n-nt_restart,x,y,z,u,v,w,coeffs_E,coeffs_B,coeffs_j_hat,conf_restart);
-            double f_dist = f_correct - f_restart;
-
-            l2_error += f_dist*f_dist;
-            l2_f += f_correct*f_correct;
-
-            f_correct_str << x << " " << v << " " << f_correct << std::endl;
-            f_restart_str << x << " " << v << " " << f_restart << std::endl;
-            f_dist_str << x << " " << v << " " << f_dist << std::endl;
-
-        }
-        f_restart_str << std::endl;
-        f_correct_str << std::endl;
-        f_dist_str << std::endl;
-    }
-    l2_f = dx_plot*dv_plot*std::sqrt(l2_f);
-    l2_error = dx_plot*dv_plot*std::sqrt(l2_error);
-    std::cout << "L2 error of (x,v) at " << n << " is " << l2_error << std::endl;
-    std::cout << "Relative L2 error of (x,v) at " << n << " is " << l2_error/l2_f << std::endl;
-    }
-
-
-    std::vector<double> j_hat(3 * conf.Nx * conf.Ny * conf.Nz, 0);
-    eval_j_hat_adaptive<real,order>(1,j_hat,coeffs_E,coeffs_B,coeffs_j_hat,conf_restart);
-
-    std::ofstream j_hat_test("j_hat_test.txt");
-    for(size_t ix = 0; ix < conf.Nx; ix++){
-        double x = ix*conf.dx;
-        j_hat_test << x << " " << j_hat[ix]
-                        << " " << j_hat[ix + conf.Nx]
-                        << " " << j_hat[ix + 2*conf.Nx] << std::endl;
-    }
 }
 
 
@@ -2615,13 +2537,13 @@ int main(int argc, char** argv)
 
     //nufi::dim3::periodically_restarted_nufi_maxwell_lie_fBE<4>();
     
-    nufi::dim3::periodically_restarted_nufi_maxwell_lie_fBE_aligned<4>();
+//    nufi::dim3::periodically_restarted_nufi_maxwell_lie_fBE_aligned<4>();
 
     /* MPI_Init(&argc, &argv);
     nufi::dim3::periodically_restarted_nufi_maxwell_lie_fBE_aligned_mpi<4>();
     MPI_Finalize(); */
 
-    //nufi::dim3::read_in_coeff_and_plot_aligned<double,4>();
+    nufi::dim3::read_in_coeff_and_plot_aligned<double,4>();
 /* 
     nufi::lsmr_options<double> opts;
     std::cout << opts.target_residual << std::endl; */
