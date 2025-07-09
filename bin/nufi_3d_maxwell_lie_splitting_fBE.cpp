@@ -78,11 +78,11 @@ const double vmin = -0.85;
 const double vmax = 0.85;
 const double wmin = -0.01;
 const double wmax = 0.01; */
-const size_t Nx = 32;
+const size_t Nx = 16;
 const size_t Ny = 1;
 const size_t Nz = 1;
-const size_t Nu = 32;
-const size_t Nv = 32;
+const size_t Nu = 16;
+const size_t Nv = 16;
 const size_t Nw = 1;
 const size_t steps_per_1 = 200;
 const double   dt = 1.0 / steps_per_1;
@@ -513,7 +513,7 @@ void do_stats(size_t nt, size_t nx_plot, std::ofstream& stat_file,
 template<typename real, size_t order>
 void plot_f(size_t n, const std::vector<real>& coeffs_E, const std::vector<real>& coeffs_B, 
     const std::vector<real>& coeffs_j_hat, const config_t<double>& conf, bool restarted = false, 
-    size_t n_full = 0)
+    size_t n_full = 0, size_t nx_plot = 128, size_t nu_plot = 128)
 {
     const size_t Nx_ext = conf.Nx + order - 1;
     const size_t Ny_ext = conf.Ny + order - 1;
@@ -529,8 +529,6 @@ void plot_f(size_t n, const std::vector<real>& coeffs_E, const std::vector<real>
     std::ofstream f_minux_eq_x_vx_str("f_minux_eq_x_vx_" + std::to_string(nt_plot*conf.dt) + ".txt");
     //std::ofstream f_minux_eq_x_vy_str("f_minux_eq_x_vy_" + std::to_string(nt_plot*conf.dt) + ".txt");
 
-    size_t nx_plot = 128;
-    size_t nu_plot = 128;
     double dx_plot = conf.Lx / nx_plot;
     double du_plot = (umax - umin) / nu_plot;
     double dv_plot = (vmax - vmin) / nu_plot;
@@ -616,7 +614,7 @@ void plot_f_x_vy(size_t n, const std::vector<real>& coeffs_E, const std::vector<
             real v = vmin_p + iv*dv_plot;
             real f = eval_f_lie_fBE<real,order>(n,x,y,z,u,v,w,coeffs_E,coeffs_B,coeffs_j_hat,conf);
 
-            f_str << x << " " << u << " " << f << std::endl;
+            f_str << x << " " << v << " " << f << std::endl;
         }
         f_str << std::endl;
     }
@@ -1136,6 +1134,9 @@ void read_in_coeff_and_plot_aligned()
             coeff_str_E >> coeffs_E[idx_base(n,0,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,conf.Nt)] 
                         >> coeffs_E[idx_base(n,1,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,conf.Nt)] 
                         >> coeffs_E[idx_base(n,2,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,conf.Nt)];
+            /* std::cout << coeffs_E[idx_base(n,0,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,conf.Nt)] << " "
+                        << coeffs_E[idx_base(n,1,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,conf.Nt)] << " "
+                        << coeffs_E[idx_base(n,2,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,conf.Nt)] << std::endl; */
         }
             
 
@@ -1146,6 +1147,10 @@ void read_in_coeff_and_plot_aligned()
             coeff_str_B >> coeffs_B[idx_base(n,0,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,conf.Nt)]
                          >> coeffs_B[idx_base(n,1,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,conf.Nt)]
                          >> coeffs_B[idx_base(n,2,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,conf.Nt)];
+
+/*             std::cout << coeffs_B[idx_base(n,0,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,conf.Nt)] << " "
+                        << coeffs_B[idx_base(n,1,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,conf.Nt)] << " "
+                        << coeffs_B[idx_base(n,2,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,conf.Nt)] << std::endl; */
         }
 
         for(size_t ix = 0; ix < conf.Nx; ix++)
@@ -1168,10 +1173,20 @@ void read_in_coeff_and_plot_aligned()
     double dv_plot = (conf.v_max - conf.v_min)/n_plot;
     double dw_plot = (conf.w_max - conf.w_min)/n_plot;
 
-    #pragma omp parallel for
-    for(size_t n = 0; n <= end_n; n+=(200*10)){
+    std::cout << "Lx = " << conf.Lx << std::endl;
+    std::cout << "Ly = " << conf.Ly << std::endl;
+    std::cout << "Lz = " << conf.Lz << std::endl;
+    std::cout << "Nx = " << conf.Nx << std::endl;
+    std::cout << "Ny = " << conf.Ny << std::endl;
+    std::cout << "Nz = " << conf.Nz << std::endl;
+
+    //#pragma omp parallel for
+    std::ofstream energy_str("energies.txt");
+    for(size_t n = 0; n <= 50*200; n+=1){
         std::cout << "Plot data from time " << n*conf.dt << std::endl;
-/*         std::ofstream Ex_str("Ex_" + std::to_string(n*conf.dt) + ".txt");
+        double elec_energy = 0;
+        double magn_energy = 0;
+        std::ofstream Ex_str("Ex_" + std::to_string(n*conf.dt) + ".txt");
         std::ofstream Ey_str("Ey_" + std::to_string(n*conf.dt) + ".txt");
         std::ofstream Ez_str("Ez_" + std::to_string(n*conf.dt) + ".txt");
         std::ofstream Bx_str("Bx_" + std::to_string(n*conf.dt) + ".txt");
@@ -1180,7 +1195,7 @@ void read_in_coeff_and_plot_aligned()
         std::ofstream j_u_str("j_u_" + std::to_string(n*conf.dt) + ".txt");
         std::ofstream j_v_str("j_v_" + std::to_string(n*conf.dt) + ".txt");
         std::ofstream j_w_str("j_w_" + std::to_string(n*conf.dt) + ".txt");
-        for(size_t ix = 0; ix <= n_plot; ix++){
+        for(size_t ix = 0; ix < n_plot; ix++){
             double x = ix * dx_plot;
             double y = Ly / 2.0;
             double z = Lz / 2.0;
@@ -1197,6 +1212,8 @@ void read_in_coeff_and_plot_aligned()
             double j_v = eval<real,order>(x,y,z,coeffs_j_hat.data() + idx_base(n,1,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf);
             double j_w = eval<real,order>(x,y,z,coeffs_j_hat.data() + idx_base(n,2,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf);
 
+            elec_energy += Ex*Ex + Ey*Ey + Ez*Ez;
+            magn_energy += Bx*Bx + By*By + Bz*Bz;
 
             Ex_str << x << " " << Ex << std::endl;
             Ey_str << x << " " << Ey << std::endl;
@@ -1210,9 +1227,13 @@ void read_in_coeff_and_plot_aligned()
             j_v_str << x << " " << j_v << std::endl;
             j_w_str << x << " " << j_w << std::endl;
         }
- */
-        plot_f_x_vx<double,4>(n,coeffs_E,coeffs_B,coeffs_j_hat,conf,conf.x_min,conf.x_max,conf.u_min,conf.u_max,128,128,2,2,0,0,"");
-        plot_f_x_vy<double,4>(n,coeffs_E,coeffs_B,coeffs_j_hat,conf,conf.x_min,conf.x_max,conf.v_min,conf.v_max,128,128,2,2,0,0,"");
+        elec_energy *= 0.5*dx_plot;
+        magn_energy *= 0.5*dx_plot;
+
+        energy_str << n*conf.dt << " " << elec_energy << " " << magn_energy << std::endl;
+
+/*         plot_f_x_vx<double,4>(n,coeffs_E,coeffs_B,coeffs_j_hat,conf,conf.x_min,conf.x_max,conf.u_min,conf.u_max,128,128,2,2,0,0,"");
+        plot_f_x_vy<double,4>(n,coeffs_E,coeffs_B,coeffs_j_hat,conf,conf.x_min,conf.x_max,conf.v_min,conf.v_max,128,128,2,2,0,0,""); */
     }
 
 }
@@ -1837,8 +1858,6 @@ void interpolate_fields_aligned(size_t n, std::vector<real>& coeffs,
 template<size_t order>
 void periodically_restarted_nufi_maxwell_lie_fBE_aligned()
 {
-    //omp_set_num_threads(8);
-
     // Storage of coefficients now via: 
     // index = nt + Nt * (d + dim * (ix + Nx * (iy + Ny * iz)))
     size_t stride_t = (conf.Nx + order - 1) *
@@ -2043,7 +2062,7 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned()
         std::cout << "Time step " << n << " took a total of " << time_for_step << " s." << std::endl;
 
         do_stats<double,order>(nt_r_curr, 64, stat_file, coeffs_E, coeffs_B, conf, true, n);
-        if(/* n % (steps_per_1) == 0 */ false){
+        if(n % (5*steps_per_1) == 0){
             plot_f<double,order>(nt_r_curr,coeffs_E, coeffs_B, coeffs_j_hat, conf, true, n);
         }
         write_coeffs<double,order>(nt_r_curr, coeffs_E, coeffs_B, coeffs_j_hat, conf, 
@@ -2537,13 +2556,13 @@ int main(int argc, char** argv)
 
     //nufi::dim3::periodically_restarted_nufi_maxwell_lie_fBE<4>();
     
-//    nufi::dim3::periodically_restarted_nufi_maxwell_lie_fBE_aligned<4>();
+    nufi::dim3::periodically_restarted_nufi_maxwell_lie_fBE_aligned<4>();
 
     /* MPI_Init(&argc, &argv);
     nufi::dim3::periodically_restarted_nufi_maxwell_lie_fBE_aligned_mpi<4>();
     MPI_Finalize(); */
 
-    nufi::dim3::read_in_coeff_and_plot_aligned<double,4>();
+    //nufi::dim3::read_in_coeff_and_plot_aligned<double,4>();
 /* 
     nufi::lsmr_options<double> opts;
     std::cout << opts.target_residual << std::endl; */
