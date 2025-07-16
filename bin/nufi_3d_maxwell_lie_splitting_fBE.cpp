@@ -97,7 +97,7 @@ const size_t Nv = 32;
 const size_t Nw = 1;
 const size_t steps_per_1 = 200;
 const double   dt = 1.0 / steps_per_1;
-const size_t Nt = 100/dt;
+const size_t Nt = 1000/dt;
 
 const size_t nx_r = 2*Nx;
 const size_t ny_r = 1;
@@ -468,7 +468,7 @@ void do_stats(size_t nt, size_t nx_plot, std::ofstream& stat_file,
         current_time = nt * conf.dt;
     }
 
-    if(n_full % (steps_per_1/2) == 0){
+    if(n_full % (50*steps_per_1) == 0){
         std::ofstream Ex_str("Ex_" + std::to_string(current_time) + ".txt");
         std::ofstream Ey_str("Ey_" + std::to_string(current_time) + ".txt");
         std::ofstream Ez_str("Ez_" + std::to_string(current_time) + ".txt");
@@ -2182,7 +2182,7 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned()
         std::cout << "Time step " << n << " took a total of " << time_for_step << " s." << std::endl;
 
         do_stats<double,order>(nt_r_curr, 64, stat_file, coeffs_E, coeffs_B, conf, true, n);
-        if(n % (5*steps_per_1) == 0){
+        if(n % (50*steps_per_1) == 0){
             plot_f<double,order>(nt_r_curr,coeffs_E, coeffs_B, coeffs_j_hat, conf, true, n);
         }
         write_coeffs<double,order>(nt_r_curr, coeffs_E, coeffs_B, coeffs_j_hat, conf, 
