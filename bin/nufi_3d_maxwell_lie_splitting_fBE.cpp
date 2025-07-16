@@ -1429,7 +1429,7 @@ void read_in_coeff_and_plot_aligned()
                                 0,1.2,256,256,2,2,0,0,"test_zoom"); */
 
         plot_f_vx_vy_parallelized<double,4>(n,coeffs_E,coeffs_B,coeffs_j_hat,conf,-0.2,0.2,-1,0,
-                                512,512,0.05*M_PI,0.05*M_PI,0.05*M_PI,0,"_0_05_Lx_512x512");
+                                512,512,0.05*M_PI,0.05*M_PI,0.05*M_PI,0,"_0_05_Lx_512x512_zoomed");
         plot_f_vx_vy_parallelized<double,4>(n,coeffs_E,coeffs_B,coeffs_j_hat,conf,-0.2,0.2,-0.5,0,
                                 512,512,Lx/2,Ly/2.0,Lz/2.0,0,"_Lx_2_512x512_zoomed");
         /* plot_f_vx_vy_parallelized<double,4>(n,coeffs_E,coeffs_B,coeffs_j_hat,conf,umin,umax,vmin,vmax,
