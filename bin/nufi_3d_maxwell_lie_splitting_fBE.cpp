@@ -97,7 +97,7 @@ const size_t Nv = 32;
 const size_t Nw = 1;
 const size_t steps_per_1 = 200;
 const double   dt = 1.0 / steps_per_1;
-const size_t Nt = 100/dt;
+const size_t Nt = 1000/dt;
 
 const size_t nx_r = 2*Nx;
 const size_t ny_r = 1;
@@ -625,6 +625,62 @@ void plot_f_x_vx(size_t n, const std::vector<real>& coeffs_E, const std::vector<
         f_str << std::endl;
     }
 }
+
+template<typename real, size_t order>
+void plot_f_vx_vy(size_t n, const std::vector<real>& coeffs_E, const std::vector<real>& coeffs_B, 
+    const std::vector<real>& coeffs_j_hat, const config_t<double>& conf, real umin_p = umin, real umax_p = umax,
+    real vmin_p = vmin, real vmax_p = vmax, size_t nu_plot = 128, size_t nv_plot = 128, real x = Lx/2.0, 
+    real y = Ly/2.0, real z = Lz/2.0, real w = 0, const std::string& add_on_str = "")
+{
+    // Careful: Implementation is not compatible with a restart!
+    real du_plot = (umax_p - umin_p) / nu_plot;
+    real dv_plot = (vmax_p - vmin_p) / nv_plot;
+    std::ofstream f_str("f_vx_vy_" + std::to_string(n*conf.dt) + add_on_str + ".txt");
+    for(size_t iu = 0; iu <= nu_plot; iu++){
+        for(size_t iv = 0; iv <= nv_plot; iv++){
+            real u = umin_p + iu*du_plot;
+            real v = vmin_p + iv*dv_plot;
+            real f = eval_f_lie_fBE<real,order>(n,x,y,z,u,v,w,coeffs_E,coeffs_B,coeffs_j_hat,conf);
+
+            f_str << u << " " << v << " " << f << std::endl;
+        }
+        f_str << std::endl;
+    }
+}
+
+template<typename real, size_t order>
+void plot_f_vx_vy_parallelized(size_t n, const std::vector<real>& coeffs_E, const std::vector<real>& coeffs_B, 
+    const std::vector<real>& coeffs_j_hat, const config_t<double>& conf, real umin_p = umin, real umax_p = umax,
+    real vmin_p = vmin, real vmax_p = vmax, size_t nu_plot = 128, size_t nv_plot = 128, real x = Lx/2.0, 
+    real y = Ly/2.0, real z = Lz/2.0, real w = 0, const std::string& add_on_str = "")
+{
+    // Careful: Implementation is not compatible with a restart!
+    real du_plot = (umax_p - umin_p) / nu_plot;
+    real dv_plot = (vmax_p - vmin_p) / nv_plot;
+    arma::Mat<real> values(nu_plot+1,nv_plot+1);
+    #pragma omp parallel for
+    for(size_t iu = 0; iu <= nu_plot; iu++){
+        for(size_t iv = 0; iv <= nv_plot; iv++){
+            real u = umin_p + iu*du_plot;
+            real v = vmin_p + iv*dv_plot;
+            real f = eval_f_lie_fBE<real,order>(n,x,y,z,u,v,w,coeffs_E,coeffs_B,coeffs_j_hat,conf);
+            values(iu,iv) = f;
+        }
+    }
+
+    std::ofstream f_str("f_vx_vy_" + std::to_string(n*conf.dt) + add_on_str + ".txt");
+    for(size_t iu = 0; iu <= nu_plot; iu++){
+        for(size_t iv = 0; iv <= nv_plot; iv++){
+            real u = umin_p + iu*du_plot;
+            real v = vmin_p + iv*dv_plot;
+            real f = values(iu,iv);
+
+            f_str << u << " " << v << " " << f << std::endl;
+        }
+        f_str << std::endl;
+    }
+}
+
 
 template<typename real, size_t order>
 void plot_f_x_vx_omp_parallelized(size_t n, const std::vector<real>& coeffs_E, const std::vector<real>& coeffs_B, 
@@ -1225,7 +1281,7 @@ void read_in_coeff_and_plot_aligned()
 
     std::cout << "Read in coeffs." << std::endl;
 
-    size_t end_n = 100*200;
+    size_t end_n = 1000*200;
 
     for(size_t n = 0; n <= end_n; n++){
         for(size_t ix = 0; ix < conf.Nx; ix++)
@@ -1286,13 +1342,19 @@ void read_in_coeff_and_plot_aligned()
     std::cout << "Ny = " << conf.Ny << std::endl;
     std::cout << "Nz = " << conf.Nz << std::endl;
 
-    #pragma omp parallel for
+    //#pragma omp parallel for
     //std::ofstream energy_str("energies.txt");
-    for(size_t n = 20*200; n <= 60*200; n+=10*200){
+    for(size_t n = 100*200; n <= 150*200; n+=25*200){
         std::cout << "Plot data from time " << n*conf.dt << std::endl;
-/*         double elec_energy = 0;
+        /* double elec_energy = 0;
         double magn_energy = 0;
-        std::ofstream Ex_str("Ex_" + std::to_string(n*conf.dt) + ".txt");
+        double E1_energy = 0;
+        double E2_energy = 0;
+        double E3_energy = 0;
+        double B1_energy = 0;
+        double B2_energy = 0;
+        double B3_energy = 0; */
+        /* std::ofstream Ex_str("Ex_" + std::to_string(n*conf.dt) + ".txt");
         std::ofstream Ey_str("Ey_" + std::to_string(n*conf.dt) + ".txt");
         std::ofstream Ez_str("Ez_" + std::to_string(n*conf.dt) + ".txt");
         std::ofstream Bx_str("Bx_" + std::to_string(n*conf.dt) + ".txt");
@@ -1300,8 +1362,8 @@ void read_in_coeff_and_plot_aligned()
         std::ofstream Bz_str("Bz_" + std::to_string(n*conf.dt) + ".txt");
         std::ofstream j_u_str("j_u_" + std::to_string(n*conf.dt) + ".txt");
         std::ofstream j_v_str("j_v_" + std::to_string(n*conf.dt) + ".txt");
-        std::ofstream j_w_str("j_w_" + std::to_string(n*conf.dt) + ".txt");
-        for(size_t ix = 0; ix < n_plot; ix++){
+        std::ofstream j_w_str("j_w_" + std::to_string(n*conf.dt) + ".txt"); */
+        /* for(size_t ix = 0; ix < n_plot; ix++){
             double x = ix * dx_plot;
             double y = Ly / 2.0;
             double z = Lz / 2.0;
@@ -1321,6 +1383,14 @@ void read_in_coeff_and_plot_aligned()
             elec_energy += Ex*Ex + Ey*Ey + Ez*Ez;
             magn_energy += Bx*Bx + By*By + Bz*Bz;
 
+            E1_energy += Ex*Ex;
+            E2_energy += Ey*Ey;
+            E3_energy += Ez*Ez;
+
+            B1_energy += Bx*Bx;
+            B2_energy += By*By;
+            B3_energy += Bz*Bz;
+
             Ex_str << x << " " << Ex << std::endl;
             Ey_str << x << " " << Ey << std::endl;
             Ez_str << x << " " << Ez << std::endl;
@@ -1332,21 +1402,38 @@ void read_in_coeff_and_plot_aligned()
             j_u_str << x << " " << j_u << std::endl;
             j_v_str << x << " " << j_v << std::endl;
             j_w_str << x << " " << j_w << std::endl;
-        }
-        elec_energy *= 0.5*dx_plot;
+        } */
+/*         elec_energy *= 0.5*dx_plot;
         magn_energy *= 0.5*dx_plot;
 
-        energy_str << n*conf.dt << " " << elec_energy << " " << magn_energy << std::endl; */
+        E1_energy *= 0.5*dx_plot;
+        E2_energy *= 0.5*dx_plot;
+        E3_energy *= 0.5*dx_plot;
 
+        B1_energy *= 0.5*dx_plot;
+        B2_energy *= 0.5*dx_plot;
+        B3_energy *= 0.5*dx_plot;
+
+        energy_str << n*conf.dt << " " << elec_energy << " " << magn_energy 
+                    << " " << E1_energy << " " << E2_energy << " " << E3_energy
+                    << " " << B1_energy << " " << B2_energy << " " << B3_energy << std::endl;
+ */
         /* plot_f_x_vx<double,4>(n,coeffs_E,coeffs_B,coeffs_j_hat,conf,conf.x_min,conf.x_max,
                                 conf.u_min,conf.u_max,128,128,2,2,0,0,"");
         plot_f_x_vy<double,4>(n,coeffs_E,coeffs_B,coeffs_j_hat,conf,conf.x_min,conf.x_max,
                                 conf.v_min,conf.v_max,128,128,2,2,0,0,""); */
 
-        plot_f_x_vx_omp_parallelized<double,4>(n,coeffs_E,coeffs_B,coeffs_j_hat,conf,0,6.4,
+        /* plot_f_x_vx_omp_parallelized<double,4>(n,coeffs_E,coeffs_B,coeffs_j_hat,conf,0,6.4,
                                 0,1,256,256,2,2,0,0,"test_zoom");
         plot_f_x_vy_omp_parallelized<double,4>(n,coeffs_E,coeffs_B,coeffs_j_hat,conf,0,6.4,
-                                0,1.2,256,256,2,2,0,0,"test_zoom");
+                                0,1.2,256,256,2,2,0,0,"test_zoom"); */
+
+        plot_f_vx_vy_parallelized<double,4>(n,coeffs_E,coeffs_B,coeffs_j_hat,conf,umin,umax,vmin,vmax,
+                                512,512,0.05*M_PI,0.05*M_PI,0.05*M_PI,0,"_0_05_Lx_512x512");
+        plot_f_vx_vy_parallelized<double,4>(n,coeffs_E,coeffs_B,coeffs_j_hat,conf,umin,umax,vmin,vmax,
+                                512,512,Lx/2,Ly/2.0,Lz/2.0,0,"_Lx_2_512x512");
+        plot_f_vx_vy_parallelized<double,4>(n,coeffs_E,coeffs_B,coeffs_j_hat,conf,umin,umax,vmin,vmax,
+                                512,512,3*Lx/2,Ly/2.0,Lz/2.0,0,"_3_Lx_2_512x512");
     }
 
 }
@@ -2676,13 +2763,13 @@ int main(int argc, char** argv)
 
     //nufi::dim3::periodically_restarted_nufi_maxwell_lie_fBE<4>();
     
-    nufi::dim3::periodically_restarted_nufi_maxwell_lie_fBE_aligned<4>();
+    //nufi::dim3::periodically_restarted_nufi_maxwell_lie_fBE_aligned<4>();
 
     /* MPI_Init(&argc, &argv);
     nufi::dim3::periodically_restarted_nufi_maxwell_lie_fBE_aligned_mpi<4>();
     MPI_Finalize(); */
 
-    //nufi::dim3::read_in_coeff_and_plot_aligned<double,4>();
+    nufi::dim3::read_in_coeff_and_plot_aligned<double,4>();
 /* 
     nufi::lsmr_options<double> opts;
     std::cout << opts.target_residual << std::endl; */
