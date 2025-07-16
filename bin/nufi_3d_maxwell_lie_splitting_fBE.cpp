@@ -1344,7 +1344,7 @@ void read_in_coeff_and_plot_aligned()
 
     //#pragma omp parallel for
     //std::ofstream energy_str("energies.txt");
-    for(size_t n = 100*200; n <= 150*200; n+=25*200){
+    for(size_t n = 100*200; n <= 500*200; n+=25*200){
         std::cout << "Plot data from time " << n*conf.dt << std::endl;
         /* double elec_energy = 0;
         double magn_energy = 0;
@@ -1428,12 +1428,12 @@ void read_in_coeff_and_plot_aligned()
         plot_f_x_vy_omp_parallelized<double,4>(n,coeffs_E,coeffs_B,coeffs_j_hat,conf,0,6.4,
                                 0,1.2,256,256,2,2,0,0,"test_zoom"); */
 
-        plot_f_vx_vy_parallelized<double,4>(n,coeffs_E,coeffs_B,coeffs_j_hat,conf,umin,umax,vmin,vmax,
+        plot_f_vx_vy_parallelized<double,4>(n,coeffs_E,coeffs_B,coeffs_j_hat,conf,-0.2,0.2,-1,0,
                                 512,512,0.05*M_PI,0.05*M_PI,0.05*M_PI,0,"_0_05_Lx_512x512");
-        plot_f_vx_vy_parallelized<double,4>(n,coeffs_E,coeffs_B,coeffs_j_hat,conf,umin,umax,vmin,vmax,
-                                512,512,Lx/2,Ly/2.0,Lz/2.0,0,"_Lx_2_512x512");
-        plot_f_vx_vy_parallelized<double,4>(n,coeffs_E,coeffs_B,coeffs_j_hat,conf,umin,umax,vmin,vmax,
-                                512,512,3*Lx/2,Ly/2.0,Lz/2.0,0,"_3_Lx_2_512x512");
+        plot_f_vx_vy_parallelized<double,4>(n,coeffs_E,coeffs_B,coeffs_j_hat,conf,-0.2,0.2,-0.5,0,
+                                512,512,Lx/2,Ly/2.0,Lz/2.0,0,"_Lx_2_512x512_zoomed");
+        /* plot_f_vx_vy_parallelized<double,4>(n,coeffs_E,coeffs_B,coeffs_j_hat,conf,umin,umax,vmin,vmax,
+                                512,512,3*Lx/2,Ly/2.0,Lz/2.0,0,"_3_Lx_2_512x512"); */
     }
 
 }
