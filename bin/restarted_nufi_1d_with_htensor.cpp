@@ -114,13 +114,17 @@ double f_t(double x, double u) noexcept
 	}
 
 	// Compute periodic reference position of x. Assume x_min = 0 to this end.
-     if(x < 0 || x > htensor::Lx){
+/*      if(x < 0 || x > htensor::Lx){
 	    x -= htensor::Lx * std::floor(x/htensor::Lx);
     } 
 
 	size_t x_ref_pos = std::floor(x/htensor::dx_r);
     x_ref_pos = x_ref_pos % htensor::nx_r;
-	size_t u_ref_pos = std::floor((u-conf.u_min)/htensor::du_r);
+	size_t u_ref_pos = std::floor((u-conf.u_min)/htensor::du_r); */
+
+    x = std::fmod(std::fmod(x, htensor::Lx) + htensor::Lx, htensor::Lx);
+    size_t x_ref_pos = std::min(static_cast<size_t>(std::floor(x / htensor::dx_r)), htensor::n_r - 1);
+    size_t u_ref_pos = std::min(static_cast<size_t>(std::floor((u-htensor::umin)/htensor::du_r)), htensor::n_r - 1);
 
 	double x1 = x_ref_pos*htensor::dx_r;
 	double x2 = x1+htensor::dx_r;
