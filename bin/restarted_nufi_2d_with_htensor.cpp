@@ -166,7 +166,7 @@ double f_t(double x, double y, double u, double v) noexcept
 	}
 
 	// Compute periodic reference position of x. Assume x_min = 0 to this end.
-    if(x < 0 || x > htensor::Lx){
+/*     if(x < 0 || x > htensor::Lx){
 	    x -= htensor::Lx * std::floor(x/htensor::Lx);
     } 
     // Compute periodic reference position of y. Assume y_min = 0 to this end.
@@ -175,13 +175,18 @@ double f_t(double x, double y, double u, double v) noexcept
     } 
 
 	size_t x_ref_pos = std::floor(x/htensor::dx_r);
-    /* x_ref_pos = x_ref_pos % htensor::n_r; */
-
 	size_t y_ref_pos = std::floor(y/htensor::dy_r);
-    /* y_ref_pos = y_ref_pos % htensor::n_r; */
 
 	size_t u_ref_pos = std::floor((u-conf.u_min)/htensor::du_r);
-    size_t v_ref_pos = std::floor((v-conf.v_min)/htensor::dv_r);
+    size_t v_ref_pos = std::floor((v-conf.v_min)/htensor::dv_r); */
+
+    x = std::fmod(std::fmod(x, htensor::Lx) + htensor::Lx, htensor::Lx);
+    size_t x_ref_pos = std::min(static_cast<size_t>(std::floor(x / htensor::dx_r)), htensor::n_r - 1);
+    y = std::fmod(std::fmod(y, htensor::Ly) + htensor::Ly, htensor::Ly);
+    size_t y_ref_pos = std::min(static_cast<size_t>(std::floor(y / htensor::dy_r)), htensor::n_r - 1);
+
+    size_t u_ref_pos = std::min(static_cast<size_t>(std::floor((u-htensor::umin)/htensor::du_r)), htensor::n_r - 1);
+    size_t v_ref_pos = std::min(static_cast<size_t>(std::floor((v-htensor::vmin)/htensor::dv_r)), htensor::n_r - 1);
 
 
     int arr[4] = {int(v_ref_pos) + 1, int(u_ref_pos) + 1,
