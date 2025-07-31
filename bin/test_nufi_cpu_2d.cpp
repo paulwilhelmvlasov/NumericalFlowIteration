@@ -757,11 +757,11 @@ int main()
 
     //nufi::dim2::test_read_in();
 
-    //nufi::dim2::restart_with_svd();
+    nufi::dim2::restart_with_svd();
 
 	//nufi::dim2::test<double,4>();
 
-    nufi::dim2::read_in_and_plot();
+    //nufi::dim2::read_in_and_plot();
 
     return 0;
 }

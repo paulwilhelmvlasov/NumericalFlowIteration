@@ -17,14 +17,16 @@
 #include <nufi/rho.hpp>
 #include <nufi/stopwatch.hpp>
 
-#include "/home/paul/Projekte/htlib/src/cpp_interface/htl_m_cpp_interface.hpp"
+#include "/dodrio/scratch/projects/2025_027/paul/Repos/htlib/src/cpp_interface/htl_m_cpp_interface.hpp"
+
+
 
 namespace htensor 
 {
 const size_t dim = 2;
 int32_t d = dim;
 auto dPtr = &d;
-const size_t nx_r = 1024;
+const size_t nx_r = 256;
 const size_t size_tensor_x = nx_r;
 const size_t nu_r = nx_r;
 const size_t size_tensor_u = nu_r;
@@ -44,6 +46,20 @@ namespace nufi
 
 namespace dim1
 {
+
+
+
+template <typename real>
+real maxwellian(real u) noexcept
+{
+	return 1.0 / std::sqrt(2.0 * M_PI) * exp(-0.5 * u*u);
+}
+
+template <typename real>
+real bi_maxwellian(real u) noexcept
+{
+	return 1.0 / std::sqrt(2.0 * M_PI) * u*u * exp(-0.5 * u*u);
+}
 
 template <typename real>
 real f0(real x, real u) noexcept
@@ -68,16 +84,16 @@ real lin_interpol(real x , real y, real x1, real x2, real y1, real y2, real f_11
 size_t restart_counter = 0;
 bool restarted = false;
 
-const size_t order = 4;
-const size_t Nx = 16;  // Number of grid points in physical space.
-const size_t Nu = 2*Nx;  // Number of quadrature points in velocity space.
+const size_t order = 2;
+const size_t Nx = htensor::nx_r;  // Number of grid points in physical space.
+const size_t Nu = Nx;  // Number of quadrature points in velocity space.
 //const double   dt = 0.0625;  // Time-step size.
 const double   dt = 0.1;  // Time-step size.
 const size_t Nt = 100/dt;  // Number of time-steps.
 config_t<double> conf(Nx, Nu, Nt, dt, 0, htensor::Lx, 
                     htensor::umin, htensor::umax, &f0);
 const size_t stride_t = conf.Nx + order - 1;
-const size_t nt_restart = 200;
+const size_t nt_restart = 50;
 std::unique_ptr<double[]> coeffs_full { new double[ (Nt+1)*stride_t ] {} };
 std::unique_ptr<double[]> coeffs_restart { new double[ (nt_restart+1)*stride_t ] {} };
 std::unique_ptr<double,decltype(std::free)*> rho { reinterpret_cast<double*>
@@ -123,8 +139,8 @@ double f_t(double x, double u) noexcept
 	size_t u_ref_pos = std::floor((u-conf.u_min)/htensor::du_r); */
 
     x = std::fmod(std::fmod(x, htensor::Lx) + htensor::Lx, htensor::Lx);
-    size_t x_ref_pos = std::min(static_cast<size_t>(std::floor(x / htensor::dx_r)), htensor::n_r - 1);
-    size_t u_ref_pos = std::min(static_cast<size_t>(std::floor((u-htensor::umin)/htensor::du_r)), htensor::n_r - 1);
+    size_t x_ref_pos = std::min(static_cast<size_t>(std::floor(x / htensor::dx_r)), htensor::nx_r - 1);
+    size_t u_ref_pos = std::min(static_cast<size_t>(std::floor((u-htensor::umin)/htensor::du_r)), htensor::nu_r - 1);
 
 	double x1 = x_ref_pos*htensor::dx_r;
 	double x2 = x1+htensor::dx_r;
@@ -171,11 +187,7 @@ void nufi_interface_for_fortran(int** ind, double &val)
         double x = i*htensor::dx_r;
         double u = htensor::umin + j*htensor::du_r;
 
-        if(restarted){
-            val = f_t(x, u);
-        } else {
-            val = periodic::eval_f<double,order>(nt_restart, x, u, coeffs_restart.get(), conf);
-        }
+        val = periodic::eval_f<double,order>(nt_restart, x, u, coeffs_restart.get(), conf);
 }
 
 void run_restarted_simulation()
@@ -193,13 +205,13 @@ void run_restarted_simulation()
 	void* opts;
 	auto optsPtr = &opts;
 
-	double tol = 1e-6;
+	double tol = 1e-3;
 	int32_t tcase = 2;
 
 	int32_t cross_no_loops = 2;
 	int32_t nNodes = 2 * (htensor::nx_r + htensor::nu_r ) - 1;
-	int32_t rank = 50;
-	int32_t rank_rand_row = 30;  
+	int32_t rank = 80;
+	int32_t rank_rand_row = rank/2;  
 	int32_t rank_rand_col = rank_rand_row;
 
     chtl_s_init_truncation_option(optsPtr, &tcase, &tol, &cross_no_loops, &nNodes, &rank, &rank_rand_row, &rank_rand_col);
@@ -258,8 +270,33 @@ void run_restarted_simulation()
         for(size_t i = 0; i < stride_t; i++){
             coeff_file << i << " " << coeffs_restart.get()[n*stride_t + i ] << std::endl;
         }
-
         
+/*         if(n % 20 == 0){
+            size_t nx_plot = 256;
+            size_t nu_plot = 256;
+            double dx_plot = htensor::Lx / nx_plot;
+            double du_plot = (htensor::umax - htensor::umin) / nu_plot;
+            std::ofstream f_str("f_correct_" + std::to_string(t) + ".txt");
+            std::ofstream f_minus_maxwellian_str("f_correct_minus_maxwellian_" + std::to_string(t) + ".txt");
+            std::ofstream f_minus_tsi_str("f_correct_minus_tsi_" + std::to_string(t) + ".txt");
+            for(size_t ix = 0; ix <= nx_plot; ix++){
+                for(size_t iu = 0; iu <= nu_plot; iu++){
+                    double x = ix*dx_plot;
+                    double u = htensor::umin + iu*du_plot;
+
+                    double f = periodic::eval_f<double,order>(n,x,u,coeffs_restart.get(),conf);
+                    double f_minus_maxw = f - maxwellian<double>(u);
+                    double f_minus_tsi = f - bi_maxwellian<double>(u);
+                    f_str << x << " " << u << " " << f << std::endl;
+                    f_minus_maxwellian_str << x << " " << u << " " << f_minus_maxw << std::endl;
+                    f_minus_tsi_str << x << " " << u << " " << f_minus_tsi << std::endl;
+                }
+                f_str << std::endl;
+                f_minus_maxwellian_str << std::endl;
+                f_minus_tsi_str << std::endl;
+            }
+        } */
+
         if(nt_r_curr == nt_restart)
     	{
             timer.reset();
@@ -295,6 +332,31 @@ void run_restarted_simulation()
             restart_time += timer_elapsed;
             total_time += timer_elapsed;
             std::cout << "Restart took: " << timer_elapsed << ". Total comp time s.f.: " << total_time << std::endl;
+
+/*             std::cout << "Let's look at the function." << std::endl;
+            size_t nx_plot = 256;
+            size_t nu_plot = 256;
+            double dx_plot = htensor::Lx / nx_plot;
+            double du_plot = (htensor::umax - htensor::umin) / nu_plot;
+            std::ofstream f_str("f_restart_" + std::to_string(t) + ".txt");
+            std::ofstream f_minus_maxwellian_str("f_minus_maxwellian_" + std::to_string(t) + ".txt");
+            std::ofstream f_minus_tsi_str("f_minus_tsi_" + std::to_string(t) + ".txt");
+            for(size_t ix = 0; ix <= nx_plot; ix++){
+                for(size_t iu = 0; iu <= nu_plot; iu++){
+                    double x = ix*dx_plot;
+                    double u = htensor::umin + iu*du_plot;
+
+                    double f = f_t(x,u);
+                    double f_minus_maxw = f - maxwellian<double>(u);
+                    double f_minus_tsi = f - bi_maxwellian<double>(u);
+                    f_str << x << " " << u << " " << f << std::endl;
+                    f_minus_maxwellian_str << x << " " << u << " " << f_minus_maxw << std::endl;
+                    f_minus_tsi_str << x << " " << u << " " << f_minus_tsi << std::endl;
+                }
+                f_str << std::endl;
+                f_minus_maxwellian_str << std::endl;
+                f_minus_tsi_str << std::endl;
+            } */
     	} else {
             nt_r_curr++;
         }

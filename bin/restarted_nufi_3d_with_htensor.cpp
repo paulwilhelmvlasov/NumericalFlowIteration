@@ -17,14 +17,16 @@
 #include <nufi/rho.hpp>
 #include <nufi/stopwatch.hpp>
 
-#include "/home/paul/Projekte/htlib/src/cpp_interface/htl_m_cpp_interface.hpp"
+//#include "/home/paul/Projekte/htlib/src/cpp_interface/htl_m_cpp_interface.hpp"
+#include "/dodrio/scratch/projects/2025_027/paul/Repos/htlib/src/cpp_interface/htl_m_cpp_interface.hpp"
+
 
 namespace htensor 
 {
 const size_t dim = 6;
 int32_t d = dim;
 auto dPtr = &d;
-const size_t n_r = 512;
+const size_t n_r = 64;
 const size_t size_tensor = n_r + 1;
 
 void* htensor;
@@ -197,19 +199,24 @@ real f0(real x, real y, real z, real u, real v, real w) noexcept
     constexpr real k     = 0.5;
 
     // Weak Landau Damping:
-    constexpr real c  = 0.06349363593424096978576330493464; // Weak Landau damping
+    /* constexpr real c  = 0.06349363593424096978576330493464; // Weak Landau damping
     return c * ( 1. + alpha*cos(k*x) + alpha*cos(k*y) + alpha*cos(k*z)) 
-             * exp( -(u*u+v*v+w*w)/2 );
+             * exp( -(u*u+v*v+w*w)/2 ); */
+
+    // Two Stream Instability:
+    constexpr real c  = 0.06349363593424096978576330493464; 
+    return c * ( 1. + alpha*cos(k*x) + alpha*cos(k*y) + alpha*cos(k*z)) 
+             * u*u * exp( -(u*u+v*v+w*w)/2 );
 }
 
 size_t restart_counter = 0;
 bool restarted = false;
 
-const size_t order = 4;
-const size_t Nx = 8;  // Number of grid points in physical space.
-const size_t Nu = 2*Nx;  // Number of quadrature points in velocity space.
-const double   dt = 0.0625;  // Time-step size.
-const size_t Nt = 30/dt;  // Number of time-steps.
+const size_t order = 2;
+const size_t Nx = htensor::n_r;  // Number of grid points in physical space.
+const size_t Nu = Nx;  // Number of quadrature points in velocity space.
+const double   dt = 0.1;  // Time-step size.
+const size_t Nt = 100/dt;  // Number of time-steps.
 config_t<double> conf(Nx, Nx, Nx, Nu, Nu, Nu, Nt, dt, 
                     0, htensor::Lx, 0, htensor::Ly, 0, htensor::Lz, 
                     htensor::umin, htensor::umax, 
@@ -218,7 +225,7 @@ config_t<double> conf(Nx, Nx, Nx, Nu, Nu, Nu, Nt, dt,
 size_t stride_t = (conf.Nx + order - 1) *
                   (conf.Ny + order - 1) *
 	    		  (conf.Nz + order - 1);
-const size_t nt_restart = 64;
+const size_t nt_restart = Nt + 1;
 std::unique_ptr<double[]> coeffs_full { new double[ (Nt+1)*stride_t ] {} };
 std::unique_ptr<double[]> coeffs_restart { new double[ (nt_restart+1)*stride_t ] {} };
 
@@ -313,12 +320,14 @@ void nufi_interface_for_fortran(int** ind, double &val)
     double v = htensor::vmin + i_v*htensor::dv_r;
     double w = htensor::wmin + i_w*htensor::dw_r;
 
-    if(restarted){
+    /* if(restarted){
         val = f_t(x,y,z,u,v,w);
     } else {
         val = eval_f<double,order>(nt_restart, x, y, z, u, v, w, 
                                     coeffs_restart.get(), conf);
-    }
+    } */
+
+    val = eval_f<double,order>(nt_restart, x, y, z, u, v, w, coeffs_restart.get(), conf);
 }
 
 void run_restarted_simulation()
@@ -337,14 +346,14 @@ void run_restarted_simulation()
 	void* opts;
 	auto optsPtr = &opts;
 
-	double tol = 1e-5;
+	double tol = 1e-3;
 	int32_t tcase = 2;
 
 	int32_t cross_no_loops = 2;
 	/* int32_t nNodes = 2 * (6 * htensor::n_r ) - 1; */
     int32_t nNodes = 2 * (6 * htensor::size_tensor ) - 1;
-	int32_t rank = 30;
-	int32_t rank_rand_row = 20;  
+	int32_t rank = 20;
+	int32_t rank_rand_row = 10;  
 	int32_t rank_rand_col = rank_rand_row;
 
     chtl_s_init_truncation_option(optsPtr, &tcase, &tol, &cross_no_loops, &nNodes, &rank, &rank_rand_row, &rank_rand_col);
