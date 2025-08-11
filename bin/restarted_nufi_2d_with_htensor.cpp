@@ -17,8 +17,8 @@
 #include <nufi/rho.hpp>
 #include <nufi/stopwatch.hpp>
 
-//#include "/home/paul/Projekte/htlib/src/cpp_interface/htl_m_cpp_interface.hpp"
-#include "/dodrio/scratch/projects/2025_027/paul/Repos/htlib/src/cpp_interface/htl_m_cpp_interface.hpp"
+//#include "/dodrio/scratch/projects/2025_027/paul/Repos/htlib/src/cpp_interface/htl_m_cpp_interface.hpp"
+#include "../htlib/src/cpp_interface/htl_m_cpp_interface.hpp"
 
 
 

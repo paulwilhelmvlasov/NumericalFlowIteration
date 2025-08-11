@@ -212,7 +212,7 @@ void run_restarted_simulation()
 
     //omp_set_num_threads(1);
 
-    size_t Nx = 256;  // Number of grid points in physical space.
+    size_t Nx = 1024;  // Number of grid points in physical space.
     size_t Nu = Nx;  // Number of quadrature points in velocity space.
     double   dt = 0.1;  // Time-step size.
     size_t Nt = 100/dt;  // Number of time-steps.
@@ -232,7 +232,7 @@ void run_restarted_simulation()
     // We use conf.Nt as restart timer for now.
     size_t nx_r = Nx;
 	size_t nu_r = nx_r;
-    size_t nt_restart = 100;
+    size_t nt_restart = 1;
     double dx_r = conf.Lx / nx_r;
     double du_r = (conf.u_max - conf.u_min)/ nu_r;
     f0_r.resize(nx_r+1, nu_r+1);
@@ -369,10 +369,27 @@ void run_restarted_simulation()
             arma::vec s;
             arma::mat V;
 
-            arma::svd_econ(U, s, V, f0_r_copy);
             // Define a threshold
-            double tol = 1e-2;
-            size_t max_rank = 30;
+            double tol = 1e-16;
+            size_t max_rank = 4;
+
+            // This was the direct SVD way:
+            //arma::svd_econ(U, s, V, f0_r_copy);
+
+            // Function handles to pass to randomized_svd
+            // Later the direct use of f0_r_copy would be substituted by direct 
+            // evaluation of f.
+/*             auto A_mv = [&](const arma::vec& x) -> arma::vec {
+                return f0_r_copy * x;
+            };
+
+            auto At_mv = [&](const arma::vec& x) -> arma::vec {
+                return f0_r_copy.t() * x;
+            };
+
+            std::cout << "Start random svd. " << std::endl;
+            svd_magic::randomized_svd(A_mv, At_mv, f0_r_copy.n_rows, f0_r_copy.n_cols, max_rank, U, s, V);
+            std::cout << "RSVD finished." << std::endl;
 
             // Find how many singular values are above the 
             // (relative) tolerance:
@@ -386,8 +403,8 @@ void run_restarted_simulation()
             s = s.rows(0, r - 1);
             V = V.cols(0, r - 1);
 
-            f0_r = U * arma::diagmat(s) * V.t();
-            //f0_r = f0_r_copy;
+            f0_r = U * arma::diagmat(s) * V.t(); */
+            f0_r = f0_r_copy;
 
             conf = config_t<double>(Nx, Nu, Nt, dt, x_min, x_max, u_min, u_max, &f_t);
 
@@ -418,8 +435,8 @@ void run_restarted_simulation()
 
 int main()
 {
-	//nufi::dim1::run_restarted_simulation<2>();
+	nufi::dim1::run_restarted_simulation<2>();
 
-    nufi::svd_magic::test_rsvd();
+    //nufi::svd_magic::test_rsvd();
 }
 
