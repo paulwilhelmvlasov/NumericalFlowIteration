@@ -142,6 +142,25 @@ void test_rsvd()
 namespace dim1
 {
 
+size_t Nx = 256;  // Number of grid points in physical space.
+size_t Nu = Nx;  // Number of quadrature points in velocity space.
+double   dt = 0.1;  // Time-step size.
+size_t Nt = 100/dt;  // Number of time-steps.
+
+// Dimensions of physical domain.
+double x_min = 0;
+double x_max = 4*M_PI;
+
+// Integration limits for velocity space.
+double u_min = -6;
+double u_max = 6;
+
+size_t nx_r = Nx;
+size_t nu_r = nx_r;
+size_t nt_restart = 100;
+double dx_r = (x_max - x_min) / nx_r;
+double du_r = (u_max - u_min)/ nu_r;
+
 template <typename real>
 real maxwellian_1d(real u, real vth) noexcept
 {
@@ -168,6 +187,7 @@ real lin_interpol(real x , real y, real x1, real x2, real y1, real y2, real f_11
 }
 
 arma::mat f0_r;
+arma::mat U_s_r, V_r;
 config_t<double> conf(64, 128, 500, 0.1, 0, 4*M_PI, -10, 10, &f0);
 
 double f_t(double x, double u) noexcept
@@ -201,8 +221,222 @@ double f_t(double x, double u) noexcept
     return value;
 }
 
+// Efficient grid access using dot product
+inline double f0_svd(size_t i, size_t j) noexcept {
+    return arma::dot(U_s_r.row(i), V_r.row(j));
+}
+
+inline arma::mat f0_svd_block(size_t i, size_t j) noexcept {
+    // 2xR block from U_s
+    arma::mat U_block = U_s_r.rows(i, i+1);      // (2 x r)
+
+    // 2xR block from V
+    arma::mat V_block = V_r.rows(j, j+1);      // (2 x r)
+
+    // 2x2 block of function values
+    return U_block * V_block.t();              // (2 x 2)
+}
+
+double f_svd_t(double x, double u) noexcept
+{
+	if(u > conf.u_max || u < conf.u_min){
+		return 0;
+	}
+
+	size_t nx_r = U_s_r.n_rows - 1;
+	size_t nu_r = V_r.n_rows - 1;
+
+	double dx_r = conf.Lx/ nx_r;
+	double du_r = (conf.u_max - conf.u_min)/nu_r;
+
+    x = std::fmod(std::fmod(x, conf.Lx) + conf.Lx, conf.Lx);
+    size_t x_ref_pos = std::min(static_cast<size_t>(std::floor(x / dx_r)), nx_r - 1);
+    size_t u_ref_pos = std::min(static_cast<size_t>(std::floor((u-conf.u_min)/du_r)), nu_r - 1);
+
+	double x1 = x_ref_pos*dx_r;
+	double x2 = x1+dx_r;
+	double u1 = conf.u_min + u_ref_pos*du_r;
+	double u2 = u1 + du_r;
+
+    // get the 2x2 block
+    arma::mat F = f0_svd_block(x_ref_pos, u_ref_pos);
+
+    // unpack into corners
+    double f_11 = F(0,0);
+    double f_21 = F(1,0);
+    double f_12 = F(0,1);
+    double f_22 = F(1,1);
+
+    double value = lin_interpol<double>(x, u, x1, x2, u1, u2, f_11, f_12, f_21, f_22);
+
+    return value;
+}
+
 template <size_t order>
-void run_restarted_simulation()
+void restart_with_full_matrix(size_t& nt_r_curr, size_t n, double* coeffs, config_t<double>& conf, double& total_time)
+{
+    const size_t stride_t = conf.Nx + order - 1;
+    std::cout << "Restart" << std::endl;
+    nufi::stopwatch<double> timer_restart;
+    arma::mat f0_r_copy(nx_r + 1, nu_r + 1);
+    #pragma omp parallel for
+    for(size_t i = 0; i <= nx_r; i++ ){
+    	for(size_t j = 0; j <= nu_r; j++){
+    		double x = i*dx_r;
+    		double u = conf.u_min + j*du_r;
+
+            double f = periodic::eval_f<double,order>(nt_r_curr,x,u,coeffs,conf);
+
+            f0_r_copy(i,j) = f;
+    	}
+    }
+
+    // Let's try SVD compression:
+    arma::mat U;
+    arma::vec s;
+    arma::mat V;
+
+    // Define a threshold
+    double tol = 1e-2;
+    size_t max_rank = 50;
+
+    // This was the direct SVD way:
+    //arma::svd_econ(U, s, V, f0_r_copy);
+
+    // Function handles to pass to randomized_svd
+    // Later the direct use of f0_r_copy would be substituted by direct 
+    // evaluation of f.
+    auto A_mv = [&](const arma::vec& x) -> arma::vec {
+        return f0_r_copy * x;
+    };
+
+    auto At_mv = [&](const arma::vec& x) -> arma::vec {
+        return f0_r_copy.t() * x;
+    };
+
+    std::cout << "Start random svd. " << std::endl;
+    svd_magic::randomized_svd(A_mv, At_mv, f0_r_copy.n_rows, f0_r_copy.n_cols, max_rank, U, s, V);
+    std::cout << "RSVD finished." << std::endl;
+
+    // Find how many singular values are above the 
+    // (relative) tolerance:
+    arma::uword r = arma::sum(s > tol * s(0));
+    if ( r > max_rank){
+        r = max_rank;
+    }
+    std::cout << "Truncation rank = " << r << std::endl;
+    // Truncate U, s, V
+    U = U.cols(0, r - 1);
+    s = s.rows(0, r - 1);
+    V = V.cols(0, r - 1);
+    f0_r = U * arma::diagmat(s) * V.t();
+    //f0_r = f0_r_copy;
+
+    conf = config_t<double>(conf.Nx, conf.Nu, conf.Nt, conf.dt, conf.x_min, 
+                            conf.x_max, conf.u_min, conf.u_max, &f_t);
+    // Copy last entry of coeff vector into restarted coeff vector.
+    #pragma omp parallel for
+    for(size_t i = 0; i < stride_t; i++){
+         coeffs[i] = coeffs[nt_r_curr*stride_t + i];
+    }
+
+    std::cout << n << " " << nt_r_curr << " restart " << std::endl;
+    nt_r_curr = 1;
+    double restart_time = timer_restart.elapsed();
+    total_time += restart_time;
+    std::cout << "Restart took: " << restart_time << ". Total comp time s.f.: " << total_time << std::endl;
+}
+
+template <size_t order>
+void restart_with_rsvd_compression(size_t& nt_r_curr, size_t n, double* coeffs, config_t<double>& conf, double& total_time)
+{
+    const size_t stride_t = conf.Nx + order - 1;
+    std::cout << "Restart" << std::endl;
+    nufi::stopwatch<double> timer_restart;
+
+//    arma::mat U;
+    arma::vec s;
+//    arma::mat V;
+
+    // Threshold and max rank
+    double tol = 1e-2;
+    size_t max_rank = 50;
+
+    // Define lazy matrix-vector product A * x
+    auto A_mv = [&](const arma::vec& x) -> arma::vec {
+        arma::vec y(nx_r + 1, arma::fill::zeros);
+
+        // y(i) = sum_j A(i,j) * x(j)
+        #pragma omp parallel for
+        for (size_t i = 0; i <= nx_r; i++) {
+            double x_coord = i * dx_r;
+            double acc = 0.0;
+            for (size_t j = 0; j <= nu_r; j++) {
+                double u_coord = conf.u_min + j * du_r;
+                double f = periodic::eval_f<double, order>(nt_r_curr, x_coord, u_coord, coeffs, conf);
+                acc += f * x(j);
+            }
+            y(i) = acc;
+        }
+
+        return y;
+    };
+
+    // Define lazy matrix-vector product A^T * x
+    auto At_mv = [&](const arma::vec& x) -> arma::vec {
+        arma::vec y(nu_r + 1, arma::fill::zeros);
+
+        // y(j) = sum_i A(i,j) * x(i)
+        #pragma omp parallel for
+        for (size_t j = 0; j <= nu_r; j++) {
+            double u_coord = conf.u_min + j * du_r;
+            double acc = 0.0;
+            for (size_t i = 0; i <= nx_r; i++) {
+                double x_coord = i * dx_r;
+                double f = periodic::eval_f<double, order>(nt_r_curr, x_coord, u_coord, coeffs, conf);
+                acc += f * x(i);
+            }
+            y(j) = acc;
+        }
+
+        return y;
+    };
+
+    std::cout << "Start random svd. " << std::endl;
+    svd_magic::randomized_svd(A_mv, At_mv, nx_r + 1, nu_r + 1, max_rank, U_s_r, s, V_r);
+    std::cout << "RSVD finished." << std::endl;
+
+    // Truncate by tolerance
+    arma::uword r = arma::sum(s > tol * s(0));
+    if (r > max_rank) {
+        r = max_rank;
+    }
+    std::cout << "Truncation rank = " << r << std::endl;
+
+    U_s_r = U_s_r.cols(0, r - 1);
+    s = s.rows(0, r - 1);
+    V_r = V_r.cols(0, r - 1);
+
+    U_s_r = U_s_r * arma::diagmat(s);
+
+    conf = config_t<double>(Nx, Nu, Nt, dt, x_min, x_max, u_min, u_max, &f_svd_t);
+
+    // Copy last coeff slice
+    #pragma omp parallel for
+    for (size_t i = 0; i < stride_t; i++) {
+        coeffs[i] = coeffs[nt_r_curr * stride_t + i];
+    }
+
+    std::cout << n << " " << nt_r_curr << " restart " << std::endl;
+    nt_r_curr = 1;
+    double restart_time = timer_restart.elapsed();
+    total_time += restart_time;
+    std::cout << "Restart took: " << restart_time
+              << ". Total comp time s.f.: " << total_time << std::endl;
+}
+
+template <size_t order>
+void run_restarted_simulation(bool with_svd_compression = true)
 {
 	using std::exp;
 	using std::sin;
@@ -212,51 +446,23 @@ void run_restarted_simulation()
 
     //omp_set_num_threads(1);
 
-    size_t Nx = 1024;  // Number of grid points in physical space.
-    size_t Nu = Nx;  // Number of quadrature points in velocity space.
-    double   dt = 0.1;  // Time-step size.
-    size_t Nt = 100/dt;  // Number of time-steps.
-
-    // Dimensions of physical domain.
-    double x_min = 0;
-    double x_max = 4*M_PI;
-    conf.x_min = x_min;
-    conf.x_max = x_max; // Actually I should also set Lx etc.
-
-    // Integration limits for velocity space.
-    double u_min = -6;
-    double u_max = 6;
-    conf.u_min = u_min;
-    conf.u_max = u_max;
-
-    // We use conf.Nt as restart timer for now.
-    size_t nx_r = Nx;
-	size_t nu_r = nx_r;
-    size_t nt_restart = 1;
-    double dx_r = conf.Lx / nx_r;
-    double du_r = (conf.u_max - conf.u_min)/ nu_r;
-    f0_r.resize(nx_r+1, nu_r+1);
+    if(!with_svd_compression){
+        f0_r.resize(nx_r+1, nu_r+1);
+    }
+    
     conf = config_t<double>(Nx, Nu, Nt, dt, x_min, x_max, u_min, u_max, &f0);
-    config_t<double> conf_full(Nx, Nu, Nt, dt, x_min, x_max, u_min, u_max, &f0);
     const size_t stride_t = conf.Nx + order - 1;
 
-    std::unique_ptr<double[]> coeffs { new double[ (conf.Nt+1)*stride_t ] {} };
     std::unique_ptr<double[]> coeffs_restart { new double[ (nt_restart+1)*stride_t ] {} };
     std::unique_ptr<double,decltype(std::free)*> rho { reinterpret_cast<double*>(std::aligned_alloc(64,sizeof(double)*conf.Nx)), std::free };
     if ( rho == nullptr ) throw std::bad_alloc {};
 
     poisson<double> poiss( conf );
-
-    std::cout << f0_r.n_rows << " " << f0_r.n_cols << std::endl;
-    std::cout << nx_r << " " << nu_r << std::endl;
-
     
     std::ofstream stat_file( "stats.txt" );
     std::ofstream stat_full_file( "stats_full.txt" );
-    std::ofstream coeff_str("coeff_restart.txt");
-    std::ofstream coeff_r_str("coeff_r_restart.txt");
+    //std::ofstream coeff_str("coeff_restart.txt");
     double total_time = 0;
-    size_t restart_counter = 0;
     size_t nt_r_curr = 0;
     for ( size_t n = 0; n <= Nt; ++n )
     {
@@ -270,35 +476,22 @@ void run_restarted_simulation()
     		rho.get()[i] = periodic::eval_rho<double,order>(nt_r_curr, i, coeffs_restart.get(), conf);
     	}
 
-/*         std::ofstream rho_str("rho_" + std::to_string(n*conf.dt) + ".txt");
-        for(size_t i = 0; i < conf.Nx; i++){
-            rho_str << i*conf.dx << " " << rho.get()[i] << std::endl;
-        }  */
-
         double elec_energy = poiss.solve( rho.get() );
 
         // Interpolation of Poisson solution.
         periodic::interpolate<double,order>( coeffs_restart.get() + nt_r_curr*stride_t, rho.get(), conf );
-        // Copy solution also into global coeffs-vector.
-        
-        #pragma omp parallel for
-        for(size_t i = 0; i < stride_t; i++){
-            coeffs.get()[n*stride_t + i ] = coeffs_restart.get()[nt_r_curr*stride_t + i];
-        }
 
         double timer_elapsed = timer.elapsed();
         total_time += timer_elapsed;
 
         double Emax = 0;
-        size_t plot_n_x = 128;
+        size_t plot_n_x = 512;
         double dx_plot = conf.Lx / plot_n_x;
-        //std::ofstream E_str("E_" + std::to_string(n*conf.dt) + ".txt");
         for ( size_t i = 0; i <= plot_n_x; ++i )
         {
             double x = conf.x_min + i*dx_plot;
             double E = periodic::eval<double,order,1>(x,coeffs_restart.get()+nt_r_curr*stride_t,conf);
             Emax = max( Emax, std::abs(E) );
-            //E_str << x << " " << E << std::endl;
         }
 
 	    double t = n*conf.dt;
@@ -306,7 +499,7 @@ void run_restarted_simulation()
         std::cout << std::setw(15) << t << std::setw(15) << std::setprecision(5) << std::scientific << Emax << " Comp-time: " << timer_elapsed;
         std::cout << " Total comp time s.f.: " << total_time << std::endl; 
 
-        if(n % (5*16) == 0 && false){
+        if(n % (5*10) == 0 && true){
             size_t plot_n_u = plot_n_x;
             double du_plot = (conf.u_max - conf.u_min) / plot_n_u;
 
@@ -316,12 +509,13 @@ void run_restarted_simulation()
             double l2_norm = 0;
             double max_norm = 0;
 
+            std::ofstream f_str("f_" + std::to_string(t) + ".txt");
             for(size_t i = 0; i < plot_n_x; i++){
                 for(size_t j = 0; j < plot_n_u; j++){
                     double x = conf.x_min + i*dx_plot;
                     double u = conf.u_min + j*du_plot;
                     double f = periodic::eval_f<double,order>(nt_r_curr, x, u, coeffs_restart.get(), conf);
-
+                    f_str << x << " " << u << " " << f << std::endl;
                     kinetic_energy += u*u*f;
                     if(f > 0){
                         entropy -= f*std::log(f);
@@ -330,6 +524,7 @@ void run_restarted_simulation()
                     l2_norm += f*f;
                     max_norm = std::max(f, max_norm);
                 }
+                f_str << std::endl;
             }
 
             double weight = dx_plot*du_plot;
@@ -349,77 +544,12 @@ void run_restarted_simulation()
 
         if(nt_r_curr == nt_restart)
     	{
-            std::cout << "Restart" << std::endl;
-            nufi::stopwatch<double> timer_restart;
-            arma::mat f0_r_copy(nx_r + 1, nu_r + 1);
-            #pragma omp parallel for
-    		for(size_t i = 0; i <= nx_r; i++ ){
-    			for(size_t j = 0; j <= nu_r; j++){
-    				double x = i*dx_r;
-    				double u = conf.u_min + j*du_r;
-
-                    double f = periodic::eval_f<double,order>(nt_r_curr,x,u,coeffs_restart.get(),conf);
-
-                    f0_r_copy(i,j) = f;
-    			}
-    		}
-
-            // Let's try SVD compression:
-            arma::mat U;
-            arma::vec s;
-            arma::mat V;
-
-            // Define a threshold
-            double tol = 1e-16;
-            size_t max_rank = 4;
-
-            // This was the direct SVD way:
-            //arma::svd_econ(U, s, V, f0_r_copy);
-
-            // Function handles to pass to randomized_svd
-            // Later the direct use of f0_r_copy would be substituted by direct 
-            // evaluation of f.
-/*             auto A_mv = [&](const arma::vec& x) -> arma::vec {
-                return f0_r_copy * x;
-            };
-
-            auto At_mv = [&](const arma::vec& x) -> arma::vec {
-                return f0_r_copy.t() * x;
-            };
-
-            std::cout << "Start random svd. " << std::endl;
-            svd_magic::randomized_svd(A_mv, At_mv, f0_r_copy.n_rows, f0_r_copy.n_cols, max_rank, U, s, V);
-            std::cout << "RSVD finished." << std::endl;
-
-            // Find how many singular values are above the 
-            // (relative) tolerance:
-            arma::uword r = arma::sum(s > tol * s(0));
-            if ( r > max_rank){
-                r = max_rank;
+            if(with_svd_compression)
+            {
+                restart_with_rsvd_compression<order>(nt_r_curr,n,coeffs_restart.get(),conf,total_time);
+            } else {
+                restart_with_full_matrix<order>(nt_r_curr,n,coeffs_restart.get(),conf,total_time);
             }
-            std::cout << "Truncation rank = " << r << std::endl;
-            // Truncate U, s, V
-            U = U.cols(0, r - 1);
-            s = s.rows(0, r - 1);
-            V = V.cols(0, r - 1);
-
-            f0_r = U * arma::diagmat(s) * V.t(); */
-            f0_r = f0_r_copy;
-
-            conf = config_t<double>(Nx, Nu, Nt, dt, x_min, x_max, u_min, u_max, &f_t);
-
-            // Copy last entry of coeff vector into restarted coeff vector.
-            #pragma omp parallel for
-            for(size_t i = 0; i < stride_t; i++){
-                coeffs_restart.get()[i] = coeffs_restart.get()[nt_r_curr*stride_t + i];
-            }
-
-            std::cout << n << " " << nt_r_curr << " restart " << std::endl;
-            nt_r_curr = 1;
-            restart_counter++;
-            double restart_time = timer_restart.elapsed();
-            total_time += restart_time;
-            std::cout << "Restart took: " << restart_time << ". Total comp time s.f.: " << total_time << std::endl;
     	} else {
             nt_r_curr++;
         }
@@ -435,7 +565,7 @@ void run_restarted_simulation()
 
 int main()
 {
-	nufi::dim1::run_restarted_simulation<2>();
+	nufi::dim1::run_restarted_simulation<2>(false);
 
     //nufi::svd_magic::test_rsvd();
 }
