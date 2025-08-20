@@ -150,6 +150,7 @@ size_t Nt = 100/dt;  // Number of time-steps.
 // Dimensions of physical domain.
 double x_min = 0;
 double x_max = 4*M_PI;
+double Lx = x_max - x_min;
 
 // Integration limits for velocity space.
 double u_min = -6;
@@ -159,7 +160,7 @@ size_t nx_r = Nx;
 size_t nu_r = nx_r;
 size_t nt_restart = 100;
 double dx_r = (x_max - x_min) / nx_r;
-double du_r = (u_max - u_min)/ nu_r;
+double du_r = (u_max - u_min) / nu_r;
 
 template <typename real>
 real maxwellian_1d(real u, real vth) noexcept
@@ -239,22 +240,20 @@ inline arma::mat f0_svd_block(size_t i, size_t j) noexcept {
 
 double f_svd_t(double x, double u) noexcept
 {
-	if(u > conf.u_max || u < conf.u_min){
+	if(u > u_max || u < u_min){
 		return 0;
 	}
 
 	size_t nx_r = U_s_r.n_rows - 1;
 	size_t nu_r = V_r.n_rows - 1;
 
-	double dx_r = conf.Lx/ nx_r;
-	double du_r = (conf.u_max - conf.u_min)/nu_r;
-
-    x = std::fmod(std::fmod(x, conf.Lx) + conf.Lx, conf.Lx);
+    // Assuming that x_min = 0. 
+    x = std::fmod(std::fmod(x, Lx) + Lx, Lx);
     size_t x_ref_pos = std::min(static_cast<size_t>(std::floor(x / dx_r)), nx_r - 1);
     size_t u_ref_pos = std::min(static_cast<size_t>(std::floor((u-conf.u_min)/du_r)), nu_r - 1);
 
 	double x1 = x_ref_pos*dx_r;
-	double x2 = x1+dx_r;
+	double x2 = x1 + dx_r;
 	double u1 = conf.u_min + u_ref_pos*du_r;
 	double u2 = u1 + du_r;
 

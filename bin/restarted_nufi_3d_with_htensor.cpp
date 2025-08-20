@@ -264,26 +264,6 @@ double f_t(double x, double y, double z, double u, double v, double w) noexcept
 	}
 
 	// Compute periodic reference position of x. Assume x_min = 0 to this end.
-/*     if(x < 0 || x > htensor::Lx){
-	    x -= htensor::Lx * std::floor(x/htensor::Lx);
-    } 
-    // Compute periodic reference position of y. Assume y_min = 0 to this end.
-    if(y < 0 || y > htensor::Ly){
-	    y -= htensor::Ly * std::floor(y/htensor::Ly);
-    } 
-	// Compute periodic reference position of z. Assume z_min = 0 to this end.
-    if(z < 0 || z > htensor::Lz){
-	    z -= htensor::Lz * std::floor(z/htensor::Lz);
-    } 
-
-	size_t x_ref_pos = std::floor(x/htensor::dx_r);
-	size_t y_ref_pos = std::floor(y/htensor::dy_r);
-    size_t z_ref_pos = std::floor(z/htensor::dz_r);
-
-	size_t u_ref_pos = std::floor((u-conf.u_min)/htensor::du_r);
-    size_t v_ref_pos = std::floor((v-conf.v_min)/htensor::dv_r);
-    size_t w_ref_pos = std::floor((w-conf.w_min)/htensor::dw_r); */
-
     x = std::fmod(std::fmod(x, htensor::Lx) + htensor::Lx, htensor::Lx);
     size_t x_ref_pos = std::min(static_cast<size_t>(std::floor(x / htensor::dx_r)), htensor::n_r - 1);
     y = std::fmod(std::fmod(y, htensor::Ly) + htensor::Ly, htensor::Ly);
@@ -299,7 +279,6 @@ double f_t(double x, double y, double z, double u, double v, double w) noexcept
                 z_ref_pos + 1, y_ref_pos + 1, x_ref_pos + 1};
 	
     return htensor::linear_interpolation_6d(x, y, z, u, v, w, arr);
-    // return htensor::piecewise_constant_interpolation_6d(x, y, z, u, v, w, arr);
 }
 
 void nufi_interface_for_fortran(int** ind, double &val)
