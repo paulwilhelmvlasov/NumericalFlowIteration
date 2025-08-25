@@ -92,8 +92,8 @@ namespace dim3
 {
 
 const double Lx = 4*M_PI;
-const double Ly = 1;
-const double Lz = 1;
+const double Ly = Lx;
+const double Lz = Lx;
 
 const double x_min = 0;
 const double x_max = Lx;
@@ -109,7 +109,7 @@ const double v_max = 0.5;
 const double w_min = -0.5;
 const double w_max = 0.5;
 
-const size_t nx_r = 64;
+const size_t nx_r = 128;
 const size_t ny_r = 1;
 const size_t nz_r = 1;
 
@@ -127,15 +127,15 @@ const double dw_r = (w_max - w_min)/nw_r;
 
 const size_t order = 2;
 const size_t Nx = nx_r;  // Number of grid points in physical space.
-const size_t Ny = 1;  // Number of grid points in physical space.
-const size_t Nz = 1;  // Number of grid points in physical space.
-const size_t Nu = Nx;  // Number of quadrature points in velocity space.
-const size_t Nv = 1;  // Number of quadrature points in velocity space.
-const size_t Nw = 1;  // Number of quadrature points in velocity space.
+const size_t Ny = ny_r;  // Number of grid points in physical space.
+const size_t Nz = nz_r;  // Number of grid points in physical space.
+const size_t Nu = nu_r;  // Number of quadrature points in velocity space.
+const size_t Nv = nv_r;  // Number of quadrature points in velocity space.
+const size_t Nw = nw_r;  // Number of quadrature points in velocity space.
 const double   dt = 0.1;  // Time-step size.
 const size_t Nt = 100/dt;  // Number of time-steps.
 
-size_t nt_restart = 5;
+size_t nt_restart = 10;
 
 template <typename real>
 real f0(real x, real y, real z, real u, real v, real w) noexcept
@@ -156,9 +156,7 @@ real f0(real x, real y, real z, real u, real v, real w) noexcept
     return 1.0 / std::sqrt(2.0 * M_PI) * u*u * std::exp(-0.5 * u*u) * (1 + alpha * std::cos(k*x)); 
 
     // 2d Two Stream Instability:
-    /* constexpr real c  = 1/(2*M_PI); 
-    return c * ( 1. + alpha*cos(k*x) + alpha*cos(k*y)) 
-             * u*u * exp( -(u*u+v*v)/2 ); */
+    //return 1.0/(2.0*M_PI) * ( 1. + alpha*cos(k*x) + alpha*cos(k*y)) * u*u * exp( -(u*u+v*v)/2 );
 
     // 3d Two Stream Instability:
 /*     constexpr real c  = 0.06349363593424096978576330493464; 
@@ -166,123 +164,86 @@ real f0(real x, real y, real z, real u, real v, real w) noexcept
              * u*u * exp( -(u*u+v*v+w*w)/2 ); */
 }
 
-arma::mat U_s_r, V_r;
-
+// flattening helpers
 inline size_t idx_xyz(size_t ix, size_t iy, size_t iz,
-                      size_t nx, size_t ny) noexcept {
-    return ix + (nx+1)*(iy + (ny+1)*iz);
+                      size_t nx_r, size_t ny_r) noexcept {
+    return ix + (nx_r+1) * (iy + (ny_r+1) * iz);
 }
 inline size_t idx_uvw(size_t iu, size_t iv, size_t iw,
-                      size_t nu, size_t nv) noexcept {
-    return iu + (nu+1)*(iv + (nv+1)*iw);
+                      size_t nu_r, size_t nv_r) noexcept {
+    return iu + (nu_r+1) * (iv + (nv_r+1) * iw);
 }
 
-inline void weights_1d(double x, double x0, double dx, double& w0, double& w1) noexcept {
-    const double t = (x - x0) / dx;
-    w1 = t;
-    w0 = 1.0 - t;
-}
+arma::mat F_r, F_r_copy;
 
-inline void clamp_periodic(double& x, double L) noexcept {
-    x = std::fmod(std::fmod(x, L) + L, L);
-}
-
-// U is (Nxyz × r), laid out with idx_xyz(ix,iy,iz).
-arma::rowvec U_interp_xyz(size_t ix, size_t iy, size_t iz,
-                          double wx0, double wx1,
-                          double wy0, double wy1,
-                          double wz0, double wz1,
-                          const arma::mat& U,
-                          size_t nx_r, size_t ny_r,
-                          size_t r) {
-    arma::rowvec res(r, arma::fill::zeros);
-    for (int dx=0; dx<=1; ++dx)
-    for (int dy=0; dy<=1; ++dy)
-    for (int dz=0; dz<=1; ++dz) {
-        const double w =
-            (dx?wx1:wx0) * (dy?wy1:wy0) * (dz?wz1:wz0);
-        const size_t ix2 = ix + dx;
-        const size_t iy2 = iy + dy;
-        const size_t iz2 = iz + dz;
-        const size_t i = idx_xyz(ix2, iy2, iz2, nx_r, ny_r);
-        res += w * U.row(i);
-    }
-    return res;
-}
-
-// V is (Nuvw × r), laid out with idx_uvw(iu,iv,iw).
-arma::rowvec V_interp_uvw(size_t iu, size_t iv, size_t iw,
-                          double wu0, double wu1,
-                          double vv0, double vv1,
-                          double ww0, double ww1,
-                          const arma::mat& V,
-                          size_t nu_r, size_t nv_r,
-                          size_t r) {
-    arma::rowvec res(r, arma::fill::zeros);
-    for (int du=0; du<=1; ++du)
-    for (int dv=0; dv<=1; ++dv)
-    for (int dw=0; dw<=1; ++dw) {
-        const double w =
-            (du?wu1:wu0) * (dv?vv1:vv0) * (dw?ww1:ww0);
-        const size_t iu2 = iu + du;
-        const size_t iv2 = iv + dv;
-        const size_t iw2 = iw + dw;
-        const size_t j = idx_uvw(iu2, iv2, iw2, nu_r, nv_r);
-        res += w * V.row(j);
-    }
-    return res;
-}
-
-double f_svd_6d(double x, double y, double z, double u, double v, double w) noexcept
+double f_t_full(double x, double y, double z, double u, double v, double w) noexcept
 {
-    // outside velocity domain -> 0 (like your code)
-    if (u < u_min || u > u_max ||
-        v < v_min || v > v_max ||
-        w < w_min || w > w_max) {
-        return 0;
+        // This version is more stable.
+    if( u > u_max || u < u_min 
+        || v > v_max || v < v_min 
+        || w > w_max || w < w_min){
+		return 0;
+	} 
+
+    x = std::fmod(std::fmod(x, Lx) + Lx, Lx);
+    size_t x_ref_pos = std::min(static_cast<size_t>(std::floor(x / dx_r)), nx_r - 1);
+    y = std::fmod(std::fmod(y, Ly) + Ly, Ly);
+    size_t y_ref_pos = std::min(static_cast<size_t>(std::floor(y / dy_r)), ny_r - 1);
+    z = std::fmod(std::fmod(z, Lz) + Lz, Lz);
+    size_t z_ref_pos = std::min(static_cast<size_t>(std::floor(z / dz_r)), nz_r - 1);
+
+    size_t u_ref_pos = std::min(static_cast<size_t>(std::floor((u-u_min)/du_r)), nu_r - 1);
+    size_t v_ref_pos = std::min(static_cast<size_t>(std::floor((v-v_min)/dv_r)), nv_r - 1);
+    size_t w_ref_pos = std::min(static_cast<size_t>(std::floor((w-w_min)/dw_r)), nw_r - 1);
+
+
+    double x0 = x_ref_pos*dx_r;
+    double y0 = y_ref_pos*dy_r;
+    double z0 = z_ref_pos*dz_r;
+    double u0 = u_min + u_ref_pos*du_r;    
+    double v0 = v_min + v_ref_pos*dv_r;    
+    double w0 = w_min + w_ref_pos*dw_r;    
+
+
+    double w_x = (x - x0)/dx_r;
+    double w_y = (y - y0)/dy_r;
+    double w_z = (z - z0)/dz_r;
+    double w_u = (u - u0)/du_r;
+    double w_v = (v - v0)/dv_r;
+    double w_w = (w - w0)/dw_r;
+
+    double value = 0;
+    for(int i_x = 0; i_x <= 1; i_x++)
+    for(int i_y = 0; i_y <= 1; i_y++)
+    for(int i_z = 0; i_z <= 1; i_z++)
+    for(int i_u = 0; i_u <= 1; i_u++)
+    for(int i_v = 0; i_v <= 1; i_v++)
+    for(int i_w = 0; i_w <= 1; i_w++){
+        double factor = ((1-w_x)*(i_x==0) + w_x*(i_x==1))
+                    * ((1-w_y)*(i_y==0) + w_y*(i_y==1))
+                    * ((1-w_z)*(i_z==0) + w_z*(i_z==1))
+                    * ((1-w_u)*(i_u==0) + w_u*(i_u==1))
+                    * ((1-w_v)*(i_v==0) + w_v*(i_v==1))
+                    * ((1-w_w)*(i_w==0) + w_w*(i_w==1));
+        
+        size_t index_x = x_ref_pos + i_x;
+        size_t index_y = y_ref_pos + i_y;
+        size_t index_z = z_ref_pos + i_z;
+        size_t index_u = u_ref_pos + i_u;
+        size_t index_v = v_ref_pos + i_v;
+        size_t index_w = w_ref_pos + i_w;
+
+        size_t index_0 = index_x + (nx_r+1)*(index_y + (ny_r+1)*index_z);
+        size_t index_1 = index_u + (nu_r+1)*(index_v + (nv_r+1)*index_w);
+
+        value += factor * F_r(index_0, index_1);
     }
 
-    // periodic wrap in x,y,z
-    clamp_periodic(x, Lx);
-    clamp_periodic(y, Ly);
-    clamp_periodic(z, Lz);
-
-    // left cell indices (ensure we have a +1 for right neighbor)
-    const size_t ix = std::min((size_t)std::floor(x / dx_r), nx_r - 1);
-    const size_t iy = std::min((size_t)std::floor(y / dy_r), ny_r - 1);
-    const size_t iz = std::min((size_t)std::floor(z / dz_r), nz_r - 1);
-
-    const size_t iu = std::min((size_t)std::floor((u - u_min) / du_r), nu_r - 1);
-    const size_t iv = std::min((size_t)std::floor((v - v_min) / dv_r), nv_r - 1);
-    const size_t iw = std::min((size_t)std::floor((w - w_min) / dw_r), nw_r - 1);
-
-    // cell anchors
-    const double x0 = ix * dx_r, y0 = iy * dy_r, z0 = iz * dz_r;
-    const double u0 = u_min + iu * du_r, v0 = v_min + iv * dv_r, w0 = w_min + iw * dw_r;
-
-    // 1D weights
-    double wx0, wx1, wy0, wy1, wz0, wz1, wu0, wu1, vv0, vv1, ww0, ww1;
-    weights_1d(x, x0, dx_r, wx0, wx1);
-    weights_1d(y, y0, dy_r, wy0, wy1);
-    weights_1d(z, z0, dz_r, wz0, wz1);
-    weights_1d(u, u0, du_r, wu0, wu1);
-    weights_1d(v, v0, dv_r, vv0, vv1);
-    weights_1d(w, w0, dw_r, ww0, ww1);
-
-    // interpolate both sides
-    const size_t r = U_s_r.n_cols;
-    arma::rowvec row_xyz = U_interp_xyz(ix, iy, iz, wx0, wx1, wy0, wy1, wz0, wz1,
-                                        U_s_r, nx_r, ny_r, r);
-    arma::rowvec row_uvw = V_interp_uvw(iu, iv, iw, wu0, wu1, vv0, vv1, ww0, ww1,
-                                        V_r,   nu_r, nv_r, r);
-
-    // final value
-    return arma::dot(row_xyz, row_uvw);
+    return value;
 }
 
 template <size_t order>
-void restart_with_rsvd_compression(size_t& nt_r_curr, size_t n, double* coeffs, config_t<double>& conf, 
-            double& total_time, double tol = 1e-2, size_t max_rank = 10, size_t oversampling = 5)
+void restart_with_full_matrix(size_t& nt_r_curr, size_t n, double* coeffs, config_t<double>& conf, double& total_time)
 {
     std::cout << "Restart" << std::endl;
     nufi::stopwatch<double> timer_restart;
@@ -293,34 +254,70 @@ void restart_with_rsvd_compression(size_t& nt_r_curr, size_t n, double* coeffs, 
 
     // Sizes (edges inclusive): nx_r,ny_r,nz_r,nu_r,nv_r,nw_r are "rightmost indices".
     // So number of nodes per dim is +1.
-    const size_t NX = nx_r + 1, NY = ny_r + 1, NZ = nz_r + 1;
-    const size_t NU = nu_r + 1, NV = nv_r + 1, NW = nw_r + 1;
-    const size_t Nxyz = NX*NY*NZ;
-    const size_t Nuvw = NU*NV*NW;
+    size_t size_x_r = (nx_r+1)*(ny_r+1)*(nz_r+1);
+    size_t size_v_r = (nu_r+1)*(nv_r+1)*(nw_r+1);
 
-    // Spacings:
-    const double dx = dx_r, dy = dy_r, dz = dz_r;
-    const double du = du_r, dv = dv_r, dw = dw_r;
+    // This is slightly (20-30%) faster than the original 6-loop. 
+    // However, it is still significantly slower than the rho computation
+    // as at its core it becomes a memory-bound operation.
+    double* Frc = F_r_copy.memptr();
+    // Parallelize across columns so each thread writes contiguous rows
+/*     #pragma omp parallel for 
+    for (size_t index_1 = 0; index_1 < size_v_r; index_1++) {
+        // Decode column -> (iu, iv, iw), compute u,v,w once per column
+        size_t tmp1 = index_1;
+        const size_t iu = tmp1 % (nu_r+1); tmp1 /= (nu_r+1);
+        const size_t iv = tmp1 % (nv_r+1); tmp1 /= (nv_r+1);
+        const size_t iw = tmp1;
 
+        const double u = u_min + iu*du_r;
+        const double v = v_min + iv*dv_r;
+        const double w = w_min + iw*dw_r;
+
+        for (size_t index_0 = 0; index_0 < size_x_r; index_0++) {
+            // Decode row -> (ix, iy, iz)
+            size_t tmp0 = index_0;
+            const size_t ix = tmp0 % (nx_r+1); tmp0 /= (nx_r+1);
+            const size_t iy = tmp0 % (ny_r+1); tmp0 /= (ny_r+1);
+            const size_t iz = tmp0;
+
+            const double x = x_min + ix*dx_r;
+            const double y = y_min + iy*dy_r;
+            const double z = z_min + iz*dz_r;
+
+            const double f = eval_f<double,order>(
+                nt_r_curr, x, y, z, u, v, w, coeffs, conf
+            );
+
+            // Armadillo column-major: memptr()[row + n_rows * col]
+            Frc[index_0 + size_x_r * index_1] = f;
+        }
+    } */
+
+    double timer_fill_restart_matrix = timer_restart.elapsed();
+    timer_restart.reset();
+    std::cout << "Filling restart matrix took " << timer_fill_restart_matrix << " s." << std::endl;
+
+    // Test svd compression restart without svd-evaluation:
     // Lazy A * x
     auto A_mv = [&](const arma::vec& x) -> arma::vec {
-        arma::vec y(Nxyz, arma::fill::zeros);
+        arma::vec y(size_x_r, arma::fill::zeros);
         #pragma omp parallel for collapse(3)
-        for (size_t ix = 0; ix < NX; ++ix)
-        for (size_t iy = 0; iy < NY; ++iy)
-        for (size_t iz = 0; iz < NZ; ++iz) {
-            const double X = conf.x_min + ix*dx;
-            const double Y = conf.y_min + iy*dy;
-            const double Z = conf.z_min + iz*dz;
+        for (size_t ix = 0; ix <= nx_r; ++ix)
+        for (size_t iy = 0; iy <= ny_r; ++iy)
+        for (size_t iz = 0; iz <= nz_r; ++iz) {
+            const double X = conf.x_min + ix*dx_r;
+            const double Y = conf.y_min + iy*dy_r;
+            const double Z = conf.z_min + iz*dz_r;
 
             double acc = 0.0;
             // accumulate over uvw
-            for (size_t iu = 0; iu < NU; ++iu) {
-                const double U = conf.u_min + iu*du;
-                for (size_t iv = 0; iv < NV; ++iv) {
-                    const double V = conf.v_min + iv*dv;
-                    for (size_t iw = 0; iw < NW; ++iw) {
-                        const double W = conf.w_min + iw*dw;
+            for (size_t iu = 0; iu <= nu_r; ++iu) {
+                const double U = conf.u_min + iu*du_r;
+                for (size_t iv = 0; iv <= nv_r; ++iv) {
+                    const double V = conf.v_min + iv*dv_r;
+                    for (size_t iw = 0; iw <= nw_r; ++iw) {
+                        const double W = conf.w_min + iw*dw_r;
                         const size_t j = idx_uvw(iu, iv, iw, nu_r, nv_r);
                         const double f = eval_f<double,order>( nt_r_curr, X, Y, Z, 
                                                 U, V, W, coeffs, conf);
@@ -336,23 +333,199 @@ void restart_with_rsvd_compression(size_t& nt_r_curr, size_t n, double* coeffs, 
 
     // Lazy A^T * x
     auto At_mv = [&](const arma::vec& x) -> arma::vec {
-        arma::vec y(Nuvw, arma::fill::zeros);
+        arma::vec y(size_v_r, arma::fill::zeros);
         #pragma omp parallel for collapse(3)
-        for (size_t iu = 0; iu < NU; ++iu)
-        for (size_t iv = 0; iv < NV; ++iv)
-        for (size_t iw = 0; iw < NW; ++iw) {
-            const double U = conf.u_min + iu*du;
-            const double V = conf.v_min + iv*dv;
-            const double W = conf.w_min + iw*dw;
+        for (size_t iu = 0; iu <= nu_r; ++iu)
+        for (size_t iv = 0; iv <= nv_r; ++iv)
+        for (size_t iw = 0; iw <= nw_r; ++iw) {
+            const double U = conf.u_min + iu*du_r;
+            const double V = conf.v_min + iv*dv_r;
+            const double W = conf.w_min + iw*dw_r;
 
             double acc = 0.0;
             // accumulate over xyz
-            for (size_t ix = 0; ix < NX; ++ix) {
-                const double X = conf.x_min + ix*dx;
-                for (size_t iy = 0; iy < NY; ++iy) {
-                    const double Y = conf.y_min + iy*dy;
-                    for (size_t iz = 0; iz < NZ; ++iz) {
-                        const double Z = conf.z_min + iz*dz;
+            for (size_t ix = 0; ix <= nx_r; ++ix) {
+                const double X = conf.x_min + ix*dx_r;
+                for (size_t iy = 0; iy <= ny_r; ++iy) {
+                    const double Y = conf.y_min + iy*dy_r;
+                    for (size_t iz = 0; iz <= nz_r; ++iz) {
+                        const double Z = conf.z_min + iz*dz_r;
+                        const size_t i = idx_xyz(ix, iy, iz, nx_r, ny_r);
+                        const double f = eval_f<double,order>( nt_r_curr, X, Y, Z, 
+                                                U, V, W, coeffs, conf);
+                        acc += f * x(i);
+                    }
+                }
+            }
+            const size_t j = idx_uvw(iu, iv, iw, nu_r, nv_r);
+            y(j) = acc;
+        }
+        return y;
+    };
+
+    arma::mat U,V;
+    arma::vec s;
+
+    svd_magic::randomized_svd(A_mv, At_mv, size_x_r, size_v_r, 10, U, s, V, 10);
+    F_r = U * arma::diagmat(s) * V.t();
+    //F_r = F_r_copy;
+    double timer_copy_mat = timer_restart.elapsed();
+    timer_restart.reset();
+    std::cout << "Copying restart matrix took " << timer_copy_mat << " s." << std::endl;
+
+    #pragma omp parallel for
+    for(size_t i = 0; i < stride_t; i++){
+         coeffs[i] = coeffs[nt_r_curr*stride_t + i];
+    }
+
+    conf.f0 = f_t_full;
+    std::cout << n << " " << nt_r_curr << " restart " << std::endl;
+    nt_r_curr = 1;
+    double restart_time = timer_restart.elapsed();
+    total_time += restart_time;
+    std::cout << "Restart took: " << restart_time << ". Total comp time s.f.: " << total_time << std::endl;
+}
+
+arma::mat U_s_r, V_r;
+
+double f_svd_6d(double x, double y, double z, double u, double v, double w) noexcept
+{
+   // Out-of-range in velocity → zero (same behavior as your original)
+    if (u > u_max || u < u_min ||
+        v > v_max || v < v_min ||
+        w > w_max || w < w_min)
+    {
+        return 0.0;
+    }
+
+    // Periodic wrap in x,y,z
+    x = std::fmod(std::fmod(x, Lx) + Lx, Lx);
+    y = std::fmod(std::fmod(y, Ly) + Ly, Ly);
+    z = std::fmod(std::fmod(z, Lz) + Lz, Lz);
+
+    // Reference cell indices
+    size_t x_ref_pos = std::min(static_cast<size_t>(std::floor(x / dx_r)), nx_r - 1);
+    size_t y_ref_pos = std::min(static_cast<size_t>(std::floor(y / dy_r)), ny_r - 1);
+    size_t z_ref_pos = std::min(static_cast<size_t>(std::floor(z / dz_r)), nz_r - 1);
+
+    size_t u_ref_pos = std::min(static_cast<size_t>(std::floor((u - u_min) / du_r)), nu_r - 1);
+    size_t v_ref_pos = std::min(static_cast<size_t>(std::floor((v - v_min) / dv_r)), nv_r - 1);
+    size_t w_ref_pos = std::min(static_cast<size_t>(std::floor((w - w_min) / dw_r)), nw_r - 1);
+
+    // Cell anchors
+    double x0 = x_ref_pos * dx_r;
+    double y0 = y_ref_pos * dy_r;
+    double z0 = z_ref_pos * dz_r;
+    double u0 = u_min + u_ref_pos * du_r;
+    double v0 = v_min + v_ref_pos * dv_r;
+    double w0 = w_min + w_ref_pos * dw_r;
+
+    // Local barycentric weights
+    double w_x = (x - x0) / dx_r;
+    double w_y = (y - y0) / dy_r;
+    double w_z = (z - z0) / dz_r;
+    double w_u = (u - u0) / du_r;
+    double w_v = (v - v0) / dv_r;
+    double w_w = (w - w0) / dw_r;
+
+    double value = 0.0;
+
+    for (int i_x = 0; i_x <= 1; ++i_x)
+    for (int i_y = 0; i_y <= 1; ++i_y)
+    for (int i_z = 0; i_z <= 1; ++i_z)
+    for (int i_u = 0; i_u <= 1; ++i_u)
+    for (int i_v = 0; i_v <= 1; ++i_v)
+    for (int i_w = 0; i_w <= 1; ++i_w)
+    {
+        double factor = ((1-w_x)*(i_x==0) + w_x*(i_x==1))
+                    * ((1-w_y)*(i_y==0) + w_y*(i_y==1))
+                    * ((1-w_z)*(i_z==0) + w_z*(i_z==1))
+                    * ((1-w_u)*(i_u==0) + w_u*(i_u==1))
+                    * ((1-w_v)*(i_v==0) + w_v*(i_v==1))
+                    * ((1-w_w)*(i_w==0) + w_w*(i_w==1));
+        
+        size_t index_x = x_ref_pos + i_x;
+        size_t index_y = y_ref_pos + i_y;
+        size_t index_z = z_ref_pos + i_z;
+        size_t index_u = u_ref_pos + i_u;
+        size_t index_v = v_ref_pos + i_v;
+        size_t index_w = w_ref_pos + i_w;
+
+        size_t index_0 = index_x + (nx_r+1)*(index_y + (ny_r+1)*index_z);
+        size_t index_1 = index_u + (nu_r+1)*(index_v + (nv_r+1)*index_w);
+
+        // F(i,j) = sum_k U_s(i,k) * V(j,k)
+        value += factor * arma::dot(U_s_r.row(index_0), V_r.row(index_1));
+    }
+
+    return value;
+}
+
+template <size_t order>
+void restart_with_rsvd_compression(size_t& nt_r_curr, size_t n, double* coeffs, config_t<double>& conf, 
+            double& total_time, double tol = 1e-2, size_t max_rank = 10, size_t oversampling = 10)
+{
+    std::cout << "Restart" << std::endl;
+    nufi::stopwatch<double> timer_restart;
+
+    size_t stride_t = (conf.Nx + order - 1) *
+                    (conf.Ny + order - 1) *
+                    (conf.Nz + order - 1);
+    
+    size_t size_x_r = (nx_r+1)*(ny_r+1)*(nz_r+1);
+    size_t size_v_r = (nu_r+1)*(nv_r+1)*(nw_r+1);
+
+    // Lazy A * x
+    auto A_mv = [&](const arma::vec& x) -> arma::vec {
+        arma::vec y(size_x_r, arma::fill::zeros);
+        #pragma omp parallel for collapse(3)
+        for (size_t ix = 0; ix <= nx_r; ++ix)
+        for (size_t iy = 0; iy <= ny_r; ++iy)
+        for (size_t iz = 0; iz <= nz_r; ++iz) {
+            const double X = conf.x_min + ix*dx_r;
+            const double Y = conf.y_min + iy*dy_r;
+            const double Z = conf.z_min + iz*dz_r;
+
+            double acc = 0.0;
+            // accumulate over uvw
+            for (size_t iu = 0; iu <= nu_r; ++iu) {
+                const double U = conf.u_min + iu*du_r;
+                for (size_t iv = 0; iv <= nv_r; ++iv) {
+                    const double V = conf.v_min + iv*dv_r;
+                    for (size_t iw = 0; iw <= nw_r; ++iw) {
+                        const double W = conf.w_min + iw*dw_r;
+                        const size_t j = idx_uvw(iu, iv, iw, nu_r, nv_r);
+                        const double f = eval_f<double,order>( nt_r_curr, X, Y, Z, 
+                                                U, V, W, coeffs, conf);
+                        acc += f * x(j);
+                    }
+                }
+            }
+            const size_t i = idx_xyz(ix, iy, iz, nx_r, ny_r);
+            y(i) = acc;
+        }
+        return y;
+    };
+
+    // Lazy A^T * x
+    auto At_mv = [&](const arma::vec& x) -> arma::vec {
+        arma::vec y(size_v_r, arma::fill::zeros);
+        #pragma omp parallel for collapse(3)
+        for (size_t iu = 0; iu <= nu_r; ++iu)
+        for (size_t iv = 0; iv <= nv_r; ++iv)
+        for (size_t iw = 0; iw <= nw_r; ++iw) {
+            const double U = conf.u_min + iu*du_r;
+            const double V = conf.v_min + iv*dv_r;
+            const double W = conf.w_min + iw*dw_r;
+
+            double acc = 0.0;
+            // accumulate over xyz
+            for (size_t ix = 0; ix <= nx_r; ++ix) {
+                const double X = conf.x_min + ix*dx_r;
+                for (size_t iy = 0; iy <= ny_r; ++iy) {
+                    const double Y = conf.y_min + iy*dy_r;
+                    for (size_t iz = 0; iz <= nz_r; ++iz) {
+                        const double Z = conf.z_min + iz*dz_r;
                         const size_t i = idx_xyz(ix, iy, iz, nx_r, ny_r);
                         const double f = eval_f<double,order>( nt_r_curr, X, Y, Z, 
                                                 U, V, W, coeffs, conf);
@@ -368,16 +541,21 @@ void restart_with_rsvd_compression(size_t& nt_r_curr, size_t n, double* coeffs, 
 
     arma::vec s;
 
-    svd_magic::randomized_svd(A_mv, At_mv, Nxyz, Nuvw, max_rank, U_s_r, s, V_r, oversampling);
+    svd_magic::randomized_svd(A_mv, At_mv, size_x_r, size_v_r, max_rank, U_s_r, s, V_r, oversampling);
+
+    std::cout << "Singular values: " << std::endl;
+    std::cout << s << std::endl;
 
     // truncate by relative tol against s(0)
     arma::uword r = arma::sum(s > tol * s(0));
-    r = std::min<arma::uword>(r, max_rank);
+    if ( r > max_rank){
+        r = max_rank;
+    }
 
     U_s_r = U_s_r.cols(0, r-1);
-    V_r = V_r.cols(0, r-1);
     s = s.rows(0, r-1);
-
+    V_r = V_r.cols(0, r-1);
+    
     // absorb singular values into U for faster evals later
     U_s_r = U_s_r * arma::diagmat(s);
 
@@ -398,7 +576,7 @@ void restart_with_rsvd_compression(size_t& nt_r_curr, size_t n, double* coeffs, 
 }
 
 template <size_t order>
-void run_restarted_simulation()
+void run_restarted_simulation(bool svd_compressed = false)
 {
     config_t<double> conf(Nx, Ny, Nz, Nu, Nv, Nw, Nt, dt, x_min, x_max, y_min, y_max,
         z_min, z_max, u_min, u_max, v_min, v_max, w_min, w_max, &f0);
@@ -412,6 +590,13 @@ void run_restarted_simulation()
                                         sizeof(double)*conf.Nx*conf.Ny*conf.Nz)), std::free };
 
     poisson<double> poiss( conf );
+
+    if(!svd_compressed){
+        size_t size_x_r = (nx_r+1)*(ny_r+1)*(nz_r+1);
+        size_t size_v_r = (nu_r+1)*(nv_r+1)*(nw_r+1);
+        F_r = arma::mat(size_x_r, size_v_r, arma::fill::zeros);
+        F_r_copy = arma::mat(size_x_r, size_v_r, arma::fill::zeros);
+    }
         
     std::ofstream stat_file( "stats.txt" );
     std::ofstream coeff_file( "coeffs.txt" );
@@ -451,8 +636,14 @@ void run_restarted_simulation()
 
         if(nt_r_curr == nt_restart)
     	{
-            restart_with_rsvd_compression<order>(nt_r_curr,n,coeffs_restart.get(),conf,
-                                                total_time,1e-2,30,10);
+            if(svd_compressed){
+                restart_with_rsvd_compression<order>(nt_r_curr,n,coeffs_restart.get(),conf,
+                                                total_time,1e-4,30,10);
+            } else {
+                restart_with_full_matrix<order>(nt_r_curr,n,coeffs_restart.get(),conf,
+                                                total_time);
+            }
+            
         } else {
             nt_r_curr++;
         }
@@ -465,5 +656,5 @@ void run_restarted_simulation()
 
 int main()
 {
-    nufi::dim3::run_restarted_simulation<2>();
+    nufi::dim3::run_restarted_simulation<2>(false);
 }
