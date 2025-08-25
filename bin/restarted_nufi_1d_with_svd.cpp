@@ -142,10 +142,10 @@ void test_rsvd()
 namespace dim1
 {
 
-size_t Nx = 256;  // Number of grid points in physical space.
+size_t Nx = 128;  // Number of grid points in physical space.
 size_t Nu = Nx;  // Number of quadrature points in velocity space.
 double   dt = 0.1;  // Time-step size.
-size_t Nt = 100/dt;  // Number of time-steps.
+size_t Nt = 10/dt;  // Number of time-steps.
 
 // Dimensions of physical domain.
 double x_min = 0;
@@ -158,7 +158,7 @@ double u_max = 6;
 
 size_t nx_r = Nx;
 size_t nu_r = nx_r;
-size_t nt_restart = 100;
+size_t nt_restart = Nt+1;
 double dx_r = (x_max - x_min) / nx_r;
 double du_r = (u_max - u_min) / nu_r;
 
