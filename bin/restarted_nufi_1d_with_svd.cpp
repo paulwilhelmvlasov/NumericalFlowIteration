@@ -145,7 +145,7 @@ namespace dim1
 size_t Nx = 128;  // Number of grid points in physical space.
 size_t Nu = Nx;  // Number of quadrature points in velocity space.
 double   dt = 0.1;  // Time-step size.
-size_t Nt = 10/dt;  // Number of time-steps.
+size_t Nt = 100/dt;  // Number of time-steps.
 
 // Dimensions of physical domain.
 double x_min = 0;
@@ -158,7 +158,7 @@ double u_max = 6;
 
 size_t nx_r = Nx;
 size_t nu_r = nx_r;
-size_t nt_restart = Nt+1;
+size_t nt_restart = 100;
 double dx_r = (x_max - x_min) / nx_r;
 double du_r = (u_max - u_min) / nu_r;
 
@@ -197,8 +197,8 @@ double f_t(double x, double u) noexcept
 		return 0;
 	}
 
-	size_t nx_r = f0_r.n_rows - 1;
-	size_t nu_r = f0_r.n_cols - 1;
+/* 	size_t nx_r = f0_r.n_rows - 1;
+	size_t nu_r = f0_r.n_cols - 1; */
 
 	double dx_r = conf.Lx/ nx_r;
 	double du_r = (conf.u_max - conf.u_min)/nu_r;
@@ -498,7 +498,7 @@ void run_restarted_simulation(bool with_svd_compression = true)
         std::cout << std::setw(15) << t << std::setw(15) << std::setprecision(5) << std::scientific << Emax << " Comp-time: " << timer_elapsed;
         std::cout << " Total comp time s.f.: " << total_time << std::endl; 
 
-        if(n % (5*10) == 0 && true){
+        if(n % (5*10) == 0 && false){
             size_t plot_n_u = plot_n_x;
             double du_plot = (conf.u_max - conf.u_min) / plot_n_u;
 

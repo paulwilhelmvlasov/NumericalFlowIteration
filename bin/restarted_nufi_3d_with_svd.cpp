@@ -110,7 +110,7 @@ const double w_min = -0.5;
 const double w_max = 0.5;
 
 const size_t nx_r = 32;
-const size_t ny_r = nx_r;
+const size_t ny_r = 1;
 const size_t nz_r = 1;
 
 const double dx_r = Lx/ nx_r;
@@ -118,7 +118,7 @@ const double dy_r = Ly/ ny_r;
 const double dz_r = Lz/ nz_r;
 
 const size_t nu_r = nx_r;
-const size_t nv_r = nu_r;
+const size_t nv_r = 1;
 const size_t nw_r = 1;
 
 const double du_r = (u_max - u_min)/nu_r;
@@ -135,7 +135,7 @@ const size_t Nw = nw_r;  // Number of quadrature points in velocity space.
 const double   dt = 0.1;  // Time-step size.
 const size_t Nt = 100/dt;  // Number of time-steps.
 
-size_t nt_restart = 50;
+size_t nt_restart = 10;
 
 template <typename real>
 real f0(real x, real y, real z, real u, real v, real w) noexcept
@@ -153,10 +153,10 @@ real f0(real x, real y, real z, real u, real v, real w) noexcept
              * exp( -(u*u+v*v+w*w)/2 ); */
 
     // 1d Two Stream Instability:
-    //return 1.0 / std::sqrt(2.0 * M_PI) * u*u * std::exp(-0.5 * u*u) * (1 + alpha * std::cos(k*x)); 
+    return 1.0 / std::sqrt(2.0 * M_PI) * u*u * std::exp(-0.5 * u*u) * (1 + alpha * std::cos(k*x)); 
 
     // 2d Two Stream Instability:
-    return 1.0/(2.0*M_PI) * ( 1. + alpha*cos(k*x) + alpha*cos(k*y)) * u*u * exp( -(u*u+v*v)/2 );
+    //return 1.0/(2.0*M_PI) * ( 1. + alpha*cos(k*x) + alpha*cos(k*y)) * u*u * exp( -(u*u+v*v)/2 );
 
     // 3d Two Stream Instability:
 /*     constexpr real c  = 0.06349363593424096978576330493464; 
@@ -375,10 +375,10 @@ void restart_with_full_matrix(size_t& nt_r_curr, size_t n, double* coeffs, confi
     arma::mat U,V;
     arma::vec s;
 
-    svd_magic::randomized_svd(A_mv_full, At_mv_full, size_x_r, size_v_r, max_rank, U, s, V, oversampling);
+    /* svd_magic::randomized_svd(A_mv_full, At_mv_full, size_x_r, size_v_r, max_rank, U, s, V, oversampling);
     //svd_magic::randomized_svd(A_mv_lazy, At_mv_lazy, size_x_r, size_v_r, max_rank, U, s, V, oversampling);
-    F_r = U * arma::diagmat(s) * V.t();
-    //F_r = F_r_copy;
+    F_r = U * arma::diagmat(s) * V.t(); */
+    F_r = F_r_copy;
     double timer_copy_mat = timer_restart.elapsed();
     timer_restart.reset();
     std::cout << "Copying restart matrix took " << timer_copy_mat << " s." << std::endl;
@@ -743,9 +743,9 @@ void run_restarted_simulation(bool svd_compressed = false, double tolerance = 1e
         double rho_comp_time = rho_timer.elapsed();
         std::cout << "rho comp time = " << rho_comp_time << " per dof = " <<  rho_comp_time/(conf.Nx*conf.Ny*conf.Nz) << std::endl;
 
-
         double E_energy = poiss.solve( rho.get() );
         interpolate<double,order>( coeffs_restart.get() + nt_r_curr*stride_t, rho.get(), conf );
+
 
         double timer_elapsed = timer.elapsed();
         total_time += timer_elapsed;
@@ -758,7 +758,7 @@ void run_restarted_simulation(bool svd_compressed = false, double tolerance = 1e
         // Print coefficients to file.
         coeff_file << n << std::endl;
         for(size_t i = 0; i < stride_t; i++){
-            coeff_file << i << " " << coeffs_restart.get()[n*stride_t + i ] << std::endl;
+            coeff_file << i << " " << coeffs_restart.get()[nt_r_curr*stride_t + i ] << std::endl;
         }
 
         if(nt_r_curr == nt_restart)
