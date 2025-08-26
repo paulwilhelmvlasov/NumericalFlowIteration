@@ -779,7 +779,7 @@ void run_restarted_simulation(bool svd_compressed = false, double tolerance = 1e
                                                 total_time,tolerance,max_rank,oversampling);
             } else {
                 restart_with_full_matrix<order>(nt_r_curr,n,coeffs_restart.get(),conf,
-                                                total_time);
+                                                total_time,tolerance,max_rank,oversampling);
             }
             
         } else {
@@ -794,5 +794,5 @@ void run_restarted_simulation(bool svd_compressed = false, double tolerance = 1e
 
 int main()
 {
-    nufi::dim3::run_restarted_simulation<2>(true,1e-16,10,3);
+    nufi::dim3::run_restarted_simulation<2>(false,1e-16,10,3);
 }
