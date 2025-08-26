@@ -109,8 +109,8 @@ const double v_max = 6;
 const double w_min = -0.5;
 const double w_max = 0.5;
 
-const size_t nx_r = 32;
-const size_t ny_r = 1;
+const size_t nx_r = 64;
+const size_t ny_r = nx_r;
 const size_t nz_r = 1;
 
 const double dx_r = Lx/ nx_r;
@@ -118,7 +118,7 @@ const double dy_r = Ly/ ny_r;
 const double dz_r = Lz/ nz_r;
 
 const size_t nu_r = nx_r;
-const size_t nv_r = 1;
+const size_t nv_r = nu_r;
 const size_t nw_r = 1;
 
 const double du_r = (u_max - u_min)/nu_r;
@@ -153,10 +153,10 @@ real f0(real x, real y, real z, real u, real v, real w) noexcept
              * exp( -(u*u+v*v+w*w)/2 ); */
 
     // 1d Two Stream Instability:
-    return 1.0 / std::sqrt(2.0 * M_PI) * u*u * std::exp(-0.5 * u*u) * (1 + alpha * std::cos(k*x)); 
+    //return 1.0 / std::sqrt(2.0 * M_PI) * u*u * std::exp(-0.5 * u*u) * (1 + alpha * std::cos(k*x)); 
 
     // 2d Two Stream Instability:
-    //return 1.0/(2.0*M_PI) * ( 1. + alpha*cos(k*x) + alpha*cos(k*y)) * u*u * exp( -(u*u+v*v)/2 );
+    return 1.0/(2.0*M_PI) * ( 1. + alpha*cos(k*x) + alpha*cos(k*y)) * u*u * exp( -(u*u+v*v)/2 );
 
     // 3d Two Stream Instability:
 /*     constexpr real c  = 0.06349363593424096978576330493464; 
