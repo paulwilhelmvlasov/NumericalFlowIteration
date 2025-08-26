@@ -91,7 +91,7 @@ void randomized_svd(
 namespace dim3
 {
 
-const double Lx = 4*M_PI;
+const double Lx = 10*M_PI;//4*M_PI;
 const double Ly = Lx;
 const double Lz = Lx;
 
@@ -106,12 +106,12 @@ const double u_min = -6;
 const double u_max = 6;
 const double v_min = -6;
 const double v_max = 6;
-const double w_min = -0.5;
-const double w_max = 0.5;
+const double w_min = -6;
+const double w_max = 6;
 
-const size_t nx_r = 64;
+const size_t nx_r = 32;
 const size_t ny_r = nx_r;
-const size_t nz_r = 1;
+const size_t nz_r = nx_r;
 
 const double dx_r = Lx/ nx_r;
 const double dy_r = Ly/ ny_r;
@@ -119,7 +119,7 @@ const double dz_r = Lz/ nz_r;
 
 const size_t nu_r = nx_r;
 const size_t nv_r = nu_r;
-const size_t nw_r = 1;
+const size_t nw_r = nu_r;
 
 const double du_r = (u_max - u_min)/nu_r;
 const double dv_r = (v_max - v_min)/nv_r;
@@ -144,8 +144,8 @@ real f0(real x, real y, real z, real u, real v, real w) noexcept
     using std::cos;
     using std::exp;
 
-    constexpr real alpha = 0.01;
-    constexpr real k     = 0.5;
+    real alpha = 0.01;
+    real k     = 0.5;
 
     // Weak Landau Damping:
     /* constexpr real c  = 0.06349363593424096978576330493464; // Weak Landau damping
@@ -156,12 +156,21 @@ real f0(real x, real y, real z, real u, real v, real w) noexcept
     //return 1.0 / std::sqrt(2.0 * M_PI) * u*u * std::exp(-0.5 * u*u) * (1 + alpha * std::cos(k*x)); 
 
     // 2d Two Stream Instability:
-    return 1.0/(2.0*M_PI) * ( 1. + alpha*cos(k*x) + alpha*cos(k*y)) * u*u * exp( -(u*u+v*v)/2 );
+    //return 1.0/(2.0*M_PI) * ( 1. + alpha*cos(k*x) + alpha*cos(k*y)) * u*u * exp( -(u*u+v*v)/2 );
 
     // 3d Two Stream Instability:
 /*     constexpr real c  = 0.06349363593424096978576330493464; 
     return c * ( 1. + alpha*cos(k*x) + alpha*cos(k*y) + alpha*cos(k*z)) 
              * u*u * exp( -(u*u+v*v+w*w)/2 ); */
+
+    // 2d Two Stream Instability (Einkemmer (Ensign) paper):
+    alpha = 0.001;
+    k     = 0.2;
+    constexpr real speed = 2.5;
+    return 1.0/std::pow(8.0*M_PI,3.0/2.0) * ( 1. + alpha*cos(k*x) + alpha*cos(k*y) + alpha*cos(k*z)) 
+            * ( exp( -(u-speed)*(u-speed)/2 ) + exp( -(u+speed)*(u+speed)/2 ) )
+            * ( exp( -(v-speed)*(v-speed)/2 ) + exp( -(v+speed)*(v+speed)/2 ) )
+            * ( exp( -(w-speed)*(w-speed)/2 ) + exp( -(w+speed)*(w+speed)/2 ) );
 }
 
 // flattening helpers
@@ -785,5 +794,5 @@ void run_restarted_simulation(bool svd_compressed = false, double tolerance = 1e
 
 int main()
 {
-    nufi::dim3::run_restarted_simulation<2>(false,1e-16,30,5);
+    nufi::dim3::run_restarted_simulation<2>(true,1e-16,10,3);
 }
