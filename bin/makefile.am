@@ -2,4 +2,5 @@ noinst_PROGRAMS = test_vp_ion_acoustic_1d_dirichlet
 
 test_vp_ion_acoustic_1d_dirichlet_SOURCES = test_vp_ion_acoustic_1d_dirichlet.cpp
 test_vp_ion_acoustic_1d_dirichlet_LDADD   = $(top_builddir)/nufi/libnufi.a 
-test_vp_ion_acoustic_1d_dirichlet_LDADD  += $(BLAS_LIBS) -lfftw3 -lfftw3f
+#test_vp_ion_acoustic_1d_dirichlet_LDADD  += $(BLAS_LIBS) -lfftw3 -lfftw3f
+test_vp_ion_acoustic_1d_dirichlet_LDADD  += -larmadillo -llapack -lopenblas -lfftw3 -lfftw3f 

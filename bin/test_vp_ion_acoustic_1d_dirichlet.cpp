@@ -100,7 +100,7 @@ constexpr size_t Nx = 1024;
 // Restart parameters.
 constexpr size_t nx_r = 2048;
 constexpr size_t nu_r = nx_r;
-constexpr size_t nt_restart = 100;
+constexpr size_t nt_restart = 50;
 constexpr double dx_r = Lx / nx_r;
 constexpr double du_r_electron = (u_electron_max - u_electron_min)/ nu_r;
 constexpr double du_r_ion = (u_ion_max - u_ion_min)/ nu_r;
@@ -136,15 +136,16 @@ double f_t_electron(double x, double u) noexcept
 	if(restart_counter == 0){
 		return f0_electron(x,u);
 	} else {
-		if(u >= u_electron_max || u <= u_electron_min){
+		//if(u >= u_electron_max || u <= u_electron_min){
+		if(u > u_electron_max || u < u_electron_min){
 			return 0;
 		}
 		if(x <= x_min){
 			x = x_min;
 		}
-		if(x >= (x_max - 1e-8)){
+/* 		if(x >= (x_max - 1e-8)){
 			x = x_max - 1e-8;
-		}
+		} */
 
 		size_t nx_r = f0_r_electron.n_rows - 1;
 		size_t nu_r = f0_r_electron.n_cols - 1;
@@ -152,8 +153,11 @@ double f_t_electron(double x, double u) noexcept
 		double dx_r = Lx / nx_r;
 		double du_r = (u_electron_max - u_electron_min)/nu_r;
 
-		size_t x_ref_pos = std::floor((x-x_min)/dx_r);
-		size_t u_ref_pos = std::floor((u-u_electron_min)/du_r);
+		//size_t x_ref_pos = std::floor((x-x_min)/dx_r);
+		//size_t u_ref_pos = std::floor((u-u_electron_min)/du_r);
+
+		size_t x_ref_pos = std::min(static_cast<size_t>(std::floor((x-x_min)/dx_r)),nx_r-1);
+		size_t u_ref_pos = std::min(static_cast<size_t>(std::floor((u-u_electron_min)/du_r)), nu_r - 1);
 
 		double x1 = x_min + x_ref_pos*dx_r;
 		double x2 = x1+dx_r;
@@ -174,15 +178,16 @@ double f_t_ion(double x, double u) noexcept
 	if(restart_counter == 0){
 		return f0_ion(x,u);
 	} else {
-		if(u >= u_ion_max || u <= u_ion_min){
+		//if(u >= u_ion_max || u <= u_ion_min){
+		if(u > u_ion_max || u < u_ion_min){
 			return 0;
 		}
 		if(x <= x_min){
 			x = x_min;
 		}
-		if(x >= (x_max - 1e-8)){
+/* 		if(x >= (x_max - 1e-8)){
 			x = x_max - 1e-8;
-		}
+		} */
 
 		size_t nx_r = f0_r_ion.n_rows - 1;
 		size_t nu_r = f0_r_ion.n_cols - 1;
@@ -190,8 +195,11 @@ double f_t_ion(double x, double u) noexcept
 		double dx_r = Lx / nx_r;
 		double du_r = (u_ion_max - u_ion_min)/nu_r;
 
-		size_t x_ref_pos = std::floor((x-x_min)/dx_r);
-		size_t u_ref_pos = std::floor((u-u_ion_min)/du_r);
+		//size_t x_ref_pos = std::floor((x-x_min)/dx_r);
+		//size_t u_ref_pos = std::floor((u-u_ion_min)/du_r);
+		
+		size_t x_ref_pos = std::min(static_cast<size_t>(std::floor((x-x_min)/dx_r)),nx_r-1);
+		size_t u_ref_pos = std::min(static_cast<size_t>(std::floor((u-u_ion_min)/du_r)), nu_r - 1);
 
 		double x1 = x_min + x_ref_pos*dx_r;
 		double x2 = x1+dx_r;
@@ -208,7 +216,7 @@ double f_t_ion(double x, double u) noexcept
 }
 
 template <typename real, size_t order>
-void nufi_two_species_ion_acoustic_with_reflecting_dirichlet_boundary(bool plot = true)
+void nufi_two_species_ion_acoustic_with_reflecting_dirichlet_boundary(bool plot = true, size_t plotting_frequency = 100)
 {
 	config_t<double> conf(&f_t_electron, &f_t_ion);
 
@@ -366,7 +374,7 @@ void nufi_two_species_ion_acoustic_with_reflecting_dirichlet_boundary(bool plot 
 					   << std::endl;
 
 
-			if(n % (10*10) == 0 && plot)
+			if(n % (plotting_frequency) == 0 && plot)
 			{
 				
 				std::ofstream f_electron_file("f_electron_"+ std::to_string(t) + ".txt");
@@ -461,7 +469,20 @@ void nufi_two_species_ion_acoustic_with_reflecting_dirichlet_boundary(bool plot 
     			}
     		}
 
-            f0_r_ion = f0_r_copy;
+			// Define a threshold
+			double tol = 1e-3;
+			size_t max_rank = 20;
+			arma::mat U, V;
+			arma::vec s;
+
+			arma::svd_econ(U,s,V,f0_r_copy);
+			arma::uword r = arma::sum(s > tol * s(0));
+			if ( r > max_rank){
+				r = max_rank;
+			}
+
+			f0_r_ion =  U * arma::diagmat(s) * V.t();
+	        //f0_r_ion = f0_r_copy;
 
             // Restart electrons.
             #pragma omp parallel for
@@ -476,7 +497,14 @@ void nufi_two_species_ion_acoustic_with_reflecting_dirichlet_boundary(bool plot 
     			}
     		}
 
-            f0_r_electron = f0_r_copy;
+			arma::svd_econ(U,s,V,f0_r_copy);
+			r = arma::sum(s > tol * s(0));
+			if ( r > max_rank){
+				r = max_rank;
+			}
+
+			f0_r_electron =  U * arma::diagmat(s) * V.t();
+            //f0_r_electron = f0_r_copy;
             
             // Copy last entry of coeff vector into restarted coeff vector.
             #pragma omp parallel for
@@ -502,7 +530,7 @@ void nufi_two_species_ion_acoustic_with_reflecting_dirichlet_boundary(bool plot 
 
 int main()
 {
-	nufi::dim1::dirichlet::nufi_two_species_ion_acoustic_with_reflecting_dirichlet_boundary<double,4>();
+	nufi::dim1::dirichlet::nufi_two_species_ion_acoustic_with_reflecting_dirichlet_boundary<double,4>(true, 50*10);
 
 	//nufi::dim1::dirichlet::read_coeff_and_plot<double,4>(std::string("../coeffs_Nt_0.050000_Nx_ 2048_stride_t_2050.txt"));
 
