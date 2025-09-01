@@ -142,7 +142,7 @@ void test_rsvd()
 namespace dim1
 {
 
-size_t Nx = 128;  // Number of grid points in physical space.
+size_t Nx = 256;  // Number of grid points in physical space.
 size_t Nu = Nx;  // Number of quadrature points in velocity space.
 double   dt = 0.1;  // Time-step size.
 size_t Nt = 100/dt;  // Number of time-steps.
@@ -161,6 +161,8 @@ size_t nu_r = nx_r;
 size_t nt_restart = 100;
 double dx_r = (x_max - x_min) / nx_r;
 double du_r = (u_max - u_min) / nu_r;
+
+std::ofstream truncation_ranks_str;
 
 template <typename real>
 real maxwellian_1d(real u, real vth) noexcept
@@ -190,6 +192,7 @@ real lin_interpol(real x , real y, real x1, real x2, real y1, real y2, real f_11
 arma::mat f0_r;
 arma::mat U_s_r, V_r;
 config_t<double> conf(64, 128, 500, 0.1, 0, 4*M_PI, -10, 10, &f0);
+
 
 double f_t(double x, double u) noexcept
 {
@@ -296,8 +299,8 @@ void restart_with_full_matrix(size_t& nt_r_curr, size_t n, double* coeffs, confi
     arma::mat V;
 
     // Define a threshold
-    double tol = 1e-2;
-    size_t max_rank = 50;
+    double tol = 1e-16;
+    size_t max_rank = 20;
 
     // This was the direct SVD way:
     //arma::svd_econ(U, s, V, f0_r_copy);
@@ -313,9 +316,16 @@ void restart_with_full_matrix(size_t& nt_r_curr, size_t n, double* coeffs, confi
         return f0_r_copy.t() * x;
     };
 
+    //arma::svd_econ(U, s, V, f0_r_copy);
+
     std::cout << "Start random svd. " << std::endl;
     svd_magic::randomized_svd(A_mv, At_mv, f0_r_copy.n_rows, f0_r_copy.n_cols, max_rank, U, s, V);
     std::cout << "RSVD finished." << std::endl;
+
+//    std::ofstream singular_values_str("s_" + std::to_string(n*dt) + ".txt");
+//    for(size_t i = 0; i < s.n_elem; i++){
+//        singular_values_str << i << " " << s(i) << std::endl;
+//    }
 
     // Find how many singular values are above the 
     // (relative) tolerance:
@@ -324,6 +334,7 @@ void restart_with_full_matrix(size_t& nt_r_curr, size_t n, double* coeffs, confi
         r = max_rank;
     }
     std::cout << "Truncation rank = " << r << std::endl;
+    truncation_ranks_str << n*dt << " " << r << std::endl;
     // Truncate U, s, V
     U = U.cols(0, r - 1);
     s = s.rows(0, r - 1);
@@ -437,6 +448,7 @@ void restart_with_rsvd_compression(size_t& nt_r_curr, size_t n, double* coeffs, 
 template <size_t order>
 void run_restarted_simulation(bool with_svd_compression = true)
 {
+    truncation_ranks_str.open("truncation_ranks.txt");
 	using std::exp;
 	using std::sin;
 	using std::cos;
@@ -498,7 +510,7 @@ void run_restarted_simulation(bool with_svd_compression = true)
         std::cout << std::setw(15) << t << std::setw(15) << std::setprecision(5) << std::scientific << Emax << " Comp-time: " << timer_elapsed;
         std::cout << " Total comp time s.f.: " << total_time << std::endl; 
 
-        if(n % (5*10) == 0 && false){
+        if(n % (50*10) == 0 && true){
             size_t plot_n_u = plot_n_x;
             double du_plot = (conf.u_max - conf.u_min) / plot_n_u;
 
