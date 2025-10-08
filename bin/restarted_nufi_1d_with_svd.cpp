@@ -158,7 +158,7 @@ double u_max = 6;
 
 size_t nx_r = Nx;
 size_t nu_r = nx_r;
-size_t nt_restart = 100;
+size_t nt_restart = 10000;
 double dx_r = (x_max - x_min) / nx_r;
 double du_r = (u_max - u_min) / nu_r;
 
@@ -299,8 +299,8 @@ void restart_with_full_matrix(size_t& nt_r_curr, size_t n, double* coeffs, confi
     arma::mat V;
 
     // Define a threshold
-    double tol = 1e-16;
-    size_t max_rank = 20;
+    double tol = 1e-2;
+    size_t max_rank = 50;
 
     // This was the direct SVD way:
     //arma::svd_econ(U, s, V, f0_r_copy);
@@ -322,10 +322,10 @@ void restart_with_full_matrix(size_t& nt_r_curr, size_t n, double* coeffs, confi
     svd_magic::randomized_svd(A_mv, At_mv, f0_r_copy.n_rows, f0_r_copy.n_cols, max_rank, U, s, V);
     std::cout << "RSVD finished." << std::endl;
 
-//    std::ofstream singular_values_str("s_" + std::to_string(n*dt) + ".txt");
-//    for(size_t i = 0; i < s.n_elem; i++){
-//        singular_values_str << i << " " << s(i) << std::endl;
-//    }
+    std::ofstream singular_values_str("s_" + std::to_string(n*dt) + ".txt");
+    for(size_t i = 0; i < s.n_elem; i++){
+        singular_values_str << i << " " << s(i) << std::endl;
+    }
 
     // Find how many singular values are above the 
     // (relative) tolerance:
@@ -510,7 +510,40 @@ void run_restarted_simulation(bool with_svd_compression = true)
         std::cout << std::setw(15) << t << std::setw(15) << std::setprecision(5) << std::scientific << Emax << " Comp-time: " << timer_elapsed;
         std::cout << " Total comp time s.f.: " << total_time << std::endl; 
 
-        if(n % (50*10) == 0 && true){
+        if(n % 10 == 0){
+            arma::mat f0_r_copy(nx_r + 1, nu_r + 1);
+            #pragma omp parallel for
+            for(size_t i = 0; i <= nx_r; i++ ){
+                for(size_t j = 0; j <= nu_r; j++){
+                    double x = i*dx_r;
+                    double u = conf.u_min + j*du_r;
+
+                    double f = periodic::eval_f<double,order>(nt_r_curr,x,u,coeffs_restart.get(),conf);
+
+                    f0_r_copy(i,j) = f;
+                }
+            }
+
+            arma::mat U;
+            arma::vec s;
+            arma::mat V;
+
+            // Define a threshold
+            double tol = 1e-4;
+
+            arma::svd_econ(U, s, V, f0_r_copy);
+/*             arma::uword r = arma::sum(s > tol * s(0));
+            std::cout << "Truncation rank = " << r << std::endl;
+            truncation_ranks_str << n*dt << " " << r << std::endl;
+ */
+            std::ofstream singular_value_str("s_" + std::to_string(n*dt) + ".txt");
+            double max_singular_value = s(0);
+            for(size_t i = 0; i < s.n_elem; i++ ){
+                singular_value_str << i << " " << s(i)/max_singular_value << std::endl;
+            }
+        }
+
+        if(n % (25*10) == 0 && false){
             size_t plot_n_u = plot_n_x;
             double du_plot = (conf.u_max - conf.u_min) / plot_n_u;
 
