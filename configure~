@@ -9889,7 +9889,7 @@ else
 fi
 
 
-AM_CPPFLAGS='-I$(top_srcdir) -I/home/paul/Projekte/htlib'
+AM_CPPFLAGS='-I$(top_srcdir) -I$(VSC_SCRATCH_PROJECTS_BASE)/2025_027/paul/Repos/htlib'
 
 
 ac_config_headers="$ac_config_headers nufi/autoconfig.hpp"

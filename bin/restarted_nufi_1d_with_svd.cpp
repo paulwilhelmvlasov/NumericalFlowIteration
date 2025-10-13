@@ -34,6 +34,8 @@
 #include <nufi/rho.hpp>
 #include <nufi/stopwatch.hpp>
 
+#include <nufi/restart.hpp>
+
 namespace nufi
 {
 
@@ -145,7 +147,7 @@ namespace dim1
 size_t Nx = 256;  // Number of grid points in physical space.
 size_t Nu = Nx;  // Number of quadrature points in velocity space.
 double   dt = 0.1;  // Time-step size.
-size_t Nt = 100/dt;  // Number of time-steps.
+size_t Nt = 30/dt;  // Number of time-steps.
 
 // Dimensions of physical domain.
 double x_min = 0;
@@ -158,7 +160,7 @@ double u_max = 6;
 
 size_t nx_r = Nx;
 size_t nu_r = nx_r;
-size_t nt_restart = 10000;
+size_t nt_restart = 50;
 double dx_r = (x_max - x_min) / nx_r;
 double du_r = (u_max - u_min) / nu_r;
 
@@ -300,10 +302,10 @@ void restart_with_full_matrix(size_t& nt_r_curr, size_t n, double* coeffs, confi
 
     // Define a threshold
     double tol = 1e-2;
-    size_t max_rank = 50;
+    size_t max_rank = 30;
 
     // This was the direct SVD way:
-    //arma::svd_econ(U, s, V, f0_r_copy);
+    arma::svd_econ(U, s, V, f0_r_copy);
 
     // Function handles to pass to randomized_svd
     // Later the direct use of f0_r_copy would be substituted by direct 
@@ -318,14 +320,14 @@ void restart_with_full_matrix(size_t& nt_r_curr, size_t n, double* coeffs, confi
 
     //arma::svd_econ(U, s, V, f0_r_copy);
 
-    std::cout << "Start random svd. " << std::endl;
+    /* std::cout << "Start random svd. " << std::endl;
     svd_magic::randomized_svd(A_mv, At_mv, f0_r_copy.n_rows, f0_r_copy.n_cols, max_rank, U, s, V);
     std::cout << "RSVD finished." << std::endl;
 
     std::ofstream singular_values_str("s_" + std::to_string(n*dt) + ".txt");
     for(size_t i = 0; i < s.n_elem; i++){
         singular_values_str << i << " " << s(i) << std::endl;
-    }
+    } */
 
     // Find how many singular values are above the 
     // (relative) tolerance:
@@ -370,7 +372,7 @@ void restart_with_rsvd_compression(size_t& nt_r_curr, size_t n, double* coeffs, 
 
     // Threshold and max rank
     double tol = 1e-2;
-    size_t max_rank = 50;
+    size_t max_rank = 30;
 
     // Define lazy matrix-vector product A * x
     auto A_mv = [&](const arma::vec& x) -> arma::vec {
@@ -413,7 +415,9 @@ void restart_with_rsvd_compression(size_t& nt_r_curr, size_t n, double* coeffs, 
     };
 
     std::cout << "Start random svd. " << std::endl;
-    svd_magic::randomized_svd(A_mv, At_mv, nx_r + 1, nu_r + 1, max_rank, U_s_r, s, V_r);
+    restart::randomized_svd_new(A_mv, At_mv, nx_r + 1, nu_r + 1, max_rank, U_s_r, s, V_r);
+    //restart::randomized_svd_old(A_mv, At_mv, nx_r + 1, nu_r + 1, max_rank, U_s_r, s, V_r);
+    //svd_magic::randomized_svd(A_mv, At_mv, nx_r + 1, nu_r + 1, max_rank, U_s_r, s, V_r);
     std::cout << "RSVD finished." << std::endl;
 
     // Truncate by tolerance
@@ -609,7 +613,7 @@ void run_restarted_simulation(bool with_svd_compression = true)
 
 int main()
 {
-	nufi::dim1::run_restarted_simulation<2>(false);
+	nufi::dim1::run_restarted_simulation<2>(true);
 
     //nufi::svd_magic::test_rsvd();
 }
