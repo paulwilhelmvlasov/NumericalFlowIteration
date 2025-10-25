@@ -33,60 +33,11 @@
 #include <nufi/poisson.hpp>
 #include <nufi/rho.hpp>
 #include <nufi/stopwatch.hpp>
+#include <nufi/restart.hpp>
 
 
 namespace nufi
 {
-
-namespace svd_magic
-{
-
-// Randomized SVD with on-the-fly A*x and A^T*x evaluation
-void randomized_svd(
-    std::function<arma::vec(const arma::vec&)> apply_A,
-    std::function<arma::vec(const arma::vec&)> apply_At,
-    arma::uword m, arma::uword n, arma::uword k,
-    arma::mat& U, arma::vec& S, arma::mat& V,
-    arma::uword oversampling = 5
-) {
-    arma::uword l = k + oversampling;
-
-    // Step 1: Draw a random test matrix Omega
-    arma::mat Omega = arma::randn(n, l);  // shape: n × l
-
-    // Step 2: Compute Y = A * Omega
-    arma::mat Y(m, l);
-    for (arma::uword i = 0; i < l; ++i)
-        Y.col(i) = apply_A(Omega.col(i));
-
-    // Step 3: Orthonormalize Y to get Q
-    arma::mat Q;
-    arma::mat R;
-    arma::qr_econ(Q, R, Y);  // economy QR
-
-    // Step 4: B = Q^T * A
-    arma::mat B(l, n);  // Q^T * A ≈ (l x m) * (m x n) = (l x n)
-    for (arma::uword i = 0; i < n; ++i) {
-        arma::vec e_i = arma::zeros<arma::vec>(n);
-        e_i(i) = 1.0;
-        arma::vec Ai = apply_A(e_i);
-        B.col(i) = Q.t() * Ai;
-    }
-
-    // Step 5: SVD of the small matrix B
-    arma::mat U_tilde, V_temp;
-    arma::vec S_temp;
-    arma::svd(U_tilde, S_temp, V_temp, B);  // B = U_tilde * S * V_temp^T
-
-    // Step 6: Recover U = Q * U_tilde
-    U = Q * U_tilde;
-    S = S_temp.head(k);
-    V = V_temp.cols(0, k - 1);
-    U = U.cols(0, k - 1);  // truncate U too
-}
-
-
-}
 
 namespace dim3
 {
@@ -109,7 +60,7 @@ const double v_max = 6;
 const double w_min = -6;
 const double w_max = 6;
 
-const size_t nx_r = 32;
+const size_t nx_r = 16;
 const size_t ny_r = nx_r;
 const size_t nz_r = nx_r;
 
@@ -562,7 +513,8 @@ void restart_with_rsvd_compression(size_t& nt_r_curr, size_t n, double* coeffs, 
 
     arma::vec s;
 
-    svd_magic::randomized_svd(A_mv, At_mv, size_x_r, size_v_r, max_rank, U_s_r, s, V_r, oversampling);
+    restart::randomized_svd_new(A_mv, At_mv, size_x_r, size_v_r, max_rank, U_s_r, s, V_r, oversampling);
+    //svd_magic::randomized_svd(A_mv, At_mv, size_x_r, size_v_r, max_rank, U_s_r, s, V_r, oversampling);
 
     std::cout << "Singular values: " << std::endl;
     std::cout << s << std::endl;
@@ -677,7 +629,8 @@ void restart_with_rsvd_compression_new(size_t& nt_r_curr, size_t n, double* coef
 
     arma::vec s;
 
-    svd_magic::randomized_svd(A_mv, At_mv, size_x_r, size_v_r, max_rank, U_s_r, s, V_r, oversampling);
+    restart::randomized_svd_new(A_mv, At_mv, size_x_r, size_v_r, max_rank, U_s_r, s, V_r, oversampling);
+    //svd_magic::randomized_svd(A_mv, At_mv, size_x_r, size_v_r, max_rank, U_s_r, s, V_r, oversampling);
 
     std::cout << "Singular values: " << s.t() << std::endl;
 
@@ -794,5 +747,5 @@ void run_restarted_simulation(bool svd_compressed = false, double tolerance = 1e
 
 int main()
 {
-    nufi::dim3::run_restarted_simulation<2>(false,1e-16,10,3);
+    nufi::dim3::run_restarted_simulation<2>(true,1e-16,10,3);
 }

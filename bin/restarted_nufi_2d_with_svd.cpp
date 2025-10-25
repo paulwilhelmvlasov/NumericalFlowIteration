@@ -33,58 +33,10 @@
 #include <nufi/poisson.hpp>
 #include <nufi/rho.hpp>
 #include <nufi/stopwatch.hpp>
-
+#include <nufi/restart.hpp>
 
 namespace nufi
 {
-
-namespace svd_magic
-{
-
-// Randomized SVD with on-the-fly A*x and A^T*x evaluation
-void randomized_svd(
-    std::function<arma::vec(const arma::vec&)> apply_A,
-    std::function<arma::vec(const arma::vec&)> apply_At,
-    arma::uword m, arma::uword n, arma::uword k,
-    arma::mat& U, arma::vec& S, arma::mat& V,
-    arma::uword oversampling = 10
-) {
-    arma::uword l = k + oversampling;
-
-    // Step 1: Draw a random test matrix Omega
-    arma::mat Omega = arma::randn(n, l);  // shape: n × l
-
-    // Step 2: Compute Y = A * Omega
-    arma::mat Y(m, l);
-    for (arma::uword i = 0; i < l; ++i)
-        Y.col(i) = apply_A(Omega.col(i));
-
-    // Step 3: Orthonormalize Y to get Q
-    arma::mat Q;
-    arma::mat R;
-    arma::qr_econ(Q, R, Y);  // economy QR
-
-    // Step 4: B = Q^T * A
-    arma::mat B(l, n);  // Q^T * A ≈ (l x m) * (m x n) = (l x n)
-    for (arma::uword i = 0; i < n; ++i) {
-        arma::vec e_i = arma::zeros<arma::vec>(n);
-        e_i(i) = 1.0;
-        arma::vec Ai = apply_A(e_i);
-        B.col(i) = Q.t() * Ai;
-    }
-
-    // Step 5: SVD of the small matrix B
-    arma::mat U_tilde, V_temp;
-    arma::vec S_temp;
-    arma::svd(U_tilde, S_temp, V_temp, B);  // B = U_tilde * S * V_temp^T
-
-    // Step 6: Recover U = Q * U_tilde
-    U = Q * U_tilde;
-    S = S_temp.head(k);
-    V = V_temp.cols(0, k - 1);
-    U = U.cols(0, k - 1);  // truncate U too
-}
-}
 
 namespace dim2
 {
@@ -261,7 +213,7 @@ void restart_with_full_matrix(size_t& nt_r_curr, size_t n, double* coeffs, confi
 
     arma::mat U,V;
     arma::vec s;
-    svd_magic::randomized_svd(A_mv_full, At_mv_full, size_x_r, size_v_r, max_rank, U, s, V, oversampling);
+    restart::randomized_svd_new(A_mv_full, At_mv_full, size_x_r, size_v_r, max_rank, U, s, V, oversampling);
     F_r = U * arma::diagmat(s) * V.t(); */
     // Full restart:
     F_r = F_r_copy;

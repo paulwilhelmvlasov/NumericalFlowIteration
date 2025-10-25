@@ -392,6 +392,43 @@ real compute_kinetic_energy(size_t nt, const std::vector<std::vector<real>>& coe
     return kin_energy;
 }
 
+template <typename real, size_t order>
+real compute_kinetic_energy_aligned(size_t nt, const std::vector<real>& coeffs_E, const std::vector<real>& coeffs_B, 
+    const std::vector<real>& coeffs_j_hat, const config_t<double>& conf, size_t Nx_plot = 64, size_t Ny_plot = 1, size_t Nz_plot = 1, 
+    size_t Nu_plot = 64, size_t Nv_plot = 64, size_t Nw_plot = 1)
+{
+    real dx_plot = (conf.x_max - conf.x_min) / Nx_plot;
+    real dy_plot = (conf.y_max - conf.y_min) / Ny_plot;
+    real dz_plot = (conf.z_max - conf.z_min) / Nz_plot;
+    real du_plot = (conf.u_max - conf.u_min) / Nu_plot;
+    real dv_plot = (conf.v_max - conf.v_min) / Nv_plot;
+    real dw_plot = (conf.w_max - conf.w_min) / Nw_plot;
+    
+    real kin_energy = 0;
+    #pragma omp parallel for collapse(4)
+    for(size_t ix = 0; ix < Nx_plot; ix++)
+    for(size_t iy = 0; iy < Ny_plot; iy++)
+    for(size_t iz = 0; iz < Nz_plot; iz++)
+    for(size_t iu = 0; iu < Nu_plot; iu++)
+    for(size_t iv = 0; iv < Nv_plot; iv++)
+    for(size_t iw = 0; iw < Nw_plot; iw++){
+        real x = conf.x_min + (ix+0.5) * dx_plot;
+        real y = conf.y_min + (iy+0.5) * dy_plot;
+        real z = conf.z_min + (iz+0.5) * dz_plot;
+        real u = conf.u_min + (iu+0.5) * du_plot;
+        real v = conf.v_min + (iv+0.5) * dv_plot;
+        real w = conf.w_min + (iw+0.5) * dw_plot;
+        real f = eval_f_lie_fBE<real, order>(nt, x, y, z, u, v, w, coeffs_E, coeffs_B, coeffs_j_hat, conf);
+
+        #pragma omp atomic
+        kin_energy += (u*u + v*v + w*w) * f; 
+    }
+
+    kin_energy *= 0.5 * dx_plot * dy_plot * dz_plot * du_plot * dv_plot * dw_plot;
+
+    return kin_energy;
+}
+
 template<typename real, size_t order>
 void do_stats(size_t nt, size_t nx_plot, std::ofstream& stat_file, 
     const std::vector<std::vector<real>>& coeffs_E, const std::vector<std::vector<real>>& coeffs_B, 
@@ -1343,9 +1380,14 @@ void read_in_coeff_and_plot_aligned()
     std::cout << "Nz = " << conf.Nz << std::endl;
 
     //#pragma omp parallel for
-    //std::ofstream energy_str("energies.txt");
-    for(size_t n = 100*200; n <= 100*200; n+=25*200){
+    std::ofstream energy_str("kin_energy.txt");
+    for(size_t n = 0; n <= 1000*200; n+=1*200){
         std::cout << "Plot data from time " << n*conf.dt << std::endl;
+
+        double kin_energy = compute_kinetic_energy_aligned<real,order>(n,coeffs_E,
+                                coeffs_B,coeffs_j_hat,conf);
+        energy_str << n*conf.dt << " " << kin_energy << std::endl;
+
         /* double elec_energy = 0;
         double magn_energy = 0;
         double E1_energy = 0;
@@ -1428,10 +1470,10 @@ void read_in_coeff_and_plot_aligned()
         plot_f_x_vy_omp_parallelized<double,4>(n,coeffs_E,coeffs_B,coeffs_j_hat,conf,0,6.4,
                                 0,1.2,256,256,2,2,0,0,"test_zoom"); */
 
-        plot_f_vx_vy_parallelized<double,4>(n,coeffs_E,coeffs_B,coeffs_j_hat,conf,-0.10,-0.05,-0.6,-0.4,
-                                2048,2048,0.05*M_PI,0.05*M_PI,0.05*M_PI,0,"_0_05_Lx_512x512_zoomed_-010_-005_-06_-04");
-	plot_f_vx_vy_parallelized<double,4>(n,coeffs_E,coeffs_B,coeffs_j_hat,conf,0.10,0.15,-0.5,-0.4,
-                                2048,2048,0.05*M_PI,0.05*M_PI,0.05*M_PI,0,"_0_05_Lx_512x512_zoomed_right");
+        plot_f_vx_vy_parallelized<double,4>(n,coeffs_E,coeffs_B,coeffs_j_hat,conf,conf.u_min,conf.u_max,conf.v_min,conf.v_max,
+                                1024,1024,0.05*M_PI,0.05*M_PI,0.05*M_PI,0,"_0_05_Lx_1024x1024");
+	    plot_f_vx_vy_parallelized<double,4>(n,coeffs_E,coeffs_B,coeffs_j_hat,conf,0.10,0.15,-0.5,-0.4,
+                                1024,1024,conf.Lx/2.0,0.05*M_PI,0.05*M_PI,0,"_Lx_half_1024x1024");
 
 //        plot_f_vx_vy_parallelized<double,4>(n,coeffs_E,coeffs_B,coeffs_j_hat,conf,-0.2,0.2,-0.5,0,
 //                                512,512,Lx/2,Ly/2.0,Lz/2.0,0,"_Lx_2_512x512_zoomed");
