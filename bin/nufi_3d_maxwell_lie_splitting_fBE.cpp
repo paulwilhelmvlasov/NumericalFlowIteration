@@ -29,7 +29,7 @@ const double Ly = Lx;
 const double Lz = Lx; */
 
 // 1d electro-static
-/* const double Lx = 4*M_PI;
+const double Lx = 4*M_PI;
 const double Ly = 1;
 const double Lz = 1;
 const double umin = -5;
@@ -37,7 +37,7 @@ const double umax = 5;
 const double vmin = -0.5;
 const double vmax = 0.5;
 const double wmin = -0.5;
-const double wmax = 0.5; */
+const double wmax = 0.5;
 
 
 // Magnetic Two Stream Instability by Einkemmer 
@@ -51,9 +51,9 @@ const double Ly = Lx;
 const double Lz = Lx;
  */
 // Kormann's Streaming Weibel Instability
-const double Lx = 2*M_PI/0.2;
+/* const double Lx = 2*M_PI/0.2;
 const double Ly = 1;
-const double Lz = 1;
+const double Lz = 1; */
 // Weibel Instability by Einkemmer
 /* const double umin = -0.15;
 const double umax = 0.15;
@@ -76,12 +76,12 @@ const double vmax = 1.2;
 const double wmin = -0.5;
 const double wmax = 0.5; */
 // Kormann Streaming Weibel instability
-const double umin = -0.5;
+/* const double umin = -0.5;
 const double umax = 0.5;
 const double vmin = -1.2;
 const double vmax = 1.2;
 const double wmin = -0.5;
-const double wmax = 0.5;
+const double wmax = 0.5; */
 // Magnetic Two Stream Instability by Fabio (perturbation in v direction)
 /* const double umin = -0.01;
 const double umax = 0.01;
@@ -89,23 +89,23 @@ const double vmin = -0.85;
 const double vmax = 0.85;
 const double wmin = -0.01;
 const double wmax = 0.01; */
-const size_t Nx = 32;
+const size_t Nx = 16;
 const size_t Ny = 1;
 const size_t Nz = 1;
-const size_t Nu = 32;
-const size_t Nv = 32;
+const size_t Nu = 16;
+const size_t Nv = 16;
 const size_t Nw = 1;
-const size_t steps_per_1 = 200;
+const size_t steps_per_1 = 10;
 const double   dt = 1.0 / steps_per_1;
-const size_t Nt = 1000/dt;
+const size_t Nt = 30/dt;
 
 const size_t nx_r = 2*Nx;
 const size_t ny_r = 1;
 const size_t nz_r = 1;
 const size_t nu_r = 2*Nu;
 const size_t nv_r = 2*Nv;
-const size_t nw_r = 2*Nw; // With the current implementation this must be at least 2 (never 1)!
-/* const */ size_t nt_restart = 10;
+const size_t nw_r = 1; //Careful: Does this also work with 1 instead of min 2? (After recent fix...) 
+/* const */ size_t nt_restart = 20;
 
 const double dx_r = Lx / nx_r;
 const double dy_r = Ly / ny_r;
@@ -223,9 +223,9 @@ real f0(real x, real y, real z, real u, real v, real w) noexcept
     // velocity directions it is important to normalize away the size of
     // the velocity space in that direction or just choose the velocity
     // domain in that direction as [-0.5,0.5].
-    /* constexpr real alpha = 0.01;
+    constexpr real alpha = 0.01;
     constexpr real k = 0.5;
-    return ( 1. + alpha*cos(k*x)) * maxwellian_1d<real>(u,1);  */
+    return ( 1. + alpha*cos(k*x)) * maxwellian_1d<real>(u,1); 
     //return ( 1. + alpha*cos(k*x)) * maxwellian<real>(u,v,w,1);
 
     // Two Stream Instability in x direction:
@@ -244,7 +244,7 @@ real f0(real x, real y, real z, real u, real v, real w) noexcept
     return 0.5 * (maxwellian_2d<real>(u,v-v_beam,vth) + maxwellian_2d<real>(u,v+v_beam,vth)); */
 
     // Streaming Weibel instability 
-    real omega = 0.1/std::sqrt(2);
+/*     real omega = 0.1/std::sqrt(2);
     real theta = 0.2;
     real beta = 1e-3;
     real v0_1 = 0.5;
@@ -253,7 +253,7 @@ real f0(real x, real y, real z, real u, real v, real w) noexcept
 
     return maxwellian_1d(u,omega) 
             * ( delta*maxwellian_1d(v-v0_1,omega) 
-            + (1-delta)*maxwellian_1d(v-v0_2,omega) );
+            + (1-delta)*maxwellian_1d(v-v0_2,omega) ); */
 
     // Magnetic Two Stream by Einkemmer
 /*     real v_beam = 0.2;
@@ -280,15 +280,15 @@ arma::Col<real> E0(real x, real y, real z)
     return  arma::Col<real>({-alpha / k * std::sin(k*x), 0, 0}); */
 
     // Electro-static (Landau Damping or Two Stream Instability)
-    /* constexpr real alpha = 1e-2;
+    constexpr real alpha = 1e-2;
     constexpr real k     = 0.5;
-    return  arma::Col<real>({-alpha / k * std::sin(k*x), 0, 0}); */
+    return  arma::Col<real>({-alpha / k * std::sin(k*x), 0, 0});
 
     // Magnetic Two Stream Instability by Fabio & Paul
     // Note that if we assume only a x-dependent perturbation for f it can only 
     // induce a electric field in the x- but not y-component. This however means 
     // that to induce dynamics along y we need an initial B instead of E.
-    return  arma::Col<real>({0, 0, 0});
+    /* return  arma::Col<real>({0, 0, 0}); */
 }
 
 // Function to generate random smooth periodic function using Fourier series
@@ -342,16 +342,16 @@ arma::Col<real> B0(real x, real y, real z)
     return arma::Col<real>({0, 0, beta*std::cos(k*x)}); */
 
     // Electro-static
-    /* return arma::Col<real>({0, 0, 0}); */
+    return arma::Col<real>({0, 0, 0});
 
     // Magnetic Two Stream Instability by Einkemmer.
 /*     constexpr real alpha = 1e-3;
     return arma::Col<real>({0, 0, alpha*std::sin(x)}); */
 
     // Kormann's Streaming Weibel instability
-    constexpr real theta = 0.2;
+    /* constexpr real theta = 0.2;
     constexpr real beta = 1e-3;
-    return arma::Col<real>({0, 0, beta*std::sin(theta*x)});
+    return arma::Col<real>({0, 0, beta*std::sin(theta*x)}); */
 }
 
 template <typename real, size_t order>
@@ -2248,7 +2248,7 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned()
             arma::Col<double> E0_vec({
                                 eval<double,order>(x,y,z,coeffs_E.data() + idx_base(nt_r_curr-1,0,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf),
                                 eval<double,order>(x,y,z,coeffs_E.data() + idx_base(nt_r_curr-1,1,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf),
-                                eval<double,order>(x,y,z,coeffs_E.data() + idx_base(nt_r_curr-1,2,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf),
+                                eval<double,order>(x,y,z,coeffs_E.data() + idx_base(nt_r_curr-1,2,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf)
                             });
             arma::Col<double> B0_vec({
                                 eval<double,order>(x,y,z,coeffs_B.data() + idx_base(nt_r_curr-1,0,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf),
@@ -2808,13 +2808,13 @@ int main(int argc, char** argv)
 
     //nufi::dim3::periodically_restarted_nufi_maxwell_lie_fBE<4>();
     
-    //nufi::dim3::periodically_restarted_nufi_maxwell_lie_fBE_aligned<4>();
+    nufi::dim3::periodically_restarted_nufi_maxwell_lie_fBE_aligned<4>();
 
     /* MPI_Init(&argc, &argv);
     nufi::dim3::periodically_restarted_nufi_maxwell_lie_fBE_aligned_mpi<4>();
     MPI_Finalize(); */
 
-    nufi::dim3::read_in_coeff_and_plot_aligned<double,4>();
+   // nufi::dim3::read_in_coeff_and_plot_aligned<double,4>();
 /* 
     nufi::lsmr_options<double> opts;
     std::cout << opts.target_residual << std::endl; */

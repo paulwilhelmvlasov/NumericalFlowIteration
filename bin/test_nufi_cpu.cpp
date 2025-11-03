@@ -52,8 +52,8 @@ real f0(real x, real u) noexcept
 	real alpha = 1e-2; // Linear Landau Damping or Two Stream instability
 	//real alpha = 0.5; // Strong Landau Damping
 	real k = 0.5;
-    return 1.0 / std::sqrt(2.0 * M_PI) * u*u * std::exp(-0.5 * u*u) * (1 + alpha * std::cos(k*x)); // Two Stream Instability
-	//return 1.0 / std::sqrt(2.0 * M_PI) * exp(-0.5 * u*u) * (1 + alpha * cos(k*x)); // Landau Damping
+    //return 1.0 / std::sqrt(2.0 * M_PI) * u*u * std::exp(-0.5 * u*u) * (1 + alpha * std::cos(k*x)); // Two Stream Instability
+	return 1.0 / std::sqrt(2.0 * M_PI) * exp(-0.5 * u*u) * (1 + alpha * cos(k*x)); // Landau Damping
 }
 
 template <typename real>
@@ -122,7 +122,7 @@ void run_restarted_simulation()
     size_t Nx = 256;  // Number of grid points in physical space.
     size_t Nu = Nx;  // Number of quadrature points in velocity space.
     double   dt = 0.1;  // Time-step size.
-    size_t Nt = 100/dt;  // Number of time-steps.
+    size_t Nt = 30/dt;  // Number of time-steps.
 
     // Dimensions of physical domain.
     double x_min = 0;
@@ -139,7 +139,7 @@ void run_restarted_simulation()
     // We use conf.Nt as restart timer for now.
     size_t nx_r = Nx;
 	size_t nu_r = nx_r;
-    size_t nt_restart = 100;
+    size_t nt_restart = 1e6;
     double dx_r = conf.Lx / nx_r;
     double du_r = (conf.u_max - conf.u_min)/ nu_r;
     f0_r.resize(nx_r+1, nu_r+1);

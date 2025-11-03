@@ -876,6 +876,87 @@ real eval_f_lie_fBE(size_t n, real x, real y, real z,
     return conf.f0(x_vec(0), x_vec(1), x_vec(2), v_vec(0), v_vec(1), v_vec(2));
 }
 
+
+template <typename real, size_t order, bool single_species = true>
+real eval_f_lie_EBf(size_t n, real x, real y, real z,
+    real u, real v, real w, const std::vector<real>& coeffs_E,
+    const std::vector<real>& coeffs_B, const config_t<real>& conf)
+{
+    // F(t) = Ham_f o Ham_B o Ham_E o F(0).
+    // Careful: Currently single species only!!!
+
+    const size_t dim = 3;
+    const size_t Nx_ext = conf.Nx + order - 1;
+    const size_t Ny_ext = conf.Ny + order - 1;
+    const size_t Nz_ext = conf.Nz + order - 1;
+    const size_t Nspace = Nx_ext * Ny_ext * Nz_ext;
+    const size_t stride_spatial = 1;
+    const size_t stride_comp = dim * stride_spatial;
+    const size_t stride_t = stride_comp * Nspace;
+
+    arma::Col<real> x_vec({x, y, z});
+    arma::Col<real> v_vec({u, v, w});
+    arma::Col<real> B0({0,0,0});
+    arma::Col<real> E0({0,0,0});
+    arma::Col<real> A({0,0,0});
+
+    for (; n > 0; n--) {
+        x_vec = x_vec - conf.dt * v_vec;
+        for(size_t d = 0; d < 3; d++){
+            B0(d) = eval<real, order>(x_vec(0), x_vec(1), x_vec(2),
+                        &coeffs_B[idx_base(n - 1, d, 0, 0, 0, Nx_ext, Ny_ext, Nz_ext, conf.Nt)], 
+                        conf);
+            E0(d) = eval<real, order>(x_vec(0), x_vec(1), x_vec(2),
+                        &coeffs_E[idx_base(n - 1, d, 0, 0, 0, Nx_ext, Ny_ext, Nz_ext, conf.Nt)], 
+                        conf);
+        }
+
+        A = B0 - conf.dt * rot<real,order>(n-1,x_vec(0),x_vec(1),x_vec(2),coeffs_E,conf);
+        arma::Mat<real> J = exp_J<real>(-conf.dt * A);
+        v_vec = J*v_vec - conf.dt * E0;
+    }
+
+    return conf.f0(x_vec(0), x_vec(1), x_vec(2), v_vec(0), v_vec(1), v_vec(2));
+}
+
+template <typename real, size_t order, bool single_species = true>
+void eval_j_full_EBf(size_t n, std::vector<real>& j, const std::vector<real>& coeffs_E, 
+    const std::vector<real>& coeffs_B, const config_t<real> &conf )
+{
+    #pragma omp parallel for
+    for(size_t l = 0; l < conf.Nx*conf.Ny*conf.Nz; l++){
+        
+        size_t iz   = l   / (conf.Nx * conf.Ny);
+        size_t tmp  = l   % (conf.Nx * conf.Ny);
+        size_t iy   = tmp / conf.Nx;
+        size_t ix   = tmp % conf.Nx;
+    
+        real x = conf.x_min + ix*conf.dx; 
+        real y = conf.y_min + iy*conf.dy; 
+        real z = conf.z_min + iz*conf.dz; 
+
+        real sum0 = 0, sum1 = 0, sum2 = 0;
+        #pragma omp parallel for collapse(3) reduction(+:sum0,sum1,sum2)
+        for(size_t iu = 0; iu < conf.Nu; iu++)
+        for(size_t iv = 0; iv < conf.Nv; iv++)
+        for(size_t iw = 0; iw < conf.Nw; iw++){
+            real u = conf.u_min + (iu + 0.5) * conf.du;
+            real v = conf.v_min + (iv + 0.5) * conf.dv;
+            real w = conf.w_min + (iw + 0.5) * conf.dw;
+
+            real f = eval_f_lie_EBf<real,order,single_species>(n, x, y, z, u, v, w, coeffs_E, coeffs_B, conf);
+
+            sum0 += u * f;
+            sum1 += v * f;
+            sum2 += w * f;
+        }
+        j[l] = sum0 * conf.du * conf.dv * conf.dw;
+        j[l + conf.Nx*conf.Ny*conf.Nz] = sum1 * conf.du * conf.dv * conf.dw;
+        j[l + 2*conf.Nx*conf.Ny*conf.Nz] = sum2 * conf.du * conf.dv * conf.dw;
+    }
+}
+
+
 template <typename real, size_t order, bool single_species = true>
 void eval_j_hat(size_t n, std::vector<real>& j_hat, const std::vector<real>& coeffs_E, 
     const std::vector<real>& coeffs_B, const std::vector<real>& coeffs_j_hat, const config_t<real> &conf )
