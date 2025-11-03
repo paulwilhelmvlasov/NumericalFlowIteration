@@ -59,15 +59,15 @@ const size_t Nv = 32;
 const size_t Nw = 1;
 const size_t steps_per_1 = 10;
 const double   dt = 1.0 / steps_per_1;
-const size_t Nt = 100/dt;
+const size_t Nt = 200/dt;
 
-const size_t nx_r = Nx;
+const size_t nx_r = 2*Nx;
 const size_t ny_r = Ny;
 const size_t nz_r = Nz;
-const size_t nu_r = Nu;
-const size_t nv_r = Nv;
+const size_t nu_r = 2*Nu;
+const size_t nv_r = 2*Nv;
 const size_t nw_r = Nw;
-size_t nt_restart = 1e10;
+size_t nt_restart = 1e6;
 
 
 const double dx_r = Lx / nx_r;
