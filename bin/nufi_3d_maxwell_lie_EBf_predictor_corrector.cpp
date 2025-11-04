@@ -61,13 +61,13 @@ const size_t steps_per_1 = 10;
 const double   dt = 1.0 / steps_per_1;
 const size_t Nt = 200/dt;
 
-const size_t nx_r = 2*Nx;
+const size_t nx_r = Nx;
 const size_t ny_r = Ny;
 const size_t nz_r = Nz;
-const size_t nu_r = 2*Nu;
-const size_t nv_r = 2*Nv;
+const size_t nu_r = Nu;
+const size_t nv_r = Nv;
 const size_t nw_r = Nw;
-size_t nt_restart = 1e6;
+size_t nt_restart = 20;
 
 
 const double dx_r = Lx / nx_r;
@@ -281,7 +281,6 @@ void B_step_predictor_corrector(size_t n, const std::vector<double>& coeffs_E, s
     }
 
     // Interpolate B(n + 1/2).
-    std::cout << "Interpolate B(n + 1/2)." << std::endl;
     interpolate_fields_aligned<double,order>(n, coeffs_B_staggered, B, conf);
 }
 
@@ -625,13 +624,11 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
         // Do stats...
         do_stats<double,order>(nt_r_curr, 64, stat_file,coeffs_E, coeffs_B, conf, false, true, n);
         total_time += time_for_step;
-        std::cout << "Time step " << n << " took a total of " << time_for_step << " s." << std::endl;
+        std::cout << "Time step " << n << " took a total of " << time_for_step << " s. So far total time = " << total_time << " s." << std::endl;
 
         if(nt_r_curr == nt_restart){
             timer.reset();
             std::cout << "Restart simulation. " << std::endl;
-            std::cout << "Min value restart_matrix " << restart_matrix.min() << std::endl;
-            std::cout << "Max value restart_matrix " << restart_matrix.max() << std::endl;
             // Compute first restart matrix.
             #pragma omp parallel for collapse(6)
             for(size_t ix = 0; ix <= nx_r; ix++)
@@ -681,6 +678,8 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
                                     = coeffs_B[idx_base(nt_r_curr,k,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,conf.Nt)];
                     coeffs_B_staggered[idx_base(0,k,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,conf.Nt)] 
                                     = coeffs_B_staggered[idx_base(nt_r_curr,k,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,conf.Nt)];
+                    coeffs_B_staggered[idx_base(1,k,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,conf.Nt)] 
+                                    = coeffs_B_staggered[idx_base(nt_r_curr+1,k,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,conf.Nt)];
                 }
             }
 
