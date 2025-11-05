@@ -29,7 +29,7 @@ namespace dim3
 arma::mat restart_matrix;
 
 // Paul & Fabio magnetic TSI (Filamentation instability) 
-const double trigger_k = 2;
+/* const double trigger_k = 2;
 const double Lx = 2*M_PI/trigger_k;
 const double Ly = Lx;
 const double Lz = Lx;
@@ -38,19 +38,18 @@ const double umax = 1;
 const double vmin = -1.2;
 const double vmax = 1.2;
 const double wmin = -0.5;
-const double wmax = 0.5;
+const double wmax = 0.5; */
 
 // Kormann Streaming Weibel
-/* const double Lx = 2*M_PI/0.2;
+const double Lx = 2*M_PI/0.2;
 const double Ly = 1;
 const double Lz = 1;
-
 const double umin = -0.5;
 const double umax = 0.5;
 const double vmin = -1.2;
 const double vmax = 1.2;
 const double wmin = -0.5;
-const double wmax = 0.5; */
+const double wmax = 0.5;
 
 // Electro-static:
 /* const double Lx = 4*M_PI;
@@ -70,17 +69,17 @@ const size_t Nz = 1;
 const size_t Nu = 32;
 const size_t Nv = 32;
 const size_t Nw = 1;
-const size_t steps_per_1 = 30;
+const size_t steps_per_1 = 50;
 const double   dt = 1.0 / steps_per_1;
 const size_t Nt = 200/dt;
 
-const size_t nx_r = Nx;
+const size_t nx_r = 2*Nx;
 const size_t ny_r = Ny;
 const size_t nz_r = Nz;
-const size_t nu_r = Nu;
-const size_t nv_r = Nv;
+const size_t nu_r = 2*Nu;
+const size_t nv_r = 2*Nv;
 const size_t nw_r = Nw;
-size_t nt_restart = 50;
+size_t nt_restart = 100;
 
 
 const double dx_r = Lx / nx_r;
@@ -188,7 +187,7 @@ real f0(real x, real y, real z, real u, real v, real w) noexcept
     using std::exp;
 
     // Kormann Streaming Weibel
-    /* real omega = 0.1/std::sqrt(2);
+    real omega = 0.1/std::sqrt(2);
     real theta = 0.2;
     real beta = 1e-3;
     real v0_1 = 0.5;
@@ -197,15 +196,15 @@ real f0(real x, real y, real z, real u, real v, real w) noexcept
 
     return maxwellian_1d<real>(u,omega) 
             * ( delta*maxwellian_1d<real>(v-v0_1,omega) 
-            + (1-delta)*maxwellian_1d<real>(v-v0_2,omega) ); */
+            + (1-delta)*maxwellian_1d<real>(v-v0_2,omega) );
 
     // Weak Landau Damping
     //return (1+0.01*cos(0.5*x))*maxwellian_1d<real>(u,1);
 
     // Paul & Fabio magnetic TSI (Filamentation instability) 
-    real v_beam = 0.4;
+    /* real v_beam = 0.4;
     real vth = 0.1;
-    return 0.5 * (maxwellian_2d<real>(u,v-v_beam,vth) + maxwellian_2d<real>(u,v+v_beam,vth));
+    return 0.5 * (maxwellian_2d<real>(u,v-v_beam,vth) + maxwellian_2d<real>(u,v+v_beam,vth)); */
 }
 
 template <typename real>
@@ -225,13 +224,13 @@ arma::Col<real> B0(real x, real y, real z)
     //return  arma::Col<real>({0, 0, 0});
 
     // Kormann's Streaming Weibel instability
-    /* constexpr real theta = 0.2;
+    constexpr real theta = 0.2;
     constexpr real beta = 1e-3;
-    return arma::Col<real>({0, 0, beta*std::sin(theta*x)}); */
+    return arma::Col<real>({0, 0, beta*std::sin(theta*x)});
 
     // Magnetic Two Stream Instability by Einkemmer.
-    constexpr real alpha = 1e-3;
-    return arma::Col<real>({0, 0, alpha*std::sin(trigger_k * x)});
+    /* constexpr real alpha = 1e-3;
+    return arma::Col<real>({0, 0, alpha*std::sin(trigger_k * x)}); */
 }
 
 template<typename real, size_t order>
@@ -429,6 +428,13 @@ void do_stats(size_t nt, size_t nx_plot, std::ofstream& stat_file,
     double electric_energy = 0;
     double magnetic_energy = 0;
 
+    double electric_x_energy = 0;
+    double electric_y_energy = 0;
+    double electric_z_energy = 0;
+    double magnetic_x_energy = 0;
+    double magnetic_y_energy = 0;
+    double magnetic_z_energy = 0;
+
     double current_time = 0;
     if(restarted){
         current_time = n_full * conf.dt;
@@ -461,6 +467,14 @@ void do_stats(size_t nt, size_t nx_plot, std::ofstream& stat_file,
                     electric_energy += Ex*Ex + Ey*Ey + Ez*Ez;
                     magnetic_energy += Bx*Bx + By*By + Bz*Bz;
 
+                    electric_x_energy += Ex*Ex;
+                    electric_y_energy += Ey*Ey;
+                    electric_z_energy += Ez*Ez;
+
+                    magnetic_x_energy += Bx*Bx;
+                    magnetic_y_energy += By*By;
+                    magnetic_z_energy += Bz*Bz;
+
                     if(iy == nx_plot/2 && iz == nx_plot/2){
                         Ex_str << x << " " << Ex << std::endl;
                         Ey_str << x << " " << Ey << std::endl;
@@ -490,15 +504,35 @@ void do_stats(size_t nt, size_t nx_plot, std::ofstream& stat_file,
 
                     electric_energy += Ex*Ex + Ey*Ey + Ez*Ez;
                     magnetic_energy += Bx*Bx + By*By + Bz*Bz;
+
+                    electric_x_energy += Ex*Ex;
+                    electric_y_energy += Ey*Ey;
+                    electric_z_energy += Ez*Ez;
+
+                    magnetic_x_energy += Bx*Bx;
+                    magnetic_y_energy += By*By;
+                    magnetic_z_energy += Bz*Bz;
                 }
             }
         }
     }
     electric_energy *= 0.5*dx_plot*dy_plot*dz_plot;
+
+    electric_x_energy *= 0.5*dx_plot*dy_plot*dz_plot;
+    electric_y_energy *= 0.5*dx_plot*dy_plot*dz_plot;
+    electric_z_energy *= 0.5*dx_plot*dy_plot*dz_plot;
+
     magnetic_energy *= 0.5*dx_plot*dy_plot*dz_plot;
 
+    magnetic_x_energy *= 0.5*dx_plot*dy_plot*dz_plot;
+    magnetic_y_energy *= 0.5*dx_plot*dy_plot*dz_plot;
+    magnetic_z_energy *= 0.5*dx_plot*dy_plot*dz_plot;
 
-    stat_file << current_time << " " << electric_energy << " " << magnetic_energy << std::endl;
+
+    stat_file << current_time << " " << electric_energy << " " << magnetic_energy << " "
+        << electric_x_energy << " " << electric_y_energy << " " << electric_z_energy << " "
+        << magnetic_x_energy << " " << magnetic_y_energy << " " << magnetic_z_energy << " "
+        << std::endl;
     std::cout << current_time << " " << electric_energy << " " << magnetic_energy << std::endl;
 
     if(plot_f){
