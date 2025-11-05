@@ -28,7 +28,19 @@ namespace dim3
 
 arma::mat restart_matrix;
 
-const double Lx = 2*M_PI/0.2;
+// Paul & Fabio magnetic TSI (Filamentation instability) 
+const double Lx = 12.8;
+const double Ly = Lx;
+const double Lz = Lx;
+const double umin = -1;
+const double umax = 1;
+const double vmin = -1.2;
+const double vmax = 1.2;
+const double wmin = -0.5;
+const double wmax = 0.5;
+
+// Kormann Streaming Weibel
+/* const double Lx = 2*M_PI/0.2;
 const double Ly = 1;
 const double Lz = 1;
 
@@ -37,7 +49,7 @@ const double umax = 0.5;
 const double vmin = -1.2;
 const double vmax = 1.2;
 const double wmin = -0.5;
-const double wmax = 0.5;
+const double wmax = 0.5; */
 
 // Electro-static:
 /* const double Lx = 4*M_PI;
@@ -61,13 +73,13 @@ const size_t steps_per_1 = 10;
 const double   dt = 1.0 / steps_per_1;
 const size_t Nt = 200/dt;
 
-const size_t nx_r = Nx;
+const size_t nx_r = 2*Nx;
 const size_t ny_r = Ny;
 const size_t nz_r = Nz;
-const size_t nu_r = Nu;
-const size_t nv_r = Nv;
+const size_t nu_r = 2*Nu;
+const size_t nv_r = 2*Nv;
 const size_t nw_r = Nw;
-size_t nt_restart = 20;
+size_t nt_restart = 50;
 
 
 const double dx_r = Lx / nx_r;
@@ -174,8 +186,8 @@ real f0(real x, real y, real z, real u, real v, real w) noexcept
     using std::cos;
     using std::exp;
 
-    // Streaming Weibel instability 
-    real omega = 0.1/std::sqrt(2);
+    // Kormann Streaming Weibel
+    /* real omega = 0.1/std::sqrt(2);
     real theta = 0.2;
     real beta = 1e-3;
     real v0_1 = 0.5;
@@ -184,10 +196,15 @@ real f0(real x, real y, real z, real u, real v, real w) noexcept
 
     return maxwellian_1d<real>(u,omega) 
             * ( delta*maxwellian_1d<real>(v-v0_1,omega) 
-            + (1-delta)*maxwellian_1d<real>(v-v0_2,omega) );
+            + (1-delta)*maxwellian_1d<real>(v-v0_2,omega) ); */
 
     // Weak Landau Damping
     //return (1+0.01*cos(0.5*x))*maxwellian_1d<real>(u,1);
+
+    // Paul & Fabio magnetic TSI (Filamentation instability) 
+    real v_beam = 0.4;
+    real vth = 0.1;
+    return 0.5 * (maxwellian_2d<real>(u,v-v_beam,vth) + maxwellian_2d<real>(u,v+v_beam,vth));
 }
 
 template <typename real>
@@ -196,18 +213,24 @@ arma::Col<real> E0(real x, real y, real z)
     // Electro-Static setup for Weak Landau or TSI:
     //return  arma::Col<real>({0.02 * std::sin(0.5*x), 0, 0});
 
+    // Kormann Streaming Weibel & magnetic TSI (Filamentation)
     return  arma::Col<real>({0, 0, 0});
 }
 
 template <typename real>
 arma::Col<real> B0(real x, real y, real z)
 {
+    // Electro-Static
     //return  arma::Col<real>({0, 0, 0});
 
     // Kormann's Streaming Weibel instability
-    constexpr real theta = 0.2;
+    /* constexpr real theta = 0.2;
     constexpr real beta = 1e-3;
-    return arma::Col<real>({0, 0, beta*std::sin(theta*x)});
+    return arma::Col<real>({0, 0, beta*std::sin(theta*x)}); */
+
+    // Magnetic Two Stream Instability by Einkemmer.
+    constexpr real alpha = 1e-3;
+    return arma::Col<real>({0, 0, alpha*std::sin(x)});
 }
 
 template<typename real, size_t order>
@@ -384,7 +407,8 @@ void B_average(size_t n, std::vector<double>& coeffs_B, std::vector<double>& coe
 template<typename real, size_t order>
 void do_stats(size_t nt, size_t nx_plot, std::ofstream& stat_file, 
     const std::vector<real>& coeffs_E, const std::vector<real>& coeffs_B, 
-    const config_t<double>& conf, bool plot_E_B = false, bool restarted = false, size_t n_full = 0)
+    const config_t<double>& conf, bool plot_E_B = false, bool restarted = false, size_t n_full = 0, 
+    bool plot_f = false)
 {
     // Storage of coefficients now via: 
     // index = nt + Nt * (d + dim * (ix + Nx * (iy + Ny * iz)))
@@ -472,16 +496,120 @@ void do_stats(size_t nt, size_t nx_plot, std::ofstream& stat_file,
     electric_energy *= 0.5*dx_plot*dy_plot*dz_plot;
     magnetic_energy *= 0.5*dx_plot*dy_plot*dz_plot;
 
-    if(restarted){
-        stat_file << n_full*conf.dt << " " << electric_energy << " " << magnetic_energy << std::endl;
-        std::cout << n_full*conf.dt << " " << electric_energy << " " << magnetic_energy << std::endl;
-    } else {
-        stat_file << nt*conf.dt << " " << electric_energy << " " << magnetic_energy << std::endl;
-        std::cout << nt*conf.dt << " " << electric_energy << " " << magnetic_energy << std::endl;
+
+    stat_file << current_time << " " << electric_energy << " " << magnetic_energy << std::endl;
+    std::cout << current_time << " " << electric_energy << " " << magnetic_energy << std::endl;
+
+    if(plot_f){
+        size_t nu_plot = nx_plot;
+        double du_plot = (umax - umin) / nu_plot;
+        size_t nv_plot = nx_plot;
+        double dv_plot = (vmax - vmin) / nv_plot;
+        // Plot (x,vx)
+        std::ofstream f_x_vx_str("f_x_vx_" + std::to_string(current_time) + ".txt");
+        for(size_t ix = 0; ix <= nx_plot; ix++){
+            for(size_t iu = 0; iu <= nu_plot; iu++)
+            {
+                double x = ix*dx_plot;
+                double y = Ly/2.0;
+                double z = Lz/2.0;
+                double u = umin + iu*du_plot;
+                double v = 0;
+                double w = 0;
+
+                double f = eval_f_lie_EBf<double,order>(nt,x,y,z,u,v,w,coeffs_E,coeffs_B,conf);
+
+                f_x_vx_str << x << " " << u << " " << f << std::endl;
+            }
+            f_x_vx_str << std::endl;
+        }
+
+        // Plot (x,vy)
+        std::ofstream f_x_vy_str("f_x_vy_" + std::to_string(current_time) + ".txt");
+        for(size_t ix = 0; ix <= nx_plot; ix++){
+            for(size_t iv = 0; iv <= nv_plot; iv++)
+            {
+                double x = ix*dx_plot;
+                double y = Ly/2.0;
+                double z = Lz/2.0;
+                double u = 0;
+                double v = vmin + iv*dv_plot;
+                double w = 0;
+
+                double f = eval_f_lie_EBf<double,order>(nt,x,y,z,u,v,w,coeffs_E,coeffs_B,conf);
+
+                f_x_vy_str << x << " " << v << " " << f << std::endl;
+            }
+            f_x_vy_str << std::endl;
+        }
+
+        // Plot (vx,vy)
+        std::ofstream f_vx_vy_str("f_vx_vy_" + std::to_string(current_time) + ".txt");
+        for(size_t iu = 0; iu <= nu_plot; iu++){
+            for(size_t iv = 0; iv <= nv_plot; iv++)
+            {
+                double x = Lx/2.0;
+                double y = Ly/2.0;
+                double z = Lz/2.0;
+                double u = umin + iu*du_plot;
+                double v = vmin + iv*dv_plot;
+                double w = 0;
+
+                double f = eval_f_lie_EBf<double,order>(nt,x,y,z,u,v,w,coeffs_E,coeffs_B,conf);
+
+                f_vx_vy_str << u << " " << v << " " << f << std::endl;
+            }
+            f_vx_vy_str << std::endl;
+        }
     }
 }
 
+template<typename real, size_t order>
+void write_coeffs(size_t n, const std::vector<real>& coeffs_E, 
+    const std::vector<real>& coeffs_B, const config_t<real>& conf, 
+    std::ofstream& coeff_file_E, std::ofstream& coeff_file_B)
+{
+    // Storage of coefficients now via: 
+    // index = nt + Nt * (d + dim * (ix + Nx * (iy + Ny * iz)))
+    const size_t stride_t = (conf.Nx + order - 1) *
+                        (conf.Ny + order - 1) *
+                        (conf.Nz + order - 1);
 
+    const size_t dim = 3;
+    const size_t Nx_ext = conf.Nx + order - 1;
+    const size_t Ny_ext = conf.Ny + order - 1;
+    const size_t Nz_ext = conf.Nz + order - 1;
+    const size_t Nspace = Nx_ext * Ny_ext * Nz_ext;
+
+    #pragma omp parallel
+    {
+        #pragma omp sections
+        {    
+            #pragma omp section
+            for(size_t ix = 0; ix < conf.Nx; ix++)
+            for(size_t iy = 0; iy < conf.Ny; iy++)
+            for(size_t iz = 0; iz < conf.Nz; iz++)
+            {
+                coeff_file_E << std::scientific << std::setprecision(16) << coeffs_E[idx_base(n,0,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,conf.Nt)] << " "
+                            << coeffs_E[idx_base(n,1,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,conf.Nt)] << " "
+                            << coeffs_E[idx_base(n,2,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,conf.Nt)] << " "
+                            << std::endl;
+            }
+            
+            #pragma omp section
+            for(size_t ix = 0; ix < conf.Nx; ix++)
+            for(size_t iy = 0; iy < conf.Ny; iy++)
+            for(size_t iz = 0; iz < conf.Nz; iz++)
+            {
+                coeff_file_B << std::scientific << std::setprecision(16) << coeffs_B[idx_base(n,0,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,conf.Nt)] << " "
+                            << coeffs_B[idx_base(n,1,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,conf.Nt)] << " "
+                            << coeffs_B[idx_base(n,2,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,conf.Nt)] << " "
+                            << std::endl;
+            }
+        }
+    }
+
+}    
 
 template<size_t order>
 void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
@@ -556,6 +684,10 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
     interpolate_fields_aligned<double,order>(0, coeffs_E, E, conf);
     interpolate_fields_aligned<double,order>(0, coeffs_B, B, conf);
 
+    std::ofstream coeff_E_str("coeff_E.txt");
+    std::ofstream coeff_B_str("coeff_B.txt");
+    write_coeffs<double,order>(0,coeffs_E,coeffs_B,conf,coeff_E_str,coeff_B_str);
+
     // Compute B_{-1/2}.
     #pragma omp parallel for
     for(size_t l = 0; l < conf.Nx*conf.Ny*conf.Nz; l++){
@@ -594,7 +726,7 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
 
     // Do first output.
     std::ofstream stat_file( "stats.txt" );
-    do_stats<double,order>(0, 64, stat_file,coeffs_E, coeffs_B, conf);
+    do_stats<double,order>(0, 64, stat_file,coeffs_E, coeffs_B, conf, false, true, 0, true);
 
     std::cout << "Time-loop." << std::endl;    
     std::cout << " ---------------------------------- " << std::endl;
@@ -622,7 +754,15 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
         double time_for_step = timer.elapsed();
 
         // Do stats...
-        do_stats<double,order>(nt_r_curr, 64, stat_file,coeffs_E, coeffs_B, conf, false, true, n);
+        bool plot_f = (n % (10*steps_per_1) == 0);
+        size_t nx_plot = 64;
+        if(plot_f){
+            nx_plot = 256;
+        }
+        do_stats<double,order>(nt_r_curr, nx_plot, stat_file,coeffs_E, coeffs_B, conf, false, true, n, plot_f);
+
+        write_coeffs<double,order>(nt_r_curr,coeffs_E,coeffs_B,conf,coeff_E_str,coeff_B_str);
+
         total_time += time_for_step;
         std::cout << "Time step " << n << " took a total of " << time_for_step << " s. So far total time = " << total_time << " s." << std::endl;
 
