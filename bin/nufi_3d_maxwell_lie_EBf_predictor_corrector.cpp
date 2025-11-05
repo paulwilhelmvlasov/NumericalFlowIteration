@@ -29,7 +29,8 @@ namespace dim3
 arma::mat restart_matrix;
 
 // Paul & Fabio magnetic TSI (Filamentation instability) 
-const double Lx = 12.8;
+const double trigger_k = 2;
+const double Lx = 2*M_PI/trigger_k;
 const double Ly = Lx;
 const double Lz = Lx;
 const double umin = -1;
@@ -69,15 +70,15 @@ const size_t Nz = 1;
 const size_t Nu = 32;
 const size_t Nv = 32;
 const size_t Nw = 1;
-const size_t steps_per_1 = 10;
+const size_t steps_per_1 = 30;
 const double   dt = 1.0 / steps_per_1;
 const size_t Nt = 200/dt;
 
-const size_t nx_r = 2*Nx;
+const size_t nx_r = Nx;
 const size_t ny_r = Ny;
 const size_t nz_r = Nz;
-const size_t nu_r = 2*Nu;
-const size_t nv_r = 2*Nv;
+const size_t nu_r = Nu;
+const size_t nv_r = Nv;
 const size_t nw_r = Nw;
 size_t nt_restart = 50;
 
@@ -230,7 +231,7 @@ arma::Col<real> B0(real x, real y, real z)
 
     // Magnetic Two Stream Instability by Einkemmer.
     constexpr real alpha = 1e-3;
-    return arma::Col<real>({0, 0, alpha*std::sin(x)});
+    return arma::Col<real>({0, 0, alpha*std::sin(trigger_k * x)});
 }
 
 template<typename real, size_t order>
