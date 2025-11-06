@@ -78,7 +78,7 @@ const size_t nz_r = Nz;
 const size_t nu_r = 2*Nu;
 const size_t nv_r = 2*Nv;
 const size_t nw_r = Nw;
-size_t nt_restart = 50;
+size_t nt_restart = 100;
 
 
 const double dx_r = Lx / nx_r;
