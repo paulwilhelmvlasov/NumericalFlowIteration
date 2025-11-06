@@ -68,7 +68,7 @@ const size_t Nz = 1;
 const size_t Nu = 32;
 const size_t Nv = 32;
 const size_t Nw = 1;
-const size_t steps_per_1 = 10;
+const size_t steps_per_1 = 100;
 const double   dt = 1.0 / steps_per_1;
 const size_t Nt = 50/dt;
 
