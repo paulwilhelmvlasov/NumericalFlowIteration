@@ -121,8 +121,8 @@ void run_restarted_simulation()
 
     size_t Nx = 256;  // Number of grid points in physical space.
     size_t Nu = Nx;  // Number of quadrature points in velocity space.
-    double   dt = 0.1;  // Time-step size.
-    size_t Nt = 30/dt;  // Number of time-steps.
+    double   dt = 0.05;  // Time-step size.
+    size_t Nt = 50/dt;  // Number of time-steps.
 
     // Dimensions of physical domain.
     double x_min = 0;

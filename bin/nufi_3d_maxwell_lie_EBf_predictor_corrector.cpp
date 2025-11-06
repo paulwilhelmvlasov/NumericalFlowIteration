@@ -55,7 +55,6 @@ const double wmax = 0.5;
 /* const double Lx = 4*M_PI;
 const double Ly = 1;
 const double Lz = 1;
-
 const double umin = -5;
 const double umax = 5;
 const double vmin = -0.5;
@@ -69,9 +68,9 @@ const size_t Nz = 1;
 const size_t Nu = 32;
 const size_t Nv = 32;
 const size_t Nw = 1;
-const size_t steps_per_1 = 50;
+const size_t steps_per_1 = 10;
 const double   dt = 1.0 / steps_per_1;
-const size_t Nt = 200/dt;
+const size_t Nt = 50/dt;
 
 const size_t nx_r = 2*Nx;
 const size_t ny_r = Ny;
@@ -79,7 +78,7 @@ const size_t nz_r = Nz;
 const size_t nu_r = 2*Nu;
 const size_t nv_r = 2*Nv;
 const size_t nw_r = Nw;
-size_t nt_restart = 100;
+size_t nt_restart = 50;
 
 
 const double dx_r = Lx / nx_r;
@@ -193,7 +192,6 @@ real f0(real x, real y, real z, real u, real v, real w) noexcept
     real v0_1 = 0.5;
     real v0_2 = -0.1;
     real delta = 1.0/6.0;
-
     return maxwellian_1d<real>(u,omega) 
             * ( delta*maxwellian_1d<real>(v-v0_1,omega) 
             + (1-delta)*maxwellian_1d<real>(v-v0_2,omega) );
@@ -761,7 +759,7 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
 
     // Do first output.
     std::ofstream stat_file( "stats.txt" );
-    do_stats<double,order>(0, 64, stat_file,coeffs_E, coeffs_B, conf, false, true, 0, true);
+    do_stats<double,order>(0, 64, stat_file,coeffs_E, coeffs_B, conf, false, true, 0, false);
 
     std::cout << "Time-loop." << std::endl;    
     std::cout << " ---------------------------------- " << std::endl;
@@ -791,10 +789,10 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
         // Do stats...
         bool plot_f = (n % (10*steps_per_1) == 0);
         size_t nx_plot = 64;
-        if(plot_f){
+        /* if(plot_f){
             nx_plot = 256;
-        }
-        do_stats<double,order>(nt_r_curr, nx_plot, stat_file,coeffs_E, coeffs_B, conf, false, true, n, plot_f);
+        } */
+        do_stats<double,order>(nt_r_curr, nx_plot, stat_file,coeffs_E, coeffs_B, conf, false, true, n, plot_f && false);
 
         write_coeffs<double,order>(nt_r_curr,coeffs_E,coeffs_B,conf,coeff_E_str,coeff_B_str);
 
