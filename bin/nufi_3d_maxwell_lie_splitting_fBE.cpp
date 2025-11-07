@@ -29,7 +29,7 @@ const double Ly = Lx;
 const double Lz = Lx; */
 
 // 1d electro-static
-const double Lx = 4*M_PI;
+/* const double Lx = 4*M_PI;
 const double Ly = 1;
 const double Lz = 1;
 const double umin = -5;
@@ -37,7 +37,7 @@ const double umax = 5;
 const double vmin = -0.5;
 const double vmax = 0.5;
 const double wmin = -0.5;
-const double wmax = 0.5;
+const double wmax = 0.5; */
 
 
 // Magnetic Two Stream Instability by Einkemmer 
@@ -51,9 +51,15 @@ const double Ly = Lx;
 const double Lz = Lx;
  */
 // Kormann's Streaming Weibel Instability
-/* const double Lx = 2*M_PI/0.2;
+const double Lx = 2*M_PI/0.2;
 const double Ly = 1;
-const double Lz = 1; */
+const double Lz = 1;
+const double umin = -0.5;
+const double umax = 0.5;
+const double vmin = -1.2;
+const double vmax = 1.2;
+const double wmin = -0.5;
+const double wmax = 0.5;
 // Weibel Instability by Einkemmer
 /* const double umin = -0.15;
 const double umax = 0.15;
@@ -75,13 +81,6 @@ const double vmin = -1.2;
 const double vmax = 1.2;
 const double wmin = -0.5;
 const double wmax = 0.5; */
-// Kormann Streaming Weibel instability
-/* const double umin = -0.5;
-const double umax = 0.5;
-const double vmin = -1.2;
-const double vmax = 1.2;
-const double wmin = -0.5;
-const double wmax = 0.5; */
 // Magnetic Two Stream Instability by Fabio (perturbation in v direction)
 /* const double umin = -0.01;
 const double umax = 0.01;
@@ -89,15 +88,15 @@ const double vmin = -0.85;
 const double vmax = 0.85;
 const double wmin = -0.01;
 const double wmax = 0.01; */
-const size_t Nx = 32;
+const size_t Nx = 16;
 const size_t Ny = 1;
 const size_t Nz = 1;
-const size_t Nu = 32;
-const size_t Nv = 1;
+const size_t Nu = 16;
+const size_t Nv = 16;
 const size_t Nw = 1;
-const size_t steps_per_1 = 5;
+const size_t steps_per_1 = 200;
 const double   dt = 1.0 / steps_per_1;
-const size_t Nt = 50/dt;
+const size_t Nt = 200/dt;
 
 const size_t nx_r = 2*Nx;
 const size_t ny_r = Ny;
@@ -223,9 +222,9 @@ real f0(real x, real y, real z, real u, real v, real w) noexcept
     // velocity directions it is important to normalize away the size of
     // the velocity space in that direction or just choose the velocity
     // domain in that direction as [-0.5,0.5].
-    constexpr real alpha = 0.01;
+    /* constexpr real alpha = 0.01;
     constexpr real k = 0.5;
-    return ( 1. + alpha*cos(k*x)) * maxwellian_1d<real>(u,1); 
+    return ( 1. + alpha*cos(k*x)) * maxwellian_1d<real>(u,1);  */
     //return ( 1. + alpha*cos(k*x)) * maxwellian<real>(u,v,w,1);
 
     // Two Stream Instability in x direction:
@@ -244,7 +243,7 @@ real f0(real x, real y, real z, real u, real v, real w) noexcept
     return 0.5 * (maxwellian_2d<real>(u,v-v_beam,vth) + maxwellian_2d<real>(u,v+v_beam,vth)); */
 
     // Streaming Weibel instability 
-    /* real omega = 0.1/std::sqrt(2);
+    real omega = 0.1/std::sqrt(2);
     real theta = 0.2;
     real beta = 1e-3;
     real v0_1 = 0.5;
@@ -253,7 +252,7 @@ real f0(real x, real y, real z, real u, real v, real w) noexcept
 
     return maxwellian_1d(u,omega) 
             * ( delta*maxwellian_1d(v-v0_1,omega) 
-            + (1-delta)*maxwellian_1d(v-v0_2,omega) ); */
+            + (1-delta)*maxwellian_1d(v-v0_2,omega) );
 
     // Magnetic Two Stream by Einkemmer
 /*     real v_beam = 0.2;
@@ -280,15 +279,15 @@ arma::Col<real> E0(real x, real y, real z)
     return  arma::Col<real>({-alpha / k * std::sin(k*x), 0, 0}); */
 
     // Electro-static (Landau Damping or Two Stream Instability)
-    constexpr real alpha = 1e-2;
+    /* constexpr real alpha = 1e-2;
     constexpr real k     = 0.5;
-    return  arma::Col<real>({-alpha / k * std::sin(k*x), 0, 0});
+    return  arma::Col<real>({-alpha / k * std::sin(k*x), 0, 0}); */
 
     // Magnetic Two Stream Instability by Fabio & Paul
     // Note that if we assume only a x-dependent perturbation for f it can only 
     // induce a electric field in the x- but not y-component. This however means 
     // that to induce dynamics along y we need an initial B instead of E.
-    //return  arma::Col<real>({0, 0, 0});
+    return  arma::Col<real>({0, 0, 0});
 }
 
 // Function to generate random smooth periodic function using Fourier series
@@ -342,16 +341,16 @@ arma::Col<real> B0(real x, real y, real z)
     return arma::Col<real>({0, 0, beta*std::cos(k*x)}); */
 
     // Electro-static
-    return arma::Col<real>({0, 0, 0});
+    //return arma::Col<real>({0, 0, 0});
 
     // Magnetic Two Stream Instability by Einkemmer.
 /*     constexpr real alpha = 1e-3;
     return arma::Col<real>({0, 0, alpha*std::sin(x)}); */
 
     // Kormann's Streaming Weibel instability
-    /* constexpr real theta = 0.2;
+    constexpr real theta = 0.2;
     constexpr real beta = 1e-3;
-    return arma::Col<real>({0, 0, beta*std::sin(theta*x)}); */
+    return arma::Col<real>({0, 0, beta*std::sin(theta*x)});
 }
 
 template <typename real, size_t order>
@@ -2131,6 +2130,52 @@ void interpolate_fields_aligned(size_t n, std::vector<real>& coeffs,
     }
 }
 
+template<typename real, size_t order>
+void kinetic_energy_and_entropy(size_t nt, size_t nx_plot, std::ofstream& stat_file, 
+    const std::vector<real>& coeffs_E, const std::vector<real>& coeffs_B, const std::vector<real>& coeffs_j_hat, 
+    const config_t<double>& conf, bool restarted = false, size_t n_full = 0)
+{
+    double t = nt*dt;
+    if(restarted){
+        t = n_full*dt;
+    }
+    // Hard coded for 1x2v !!!
+    size_t n_plot = 64;
+
+    double dx_plot = Lx/n_plot;
+    double du_plot = (umax - umin)/n_plot;
+    double dv_plot = (vmax - vmin)/n_plot;
+
+    double kin_energy = 0;
+    double entropy = 0;
+
+    for(size_t ix = 0; ix < n_plot; ix++){
+        for(size_t iu = 0; iu < n_plot; iu++){
+            for(size_t iv = 0; iv < n_plot; iv++){
+                double x = ix*dx_plot;
+                double y = Ly/2.0;
+                double z = Lz/2.0;
+                double u = umin + iu*du_plot;
+                double v = vmin + iv*dv_plot;
+                double w = 0;
+
+                double f = eval_f_lie_fBE<double,order>(nt,x,y,z,u,v,w,coeffs_E,coeffs_B,coeffs_j_hat,conf);
+
+                kin_energy += (u*u + v*v) * f;
+                if(f > 1e-16){
+                    entropy += f * std::log(f);
+                }
+            }
+        }
+    }
+
+    kin_energy *= 0.5*dx_plot*du_plot*dv_plot;
+    entropy *= dx_plot*du_plot*dv_plot;
+
+    stat_file << t << " " << kin_energy << " " << entropy << std::endl;
+}
+
+
 template<size_t order>
 void periodically_restarted_nufi_maxwell_lie_fBE_aligned()
 {
@@ -2249,9 +2294,11 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned()
     
     std::cout << "First output." << std::endl;
     std::ofstream stat_file( "stats.txt" );
+    std::ofstream kin_energy_entropy_file( "kinetic_energy_and_entropy.txt" );
     // Output stats (Electric/magnetic energy).
     do_stats<double,order>(0, 64, stat_file,coeffs_E, coeffs_B, conf);
-    plot_f<double,order>(0,coeffs_E, coeffs_B, coeffs_j_hat, conf);
+    kinetic_energy_and_entropy<double,order>(0,64,kin_energy_entropy_file,coeffs_E,coeffs_B,coeffs_j_hat,conf,false,0);
+    //plot_f<double,order>(0,coeffs_E, coeffs_B, coeffs_j_hat, conf);
     std::ofstream coeff_out_str_E("coeffs_E.txt");
     std::ofstream coeff_out_str_B("coeffs_B.txt");
     std::ofstream coeff_out_str_j_hat("coeffs_j_hat.txt");
@@ -2345,8 +2392,9 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned()
         std::cout << "Time step " << n << " took a total of " << time_for_step << " s." << std::endl;
 
         do_stats<double,order>(nt_r_curr, 64, stat_file, coeffs_E, coeffs_B, conf, true, n);
-        if(n % (50*steps_per_1) == 0){
-            plot_f<double,order>(nt_r_curr,coeffs_E, coeffs_B, coeffs_j_hat, conf, true, n);
+        if(n % (5*steps_per_1) == 0){
+            kinetic_energy_and_entropy<double,order>(nt_r_curr,64,kin_energy_entropy_file,coeffs_E,coeffs_B,coeffs_j_hat,conf,true,n);
+            //plot_f<double,order>(nt_r_curr,coeffs_E, coeffs_B, coeffs_j_hat, conf, true, n);
         }
         write_coeffs<double,order>(nt_r_curr, coeffs_E, coeffs_B, coeffs_j_hat, conf, 
                                     coeff_out_str_E, coeff_out_str_B, coeff_out_str_j_hat );

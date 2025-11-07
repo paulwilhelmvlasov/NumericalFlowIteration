@@ -62,11 +62,11 @@ const double vmax = 0.5;
 const double wmin = -0.5;
 const double wmax = 0.5; */
 
-const size_t Nx = 32;
+const size_t Nx = 16;
 const size_t Ny = 1;
 const size_t Nz = 1;
-const size_t Nu = 32;
-const size_t Nv = 32;
+const size_t Nu = 16;
+const size_t Nv = 16;
 const size_t Nw = 1;
 const size_t steps_per_1 = 10;
 const double   dt = 1.0 / steps_per_1;
@@ -78,7 +78,7 @@ const size_t nz_r = Nz;
 const size_t nu_r = 2*Nu;
 const size_t nv_r = 2*Nv;
 const size_t nw_r = Nw;
-size_t nt_restart = 100;
+size_t nt_restart = Nt+1;
 
 
 const double dx_r = Lx / nx_r;
@@ -597,6 +597,53 @@ void do_stats(size_t nt, size_t nx_plot, std::ofstream& stat_file,
     }
 }
 
+
+template<typename real, size_t order>
+void kinetic_energy_and_entropy(size_t nt, size_t nx_plot, std::ofstream& stat_file, 
+    const std::vector<real>& coeffs_E, const std::vector<real>& coeffs_B, 
+    const config_t<double>& conf, bool restarted = false, size_t n_full = 0)
+{
+    double t = nt*dt;
+    if(restarted){
+        t = n_full*dt;
+    }
+    // Hard coded for 1x2v !!!
+    size_t n_plot = 64;
+
+    double dx_plot = Lx/n_plot;
+    double du_plot = (umax - umin)/n_plot;
+    double dv_plot = (vmax - vmin)/n_plot;
+
+    double kin_energy = 0;
+    double entropy = 0;
+
+    for(size_t ix = 0; ix < n_plot; ix++){
+        for(size_t iu = 0; iu < n_plot; iu++){
+            for(size_t iv = 0; iv < n_plot; iv++){
+                double x = ix*dx_plot;
+                double y = Ly/2.0;
+                double z = Lz/2.0;
+                double u = umin + iu*du_plot;
+                double v = vmin + iv*dv_plot;
+                double w = 0;
+
+                double f = eval_f_lie_EBf<double,order>(nt,x,y,z,u,v,w,coeffs_E,coeffs_B,conf);
+
+                kin_energy += (u*u + v*v) * f;
+                if(f > 1e-16){
+                    entropy += f * std::log(f);
+                }
+            }
+        }
+    }
+
+    kin_energy *= 0.5*dx_plot*du_plot*dv_plot;
+    entropy *= dx_plot*du_plot*dv_plot;
+
+    stat_file << t << " " << kin_energy << " " << entropy << std::endl;
+}
+
+
 template<typename real, size_t order>
 void write_coeffs(size_t n, const std::vector<real>& coeffs_E, 
     const std::vector<real>& coeffs_B, const config_t<real>& conf, 
@@ -643,6 +690,117 @@ void write_coeffs(size_t n, const std::vector<real>& coeffs_E,
     }
 
 }    
+
+template <typename real, size_t order>
+void read_in_coeff_and_plot_aligned()
+{
+    // This is still somehow broken. The "multiply trick" from the other
+    // Lie Splitting doesn't work here (the same way). Check this if you have time...
+
+    conf = config_t<double>(Nx, Ny, Nz, Nu, Nv, Nw, Nt, dt, 
+                            0, Lx, 0, Ly, 0, Lz, umin, umax, 
+                            vmin, vmax, wmin, wmax,
+                            &f0);
+
+    conf.print_config(std::cout);
+
+    std::ifstream coeff_str_E("../coeff_E.txt");
+    std::ifstream coeff_str_B("../coeff_B.txt");
+
+    size_t stride_t = (conf.Nx + order - 1) *
+                        (conf.Ny + order - 1) *
+                        (conf.Nz + order - 1);
+
+    const size_t Nx_ext = conf.Nx + order - 1;
+    const size_t Ny_ext = conf.Ny + order - 1;
+    const size_t Nz_ext = conf.Nz + order - 1;
+    const size_t Nspace = Nx_ext * Ny_ext * Nz_ext;
+
+    std::vector<double> coeffs_E(3 * (conf.Nt + 1) * stride_t, 0);
+    std::vector<double> coeffs_B(3 * (conf.Nt + 1) * stride_t, 0);
+
+    std::cout << "Read in coeffs." << std::endl;
+
+    size_t end_n = 50*50;
+
+    for(size_t n = 0; n <= end_n; n++){
+        for(size_t ix = 0; ix < conf.Nx; ix++)
+        for(size_t iy = 0; iy < conf.Ny; iy++)
+        for(size_t iz = 0; iz < conf.Nz; iz++)
+        {
+            coeff_str_E >> coeffs_E[idx_base(n,0,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,conf.Nt)] 
+                        >> coeffs_E[idx_base(n,1,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,conf.Nt)] 
+                        >> coeffs_E[idx_base(n,2,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,conf.Nt)];
+            
+            coeffs_E[idx_base(n,0,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,conf.Nt)] *= 2e3;
+            coeffs_E[idx_base(n,1,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,conf.Nt)] *= 2e3;
+            coeffs_E[idx_base(n,2,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,conf.Nt)] *= 2e3;
+        }
+            
+
+        for(size_t ix = 0; ix < conf.Nx; ix++)
+        for(size_t iy = 0; iy < conf.Ny; iy++)
+        for(size_t iz = 0; iz < conf.Nz; iz++)
+        {
+            coeff_str_B >> coeffs_B[idx_base(n,0,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,conf.Nt)]
+                         >> coeffs_B[idx_base(n,1,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,conf.Nt)]
+                         >> coeffs_B[idx_base(n,2,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,conf.Nt)];
+
+            coeffs_B[idx_base(n,0,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,conf.Nt)] *= 2e3;
+            coeffs_B[idx_base(n,1,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,conf.Nt)] *= 2e3;
+            coeffs_B[idx_base(n,2,ix,iy,iz,Nx_ext,Ny_ext,Nz_ext,conf.Nt)] *= 2e3;
+        }
+    }
+
+    std::cout << "Analyze data." << std::endl;
+
+    size_t nt_plot = end_n;
+
+    size_t nx_plot = 64;
+    size_t ny_plot = 1;
+    size_t nz_plot = 1;
+    size_t nu_plot = nx_plot;
+    size_t nv_plot = nx_plot;
+    size_t nw_plot = 1;
+
+    double dx_plot = conf.Lx/nx_plot;
+    double dy_plot = conf.Ly/ny_plot;
+    double dz_plot = conf.Lz/nz_plot;
+    double du_plot = (conf.u_max - conf.u_min)/nu_plot;
+    double dv_plot = (conf.v_max - conf.v_min)/nv_plot;
+    double dw_plot = (conf.w_max - conf.w_min)/nw_plot;
+
+    std::ofstream f_str("f_x_vx_" + std::to_string(nt_plot*dt) + ".txt");
+    arma::mat F(nx_plot+1,nu_plot+1);
+    #pragma omp parallel for
+    for(size_t ix = 0; ix <= nx_plot; ix++){
+        for(size_t iu = 0; iu <= nu_plot; iu++){
+            double x = ix*dx_plot;
+            double y = Ly/2.0;
+            double z = Lz/2.0;
+            double u = umin + iu*du_plot;
+            double v = 0;
+            double w = 0;
+
+            F(ix,iu) = eval_f_lie_EBf<double,order>(nt_plot,x,y,z,u,v,w,coeffs_E,coeffs_B,conf);
+        }
+    }
+
+    for(size_t ix = 0; ix <= nx_plot; ix++){
+        for(size_t iu = 0; iu <= nu_plot; iu++){
+            double x = ix*dx_plot;
+            double y = Ly/2.0;
+            double z = Lz/2.0;
+            double u = umin + iu*du_plot;
+            double v = 0;
+            double w = 0;
+
+            f_str << x << " " << u << " " << F(ix,iu) << std::endl;
+        }
+        f_str << std::endl;
+    }
+}
+
 
 template<size_t order>
 void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
@@ -759,7 +917,9 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
 
     // Do first output.
     std::ofstream stat_file( "stats.txt" );
+    std::ofstream kin_energy_and_entropy_file( "kin_energy_entropy.txt" );
     do_stats<double,order>(0, 64, stat_file,coeffs_E, coeffs_B, conf, false, true, 0, false);
+    kinetic_energy_and_entropy<double,order>(0,64,kin_energy_and_entropy_file,coeffs_E,coeffs_B,conf,false,0);
 
     std::cout << "Time-loop." << std::endl;    
     std::cout << " ---------------------------------- " << std::endl;
@@ -793,6 +953,9 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
             nx_plot = 256;
         } */
         do_stats<double,order>(nt_r_curr, nx_plot, stat_file,coeffs_E, coeffs_B, conf, false, true, n, plot_f && false);
+        if(n % (5*steps_per_1) == 0){
+            kinetic_energy_and_entropy<double,order>(nt_r_curr,64,kin_energy_and_entropy_file,coeffs_E,coeffs_B,conf,true,n);
+        }
 
         write_coeffs<double,order>(nt_r_curr,coeffs_E,coeffs_B,conf,coeff_E_str,coeff_B_str);
 
@@ -882,6 +1045,7 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
 int main(int argc, char** argv){
 
     nufi::dim3::periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned<4>();
+    //nufi::dim3::read_in_coeff_and_plot_aligned<double,4>();
 
     return 0;
 }
