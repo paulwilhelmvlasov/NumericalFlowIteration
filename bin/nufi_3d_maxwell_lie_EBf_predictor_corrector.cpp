@@ -969,7 +969,7 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
         double time_for_step = timer.elapsed();
 
         // Do stats...
-        bool plot_f = (n % (10*steps_per_1) == 0);
+        bool plot_f = (n % (5*steps_per_1) == 0);
         size_t nx_plot = 64;
         if(plot_f){
             nx_plot = 128;
