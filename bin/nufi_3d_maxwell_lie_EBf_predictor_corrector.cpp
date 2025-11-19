@@ -83,13 +83,13 @@ const size_t steps_per_1 = 10;
 const double   dt = 1.0 / steps_per_1;
 const size_t Nt = 200/dt;
 
-const size_t nx_r = 2*Nx;
-const size_t ny_r = 2*Ny;
+const size_t nx_r = Nx;
+const size_t ny_r = Ny;
 const size_t nz_r = Nz;
-const size_t nu_r = 2*Nu;
-const size_t nv_r = 2*Nv;
-const size_t nw_r = 2*Nw;
-size_t nt_restart = 100;
+const size_t nu_r = Nu;
+const size_t nv_r = Nv;
+const size_t nw_r = Nw;
+size_t nt_restart = 50;
 
 
 const double dx_r = Lx / nx_r;
@@ -940,7 +940,7 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
     // Do first output.
     std::ofstream stat_file( "stats.txt" );
     std::ofstream kin_energy_and_entropy_file( "kin_energy_entropy.txt" );
-    do_stats<double,order>(0, 64, stat_file,coeffs_E, coeffs_B, conf, false, true, 0, false);
+    do_stats<double,order>(0, 64, stat_file,coeffs_E, coeffs_B, conf, false, true, 0, true);
     //kinetic_energy_and_entropy_1x2v<double,order>(0,64,kin_energy_and_entropy_file,coeffs_E,coeffs_B,conf,false,0);
 
     std::cout << "Time-loop." << std::endl;    
