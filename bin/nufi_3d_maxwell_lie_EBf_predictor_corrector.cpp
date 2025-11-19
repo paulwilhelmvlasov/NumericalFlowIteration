@@ -41,7 +41,7 @@ const double wmin = -0.5;
 const double wmax = 0.5; */
 
 // Kormann Streaming Weibel
-const double Lx = 2*M_PI/0.2;
+/* const double Lx = 2*M_PI/0.2;
 const double Ly = 1;
 const double Lz = 1;
 const double umin = -0.5;
@@ -49,7 +49,18 @@ const double umax = 0.5;
 const double vmin = -1.2;
 const double vmax = 1.2;
 const double wmin = -0.5;
-const double wmax = 0.5;
+const double wmax = 0.5; */
+
+// 2x3v Current Filamentation
+const double Lx = 2*M_PI;
+const double Ly = 2*M_PI;
+const double Lz = 1;
+const double umin = -1.2;
+const double umax = 1.2;
+const double vmin = -1.2;
+const double vmax = 1.2;
+const double wmin = -1.2;
+const double wmax = 1.2;
 
 // Electro-static:
 /* const double Lx = 4*M_PI;
@@ -63,22 +74,22 @@ const double wmin = -0.5;
 const double wmax = 0.5; */
 
 const size_t Nx = 16;
-const size_t Ny = 1;
+const size_t Ny = 16;
 const size_t Nz = 1;
-const size_t Nu = 16;
-const size_t Nv = 16;
-const size_t Nw = 1;
+const size_t Nu = 32;
+const size_t Nv = 32;
+const size_t Nw = 32;
 const size_t steps_per_1 = 10;
 const double   dt = 1.0 / steps_per_1;
 const size_t Nt = 200/dt;
 
 const size_t nx_r = 2*Nx;
-const size_t ny_r = Ny;
+const size_t ny_r = 2*Ny;
 const size_t nz_r = Nz;
 const size_t nu_r = 2*Nu;
 const size_t nv_r = 2*Nv;
-const size_t nw_r = Nw;
-size_t nt_restart = Nt+1;
+const size_t nw_r = 2*Nw;
+size_t nt_restart = 100;
 
 
 const double dx_r = Lx / nx_r;
@@ -185,8 +196,15 @@ real f0(real x, real y, real z, real u, real v, real w) noexcept
     using std::cos;
     using std::exp;
 
+    // 2x3v Current filamentation:
+    real B0 = 0.1;
+    real vth = 0.2;
+    real ux = B0 * std::sin(y) * std::cos(x);
+    real uy = -B0 * std::sin(x) * std::cos(y);
+    return maxwellian<real>(u - ux, v - uy, w, vth);
+
     // Kormann Streaming Weibel
-    real omega = 0.1/std::sqrt(2);
+    /* real omega = 0.1/std::sqrt(2);
     real theta = 0.2;
     real beta = 1e-3;
     real v0_1 = 0.5;
@@ -194,7 +212,7 @@ real f0(real x, real y, real z, real u, real v, real w) noexcept
     real delta = 1.0/6.0;
     return maxwellian_1d<real>(u,omega) 
             * ( delta*maxwellian_1d<real>(v-v0_1,omega) 
-            + (1-delta)*maxwellian_1d<real>(v-v0_2,omega) );
+            + (1-delta)*maxwellian_1d<real>(v-v0_2,omega) ); */
 
     // Weak Landau Damping
     //return (1+0.01*cos(0.5*x))*maxwellian_1d<real>(u,1);
@@ -211,7 +229,7 @@ arma::Col<real> E0(real x, real y, real z)
     // Electro-Static setup for Weak Landau or TSI:
     //return  arma::Col<real>({0.02 * std::sin(0.5*x), 0, 0});
 
-    // Kormann Streaming Weibel & magnetic TSI (Filamentation)
+    // Kormann Streaming Weibel & magnetic TSI (Filamentation) & 2x3v current filamentation
     return  arma::Col<real>({0, 0, 0});
 }
 
@@ -221,10 +239,14 @@ arma::Col<real> B0(real x, real y, real z)
     // Electro-Static
     //return  arma::Col<real>({0, 0, 0});
 
+    // 2x3v current filamentation
+    real B0 = 0.1;
+    return arma::Col<real>({0, 0, B0*std::cos(x)*std::cos(y)});
+
     // Kormann's Streaming Weibel instability
-    constexpr real theta = 0.2;
+    /* constexpr real theta = 0.2;
     constexpr real beta = 1e-3;
-    return arma::Col<real>({0, 0, beta*std::sin(theta*x)});
+    return arma::Col<real>({0, 0, beta*std::sin(theta*x)}); */
 
     // Magnetic Two Stream Instability by Einkemmer.
     /* constexpr real alpha = 1e-3;
@@ -599,7 +621,7 @@ void do_stats(size_t nt, size_t nx_plot, std::ofstream& stat_file,
 
 
 template<typename real, size_t order>
-void kinetic_energy_and_entropy(size_t nt, size_t nx_plot, std::ofstream& stat_file, 
+void kinetic_energy_and_entropy_1x2v(size_t nt, size_t nx_plot, std::ofstream& stat_file, 
     const std::vector<real>& coeffs_E, const std::vector<real>& coeffs_B, 
     const config_t<double>& conf, bool restarted = false, size_t n_full = 0)
 {
@@ -919,7 +941,7 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
     std::ofstream stat_file( "stats.txt" );
     std::ofstream kin_energy_and_entropy_file( "kin_energy_entropy.txt" );
     do_stats<double,order>(0, 64, stat_file,coeffs_E, coeffs_B, conf, false, true, 0, false);
-    kinetic_energy_and_entropy<double,order>(0,64,kin_energy_and_entropy_file,coeffs_E,coeffs_B,conf,false,0);
+    //kinetic_energy_and_entropy_1x2v<double,order>(0,64,kin_energy_and_entropy_file,coeffs_E,coeffs_B,conf,false,0);
 
     std::cout << "Time-loop." << std::endl;    
     std::cout << " ---------------------------------- " << std::endl;
@@ -949,13 +971,13 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
         // Do stats...
         bool plot_f = (n % (10*steps_per_1) == 0);
         size_t nx_plot = 64;
-        /* if(plot_f){
-            nx_plot = 256;
-        } */
-        do_stats<double,order>(nt_r_curr, nx_plot, stat_file,coeffs_E, coeffs_B, conf, false, true, n, plot_f && false);
-        if(n % (5*steps_per_1) == 0){
-            kinetic_energy_and_entropy<double,order>(nt_r_curr,64,kin_energy_and_entropy_file,coeffs_E,coeffs_B,conf,true,n);
+        if(plot_f){
+            nx_plot = 128;
         }
+        do_stats<double,order>(nt_r_curr, nx_plot, stat_file,coeffs_E, coeffs_B, conf, false, true, n, plot_f);
+        /* if(n % (5*steps_per_1) == 0){
+            kinetic_energy_and_entropy<double,order>(nt_r_curr,64,kin_energy_and_entropy_file,coeffs_E,coeffs_B,conf,true,n);
+        } */
 
         write_coeffs<double,order>(nt_r_curr,coeffs_E,coeffs_B,conf,coeff_E_str,coeff_B_str);
 
