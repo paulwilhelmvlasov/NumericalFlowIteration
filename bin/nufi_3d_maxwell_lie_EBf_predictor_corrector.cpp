@@ -81,7 +81,7 @@ const size_t Nv = 32;
 const size_t Nw = 32;
 const size_t steps_per_1 = 10;
 const double   dt = 1.0 / steps_per_1;
-const size_t Nt = 200/dt;
+const size_t Nt = 2000/dt;
 
 const size_t nx_r = Nx;
 const size_t ny_r = Ny;
@@ -560,6 +560,26 @@ void do_stats(size_t nt, size_t nx_plot, std::ofstream& stat_file,
         double du_plot = (umax - umin) / nu_plot;
         size_t nv_plot = nx_plot;
         double dv_plot = (vmax - vmin) / nv_plot;
+
+        // Plot (x,vx)
+        std::ofstream f_x_y_str("f_x_y_" + std::to_string(current_time) + ".txt");
+        for(size_t ix = 0; ix <= nx_plot; ix++){
+            for(size_t iy = 0; iy <= nx_plot; iy++)
+            {
+                double x = ix*dx_plot;
+                double y = iy*dx_plot;
+                double z = Lz/2.0;
+                double u = 0;
+                double v = 0;
+                double w = 0;
+
+                double f = eval_f_lie_EBf<double,order>(nt,x,y,z,u,v,w,coeffs_E,coeffs_B,conf);
+
+                f_x_y_str << x << " " << u << " " << f << std::endl;
+            }
+            f_x_y_str << std::endl;
+        }
+
         // Plot (x,vx)
         std::ofstream f_x_vx_str("f_x_vx_" + std::to_string(current_time) + ".txt");
         for(size_t ix = 0; ix <= nx_plot; ix++){
