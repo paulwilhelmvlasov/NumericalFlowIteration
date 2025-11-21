@@ -55,12 +55,12 @@ const double wmax = 0.5; */
 const double Lx = 2*M_PI;
 const double Ly = 2*M_PI;
 const double Lz = 1;
-const double umin = -1.2;
-const double umax = 1.2;
-const double vmin = -1.2;
-const double vmax = 1.2;
-const double wmin = -1.2;
-const double wmax = 1.2;
+const double umin = -3;
+const double umax = 3;
+const double vmin = -3;
+const double vmax = 3;
+const double wmin = -3;
+const double wmax = 3;
 
 // Electro-static:
 /* const double Lx = 4*M_PI;
@@ -73,12 +73,12 @@ const double vmax = 0.5;
 const double wmin = -0.5;
 const double wmax = 0.5; */
 
-const size_t Nx = 16;
-const size_t Ny = 16;
+const size_t Nx = 32;
+const size_t Ny = 32;
 const size_t Nz = 1;
-const size_t Nu = 32;
-const size_t Nv = 32;
-const size_t Nw = 32;
+const size_t Nu = 64;
+const size_t Nv = 64;
+const size_t Nw = 64;
 const size_t steps_per_1 = 10;
 const double   dt = 1.0 / steps_per_1;
 const size_t Nt = 2000/dt;
@@ -89,7 +89,7 @@ const size_t nz_r = Nz;
 const size_t nu_r = Nu;
 const size_t nv_r = Nv;
 const size_t nw_r = Nw;
-size_t nt_restart = 50;
+size_t nt_restart = 30;
 
 
 const double dx_r = Lx / nx_r;
@@ -641,6 +641,223 @@ void do_stats(size_t nt, size_t nx_plot, std::ofstream& stat_file,
 
 
 template<typename real, size_t order>
+void do_stats_2x3v(size_t nt, size_t nx_plot, std::ofstream& stat_file, 
+    const std::vector<real>& coeffs_E, const std::vector<real>& coeffs_B, 
+    const config_t<double>& conf, bool plot_E_B = false, bool restarted = false, size_t n_full = 0, 
+    bool plot_f = false)
+{
+    // Storage of coefficients now via: 
+    // index = nt + Nt * (d + dim * (ix + Nx * (iy + Ny * iz)))
+    const size_t stride_t = (conf.Nx + order - 1) *
+                        (conf.Ny + order - 1) *
+                        (conf.Nz + order - 1);
+
+    const size_t dim = 3;
+    const size_t Nx_ext = conf.Nx + order - 1;
+    const size_t Ny_ext = conf.Ny + order - 1;
+    const size_t Nz_ext = conf.Nz + order - 1;
+    const size_t Nspace = Nx_ext * Ny_ext * Nz_ext;
+
+    double dx_plot = conf.Lx/nx_plot; 
+    double dy_plot = conf.Ly/nx_plot; 
+    double electric_energy = 0;
+    double magnetic_energy = 0;
+
+    double electric_x_energy = 0;
+    double electric_y_energy = 0;
+    double electric_z_energy = 0;
+    double magnetic_x_energy = 0;
+    double magnetic_y_energy = 0;
+    double magnetic_z_energy = 0;
+
+    double current_time = 0;
+    if(restarted){
+        current_time = n_full * conf.dt;
+    } else {
+        current_time = nt * conf.dt;
+    }
+
+    if(plot_E_B){
+        std::ofstream Ex_str("Ex_" + std::to_string(current_time) + ".txt");
+        std::ofstream Ey_str("Ey_" + std::to_string(current_time) + ".txt");
+        std::ofstream Ez_str("Ez_" + std::to_string(current_time) + ".txt");
+        std::ofstream Bx_str("Bx_" + std::to_string(current_time) + ".txt");
+        std::ofstream By_str("By_" + std::to_string(current_time) + ".txt");
+        std::ofstream Bz_str("Bz_" + std::to_string(current_time) + ".txt");
+        for(size_t ix = 0; ix < nx_plot; ix++){
+            for(size_t iy = 0; iy < nx_plot; iy++){
+                double x = (ix+0.5)*dx_plot;
+                double y = (iy+0.5)*dy_plot;
+                double z = conf.Lz/2.0;
+
+                double Ex = eval<real,order>(x,y,z,coeffs_E.data() + idx_base(nt,0,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf);
+                double Ey = eval<real,order>(x,y,z,coeffs_E.data() + idx_base(nt,1,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf);
+                double Ez = eval<real,order>(x,y,z,coeffs_E.data() + idx_base(nt,2,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf);
+
+                double Bx = eval<real,order>(x,y,z,coeffs_B.data() + idx_base(nt,0,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf);
+                double By = eval<real,order>(x,y,z,coeffs_B.data() + idx_base(nt,1,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf);
+                double Bz = eval<real,order>(x,y,z,coeffs_B.data() + idx_base(nt,2,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf);
+
+                electric_energy += Ex*Ex + Ey*Ey + Ez*Ez;
+                magnetic_energy += Bx*Bx + By*By + Bz*Bz;
+
+                electric_x_energy += Ex*Ex;
+                electric_y_energy += Ey*Ey;
+                electric_z_energy += Ez*Ez;
+
+                magnetic_x_energy += Bx*Bx;
+                magnetic_y_energy += By*By;
+                magnetic_z_energy += Bz*Bz;
+
+                Ex_str << x << " " << y << " " << Ex << std::endl;
+                Ey_str << x << " " << y << " " << Ey << std::endl;
+                Ez_str << x << " " << y << " " << Ez << std::endl;
+                Bx_str << x << " " << y << " " << Bx << std::endl;
+                By_str << x << " " << y << " " << By << std::endl;
+                Bz_str << x << " " << y << " " << Bz << std::endl;
+            }
+            
+            Ex_str << std::endl;
+            Ey_str << std::endl;
+            Ez_str << std::endl;
+            Bx_str << std::endl;
+            By_str << std::endl;
+            Bz_str << std::endl;    
+        }
+    } else {
+        for(size_t ix = 0; ix < nx_plot; ix++){
+            for(size_t iy = 0; iy < nx_plot; iy++){
+                double x = (ix+0.5)*dx_plot;
+                double y = (iy+0.5)*dy_plot;
+                double z = conf.Lz/2.0;
+
+                double Ex = eval<real,order>(x,y,z,coeffs_E.data() + idx_base(nt,0,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf);
+                double Ey = eval<real,order>(x,y,z,coeffs_E.data() + idx_base(nt,1,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf);
+                double Ez = eval<real,order>(x,y,z,coeffs_E.data() + idx_base(nt,2,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf);
+
+                double Bx = eval<real,order>(x,y,z,coeffs_B.data() + idx_base(nt,0,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf);
+                double By = eval<real,order>(x,y,z,coeffs_B.data() + idx_base(nt,1,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf);
+                double Bz = eval<real,order>(x,y,z,coeffs_B.data() + idx_base(nt,2,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf);
+
+                electric_energy += Ex*Ex + Ey*Ey + Ez*Ez;
+                magnetic_energy += Bx*Bx + By*By + Bz*Bz;
+
+                electric_x_energy += Ex*Ex;
+                electric_y_energy += Ey*Ey;
+                electric_z_energy += Ez*Ez;
+
+                magnetic_x_energy += Bx*Bx;
+                magnetic_y_energy += By*By;
+                magnetic_z_energy += Bz*Bz;
+            }
+        }
+    }
+    electric_energy *= 0.5*dx_plot*dy_plot;
+
+    electric_x_energy *= 0.5*dx_plot*dy_plot;
+    electric_y_energy *= 0.5*dx_plot*dy_plot;
+    electric_z_energy *= 0.5*dx_plot*dy_plot;
+
+    magnetic_energy *= 0.5*dx_plot*dy_plot;
+
+    magnetic_x_energy *= 0.5*dx_plot*dy_plot;
+    magnetic_y_energy *= 0.5*dx_plot*dy_plot;
+    magnetic_z_energy *= 0.5*dx_plot*dy_plot;
+
+
+    stat_file << current_time << " " << electric_energy << " " << magnetic_energy << " "
+        << electric_x_energy << " " << electric_y_energy << " " << electric_z_energy << " "
+        << magnetic_x_energy << " " << magnetic_y_energy << " " << magnetic_z_energy << " "
+        << std::endl;
+    std::cout << current_time << " " << electric_energy << " " << magnetic_energy << std::endl;
+
+    if(plot_f){
+        size_t nu_plot = nx_plot;
+        double du_plot = (umax - umin) / nu_plot;
+        size_t nv_plot = nx_plot;
+        double dv_plot = (vmax - vmin) / nv_plot;
+
+        // Plot (x,vx)
+        std::ofstream f_x_y_str("f_x_y_" + std::to_string(current_time) + ".txt");
+        for(size_t ix = 0; ix <= nx_plot; ix++){
+            for(size_t iy = 0; iy <= nx_plot; iy++)
+            {
+                double x = ix*dx_plot;
+                double y = iy*dx_plot;
+                double z = Lz/2.0;
+                double u = 0;
+                double v = 0;
+                double w = 0;
+
+                double f = eval_f_lie_EBf<double,order>(nt,x,y,z,u,v,w,coeffs_E,coeffs_B,conf);
+
+                f_x_y_str << x << " " << y << " " << f << std::endl;
+            }
+            f_x_y_str << std::endl;
+        }
+
+        // Plot (x,vx)
+        std::ofstream f_x_vx_str("f_x_vx_" + std::to_string(current_time) + ".txt");
+        for(size_t ix = 0; ix <= nx_plot; ix++){
+            for(size_t iu = 0; iu <= nu_plot; iu++)
+            {
+                double x = ix*dx_plot;
+                double y = Ly/2.0;
+                double z = Lz/2.0;
+                double u = umin + iu*du_plot;
+                double v = 0;
+                double w = 0;
+
+                double f = eval_f_lie_EBf<double,order>(nt,x,y,z,u,v,w,coeffs_E,coeffs_B,conf);
+
+                f_x_vx_str << x << " " << u << " " << f << std::endl;
+            }
+            f_x_vx_str << std::endl;
+        }
+
+        // Plot (x,vy)
+        std::ofstream f_x_vy_str("f_x_vy_" + std::to_string(current_time) + ".txt");
+        for(size_t ix = 0; ix <= nx_plot; ix++){
+            for(size_t iv = 0; iv <= nv_plot; iv++)
+            {
+                double x = ix*dx_plot;
+                double y = Ly/2.0;
+                double z = Lz/2.0;
+                double u = 0;
+                double v = vmin + iv*dv_plot;
+                double w = 0;
+
+                double f = eval_f_lie_EBf<double,order>(nt,x,y,z,u,v,w,coeffs_E,coeffs_B,conf);
+
+                f_x_vy_str << x << " " << v << " " << f << std::endl;
+            }
+            f_x_vy_str << std::endl;
+        }
+
+        // Plot (vx,vy)
+        std::ofstream f_vx_vy_str("f_vx_vy_" + std::to_string(current_time) + ".txt");
+        for(size_t iu = 0; iu <= nu_plot; iu++){
+            for(size_t iv = 0; iv <= nv_plot; iv++)
+            {
+                double x = Lx/2.0;
+                double y = Ly/2.0;
+                double z = Lz/2.0;
+                double u = umin + iu*du_plot;
+                double v = vmin + iv*dv_plot;
+                double w = 0;
+
+                double f = eval_f_lie_EBf<double,order>(nt,x,y,z,u,v,w,coeffs_E,coeffs_B,conf);
+
+                f_vx_vy_str << u << " " << v << " " << f << std::endl;
+            }
+            f_vx_vy_str << std::endl;
+        }
+    }
+}
+
+
+
+template<typename real, size_t order>
 void kinetic_energy_and_entropy_1x2v(size_t nt, size_t nx_plot, std::ofstream& stat_file, 
     const std::vector<real>& coeffs_E, const std::vector<real>& coeffs_B, 
     const config_t<double>& conf, bool restarted = false, size_t n_full = 0)
@@ -684,6 +901,58 @@ void kinetic_energy_and_entropy_1x2v(size_t nt, size_t nx_plot, std::ofstream& s
 
     stat_file << t << " " << kin_energy << " " << entropy << std::endl;
 }
+
+template<typename real, size_t order>
+void kinetic_energy_and_entropy_2x3v(size_t nt, size_t nx_plot, std::ofstream& stat_file, 
+    const std::vector<real>& coeffs_E, const std::vector<real>& coeffs_B, 
+    const config_t<double>& conf, bool restarted = false, size_t n_full = 0)
+{
+    double t = nt*dt;
+    if(restarted){
+        t = n_full*dt;
+    }
+    // Hard coded for 2x3v !!!
+    size_t n_plot = 64;
+
+    double dx_plot = Lx/n_plot;
+    double dy_plot = Ly/n_plot;
+    double du_plot = (umax - umin)/n_plot;
+    double dv_plot = (vmax - vmin)/n_plot;
+    double dw_plot = (wmax - wmin)/n_plot;
+
+    double kin_energy = 0;
+    double entropy = 0;
+
+    for(size_t ix = 0; ix < n_plot; ix++){
+    for(size_t iy = 0; iy < n_plot; iy++){
+    for(size_t iu = 0; iu < n_plot; iu++){
+    for(size_t iv = 0; iv < n_plot; iv++){
+    for(size_t iw = 0; iw < n_plot; iw++){
+                double x = ix*dx_plot;
+                double y = iy*dy_plot;
+                double z = Lz/2.0;
+                double u = umin + iu*du_plot;
+                double v = vmin + iv*dv_plot;
+                double w = wmin + iw*dw_plot;;
+
+                double f = eval_f_lie_EBf<double,order>(nt,x,y,z,u,v,w,coeffs_E,coeffs_B,conf);
+
+                kin_energy += (u*u + v*v + w*w) * f;
+                if(f > 1e-16){
+                    entropy += f * std::log(f);
+                }
+    }
+    }
+    }
+    }
+    }
+
+    kin_energy *= 0.5*dx_plot*dy_plot*du_plot*dv_plot*dw_plot;
+    entropy *= dx_plot*dy_plot*du_plot*dv_plot*dw_plot;
+
+    stat_file << t << " " << kin_energy << " " << entropy << std::endl;
+}
+
 
 
 template<typename real, size_t order>
@@ -960,8 +1229,8 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
     // Do first output.
     std::ofstream stat_file( "stats.txt" );
     std::ofstream kin_energy_and_entropy_file( "kin_energy_entropy.txt" );
-    do_stats<double,order>(0, 64, stat_file,coeffs_E, coeffs_B, conf, false, true, 0, true);
-    //kinetic_energy_and_entropy_1x2v<double,order>(0,64,kin_energy_and_entropy_file,coeffs_E,coeffs_B,conf,false,0);
+    do_stats_2x3v<double,order>(0, 64, stat_file,coeffs_E, coeffs_B, conf, true, true, 0, true);
+    kinetic_energy_and_entropy_2x3v<double,order>(0,64,kin_energy_and_entropy_file,coeffs_E,coeffs_B,conf,false,0);
 
     std::cout << "Time-loop." << std::endl;    
     std::cout << " ---------------------------------- " << std::endl;
@@ -990,14 +1259,15 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
 
         // Do stats...
         bool plot_f = (n % (5*steps_per_1) == 0);
+        bool comp_kin_energy = plot_f;
         size_t nx_plot = 64;
         if(plot_f){
             nx_plot = 128;
         }
-        do_stats<double,order>(nt_r_curr, nx_plot, stat_file,coeffs_E, coeffs_B, conf, false, true, n, plot_f);
-        /* if(n % (5*steps_per_1) == 0){
-            kinetic_energy_and_entropy<double,order>(nt_r_curr,64,kin_energy_and_entropy_file,coeffs_E,coeffs_B,conf,true,n);
-        } */
+        do_stats<double,order>(nt_r_curr, nx_plot, stat_file,coeffs_E, coeffs_B, conf, plot_f, true, n, plot_f);
+        if(comp_kin_energy){
+            kinetic_energy_and_entropy_2x3v<double,order>(nt_r_curr,64,kin_energy_and_entropy_file,coeffs_E,coeffs_B,conf,true,n);
+        }
 
         write_coeffs<double,order>(nt_r_curr,coeffs_E,coeffs_B,conf,coeff_E_str,coeff_B_str);
 
