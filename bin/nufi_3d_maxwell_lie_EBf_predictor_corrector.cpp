@@ -1621,7 +1621,7 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
     std::ofstream stat_file( "stats.txt" );
     std::ofstream kin_energy_and_entropy_file( "kin_energy_entropy.txt" );
     do_stats_2x3v_parallelized<double,order>(0, 64, stat_file,coeffs_E, coeffs_B, conf, true, true, 0, true);
-    kinetic_energy_and_entropy_2x3v_parallelized<double,order>(0,64,kin_energy_and_entropy_file,coeffs_E,coeffs_B,conf,false,0);
+    //kinetic_energy_and_entropy_2x3v_parallelized<double,order>(0,64,kin_energy_and_entropy_file,coeffs_E,coeffs_B,conf,false,0);
 
     std::cout << "Time-loop." << std::endl;    
     std::cout << " ---------------------------------- " << std::endl;
@@ -1650,7 +1650,7 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
         timer.reset();
         // Do stats...
         bool plot_f = (n % (5*steps_per_1) == 0);
-        bool comp_kin_energy = plot_f;
+        bool comp_kin_energy = plot_f & false;
         size_t nx_plot = 64;
         if(plot_f){
             nx_plot = 128;
