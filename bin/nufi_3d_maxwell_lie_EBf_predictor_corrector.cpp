@@ -1283,6 +1283,67 @@ void kinetic_energy_and_entropy_2x3v(size_t nt, size_t nx_plot, std::ofstream& s
     stat_file << t << " " << kin_energy << " " << entropy << std::endl;
 }
 
+template<typename real, size_t order>
+void kinetic_energy_and_entropy_2x3v_parallelized(size_t nt, size_t nx_plot, std::ofstream& stat_file, 
+    const std::vector<real>& coeffs_E, const std::vector<real>& coeffs_B, 
+    const config_t<double>& conf, bool restarted = false, size_t n_full = 0)
+{
+    double t = restarted ? n_full * conf.dt : nt * conf.dt;
+
+    // Hard-coded for 2x3v as in your original code
+    size_t n_plot = 64;
+
+    double dx_plot = conf.Lx / n_plot;
+    double dy_plot = conf.Ly / n_plot;
+    double dz_plot = 0.0; // (z is fixed, so no dz factor)
+    double du_plot = (umax - umin) / n_plot;
+    double dv_plot = (vmax - vmin) / n_plot;
+    double dw_plot = (wmax - wmin) / n_plot;
+
+    double kin_energy = 0.0;
+    double entropy = 0.0;
+
+    // ============================
+    // Fully parallel 5D integral
+    // ============================
+    #pragma omp parallel for collapse(5) reduction(+:kin_energy, entropy)
+    for(size_t ix = 0; ix < n_plot; ix++){
+        for(size_t iy = 0; iy < n_plot; iy++){
+            for(size_t iu = 0; iu < n_plot; iu++){
+                for(size_t iv = 0; iv < n_plot; iv++){
+                    for(size_t iw = 0; iw < n_plot; iw++){
+
+                        double x = ix * dx_plot;
+                        double y = iy * dy_plot;
+                        double z = conf.Lz * 0.5;
+
+                        double u = umin + iu * du_plot;
+                        double v = vmin + iv * dv_plot;
+                        double w = wmin + iw * dw_plot;
+
+                        double f =
+                            eval_f_lie_EBf<double,order>(nt, x, y, z, u, v, w,
+                                                         coeffs_E, coeffs_B, conf);
+
+                        kin_energy += (u*u + v*v + w*w) * f;
+
+                        if(f > 1e-16){
+                            entropy += f * std::log(f);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    double dv5 = dx_plot * dy_plot * du_plot * dv_plot * dw_plot;
+
+    kin_energy *= 0.5 * dv5;
+    entropy    *= dv5;
+
+    stat_file << t << " " << kin_energy << " " << entropy << std::endl;
+}
+
 
 
 template<typename real, size_t order>
@@ -1560,7 +1621,7 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
     std::ofstream stat_file( "stats.txt" );
     std::ofstream kin_energy_and_entropy_file( "kin_energy_entropy.txt" );
     do_stats_2x3v_parallelized<double,order>(0, 64, stat_file,coeffs_E, coeffs_B, conf, true, true, 0, true);
-    kinetic_energy_and_entropy_2x3v<double,order>(0,64,kin_energy_and_entropy_file,coeffs_E,coeffs_B,conf,false,0);
+    kinetic_energy_and_entropy_2x3v_parallelized<double,order>(0,64,kin_energy_and_entropy_file,coeffs_E,coeffs_B,conf,false,0);
 
     std::cout << "Time-loop." << std::endl;    
     std::cout << " ---------------------------------- " << std::endl;
@@ -1596,7 +1657,7 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
         }
         do_stats_2x3v_parallelized<double,order>(nt_r_curr, nx_plot, stat_file,coeffs_E, coeffs_B, conf, plot_f, true, n, plot_f);
         if(comp_kin_energy){
-            kinetic_energy_and_entropy_2x3v<double,order>(nt_r_curr,64,kin_energy_and_entropy_file,coeffs_E,coeffs_B,conf,true,n);
+            kinetic_energy_and_entropy_2x3v_parallelized<double,order>(nt_r_curr,64,kin_energy_and_entropy_file,coeffs_E,coeffs_B,conf,true,n);
         }
         double time_for_plot = timer.elapsed();
         std::cout << "Plotting took " << time_for_plot << " s." << std::endl;
