@@ -89,7 +89,7 @@ const size_t nz_r = Nz;
 const size_t nu_r = Nu;
 const size_t nv_r = Nv;
 const size_t nw_r = Nw;
-size_t nt_restart = 30;
+size_t nt_restart = 20;
 
 
 const double dx_r = Lx / nx_r;
@@ -575,7 +575,7 @@ void do_stats(size_t nt, size_t nx_plot, std::ofstream& stat_file,
 
                 double f = eval_f_lie_EBf<double,order>(nt,x,y,z,u,v,w,coeffs_E,coeffs_B,conf);
 
-                f_x_y_str << x << " " << u << " " << f << std::endl;
+                f_x_y_str << x << " " << y << " " << f << std::endl;
             }
             f_x_y_str << std::endl;
         }
@@ -855,6 +855,336 @@ void do_stats_2x3v(size_t nt, size_t nx_plot, std::ofstream& stat_file,
     }
 }
 
+
+template<typename real, size_t order>
+void do_stats_2x3v_parallelized(size_t nt, size_t nx_plot, std::ofstream& stat_file, 
+    const std::vector<real>& coeffs_E, const std::vector<real>& coeffs_B, 
+    const config_t<double>& conf, bool plot_E_B = false, bool restarted = false, size_t n_full = 0, 
+    bool plot_f = false)
+{
+    const size_t Nx_ext = conf.Nx + order - 1;
+    const size_t Ny_ext = conf.Ny + order - 1;
+    const size_t Nz_ext = conf.Nz + order - 1;
+
+    double dx_plot = conf.Lx / nx_plot; 
+    double dy_plot = conf.Ly / nx_plot; 
+
+    double electric_energy = 0;
+    double magnetic_energy = 0;
+
+    double electric_x_energy = 0;
+    double electric_y_energy = 0;
+    double electric_z_energy = 0;
+    double magnetic_x_energy = 0;
+    double magnetic_y_energy = 0;
+    double magnetic_z_energy = 0;
+
+    double current_time = restarted ? n_full * conf.dt : nt * conf.dt;
+
+    // =============================
+    // Case 1 — No field plotting
+    // =============================
+    if(!plot_E_B)
+    {
+        #pragma omp parallel for collapse(2) reduction(+:electric_energy, magnetic_energy, \
+                                                   electric_x_energy, electric_y_energy, electric_z_energy, \
+                                                   magnetic_x_energy, magnetic_y_energy, magnetic_z_energy)
+        for(size_t ix = 0; ix < nx_plot; ix++){
+            for(size_t iy = 0; iy < nx_plot; iy++){
+                double x = (ix+0.5)*dx_plot;
+                double y = (iy+0.5)*dy_plot;
+                double z = conf.Lz * 0.5;
+
+                double Ex = eval<real,order>(x,y,z, coeffs_E.data() + idx_base(nt,0,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt), conf);
+                double Ey = eval<real,order>(x,y,z, coeffs_E.data() + idx_base(nt,1,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt), conf);
+                double Ez = eval<real,order>(x,y,z, coeffs_E.data() + idx_base(nt,2,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt), conf);
+
+                double Bx = eval<real,order>(x,y,z, coeffs_B.data() + idx_base(nt,0,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt), conf);
+                double By = eval<real,order>(x,y,z, coeffs_B.data() + idx_base(nt,1,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt), conf);
+                double Bz = eval<real,order>(x,y,z, coeffs_B.data() + idx_base(nt,2,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt), conf);
+
+                electric_energy += Ex*Ex + Ey*Ey + Ez*Ez;
+                magnetic_energy += Bx*Bx + By*By + Bz*Bz;
+
+                electric_x_energy += Ex*Ex;
+                electric_y_energy += Ey*Ey;
+                electric_z_energy += Ez*Ez;
+
+                magnetic_x_energy += Bx*Bx;
+                magnetic_y_energy += By*By;
+                magnetic_z_energy += Bz*Bz;
+            }
+        }
+    }
+
+    // =============================
+    // Case 2 — Field plotting enabled
+    // =============================
+    else 
+    {
+        // Allocate temporary buffers
+        std::vector<double> Ex_buf(nx_plot*nx_plot);
+        std::vector<double> Ey_buf(nx_plot*nx_plot);
+        std::vector<double> Ez_buf(nx_plot*nx_plot);
+        std::vector<double> Bx_buf(nx_plot*nx_plot);
+        std::vector<double> By_buf(nx_plot*nx_plot);
+        std::vector<double> Bz_buf(nx_plot*nx_plot);
+
+        // Parallel compute into buffers
+        #pragma omp parallel for collapse(2) reduction(+:electric_energy, magnetic_energy, \
+                                                      electric_x_energy, electric_y_energy, electric_z_energy, \
+                                                      magnetic_x_energy, magnetic_y_energy, magnetic_z_energy)
+        for(size_t ix = 0; ix < nx_plot; ix++){
+            for(size_t iy = 0; iy < nx_plot; iy++){
+                size_t idx = ix*nx_plot + iy;
+
+                double x = (ix+0.5)*dx_plot;
+                double y = (iy+0.5)*dy_plot;
+                double z = conf.Lz * 0.5;
+
+                double Ex = eval<real,order>(x,y,z, coeffs_E.data() + idx_base(nt,0,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt), conf);
+                double Ey = eval<real,order>(x,y,z, coeffs_E.data() + idx_base(nt,1,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt), conf);
+                double Ez = eval<real,order>(x,y,z, coeffs_E.data() + idx_base(nt,2,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt), conf);
+
+                double Bx = eval<real,order>(x,y,z, coeffs_B.data() + idx_base(nt,0,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt), conf);
+                double By = eval<real,order>(x,y,z, coeffs_B.data() + idx_base(nt,1,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt), conf);
+                double Bz = eval<real,order>(x,y,z, coeffs_B.data() + idx_base(nt,2,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt), conf);
+
+                Ex_buf[idx] = Ex;
+                Ey_buf[idx] = Ey;
+                Ez_buf[idx] = Ez;
+                Bx_buf[idx] = Bx;
+                By_buf[idx] = By;
+                Bz_buf[idx] = Bz;
+
+                electric_energy += Ex*Ex + Ey*Ey + Ez*Ez;
+                magnetic_energy += Bx*Bx + By*By + Bz*Bz;
+
+                electric_x_energy += Ex*Ex;
+                electric_y_energy += Ey*Ey;
+                electric_z_energy += Ez*Ez;
+
+                magnetic_x_energy += Bx*Bx;
+                magnetic_y_energy += By*By;
+                magnetic_z_energy += Bz*Bz;
+            }
+        }
+
+        // Serial I/O
+        std::ofstream Ex_str("Ex_" + std::to_string(current_time) + ".txt");
+        std::ofstream Ey_str("Ey_" + std::to_string(current_time) + ".txt");
+        std::ofstream Ez_str("Ez_" + std::to_string(current_time) + ".txt");
+        std::ofstream Bx_str("Bx_" + std::to_string(current_time) + ".txt");
+        std::ofstream By_str("By_" + std::to_string(current_time) + ".txt");
+        std::ofstream Bz_str("Bz_" + std::to_string(current_time) + ".txt");
+
+        for(size_t ix = 0; ix < nx_plot; ix++){
+            for(size_t iy = 0; iy < nx_plot; iy++){
+                size_t idx = ix*nx_plot + iy;
+                double x = (ix+0.5)*dx_plot;
+                double y = (iy+0.5)*dy_plot;
+
+                Ex_str << x << " " << y << " " << Ex_buf[idx] << "\n";
+                Ey_str << x << " " << y << " " << Ey_buf[idx] << "\n";
+                Ez_str << x << " " << y << " " << Ez_buf[idx] << "\n";
+                Bx_str << x << " " << y << " " << Bx_buf[idx] << "\n";
+                By_str << x << " " << y << " " << By_buf[idx] << "\n";
+                Bz_str << x << " " << y << " " << Bz_buf[idx] << "\n";
+            }
+            Ex_str << "\n"; Ey_str << "\n"; Ez_str << "\n";
+            Bx_str << "\n"; By_str << "\n"; Bz_str << "\n";
+        }
+    }
+
+    // Scale energies
+    electric_energy *= 0.5*dx_plot*dy_plot;
+    electric_x_energy *= 0.5*dx_plot*dy_plot;
+    electric_y_energy *= 0.5*dx_plot*dy_plot;
+    electric_z_energy *= 0.5*dx_plot*dy_plot;
+
+    magnetic_energy *= 0.5*dx_plot*dy_plot;
+    magnetic_x_energy *= 0.5*dx_plot*dy_plot;
+    magnetic_y_energy *= 0.5*dx_plot*dy_plot;
+    magnetic_z_energy *= 0.5*dx_plot*dy_plot;
+
+    stat_file << current_time << " "
+              << electric_energy << " " << magnetic_energy << " "
+              << electric_x_energy << " " << electric_y_energy << " " << electric_z_energy << " "
+              << magnetic_x_energy << " " << magnetic_y_energy << " " << magnetic_z_energy
+              << std::endl;
+
+    std::cout << current_time << " " << electric_energy << " " << magnetic_energy << std::endl;
+
+    // ==========================================
+    // Plotting f(x,y), f(x,vx), f(x,vy), f(vx,vy)
+    // ==========================================
+    if(plot_f)
+    {
+        size_t nu_plot = nx_plot;                 // or user-defined
+        size_t nv_plot = nx_plot;                 // or user-defined
+
+        double du_plot = (umax - umin) / nu_plot;
+        double dv_plot = (vmax - vmin) / nv_plot;
+
+        // ================================================================
+        // 1. f(x, y) at u=v=w=0
+        // ================================================================
+        {
+            std::vector<double> fbuf((nx_plot+1)*(nx_plot+1));
+
+            #pragma omp parallel for collapse(2)
+            for(size_t ix = 0; ix <= nx_plot; ix++){
+                for(size_t iy = 0; iy <= nx_plot; iy++){
+                    size_t idx = ix*(nx_plot+1) + iy;
+
+                    double x = ix * dx_plot;
+                    double y = iy * dx_plot;
+                    double z = conf.Lz * 0.5;
+
+                    double u = 0.0, v = 0.0, w = 0.0;
+
+                    fbuf[idx] =
+                        eval_f_lie_EBf<double,order>(nt, x, y, z, u, v, w,
+                                                    coeffs_E, coeffs_B, conf);
+                }
+            }
+
+            std::ofstream f_x_y_str("f_x_y_" + std::to_string(current_time) + ".txt");
+
+            for(size_t ix = 0; ix <= nx_plot; ix++){
+                for(size_t iy = 0; iy <= nx_plot; iy++){
+                    double x = ix * dx_plot;
+                    double y = iy * dx_plot;
+
+                    f_x_y_str << x << " " << y << " "
+                            << fbuf[ix*(nx_plot+1) + iy] << "\n";
+                }
+                f_x_y_str << "\n";
+            }
+        }
+
+        // ================================================================
+        // 2. f(x, vx) at y = Ly/2, v = w = 0
+        //    NOTE: nx_plot and nu_plot may differ.
+        // ================================================================
+        {
+            std::vector<double> fbuf((nx_plot+1)*(nu_plot+1));
+
+            #pragma omp parallel for collapse(2)
+            for(size_t ix = 0; ix <= nx_plot; ix++){
+                for(size_t iu = 0; iu <= nu_plot; iu++){
+                    size_t idx = ix*(nu_plot+1) + iu;
+
+                    double x = ix * dx_plot;
+                    double y = conf.Ly * 0.5;
+                    double z = conf.Lz * 0.5;
+
+                    double u = umin + iu * du_plot;
+                    double v = 0.0;
+                    double w = 0.0;
+
+                    fbuf[idx] =
+                        eval_f_lie_EBf<double,order>(nt, x, y, z, u, v, w,
+                                                    coeffs_E, coeffs_B, conf);
+                }
+            }
+
+            std::ofstream f_x_vx_str("f_x_vx_" + std::to_string(current_time) + ".txt");
+
+            for(size_t ix = 0; ix <= nx_plot; ix++){
+                for(size_t iu = 0; iu <= nu_plot; iu++){
+                    double x = ix * dx_plot;
+                    double u = umin + iu * du_plot;
+
+                    f_x_vx_str << x << " " << u << " "
+                            << fbuf[ix*(nu_plot+1) + iu] << "\n";
+                }
+                f_x_vx_str << "\n";
+            }
+        }
+
+        // ================================================================
+        // 3. f(x, vy) at y = Ly/2, u = w = 0
+        //    NOTE: nx_plot and nv_plot may differ.
+        // ================================================================
+        {
+            std::vector<double> fbuf((nx_plot+1)*(nv_plot+1));
+
+            #pragma omp parallel for collapse(2)
+            for(size_t ix = 0; ix <= nx_plot; ix++){
+                for(size_t iv = 0; iv <= nv_plot; iv++){
+                    size_t idx = ix*(nv_plot+1) + iv;
+
+                    double x = ix * dx_plot;
+                    double y = conf.Ly * 0.5;
+                    double z = conf.Lz * 0.5;
+
+                    double u = 0.0;
+                    double v = vmin + iv * dv_plot;
+                    double w = 0.0;
+
+                    fbuf[idx] =
+                        eval_f_lie_EBf<double,order>(nt, x, y, z, u, v, w,
+                                                    coeffs_E, coeffs_B, conf);
+                }
+            }
+
+            std::ofstream f_x_vy_str("f_x_vy_" + std::to_string(current_time) + ".txt");
+
+            for(size_t ix = 0; ix <= nx_plot; ix++){
+                for(size_t iv = 0; iv <= nv_plot; iv++){
+                    double x = ix * dx_plot;
+                    double v = vmin + iv * dv_plot;
+
+                    f_x_vy_str << x << " " << v << " "
+                            << fbuf[ix*(nv_plot+1) + iv] << "\n";
+                }
+                f_x_vy_str << "\n";
+            }
+        }
+
+        // ================================================================
+        // 4. f(vx, vy) at x = Lx/2, y = Ly/2, w = 0
+        //    NOTE: nu_plot and nv_plot may differ.
+        // ================================================================
+        {
+            std::vector<double> fbuf((nu_plot+1)*(nv_plot+1));
+
+            #pragma omp parallel for collapse(2)
+            for(size_t iu = 0; iu <= nu_plot; iu++){
+                for(size_t iv = 0; iv <= nv_plot; iv++){
+                    size_t idx = iu*(nv_plot+1) + iv;
+
+                    double x = conf.Lx * 0.5;
+                    double y = conf.Ly * 0.5;
+                    double z = conf.Lz * 0.5;
+
+                    double u = umin + iu * du_plot;
+                    double v = vmin + iv * dv_plot;
+                    double w = 0.0;
+
+                    fbuf[idx] =
+                        eval_f_lie_EBf<double,order>(nt, x, y, z, u, v, w,
+                                                    coeffs_E, coeffs_B, conf);
+                }
+            }
+
+            std::ofstream f_vx_vy_str("f_vx_vy_" + std::to_string(current_time) + ".txt");
+
+            for(size_t iu = 0; iu <= nu_plot; iu++){
+                for(size_t iv = 0; iv <= nv_plot; iv++){
+                    double u = umin + iu * du_plot;
+                    double v = vmin + iv * dv_plot;
+
+                    f_vx_vy_str << u << " " << v << " "
+                                << fbuf[iu*(nv_plot+1) + iv] << "\n";
+                }
+                f_vx_vy_str << "\n";
+            }
+        }
+    }
+
+}
 
 
 template<typename real, size_t order>
@@ -1229,12 +1559,12 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
     // Do first output.
     std::ofstream stat_file( "stats.txt" );
     std::ofstream kin_energy_and_entropy_file( "kin_energy_entropy.txt" );
-    do_stats_2x3v<double,order>(0, 64, stat_file,coeffs_E, coeffs_B, conf, true, true, 0, true);
+    do_stats_2x3v_parallelized<double,order>(0, 64, stat_file,coeffs_E, coeffs_B, conf, true, true, 0, true);
     kinetic_energy_and_entropy_2x3v<double,order>(0,64,kin_energy_and_entropy_file,coeffs_E,coeffs_B,conf,false,0);
 
     std::cout << "Time-loop." << std::endl;    
     std::cout << " ---------------------------------- " << std::endl;
-    double total_time = 0;
+    double total_time, total_time_with_plot = 0;
     size_t nt_r_curr = 1;
     for(size_t n = 1; n <= conf.Nt; n++)
     {
@@ -1256,7 +1586,7 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
         j_0 = j_1;
 
         double time_for_step = timer.elapsed();
-
+        timer.reset();
         // Do stats...
         bool plot_f = (n % (5*steps_per_1) == 0);
         bool comp_kin_energy = plot_f;
@@ -1264,14 +1594,16 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
         if(plot_f){
             nx_plot = 128;
         }
-        do_stats<double,order>(nt_r_curr, nx_plot, stat_file,coeffs_E, coeffs_B, conf, plot_f, true, n, plot_f);
+        do_stats_2x3v_parallelized<double,order>(nt_r_curr, nx_plot, stat_file,coeffs_E, coeffs_B, conf, plot_f, true, n, plot_f);
         if(comp_kin_energy){
             kinetic_energy_and_entropy_2x3v<double,order>(nt_r_curr,64,kin_energy_and_entropy_file,coeffs_E,coeffs_B,conf,true,n);
         }
-
+        double time_for_plot = timer.elapsed();
+        std::cout << "Plotting took " << time_for_plot << " s." << std::endl;
         write_coeffs<double,order>(nt_r_curr,coeffs_E,coeffs_B,conf,coeff_E_str,coeff_B_str);
 
         total_time += time_for_step;
+        total_time_with_plot += time_for_step + time_for_plot;
         std::cout << "Time step " << n << " took a total of " << time_for_step << " s. So far total time = " << total_time << " s." << std::endl;
 
         if(nt_r_curr == nt_restart){
@@ -1346,7 +1678,8 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
         }
     }
 
-    std::cout << "Total simulation time " << total_time << " s." << std::endl;
+    std::cout << "Total simulation time (pure) " << total_time << " s." << std::endl;
+    std::cout << "Total simulation time (with plotting) " << total_time_with_plot << " s." << std::endl;
 }
 
 }
