@@ -1150,14 +1150,14 @@ void do_stats_2x3v_parallelized(size_t nt, size_t nx_plot, std::ofstream& stat_f
         {
             std::vector<double> fbuf((nu_plot+1)*(nv_plot+1));
 
+            double x = conf.Lx * 0.5;
+            double y = conf.Ly * 0.5;
+            double z = conf.Lz * 0.5;
+
             #pragma omp parallel for collapse(2)
             for(size_t iu = 0; iu <= nu_plot; iu++){
                 for(size_t iv = 0; iv <= nv_plot; iv++){
                     size_t idx = iu*(nv_plot+1) + iv;
-
-                    double x = conf.Lx * 0.5;
-                    double y = conf.Ly * 0.5;
-                    double z = conf.Lz * 0.5;
 
                     double u = conf.u_min + iu * du_plot;
                     double v = conf.v_min + iv * dv_plot;
@@ -1169,7 +1169,47 @@ void do_stats_2x3v_parallelized(size_t nt, size_t nx_plot, std::ofstream& stat_f
                 }
             }
 
-            std::ofstream f_vx_vy_str("f_vx_vy_" + std::to_string(current_time) + ".txt");
+            std::ofstream f_vx_vy_str("f_vx_vy_half_Lx_half_Ly" + std::to_string(current_time) + ".txt");
+
+            for(size_t iu = 0; iu <= nu_plot; iu++){
+                for(size_t iv = 0; iv <= nv_plot; iv++){
+                    double u = conf.u_min + iu * du_plot;
+                    double v = conf.v_min + iv * dv_plot;
+
+                    f_vx_vy_str << u << " " << v << " "
+                                << fbuf[iu*(nv_plot+1) + iv] << "\n";
+                }
+                f_vx_vy_str << "\n";
+            }
+        }
+
+        // ================================================================
+        // 4. f(vx, vy) at x = Lx/10, y = Ly/10, w = 0
+        //    NOTE: nu_plot and nv_plot may differ.
+        // ================================================================
+        {
+            std::vector<double> fbuf((nu_plot+1)*(nv_plot+1));
+
+            double x = conf.Lx * 0.1;
+            double y = conf.Ly * 0.1;
+            double z = conf.Lz * 0.5;
+
+            #pragma omp parallel for collapse(2)
+            for(size_t iu = 0; iu <= nu_plot; iu++){
+                for(size_t iv = 0; iv <= nv_plot; iv++){
+                    size_t idx = iu*(nv_plot+1) + iv;
+
+                    double u = conf.u_min + iu * du_plot;
+                    double v = conf.v_min + iv * dv_plot;
+                    double w = 0.0;
+
+                    fbuf[idx] =
+                        eval_f_lie_EBf<double,order>(nt, x, y, z, u, v, w,
+                                                    coeffs_E, coeffs_B, conf);
+                }
+            }
+
+            std::ofstream f_vx_vy_str("f_vx_vy_tenth_Lx_tenth_Ly" + std::to_string(current_time) + ".txt");
 
             for(size_t iu = 0; iu <= nu_plot; iu++){
                 for(size_t iv = 0; iv <= nv_plot; iv++){
@@ -1699,6 +1739,10 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
             std::cout << "Filling restart matrix took " << timer_fill_restart_matrix << " s." << std::endl;
 
             restart_matrix = copy_mat;
+
+            std::ofstream mat_str("restart_matrix_" + std::to_string(n*conf.dt) + ".txt" );
+            mat_str << restart_matrix;
+
             double timer_copy_mat = timer.elapsed();
             timer.reset();
             std::cout << "Copying restart matrix took " << timer_copy_mat << " s." << std::endl;
