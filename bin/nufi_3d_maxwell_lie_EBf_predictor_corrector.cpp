@@ -73,22 +73,22 @@ const double vmax = 0.5;
 const double wmin = -0.5;
 const double wmax = 0.5; */
 
-const size_t Nx = 64;
-const size_t Ny = 64;
+const size_t Nx = 32;
+const size_t Ny = 32;
 const size_t Nz = 1;
-const size_t Nu = 64;
-const size_t Nv = 64;
-const size_t Nw = 64;
+const size_t Nu = 32;
+const size_t Nv = 32;
+const size_t Nw = 32;
 const size_t steps_per_1 = 10;
 const double   dt = 1.0 / steps_per_1;
 const size_t Nt = 2000/dt;
 
-const size_t nx_r = Nx;
-const size_t ny_r = Ny;
+const size_t nx_r = 2*Nx;
+const size_t ny_r = 2*Ny;
 const size_t nz_r = Nz;
-const size_t nu_r = Nu;
-const size_t nv_r = Nv;
-const size_t nw_r = Nw;
+const size_t nu_r = 2*Nu;
+const size_t nv_r = 2*Nv;
+const size_t nw_r = 2*Nw;
 size_t nt_restart = 20;
 
 
