@@ -55,12 +55,12 @@ const double wmax = 0.5; */
 const double Lx = 2*M_PI;
 const double Ly = 2*M_PI;
 const double Lz = 1;
-const double umin = -3;
-const double umax = 3;
-const double vmin = -3;
-const double vmax = 3;
-const double wmin = -3;
-const double wmax = 3;
+const double umin = -2;
+const double umax = 2;
+const double vmin = -2;
+const double vmax = 2;
+const double wmin = -2;
+const double wmax = 2;
 
 // Electro-static:
 /* const double Lx = 4*M_PI;
@@ -73,12 +73,12 @@ const double vmax = 0.5;
 const double wmin = -0.5;
 const double wmax = 0.5; */
 
-const size_t Nx = 16;
-const size_t Ny = 16;
+const size_t Nx = 64;
+const size_t Ny = 64;
 const size_t Nz = 1;
-const size_t Nu = 32;
-const size_t Nv = 32;
-const size_t Nw = 32;
+const size_t Nu = 64;
+const size_t Nv = 64;
+const size_t Nw = 64;
 const size_t steps_per_1 = 10;
 const double   dt = 1.0 / steps_per_1;
 const size_t Nt = 2000/dt;
