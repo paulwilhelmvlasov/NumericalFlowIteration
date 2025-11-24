@@ -1023,8 +1023,8 @@ void do_stats_2x3v_parallelized(size_t nt, size_t nx_plot, std::ofstream& stat_f
         size_t nu_plot = nx_plot;                 // or user-defined
         size_t nv_plot = nx_plot;                 // or user-defined
 
-        double du_plot = (umax - umin) / nu_plot;
-        double dv_plot = (vmax - vmin) / nv_plot;
+        double du_plot = (conf.umax - conf.umin) / nu_plot;
+        double dv_plot = (conf.vmax - conf.vmin) / nv_plot;
 
         // ================================================================
         // 1. f(x, y) at u=v=w=0
@@ -1079,7 +1079,7 @@ void do_stats_2x3v_parallelized(size_t nt, size_t nx_plot, std::ofstream& stat_f
                     double y = conf.Ly * 0.5;
                     double z = conf.Lz * 0.5;
 
-                    double u = umin + iu * du_plot;
+                    double u = conf.umin + iu * du_plot;
                     double v = 0.0;
                     double w = 0.0;
 
@@ -1094,7 +1094,7 @@ void do_stats_2x3v_parallelized(size_t nt, size_t nx_plot, std::ofstream& stat_f
             for(size_t ix = 0; ix <= nx_plot; ix++){
                 for(size_t iu = 0; iu <= nu_plot; iu++){
                     double x = ix * dx_plot;
-                    double u = umin + iu * du_plot;
+                    double u = conf.umin + iu * du_plot;
 
                     f_x_vx_str << x << " " << u << " "
                             << fbuf[ix*(nu_plot+1) + iu] << "\n";
@@ -1120,7 +1120,7 @@ void do_stats_2x3v_parallelized(size_t nt, size_t nx_plot, std::ofstream& stat_f
                     double z = conf.Lz * 0.5;
 
                     double u = 0.0;
-                    double v = vmin + iv * dv_plot;
+                    double v = conf.vmin + iv * dv_plot;
                     double w = 0.0;
 
                     fbuf[idx] =
@@ -1134,7 +1134,7 @@ void do_stats_2x3v_parallelized(size_t nt, size_t nx_plot, std::ofstream& stat_f
             for(size_t ix = 0; ix <= nx_plot; ix++){
                 for(size_t iv = 0; iv <= nv_plot; iv++){
                     double x = ix * dx_plot;
-                    double v = vmin + iv * dv_plot;
+                    double v = conf.vmin + iv * dv_plot;
 
                     f_x_vy_str << x << " " << v << " "
                             << fbuf[ix*(nv_plot+1) + iv] << "\n";
@@ -1159,8 +1159,8 @@ void do_stats_2x3v_parallelized(size_t nt, size_t nx_plot, std::ofstream& stat_f
                     double y = conf.Ly * 0.5;
                     double z = conf.Lz * 0.5;
 
-                    double u = umin + iu * du_plot;
-                    double v = vmin + iv * dv_plot;
+                    double u = conf.umin + iu * du_plot;
+                    double v = conf.vmin + iv * dv_plot;
                     double w = 0.0;
 
                     fbuf[idx] =
@@ -1173,8 +1173,8 @@ void do_stats_2x3v_parallelized(size_t nt, size_t nx_plot, std::ofstream& stat_f
 
             for(size_t iu = 0; iu <= nu_plot; iu++){
                 for(size_t iv = 0; iv <= nv_plot; iv++){
-                    double u = umin + iu * du_plot;
-                    double v = vmin + iv * dv_plot;
+                    double u = conf.umin + iu * du_plot;
+                    double v = conf.vmin + iv * dv_plot;
 
                     f_vx_vy_str << u << " " << v << " "
                                 << fbuf[iu*(nv_plot+1) + iv] << "\n";
