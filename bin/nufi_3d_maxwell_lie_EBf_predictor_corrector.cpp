@@ -73,8 +73,8 @@ const double vmax = 0.5;
 const double wmin = -0.5;
 const double wmax = 0.5; */
 
-const size_t Nx = 32;
-const size_t Ny = 32;
+const size_t Nx = 16;
+const size_t Ny = 16;
 const size_t Nz = 1;
 const size_t Nu = 32;
 const size_t Nv = 32;
@@ -83,12 +83,12 @@ const size_t steps_per_1 = 10;
 const double   dt = 1.0 / steps_per_1;
 const size_t Nt = 2000/dt;
 
-const size_t nx_r = 2*Nx;
-const size_t ny_r = 2*Ny;
+const size_t nx_r = Nx;
+const size_t ny_r = Ny;
 const size_t nz_r = Nz;
-const size_t nu_r = 2*Nu;
-const size_t nv_r = 2*Nv;
-const size_t nw_r = 2*Nw;
+const size_t nu_r = Nu;
+const size_t nv_r = Nv;
+const size_t nw_r = Nw;
 size_t nt_restart = 20;
 
 
@@ -1385,6 +1385,55 @@ void kinetic_energy_and_entropy_2x3v_parallelized(size_t nt, size_t nx_plot, std
 }
 
 
+template<typename real, size_t order>
+void plot_full_f_2x3v_parallelized(size_t nt, size_t nx_plot, std::ofstream& file, 
+    const std::vector<real>& coeffs_E, const std::vector<real>& coeffs_B, 
+    const config_t<double>& conf, bool restarted = false, size_t n_full = 0)
+{
+    double t = restarted ? n_full * conf.dt : nt * conf.dt;
+
+    // Hard-coded for 2x3v as in your original code
+    size_t n_plot = nx_plot;
+
+    double dx_plot = conf.Lx / n_plot;
+    double dy_plot = conf.Ly / n_plot;
+    double dz_plot = conf.Lz / 2.0; // (z is fixed, so no dz factor)
+    double du_plot = (conf.u_max - conf.u_min) / n_plot;
+    double dv_plot = (conf.v_max - conf.v_min) / n_plot;
+    double dw_plot = (conf.w_max - conf.w_min) / n_plot;
+
+    arma::mat matrix(n_plot*n_plot,n_plot*n_plot*n_plot);
+
+    #pragma omp parallel for collapse(5) 
+    for(size_t ix = 0; ix < n_plot; ix++){
+        for(size_t iy = 0; iy < n_plot; iy++){
+            for(size_t iu = 0; iu < n_plot; iu++){
+                for(size_t iv = 0; iv < n_plot; iv++){
+                    for(size_t iw = 0; iw < n_plot; iw++){
+
+                        double x = (ix+0.5) * dx_plot;
+                        double y = (iy+0.5) * dy_plot;
+                        double z = conf.Lz * 0.5;
+
+                        double u = conf.u_min + (iu+0.5) * du_plot;
+                        double v = conf.v_min + (iv+0.5) * dv_plot;
+                        double w = conf.w_min + (iw+0.5) * dw_plot;
+
+                        size_t index_0 = ix + nx_r*iy ;
+                        size_t index_1 = iu + n_plot*(iv + n_plot*iw);
+
+                        matrix(index_0, index_1) = eval_f_lie_EBf<double,order>(nt, x, y, z, u, v, w,
+                                                         coeffs_E, coeffs_B, conf);
+                    }
+                }
+            }
+        }
+    }
+
+    file << matrix;
+}
+
+
 
 template<typename real, size_t order>
 void write_coeffs(size_t n, const std::vector<real>& coeffs_E, 
@@ -1693,9 +1742,12 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
         bool comp_kin_energy = plot_f & false;
         size_t nx_plot = 64;
         if(plot_f){
-            nx_plot = 128;
+            nx_plot = 64;
+            std::ofstream mat_str("restart_matrix_" + std::to_string(n*conf.dt) + ".txt" );
+            plot_full_f_2x3v_parallelized<double,order>(nt_r_curr,nx_plot,mat_str,coeffs_E,coeffs_B,conf,true,n);
         }
-        do_stats_2x3v_parallelized<double,order>(nt_r_curr, nx_plot, stat_file,coeffs_E, coeffs_B, conf, plot_f, true, n, plot_f);
+        //do_stats_2x3v_parallelized<double,order>(nt_r_curr, nx_plot, stat_file,coeffs_E, coeffs_B, conf, plot_f, true, n, plot_f);
+        do_stats_2x3v_parallelized<double,order>(nt_r_curr, nx_plot, stat_file,coeffs_E, coeffs_B, conf, plot_f, true, n, false);
         if(comp_kin_energy){
             kinetic_energy_and_entropy_2x3v_parallelized<double,order>(nt_r_curr,64,kin_energy_and_entropy_file,coeffs_E,coeffs_B,conf,true,n);
         }
@@ -1740,8 +1792,8 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
 
             restart_matrix = copy_mat;
 
-            std::ofstream mat_str("restart_matrix_" + std::to_string(n*conf.dt) + ".txt" );
-            mat_str << restart_matrix;
+            //std::ofstream mat_str("restart_matrix_" + std::to_string(n*conf.dt) + ".txt" );
+            //mat_str << restart_matrix;
 
             double timer_copy_mat = timer.elapsed();
             timer.reset();
