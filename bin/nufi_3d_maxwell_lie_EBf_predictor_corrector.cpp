@@ -1448,7 +1448,9 @@ void plot_full_f_3x3v_parallelized(size_t nt, size_t nx_plot, size_t ny_plot, si
     double dv_plot = (conf.v_max - conf.v_min) / nv_plot;
     double dw_plot = (conf.w_max - conf.w_min) / nw_plot;
 
+    std::cout << "matrix 1" << std::endl;
     arma::mat matrix(nx_plot*ny_plot*nz_plot,nu_plot*nv_plot*nw_plot);
+    std::cout << "matrix 2" << std::endl;
 
     #pragma omp parallel for collapse(6) 
     for(size_t ix = 0; ix < nx_plot; ix++){
