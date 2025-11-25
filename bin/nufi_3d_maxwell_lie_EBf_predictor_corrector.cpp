@@ -1743,8 +1743,10 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
         size_t nx_plot = 64;
         if(plot_f){
             nx_plot = 64;
-            std::ofstream mat_str("restart_matrix_" + std::to_string(n*conf.dt) + ".txt" );
-            plot_full_f_2x3v_parallelized<double,order>(nt_r_curr,nx_plot,mat_str,coeffs_E,coeffs_B,conf,true,n);
+            if(n % (5*steps_per_1) == 0 && (n > 80*steps_per_1) ){
+                std::ofstream mat_str("restart_matrix_" + std::to_string(n*conf.dt) + ".txt" );
+                plot_full_f_2x3v_parallelized<double,order>(nt_r_curr,40,mat_str,coeffs_E,coeffs_B,conf,true,n);
+            }
         }
         //do_stats_2x3v_parallelized<double,order>(nt_r_curr, nx_plot, stat_file,coeffs_E, coeffs_B, conf, plot_f, true, n, plot_f);
         do_stats_2x3v_parallelized<double,order>(nt_r_curr, nx_plot, stat_file,coeffs_E, coeffs_B, conf, plot_f, true, n, false);
