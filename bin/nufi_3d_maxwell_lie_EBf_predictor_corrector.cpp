@@ -1455,7 +1455,7 @@ void plot_full_f_3x3v_parallelized(size_t nt, size_t nx_plot, size_t ny_plot, si
     #pragma omp parallel for collapse(6) 
     for(size_t ix = 0; ix < nx_plot; ix++){
     for(size_t iy = 0; iy < ny_plot; iy++){
-    for(size_t iz = 0; iz < ny_plot; iz++){
+    for(size_t iz = 0; iz < nz_plot; iz++){
     for(size_t iu = 0; iu < nu_plot; iu++){
     for(size_t iv = 0; iv < nv_plot; iv++){
     for(size_t iw = 0; iw < nw_plot; iw++){
