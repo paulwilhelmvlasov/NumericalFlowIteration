@@ -52,7 +52,7 @@ const double wmin = -0.5;
 const double wmax = 0.5; */
 
 // 2x3v Current Filamentation
-const double Lx = 2*M_PI;
+/* const double Lx = 2*M_PI;
 const double Ly = 2*M_PI;
 const double Lz = 1;
 double umin = -2;
@@ -60,7 +60,18 @@ double umax = 2;
 double vmin = -2;
 double vmax = 2;
 double wmin = -2;
-double wmax = 2;
+double wmax = 2; */
+
+// 2x3v Pseudo-electro-static TSI
+const double Lx = 2*M_PI;
+const double Ly = 2*M_PI;
+const double Lz = 1;
+double umin = -6;
+double umax = 6;
+double vmin = -6;
+double vmax = 6;
+double wmin = -6;
+double wmax = 6;
 
 // Electro-static:
 /* const double Lx = 4*M_PI;
@@ -81,7 +92,7 @@ const size_t Nv = 32;
 const size_t Nw = 32;
 const size_t steps_per_1 = 10;
 const double   dt = 1.0 / steps_per_1;
-const size_t Nt = 2000/dt;
+const size_t Nt = 500/dt;
 
 const size_t nx_r = Nx;
 const size_t ny_r = Ny;
@@ -197,11 +208,19 @@ real f0(real x, real y, real z, real u, real v, real w) noexcept
     using std::exp;
 
     // 2x3v Current filamentation:
-    real B0 = 0.1;
+    /* real B0 = 0.1;
     real vth = 0.2;
     real ux = B0 * std::sin(y) * std::cos(x);
     real uy = -B0 * std::sin(x) * std::cos(y);
-    return maxwellian<real>(u - ux, v - uy, w, vth);
+    return maxwellian<real>(u - ux, v - uy, w, vth); */
+
+    // 2x3v Pseudo-Electro-static TSI
+    real vth = 1;
+    real ux = 2;
+    real alpha = 0.01;
+    real perturbation = 0.5*(1 + alpha * std::cos(x)*cos(y));
+    return perturbation * (maxwellian_1d<real>(u - ux, vth) + maxwellian_1d<real>(u + ux, vth))
+                * maxwellian_2d<real>(v,w,vth);
 
     // Kormann Streaming Weibel
     /* real omega = 0.1/std::sqrt(2);
@@ -230,7 +249,11 @@ arma::Col<real> E0(real x, real y, real z)
     //return  arma::Col<real>({0.02 * std::sin(0.5*x), 0, 0});
 
     // Kormann Streaming Weibel & magnetic TSI (Filamentation) & 2x3v current filamentation
-    return  arma::Col<real>({0, 0, 0});
+    //return  arma::Col<real>({0, 0, 0});
+
+    // 2x3v Pseudo-Electro-Static TSI
+    real alpha = 0.5*0.01;
+    return  arma::Col<real>({alpha*std::sin(x)*std::cos(y), alpha*std::cos(x)*std::sin(y), 0});
 }
 
 template <typename real>
@@ -240,6 +263,10 @@ arma::Col<real> B0(real x, real y, real z)
     //return  arma::Col<real>({0, 0, 0});
 
     // 2x3v current filamentation
+    /* real B0 = 0.1;
+    return arma::Col<real>({0, 0, B0*std::cos(x)*std::cos(y)}); */
+
+    // 2x3v Pseudo-Electro-Static TSI
     real B0 = 0.1;
     return arma::Col<real>({0, 0, B0*std::cos(x)*std::cos(y)});
 
