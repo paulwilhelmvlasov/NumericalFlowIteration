@@ -1419,7 +1419,7 @@ void plot_full_f_2x3v_parallelized(size_t nt, size_t nx_plot, std::ofstream& fil
                         double v = conf.v_min + (iv+0.5) * dv_plot;
                         double w = conf.w_min + (iw+0.5) * dw_plot;
 
-                        size_t index_0 = ix + nx_r*iy ;
+                        size_t index_0 = ix + n_plot*iy ;
                         size_t index_1 = iu + n_plot*(iv + n_plot*iw);
 
                         matrix(index_0, index_1) = eval_f_lie_EBf<double,order>(nt, x, y, z, u, v, w,
