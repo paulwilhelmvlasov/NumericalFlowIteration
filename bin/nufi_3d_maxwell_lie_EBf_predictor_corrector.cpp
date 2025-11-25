@@ -55,12 +55,12 @@ const double wmax = 0.5; */
 const double Lx = 2*M_PI;
 const double Ly = 2*M_PI;
 const double Lz = 1;
-const double umin = -2;
-const double umax = 2;
-const double vmin = -2;
-const double vmax = 2;
-const double wmin = -2;
-const double wmax = 2;
+double umin = -2;
+double umax = 2;
+double vmin = -2;
+double vmax = 2;
+double wmin = -2;
+double wmax = 2;
 
 // Electro-static:
 /* const double Lx = 4*M_PI;
@@ -96,9 +96,9 @@ const double dx_r = Lx / nx_r;
 const double dy_r = Ly / ny_r;
 const double dz_r = Lz / nz_r;
 
-const double du_r = (umax - umin) / nu_r;
-const double dv_r = (vmax - vmin) / nv_r;
-const double dw_r = (wmax - wmin) / nw_r;
+double du_r = (umax - umin) / nu_r;
+double dv_r = (vmax - vmin) / nv_r;
+double dw_r = (wmax - wmin) / nw_r;
 
 double linear_interpolation_6d(double x, double y, double z, 
                                 double u, double v, double w)
@@ -557,9 +557,9 @@ void do_stats(size_t nt, size_t nx_plot, std::ofstream& stat_file,
 
     if(plot_f){
         size_t nu_plot = nx_plot;
-        double du_plot = (umax - umin) / nu_plot;
+        double du_plot = (conf.u_max - conf.u_min) / nu_plot;
         size_t nv_plot = nx_plot;
-        double dv_plot = (vmax - vmin) / nv_plot;
+        double dv_plot = (conf.v_max - conf.v_min) / nv_plot;
 
         // Plot (x,vx)
         std::ofstream f_x_y_str("f_x_y_" + std::to_string(current_time) + ".txt");
@@ -568,7 +568,7 @@ void do_stats(size_t nt, size_t nx_plot, std::ofstream& stat_file,
             {
                 double x = ix*dx_plot;
                 double y = iy*dx_plot;
-                double z = Lz/2.0;
+                double z = conf.Lz/2.0;
                 double u = 0;
                 double v = 0;
                 double w = 0;
@@ -586,9 +586,9 @@ void do_stats(size_t nt, size_t nx_plot, std::ofstream& stat_file,
             for(size_t iu = 0; iu <= nu_plot; iu++)
             {
                 double x = ix*dx_plot;
-                double y = Ly/2.0;
-                double z = Lz/2.0;
-                double u = umin + iu*du_plot;
+                double y = conf.Ly/2.0;
+                double z = conf.Lz/2.0;
+                double u = conf.u_min + iu*du_plot;
                 double v = 0;
                 double w = 0;
 
@@ -605,10 +605,10 @@ void do_stats(size_t nt, size_t nx_plot, std::ofstream& stat_file,
             for(size_t iv = 0; iv <= nv_plot; iv++)
             {
                 double x = ix*dx_plot;
-                double y = Ly/2.0;
-                double z = Lz/2.0;
+                double y = conf.Ly/2.0;
+                double z = conf.Lz/2.0;
                 double u = 0;
-                double v = vmin + iv*dv_plot;
+                double v = conf.v_min + iv*dv_plot;
                 double w = 0;
 
                 double f = eval_f_lie_EBf<double,order>(nt,x,y,z,u,v,w,coeffs_E,coeffs_B,conf);
@@ -626,8 +626,8 @@ void do_stats(size_t nt, size_t nx_plot, std::ofstream& stat_file,
                 double x = Lx/2.0;
                 double y = Ly/2.0;
                 double z = Lz/2.0;
-                double u = umin + iu*du_plot;
-                double v = vmin + iv*dv_plot;
+                double u = conf.u_min + iu*du_plot;
+                double v = conf.v_min + iv*dv_plot;
                 double w = 0;
 
                 double f = eval_f_lie_EBf<double,order>(nt,x,y,z,u,v,w,coeffs_E,coeffs_B,conf);
@@ -784,7 +784,7 @@ void do_stats_2x3v(size_t nt, size_t nx_plot, std::ofstream& stat_file,
             {
                 double x = ix*dx_plot;
                 double y = iy*dx_plot;
-                double z = Lz/2.0;
+                double z = conf.Lz/2.0;
                 double u = 0;
                 double v = 0;
                 double w = 0;
@@ -802,9 +802,9 @@ void do_stats_2x3v(size_t nt, size_t nx_plot, std::ofstream& stat_file,
             for(size_t iu = 0; iu <= nu_plot; iu++)
             {
                 double x = ix*dx_plot;
-                double y = Ly/2.0;
-                double z = Lz/2.0;
-                double u = umin + iu*du_plot;
+                double y = conf.Ly/2.0;
+                double z = conf.Lz/2.0;
+                double u = conf.u_min + iu*du_plot;
                 double v = 0;
                 double w = 0;
 
@@ -821,10 +821,10 @@ void do_stats_2x3v(size_t nt, size_t nx_plot, std::ofstream& stat_file,
             for(size_t iv = 0; iv <= nv_plot; iv++)
             {
                 double x = ix*dx_plot;
-                double y = Ly/2.0;
-                double z = Lz/2.0;
+                double y = conf.Ly/2.0;
+                double z = conf.Lz/2.0;
                 double u = 0;
-                double v = vmin + iv*dv_plot;
+                double v = conf.v_min + iv*dv_plot;
                 double w = 0;
 
                 double f = eval_f_lie_EBf<double,order>(nt,x,y,z,u,v,w,coeffs_E,coeffs_B,conf);
@@ -839,11 +839,11 @@ void do_stats_2x3v(size_t nt, size_t nx_plot, std::ofstream& stat_file,
         for(size_t iu = 0; iu <= nu_plot; iu++){
             for(size_t iv = 0; iv <= nv_plot; iv++)
             {
-                double x = Lx/2.0;
-                double y = Ly/2.0;
-                double z = Lz/2.0;
-                double u = umin + iu*du_plot;
-                double v = vmin + iv*dv_plot;
+                double x = conf.Lx/2.0;
+                double y = conf.Ly/2.0;
+                double z = conf.Lz/2.0;
+                double u = conf.u_min + iu*du_plot;
+                double v = conf.v_min + iv*dv_plot;
                 double w = 0;
 
                 double f = eval_f_lie_EBf<double,order>(nt,x,y,z,u,v,w,coeffs_E,coeffs_B,conf);
@@ -1240,8 +1240,8 @@ void kinetic_energy_and_entropy_1x2v(size_t nt, size_t nx_plot, std::ofstream& s
     size_t n_plot = 64;
 
     double dx_plot = Lx/n_plot;
-    double du_plot = (umax - umin)/n_plot;
-    double dv_plot = (vmax - vmin)/n_plot;
+    double du_plot = (conf.u_max - conf.u_min)/n_plot;
+    double dv_plot = (conf.v_max - conf.v_min)/n_plot;
 
     double kin_energy = 0;
     double entropy = 0;
@@ -1252,8 +1252,8 @@ void kinetic_energy_and_entropy_1x2v(size_t nt, size_t nx_plot, std::ofstream& s
                 double x = ix*dx_plot;
                 double y = Ly/2.0;
                 double z = Lz/2.0;
-                double u = umin + iu*du_plot;
-                double v = vmin + iv*dv_plot;
+                double u = conf.u_min + iu*du_plot;
+                double v = conf.v_min + iv*dv_plot;
                 double w = 0;
 
                 double f = eval_f_lie_EBf<double,order>(nt,x,y,z,u,v,w,coeffs_E,coeffs_B,conf);
@@ -1286,9 +1286,9 @@ void kinetic_energy_and_entropy_2x3v(size_t nt, size_t nx_plot, std::ofstream& s
 
     double dx_plot = Lx/n_plot;
     double dy_plot = Ly/n_plot;
-    double du_plot = (umax - umin)/n_plot;
-    double dv_plot = (vmax - vmin)/n_plot;
-    double dw_plot = (wmax - wmin)/n_plot;
+    double du_plot = (conf.u_max - conf.u_min)/n_plot;
+    double dv_plot = (conf.v_max - conf.v_min)/n_plot;
+    double dw_plot = (conf.w_max - conf.w_min)/n_plot;
 
     double kin_energy = 0;
     double entropy = 0;
@@ -1300,10 +1300,10 @@ void kinetic_energy_and_entropy_2x3v(size_t nt, size_t nx_plot, std::ofstream& s
     for(size_t iw = 0; iw < n_plot; iw++){
                 double x = ix*dx_plot;
                 double y = iy*dy_plot;
-                double z = Lz/2.0;
-                double u = umin + iu*du_plot;
-                double v = vmin + iv*dv_plot;
-                double w = wmin + iw*dw_plot;;
+                double z = conf.Lz/2.0;
+                double u = conf.u_min + iu*du_plot;
+                double v = conf.v_min + iv*dv_plot;
+                double w = conf.w_min + iw*dw_plot;;
 
                 double f = eval_f_lie_EBf<double,order>(nt,x,y,z,u,v,w,coeffs_E,coeffs_B,conf);
 
@@ -1336,9 +1336,9 @@ void kinetic_energy_and_entropy_2x3v_parallelized(size_t nt, size_t nx_plot, std
     double dx_plot = conf.Lx / n_plot;
     double dy_plot = conf.Ly / n_plot;
     double dz_plot = 0.0; // (z is fixed, so no dz factor)
-    double du_plot = (umax - umin) / n_plot;
-    double dv_plot = (vmax - vmin) / n_plot;
-    double dw_plot = (wmax - wmin) / n_plot;
+    double du_plot = (conf.u_max - conf.u_min) / n_plot;
+    double dv_plot = (conf.v_max - conf.v_min) / n_plot;
+    double dw_plot = (conf.w_max - conf.w_min) / n_plot;
 
     double kin_energy = 0.0;
     double entropy = 0.0;
@@ -1430,6 +1430,52 @@ void plot_full_f_2x3v_parallelized(size_t nt, size_t nx_plot, std::ofstream& fil
         }
     }
 
+    file << matrix;
+}
+
+template<typename real, size_t order>
+void plot_full_f_3x3v_parallelized(size_t nt, size_t nx_plot, size_t ny_plot, size_t nz_plot, 
+    size_t nu_plot, size_t nv_plot, size_t nw_plot, std::ofstream& file, 
+    const std::vector<real>& coeffs_E, const std::vector<real>& coeffs_B, 
+    const config_t<double>& conf, bool restarted = false, size_t n_full = 0)
+{
+    double t = restarted ? n_full * conf.dt : nt * conf.dt;
+
+    double dx_plot = conf.Lx / nx_plot;
+    double dy_plot = conf.Ly / ny_plot;
+    double dz_plot = conf.Lz / nz_plot; 
+    double du_plot = (conf.u_max - conf.u_min) / nu_plot;
+    double dv_plot = (conf.v_max - conf.v_min) / nv_plot;
+    double dw_plot = (conf.w_max - conf.w_min) / nw_plot;
+
+    arma::mat matrix(nx_plot*ny_plot*nz_plot,nu_plot*nv_plot*nw_plot);
+
+    #pragma omp parallel for collapse(6) 
+    for(size_t ix = 0; ix < nx_plot; ix++){
+    for(size_t iy = 0; iy < ny_plot; iy++){
+    for(size_t iz = 0; iz < ny_plot; iz++){
+    for(size_t iu = 0; iu < nu_plot; iu++){
+    for(size_t iv = 0; iv < nv_plot; iv++){
+    for(size_t iw = 0; iw < nw_plot; iw++){
+        double x = (ix+0.5) * dx_plot;
+        double y = (iy+0.5) * dy_plot;
+        double z = (iz+0.5) * dz_plot;
+
+        double u = conf.u_min + (iu+0.5) * du_plot;
+        double v = conf.v_min + (iv+0.5) * dv_plot;
+        double w = conf.w_min + (iw+0.5) * dw_plot;
+
+        size_t index_0 = ix + nx_plot*(iy + ny_plot*iz);
+        size_t index_1 = iu + nu_plot*(iv + nv_plot*iw);
+
+        matrix(index_0, index_1) = eval_f_lie_EBf<double,order>(nt, x, y, z, u, v, w, coeffs_E, coeffs_B, conf);
+    }
+    }
+    }
+    }
+    }
+    }
+    
     file << matrix;
 }
 
@@ -1592,7 +1638,6 @@ void read_in_coeff_and_plot_aligned()
     }
 }
 
-
 template<size_t order>
 void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
 {
@@ -1743,10 +1788,10 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
         size_t nx_plot = 64;
         if(plot_f){
             nx_plot = 64;
-            if(n % (5*steps_per_1) == 0 && (n > 80*steps_per_1) ){
-                std::ofstream mat_str("restart_matrix_" + std::to_string(n*conf.dt) + ".txt" );
-                plot_full_f_2x3v_parallelized<double,order>(nt_r_curr,40,mat_str,coeffs_E,coeffs_B,conf,true,n);
-            }
+            std::ofstream mat_uv_str("f_full_matrix_velocity_uv_" + std::to_string(n*conf.dt) + ".txt" );
+            plot_full_f_3x3v_parallelized<double,order>(nt_r_curr,4,4,1,128,128,4,mat_uv_str,coeffs_E,coeffs_B,conf,true,n);
+            std::ofstream mat_xy_str("f_full_matrix_velocity_xy_" + std::to_string(n*conf.dt) + ".txt" );
+            plot_full_f_3x3v_parallelized<double,order>(nt_r_curr,128,128,1,4,4,4,mat_xy_str,coeffs_E,coeffs_B,conf,true,n);
         }
         //do_stats_2x3v_parallelized<double,order>(nt_r_curr, nx_plot, stat_file,coeffs_E, coeffs_B, conf, plot_f, true, n, plot_f);
         do_stats_2x3v_parallelized<double,order>(nt_r_curr, nx_plot, stat_file,coeffs_E, coeffs_B, conf, plot_f, true, n, false);
