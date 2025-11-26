@@ -66,10 +66,10 @@ double wmax = 2; */
 const double Lx = 2*M_PI;
 const double Ly = 2*M_PI;
 const double Lz = 1;
-double umin = -10;
-double umax = 10;
-double vmin = -10;
-double vmax = 10;
+double umin = -20;
+double umax = 20;
+double vmin = -20;
+double vmax = 20;
 double wmin = -10;
 double wmax = 10;
 
@@ -84,12 +84,12 @@ const double vmax = 0.5;
 const double wmin = -0.5;
 const double wmax = 0.5; */
 
-const size_t Nx = 16;
-const size_t Ny = 16;
+const size_t Nx = 24;
+const size_t Ny = 24;
 const size_t Nz = 1;
-const size_t Nu = 32;
-const size_t Nv = 32;
-const size_t Nw = 32;
+const size_t Nu = 64;
+const size_t Nv = 64;
+const size_t Nw = 16;
 const size_t steps_per_1 = 10;
 const double   dt = 1.0 / steps_per_1;
 const size_t Nt = 300/dt;
@@ -1812,22 +1812,20 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
         double time_for_step = timer.elapsed();
         timer.reset();
         // Do stats...
-        bool plot_f = (n % (10*steps_per_1) == 0);
+        bool plot_f = (n % (50*steps_per_1) == 0);
         bool comp_kin_energy = plot_f & false;
         size_t nx_plot = 64;
         if(plot_f){
             nx_plot = 64;
             std::ofstream mat_uv_str("f_full_matrix_velocity_uv_" + std::to_string(n*conf.dt) + ".txt" );
-            plot_full_f_3x3v_parallelized<double,order>(nt_r_curr,3,3,1,128,128,3,mat_uv_str,coeffs_E,coeffs_B,conf,true,n);
+            plot_full_f_3x3v_parallelized<double,order>(nt_r_curr,4,4,1,512,512,1,mat_uv_str,coeffs_E,coeffs_B,conf,true,n);
             std::ofstream mat_xy_str("f_full_matrix_velocity_xy_" + std::to_string(n*conf.dt) + ".txt" );
-            plot_full_f_3x3v_parallelized<double,order>(nt_r_curr,128,128,1,3,3,3,mat_xy_str,coeffs_E,coeffs_B,conf,true,n);
+            plot_full_f_3x3v_parallelized<double,order>(nt_r_curr,512,512,1,1,1,1,mat_xy_str,coeffs_E,coeffs_B,conf,true,n);
             std::ofstream mat_xu_str("f_full_matrix_velocity_xu_" + std::to_string(n*conf.dt) + ".txt" );
-            plot_full_f_3x3v_parallelized<double,order>(nt_r_curr,128,3,1,128,3,3,mat_xu_str,coeffs_E,coeffs_B,conf,true,n);
-            std::ofstream mat_xw_str("f_full_matrix_velocity_xw_" + std::to_string(n*conf.dt) + ".txt" );
-            plot_full_f_3x3v_parallelized<double,order>(nt_r_curr,128,3,1,3,3,128,mat_xw_str,coeffs_E,coeffs_B,conf,true,n);
+            plot_full_f_3x3v_parallelized<double,order>(nt_r_curr,512,4,1,512,1,1,mat_xu_str,coeffs_E,coeffs_B,conf,true,n);
         }
-        do_stats_2x3v_parallelized<double,order>(nt_r_curr, nx_plot, stat_file,coeffs_E, coeffs_B, conf, plot_f, true, n, plot_f);
-        //do_stats_2x3v_parallelized<double,order>(nt_r_curr, nx_plot, stat_file,coeffs_E, coeffs_B, conf, plot_f, true, n, false);
+        //do_stats_2x3v_parallelized<double,order>(nt_r_curr, nx_plot, stat_file,coeffs_E, coeffs_B, conf, plot_f, true, n, plot_f);
+        do_stats_2x3v_parallelized<double,order>(nt_r_curr, nx_plot, stat_file,coeffs_E, coeffs_B, conf, plot_f, true, n, false);
         if(comp_kin_energy){
             kinetic_energy_and_entropy_2x3v_parallelized<double,order>(nt_r_curr,64,kin_energy_and_entropy_file,coeffs_E,coeffs_B,conf,true,n);
         }
