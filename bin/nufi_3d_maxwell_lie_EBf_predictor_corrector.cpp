@@ -84,11 +84,11 @@ const double vmax = 0.5;
 const double wmin = -0.5;
 const double wmax = 0.5; */
 
-const size_t Nx = 24;
-const size_t Ny = 24;
+const size_t Nx = 16;
+const size_t Ny = 16;
 const size_t Nz = 1;
-const size_t Nu = 64;
-const size_t Nv = 64;
+const size_t Nu = 48;
+const size_t Nv = 48;
 const size_t Nw = 16;
 const size_t steps_per_1 = 10;
 const double   dt = 1.0 / steps_per_1;
