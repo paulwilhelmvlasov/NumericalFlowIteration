@@ -1822,9 +1822,9 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
             std::ofstream mat_xy_str("f_full_matrix_velocity_xy_" + std::to_string(n*conf.dt) + ".txt" );
             plot_full_f_3x3v_parallelized<double,order>(nt_r_curr,128,128,1,3,3,3,mat_xy_str,coeffs_E,coeffs_B,conf,true,n);
             std::ofstream mat_xu_str("f_full_matrix_velocity_xu_" + std::to_string(n*conf.dt) + ".txt" );
-            plot_full_f_3x3v_parallelized<double,order>(nt_r_curr,128,3,1,128,3,3,mat_xy_str,coeffs_E,coeffs_B,conf,true,n);
+            plot_full_f_3x3v_parallelized<double,order>(nt_r_curr,128,3,1,128,3,3,mat_xu_str,coeffs_E,coeffs_B,conf,true,n);
             std::ofstream mat_xw_str("f_full_matrix_velocity_xw_" + std::to_string(n*conf.dt) + ".txt" );
-            plot_full_f_3x3v_parallelized<double,order>(nt_r_curr,128,3,1,3,3,128,mat_xy_str,coeffs_E,coeffs_B,conf,true,n);
+            plot_full_f_3x3v_parallelized<double,order>(nt_r_curr,128,3,1,3,3,128,mat_xw_str,coeffs_E,coeffs_B,conf,true,n);
         }
         do_stats_2x3v_parallelized<double,order>(nt_r_curr, nx_plot, stat_file,coeffs_E, coeffs_B, conf, plot_f, true, n, plot_f);
         //do_stats_2x3v_parallelized<double,order>(nt_r_curr, nx_plot, stat_file,coeffs_E, coeffs_B, conf, plot_f, true, n, false);
