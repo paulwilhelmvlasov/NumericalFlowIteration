@@ -1818,20 +1818,21 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
         double time_for_step = timer.elapsed();
         timer.reset();
         // Do stats...
-        bool plot_f = (n % (50*steps_per_1) == 0) || (n > 100*steps_per_1 && n < 200*steps_per_1 && (n % (10*steps_per_1) == 0));
+        //bool plot_f = (n % (50*steps_per_1) == 0) || (n > 100*steps_per_1 && n < 200*steps_per_1 && (n % (10*steps_per_1) == 0));
+        bool plot_f = (n % (50*steps_per_1) == 0);
         bool comp_kin_energy = plot_f & false;
         size_t nx_plot = 64;
         if(plot_f){
             nx_plot = 64;
             std::ofstream mat_uv_str("f_full_matrix_velocity_uv_" + std::to_string(n*conf.dt) + ".txt" );
             plot_full_f_3x3v_parallelized<double,order>(nt_r_curr,4,4,1,512,512,1,mat_uv_str,coeffs_E,coeffs_B,conf,true,n,
-                                            0,conf.Lx,0,conf.Ly,0,conf.Lz,-6,6,-6,6,-6,6);
-            std::ofstream mat_xy_str("f_full_matrix_velocity_xy_" + std::to_string(n*conf.dt) + ".txt" );
-            plot_full_f_3x3v_parallelized<double,order>(nt_r_curr,512,512,1,1,1,1,mat_xy_str,coeffs_E,coeffs_B,conf,true,n,
+                                            0,conf.Lx,0,conf.Ly,0,conf.Lz,0,conf.du,-conf.dv,0,-6,6);
+/*            std::ofstream mat_xy_str("f_full_matrix_velocity_xy_" + std::to_string(n*conf.dt) + ".txt" );
+             plot_full_f_3x3v_parallelized<double,order>(nt_r_curr,512,512,1,1,1,1,mat_xy_str,coeffs_E,coeffs_B,conf,true,n,
                                         0,conf.Lx,0,conf.Ly,0,conf.Lz,-6,6,-6,6,-6,6);
             std::ofstream mat_xu_str("f_full_matrix_velocity_xu_" + std::to_string(n*conf.dt) + ".txt" );
             plot_full_f_3x3v_parallelized<double,order>(nt_r_curr,512,4,1,512,1,1,mat_xu_str,coeffs_E,coeffs_B,conf,true,n,
-                                                    0,conf.Lx,0,conf.Ly,0,conf.Lz,-6,6,-6,6,-6,6);
+                                                    0,conf.Lx,0,conf.Ly,0,conf.Lz,-6,6,-6,6,-6,6); */
         }
         //do_stats_2x3v_parallelized<double,order>(nt_r_curr, nx_plot, stat_file,coeffs_E, coeffs_B, conf, plot_f, true, n, plot_f);
         do_stats_2x3v_parallelized<double,order>(nt_r_curr, nx_plot, stat_file,coeffs_E, coeffs_B, conf, plot_f, true, n, false);
