@@ -66,10 +66,10 @@ double wmax = 2; */
 const double Lx = 2*M_PI;
 const double Ly = 2*M_PI;
 const double Lz = 1;
-double umin = -20;
-double umax = 20;
-double vmin = -20;
-double vmax = 20;
+double umin = -30;
+double umax = 30;
+double vmin = -30;
+double vmax = 30;
 double wmin = -10;
 double wmax = 10;
 
@@ -1464,16 +1464,22 @@ template<typename real, size_t order>
 void plot_full_f_3x3v_parallelized(size_t nt, size_t nx_plot, size_t ny_plot, size_t nz_plot, 
     size_t nu_plot, size_t nv_plot, size_t nw_plot, std::ofstream& file, 
     const std::vector<real>& coeffs_E, const std::vector<real>& coeffs_B, 
-    const config_t<double>& conf, bool restarted = false, size_t n_full = 0)
+    const config_t<double>& conf, bool restarted = false, size_t n_full = 0, 
+    double xmin_p = 0, double xmax_p = Lx,
+    double ymin_p = 0, double ymax_p = Ly,
+    double zmin_p = 0, double zmax_p = Lz,
+    double umin_p = umin, double umax_p = umax,
+    double vmin_p = vmin, double vmax_p = vmax,
+    double wmin_p = wmin, double wmax_p = wmax)
 {
     double t = restarted ? n_full * conf.dt : nt * conf.dt;
 
-    double dx_plot = conf.Lx / nx_plot;
-    double dy_plot = conf.Ly / ny_plot;
-    double dz_plot = conf.Lz / nz_plot; 
-    double du_plot = (conf.u_max - conf.u_min) / nu_plot;
-    double dv_plot = (conf.v_max - conf.v_min) / nv_plot;
-    double dw_plot = (conf.w_max - conf.w_min) / nw_plot;
+    double dx_plot = (xmax_p - xmin_p) / nx_plot;
+    double dy_plot = (ymax_p - ymin_p) / ny_plot;
+    double dz_plot = (zmax_p - zmin_p) / nz_plot; 
+    double du_plot = (umax_p - umin_p) / nu_plot;
+    double dv_plot = (vmax_p - vmin_p) / nv_plot;
+    double dw_plot = (wmax_p - wmin_p) / nw_plot;
 
     std::cout << "matrix 1" << std::endl;
     arma::mat matrix(nx_plot*ny_plot*nz_plot,nu_plot*nv_plot*nw_plot);
@@ -1486,13 +1492,13 @@ void plot_full_f_3x3v_parallelized(size_t nt, size_t nx_plot, size_t ny_plot, si
     for(size_t iu = 0; iu < nu_plot; iu++){
     for(size_t iv = 0; iv < nv_plot; iv++){
     for(size_t iw = 0; iw < nw_plot; iw++){
-        double x = (ix+0.5) * dx_plot;
-        double y = (iy+0.5) * dy_plot;
-        double z = (iz+0.5) * dz_plot;
+        double x = xmin_p + (ix+0.5) * dx_plot;
+        double y = ymin_p + (iy+0.5) * dy_plot;
+        double z = zmin_p + (iz+0.5) * dz_plot;
 
-        double u = conf.u_min + (iu+0.5) * du_plot;
-        double v = conf.v_min + (iv+0.5) * dv_plot;
-        double w = conf.w_min + (iw+0.5) * dw_plot;
+        double u = umin_p + (iu+0.5) * du_plot;
+        double v = vmin_p + (iv+0.5) * dv_plot;
+        double w = wmin_p + (iw+0.5) * dw_plot;
 
         size_t index_0 = ix + nx_plot*(iy + ny_plot*iz);
         size_t index_1 = iu + nu_plot*(iv + nv_plot*iw);
@@ -1812,17 +1818,20 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
         double time_for_step = timer.elapsed();
         timer.reset();
         // Do stats...
-        bool plot_f = (n % (50*steps_per_1) == 0);
+        bool plot_f = (n % (50*steps_per_1) == 0) || (n > 100*steps_per_1 && n < 200*steps_per_1 && (n % (10*steps_per_1) == 0));
         bool comp_kin_energy = plot_f & false;
         size_t nx_plot = 64;
         if(plot_f){
             nx_plot = 64;
             std::ofstream mat_uv_str("f_full_matrix_velocity_uv_" + std::to_string(n*conf.dt) + ".txt" );
-            plot_full_f_3x3v_parallelized<double,order>(nt_r_curr,4,4,1,512,512,1,mat_uv_str,coeffs_E,coeffs_B,conf,true,n);
+            plot_full_f_3x3v_parallelized<double,order>(nt_r_curr,4,4,1,512,512,1,mat_uv_str,coeffs_E,coeffs_B,conf,true,n,
+                                            0,conf.Lx,0,conf.Ly,0,conf.Lz,-6,6,-6,6,-6,6);
             std::ofstream mat_xy_str("f_full_matrix_velocity_xy_" + std::to_string(n*conf.dt) + ".txt" );
-            plot_full_f_3x3v_parallelized<double,order>(nt_r_curr,512,512,1,1,1,1,mat_xy_str,coeffs_E,coeffs_B,conf,true,n);
+            plot_full_f_3x3v_parallelized<double,order>(nt_r_curr,512,512,1,1,1,1,mat_xy_str,coeffs_E,coeffs_B,conf,true,n,
+                                        0,conf.Lx,0,conf.Ly,0,conf.Lz,-6,6,-6,6,-6,6);
             std::ofstream mat_xu_str("f_full_matrix_velocity_xu_" + std::to_string(n*conf.dt) + ".txt" );
-            plot_full_f_3x3v_parallelized<double,order>(nt_r_curr,512,4,1,512,1,1,mat_xu_str,coeffs_E,coeffs_B,conf,true,n);
+            plot_full_f_3x3v_parallelized<double,order>(nt_r_curr,512,4,1,512,1,1,mat_xu_str,coeffs_E,coeffs_B,conf,true,n,
+                                                    0,conf.Lx,0,conf.Ly,0,conf.Lz,-6,6,-6,6,-6,6);
         }
         //do_stats_2x3v_parallelized<double,order>(nt_r_curr, nx_plot, stat_file,coeffs_E, coeffs_B, conf, plot_f, true, n, plot_f);
         do_stats_2x3v_parallelized<double,order>(nt_r_curr, nx_plot, stat_file,coeffs_E, coeffs_B, conf, plot_f, true, n, false);
