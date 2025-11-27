@@ -1824,13 +1824,13 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
         size_t nx_plot = 64;
         if(plot_f){
             nx_plot = 64;
-            std::ofstream mat_uv_str("f_full_matrix_velocity_uv_" + std::to_string(n*conf.dt) + ".txt" );
+/*             std::ofstream mat_uv_str("f_full_matrix_velocity_uv_" + std::to_string(n*conf.dt) + ".txt" );
             plot_full_f_3x3v_parallelized<double,order>(nt_r_curr,4,4,1,512,512,1,mat_uv_str,coeffs_E,coeffs_B,conf,true,n,
-                                            0,conf.Lx,0,conf.Ly,0,conf.Lz,0,conf.du,-conf.dv,0,-6,6);
-/*            std::ofstream mat_xy_str("f_full_matrix_velocity_xy_" + std::to_string(n*conf.dt) + ".txt" );
+                                            0,conf.Lx,0,conf.Ly,0,conf.Lz,0,conf.du,-conf.dv,0,-6,6); */
+           std::ofstream mat_xy_str("f_full_matrix_velocity_xy_" + std::to_string(n*conf.dt) + ".txt" );
              plot_full_f_3x3v_parallelized<double,order>(nt_r_curr,512,512,1,1,1,1,mat_xy_str,coeffs_E,coeffs_B,conf,true,n,
-                                        0,conf.Lx,0,conf.Ly,0,conf.Lz,-6,6,-6,6,-6,6);
-            std::ofstream mat_xu_str("f_full_matrix_velocity_xu_" + std::to_string(n*conf.dt) + ".txt" );
+                                        5.5*conf.dx,9.5*conf.dx,1.5*conf.dy,5.5*conf.dy,0,conf.Lz,-6,6,-6,6,-6,6);
+/*             std::ofstream mat_xu_str("f_full_matrix_velocity_xu_" + std::to_string(n*conf.dt) + ".txt" );
             plot_full_f_3x3v_parallelized<double,order>(nt_r_curr,512,4,1,512,1,1,mat_xu_str,coeffs_E,coeffs_B,conf,true,n,
                                                     0,conf.Lx,0,conf.Ly,0,conf.Lz,-6,6,-6,6,-6,6); */
         }
