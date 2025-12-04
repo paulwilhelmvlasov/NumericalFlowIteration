@@ -85,10 +85,10 @@ const double vmax = 0.5;
 const double wmin = -0.5;
 const double wmax = 0.5;
 
-const size_t Nx = 128;
+const size_t Nx = 16;
 const size_t Ny = 1;
 const size_t Nz = 1;
-const size_t Nu = 128;
+const size_t Nu = 32;
 const size_t Nv = 1;
 const size_t Nw = 1;
 const size_t steps_per_1 = 10;
@@ -1675,7 +1675,6 @@ void read_in_coeff_and_plot_aligned()
 }
 
 nufi::restart::linear_interpolant_6d interpolant;
-//nufi::restart::linear_interpolant_6d_collapsed interpolant;
 
 double eval_f_with_linear_interpolant(double x, double y, double z, double u, double v, double w)
 {

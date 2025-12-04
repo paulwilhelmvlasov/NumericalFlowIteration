@@ -883,7 +883,6 @@ real eval_f_lie_EBf(size_t n, real x, real y, real z,
     const std::vector<real>& coeffs_B, const config_t<real>& conf)
 {
     // F(t) = Ham_f o Ham_B o Ham_E o F(0).
-    // Careful: Currently single species only!!!
 
     const size_t dim = 3;
     const size_t Nx_ext = conf.Nx + order - 1;
@@ -893,6 +892,8 @@ real eval_f_lie_EBf(size_t n, real x, real y, real z,
     const size_t stride_spatial = 1;
     const size_t stride_comp = dim * stride_spatial;
     const size_t stride_t = stride_comp * Nspace;
+
+    double qm = conf.q / conf.m;
 
     arma::Col<real> x_vec({x, y, z});
     arma::Col<real> v_vec({u, v, w});
@@ -912,8 +913,8 @@ real eval_f_lie_EBf(size_t n, real x, real y, real z,
         }
 
         A = B0 - conf.dt * rot<real,order>(n-1,x_vec(0),x_vec(1),x_vec(2),coeffs_E,conf);
-        arma::Mat<real> J = exp_J<real>(-conf.dt * A);
-        v_vec = J*v_vec - conf.dt * E0;
+        arma::Mat<real> J = exp_J<real>(qm * conf.dt * A);
+        v_vec = J*v_vec + conf.dt * qm * E0;
     }
 
     return conf.f0(x_vec(0), x_vec(1), x_vec(2), v_vec(0), v_vec(1), v_vec(2));
