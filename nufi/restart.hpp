@@ -116,6 +116,170 @@ void randomized_svd_new(
 }
 
 
+class linear_interpolant_6d
+{
+    public:
+        double xmin = 0;
+        double xmax = 1;
+        double ymin = 0;
+        double ymax = 1;
+        double zmin = 0;
+        double zmax = 1;
+        
+        double umin = -1;
+        double umax = 1;
+        double vmin = -1;
+        double vmax = 1;
+        double wmin = -1;
+        double wmax = 1;
+
+        size_t nx_r = 8;
+        size_t ny_r = 8;
+        size_t nz_r = 8;
+        size_t nu_r = 8;
+        size_t nv_r = 8;
+        size_t nw_r = 8;
+
+        size_t size_x_r = 1;
+        size_t size_v_r = 1;
+
+        double dx_r = 1;
+        double dy_r = 1;
+        double dz_r = 1;
+        double du_r = 1;
+        double dv_r = 1;
+        double dw_r = 1;
+
+        arma::mat restart_matrix;
+        arma::mat copy_mat;
+
+        linear_interpolant_6d() { }
+
+        linear_interpolant_6d(double xmin, double xmax, 
+            double ymin, double ymax, double zmin, double zmax,
+            double umin, double umax, double vmin, double vmax,
+            double wmin, double wmax, size_t Nx, size_t Ny, size_t Nz,
+            size_t Nu, size_t Nv, size_t Nw) 
+            : xmin(xmin), xmax(xmax), ymin(ymin), ymax(ymax), 
+            zmin(zmin), zmax(zmax), umin(umin), umax(umax), 
+            vmin(vmin), vmax(vmax), wmin(wmin), wmax(wmax),
+            nx_r(Nx), ny_r(Ny), nz_r(Nz), nu_r(Nu), nv_r(Nv), nw_r(Nw)
+        {
+            size_x_r = (nx_r+1)*(ny_r+1)*(nz_r+1);
+            size_v_r = (nu_r+1)*(nv_r+1)*(nw_r+1);
+
+            dx_r = (xmax - xmin) / nx_r;
+            dy_r = (ymax - ymin) / ny_r;
+            dz_r = (zmax - zmin) / nz_r;
+
+            du_r = (umax - umin) / nu_r;
+            dv_r = (vmax - vmin) / nv_r;
+            dw_r = (wmax - wmin) / nw_r;
+
+            restart_matrix = arma::mat(size_x_r, size_v_r, arma::fill::zeros);
+            copy_mat = arma::mat(size_x_r, size_v_r, arma::fill::zeros);
+        }
+        
+        void restart_f(const std::function<double(double,double,double,double,double,double)>& eval_f)
+        {
+            #pragma omp parallel for collapse(6)
+            for(size_t ix = 0; ix <= nx_r; ix++)
+            for(size_t iy = 0; iy <= ny_r; iy++)
+            for(size_t iz = 0; iz <= nz_r; iz++)
+            for(size_t iu = 0; iu <= nu_r; iu++)
+            for(size_t iv = 0; iv <= nv_r; iv++)
+            for(size_t iw = 0; iw <= nw_r; iw++){
+                double x = xmin + ix*dx_r;
+                double y = ymin + iy*dy_r;
+                double z = zmin + iz*dz_r;
+
+                double u = umin + iu*du_r;
+                double v = vmin + iv*dv_r;
+                double w = wmin + iw*dw_r;
+
+                size_t index_0 = ix + (nx_r+1)*(iy + (ny_r+1)*iz);
+                size_t index_1 = iu + (nu_r+1)*(iv + (nv_r+1)*iw);
+
+                copy_mat(index_0,index_1) = eval_f(x, y, z, u, v, w);
+            }
+
+            restart_matrix = copy_mat;
+        }
+
+        double eval_linear_interpolant(double x, double y, double z, 
+                                    double u, double v, double w)
+        {
+            // Collapsing dimensions in theory should save some computational
+            // effort but in practice we noticed that the benefit is neglible 
+            // or the full version is even faster in some cases.
+
+            if( u > umax || u < umin 
+                || v > vmax || v < vmin 
+                || w > wmax || w < wmin){
+                return 0;
+            } 
+
+            double Lx = xmax - xmin;
+            x = std::fmod(std::fmod(x - xmin, Lx) + Lx, Lx) + xmin;
+            size_t x_ref_pos = std::min(static_cast<size_t>(std::floor(x / dx_r)), nx_r - 1);
+            double Ly = ymax - ymin;
+            y = std::fmod(std::fmod(y - ymin, Ly) + Ly, Ly) + ymin;
+            size_t y_ref_pos = std::min(static_cast<size_t>(std::floor(y / dy_r)), ny_r - 1);
+            double Lz = zmax - zmin;
+            z = std::fmod(std::fmod(z - zmin, Lz) + Lz, Lz) + zmin;
+            size_t z_ref_pos = std::min(static_cast<size_t>(std::floor(z / dz_r)), nz_r - 1);
+
+            size_t u_ref_pos = std::min(static_cast<size_t>(std::floor((u-umin)/du_r)), nu_r - 1);
+            size_t v_ref_pos = std::min(static_cast<size_t>(std::floor((v-vmin)/dv_r)), nv_r - 1);
+            size_t w_ref_pos = std::min(static_cast<size_t>(std::floor((w-wmin)/dw_r)), nw_r - 1);
+
+
+            double x0 = x_ref_pos*dx_r;
+            double y0 = y_ref_pos*dy_r;
+            double z0 = z_ref_pos*dz_r;
+            double u0 = umin + u_ref_pos*du_r;    
+            double v0 = vmin + v_ref_pos*dv_r;    
+            double w0 = wmin + w_ref_pos*dw_r;    
+
+
+            double w_x = (x - x0)/dx_r;
+            double w_y = (y - y0)/dy_r;
+            double w_z = (z - z0)/dz_r;
+            double w_u = (u - u0)/du_r;
+            double w_v = (v - v0)/dv_r;
+            double w_w = (w - w0)/dw_r;
+
+            double value = 0;
+            for(int i_x = 0; i_x <= 1; i_x++)
+            for(int i_y = 0; i_y <= 1; i_y++)
+            for(int i_z = 0; i_z <= 1; i_z++)
+            for(int i_u = 0; i_u <= 1; i_u++)
+            for(int i_v = 0; i_v <= 1; i_v++)
+            for(int i_w = 0; i_w <= 1; i_w++){
+                double factor = ((1-w_x)*(i_x==0) + w_x*(i_x==1))
+                            * ((1-w_y)*(i_y==0) + w_y*(i_y==1))
+                            * ((1-w_z)*(i_z==0) + w_z*(i_z==1))
+                            * ((1-w_u)*(i_u==0) + w_u*(i_u==1))
+                            * ((1-w_v)*(i_v==0) + w_v*(i_v==1))
+                            * ((1-w_w)*(i_w==0) + w_w*(i_w==1));
+                
+                size_t index_x = x_ref_pos + i_x;
+                size_t index_y = y_ref_pos + i_y;
+                size_t index_z = z_ref_pos + i_z;
+                size_t index_u = u_ref_pos + i_u;
+                size_t index_v = v_ref_pos + i_v;
+                size_t index_w = w_ref_pos + i_w;
+
+                size_t index_0 = index_x + (nx_r+1)*(index_y + (ny_r+1)*index_z);
+                size_t index_1 = index_u + (nu_r+1)*(index_v + (nv_r+1)*index_w);
+
+                value += factor * restart_matrix(index_0, index_1);
+            }
+
+            return value;
+        }
+};
+
 }
 
 }

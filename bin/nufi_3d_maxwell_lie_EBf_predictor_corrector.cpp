@@ -11,6 +11,7 @@
 #include <nufi/random.hpp>
 #include <nufi/fields.hpp>
 #include <nufi/poisson.hpp>
+#include <nufi/restart.hpp>
 #include <nufi/rho.hpp>
 #include <nufi/stopwatch.hpp>
 
@@ -63,7 +64,7 @@ double wmin = -2;
 double wmax = 2; */
 
 // 2x3v Pseudo-electro-static TSI
-const double Lx = 2*M_PI;
+/* const double Lx = 2*M_PI;
 const double Ly = 2*M_PI;
 const double Lz = 1;
 double umin = -30;
@@ -71,10 +72,10 @@ double umax = 30;
 double vmin = -30;
 double vmax = 30;
 double wmin = -10;
-double wmax = 10;
+double wmax = 10; */
 
 // Electro-static:
-/* const double Lx = 4*M_PI;
+const double Lx = 4*M_PI;
 const double Ly = 1;
 const double Lz = 1;
 const double umin = -5;
@@ -82,17 +83,17 @@ const double umax = 5;
 const double vmin = -0.5;
 const double vmax = 0.5;
 const double wmin = -0.5;
-const double wmax = 0.5; */
+const double wmax = 0.5;
 
-const size_t Nx = 16;
-const size_t Ny = 16;
+const size_t Nx = 128;
+const size_t Ny = 1;
 const size_t Nz = 1;
-const size_t Nu = 48;
-const size_t Nv = 48;
-const size_t Nw = 16;
+const size_t Nu = 128;
+const size_t Nv = 1;
+const size_t Nw = 1;
 const size_t steps_per_1 = 10;
 const double   dt = 1.0 / steps_per_1;
-const size_t Nt = 300/dt;
+const size_t Nt = 30/dt;
 
 const size_t nx_r = Nx;
 const size_t ny_r = Ny;
@@ -100,7 +101,7 @@ const size_t nz_r = Nz;
 const size_t nu_r = Nu;
 const size_t nv_r = Nv;
 const size_t nw_r = Nw;
-size_t nt_restart = 20;
+size_t nt_restart = 10;
 
 
 const double dx_r = Lx / nx_r;
@@ -215,12 +216,12 @@ real f0(real x, real y, real z, real u, real v, real w) noexcept
     return maxwellian<real>(u - ux, v - uy, w, vth); */
 
     // 2x3v Pseudo-Electro-static TSI
-    real vth = 1;
+    /* real vth = 1;
     real ux = 2;
     real alpha = 0.01;
     real perturbation = 0.5*(1 + alpha * std::cos(x)*cos(y));
     return perturbation * (maxwellian_1d<real>(u - ux, vth) + maxwellian_1d<real>(u + ux, vth))
-                * maxwellian_2d<real>(v,w,vth);
+                * maxwellian_2d<real>(v,w,vth); */
 
     // Kormann Streaming Weibel
     /* real omega = 0.1/std::sqrt(2);
@@ -234,7 +235,7 @@ real f0(real x, real y, real z, real u, real v, real w) noexcept
             + (1-delta)*maxwellian_1d<real>(v-v0_2,omega) ); */
 
     // Weak Landau Damping
-    //return (1+0.01*cos(0.5*x))*maxwellian_1d<real>(u,1);
+    return (1+0.01*cos(0.5*x))*maxwellian_1d<real>(u,1);
 
     // Paul & Fabio magnetic TSI (Filamentation instability) 
     /* real v_beam = 0.4;
@@ -246,29 +247,29 @@ template <typename real>
 arma::Col<real> E0(real x, real y, real z)
 {
     // Electro-Static setup for Weak Landau or TSI:
-    //return  arma::Col<real>({0.02 * std::sin(0.5*x), 0, 0});
+    return  arma::Col<real>({0.02 * std::sin(0.5*x), 0, 0});
 
     // Kormann Streaming Weibel & magnetic TSI (Filamentation) & 2x3v current filamentation
     //return  arma::Col<real>({0, 0, 0});
 
     // 2x3v Pseudo-Electro-Static TSI
-    real alpha = 0.5*0.01;
-    return  arma::Col<real>({alpha*std::sin(x)*std::cos(y), alpha*std::cos(x)*std::sin(y), 0});
+    /* real alpha = 0.5*0.01;
+    return  arma::Col<real>({alpha*std::sin(x)*std::cos(y), alpha*std::cos(x)*std::sin(y), 0}); */
 }
 
 template <typename real>
 arma::Col<real> B0(real x, real y, real z)
 {
     // Electro-Static
-    //return  arma::Col<real>({0, 0, 0});
+    return  arma::Col<real>({0, 0, 0});
 
     // 2x3v current filamentation
     /* real B0 = 0.1;
     return arma::Col<real>({0, 0, B0*std::cos(x)*std::cos(y)}); */
 
     // 2x3v Pseudo-Electro-Static TSI
-    real B0 = 0.1;
-    return arma::Col<real>({0, 0, B0*std::cos(x)*std::cos(y)});
+    /* real B0 = 0.1;
+    return arma::Col<real>({0, 0, B0*std::cos(x)*std::cos(y)}); */
 
     // Kormann's Streaming Weibel instability
     /* constexpr real theta = 0.2;
@@ -1673,6 +1674,14 @@ void read_in_coeff_and_plot_aligned()
     }
 }
 
+nufi::restart::linear_interpolant_6d interpolant;
+//nufi::restart::linear_interpolant_6d_collapsed interpolant;
+
+double eval_f_with_linear_interpolant(double x, double y, double z, double u, double v, double w)
+{
+    return interpolant.eval_linear_interpolant(x,y,z,u,v,w);
+}
+
 template<size_t order>
 void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
 {
@@ -1710,8 +1719,11 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
     size_t size_x_r = (nx_r+1)*(ny_r+1)*(nz_r+1);
     size_t size_v_r = (nu_r+1)*(nv_r+1)*(nw_r+1);
     //restart_matrix.resize(size_x_r, size_v_r);
-    restart_matrix = arma::mat(size_x_r, size_v_r, arma::fill::zeros);
-    arma::mat copy_mat(size_x_r, size_v_r, arma::fill::zeros);
+/*     restart_matrix = arma::mat(size_x_r, size_v_r, arma::fill::zeros);
+    arma::mat copy_mat(size_x_r, size_v_r, arma::fill::zeros); */
+    interpolant = nufi::restart::linear_interpolant_6d (0, Lx, 0, Ly, 0, Lz, 
+                                        umin, umax, vmin, vmax, wmin, wmax, 
+                                        nx_r, ny_r, nz_r, nu_r, nv_r, nw_r);
 
     // Set up config.
     conf = config_t<double>(Nx, Ny, Nz, Nu, Nv, Nw, Nt, dt, 
@@ -1850,7 +1862,16 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
         if(nt_r_curr == nt_restart){
             timer.reset();
             std::cout << "Restart simulation. " << std::endl;
-            // Compute first restart matrix.
+            auto eval_f = [&](double x, double y, double z,
+                  double u, double v, double w)
+            {
+                return eval_f_lie_EBf<double, order>(
+                    nt_r_curr, x, y, z, u, v, w,
+                    coeffs_E, coeffs_B, conf
+                );
+            };
+            interpolant.restart_f(eval_f);
+/*             // Compute first restart matrix.
             #pragma omp parallel for collapse(6)
             for(size_t ix = 0; ix <= nx_r; ix++)
             for(size_t iy = 0; iy <= ny_r; iy++)
@@ -1873,12 +1894,12 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
                 double f = eval_f_lie_EBf<double,order>(nt_r_curr, x, y, z, u, v, w, 
                                                     coeffs_E, coeffs_B, conf);
                 copy_mat(index_0,index_1) = f;
-            }
+            } */
             double timer_fill_restart_matrix = timer.elapsed();
             timer.reset();
             std::cout << "Filling restart matrix took " << timer_fill_restart_matrix << " s." << std::endl;
 
-            restart_matrix = copy_mat;
+            //restart_matrix = copy_mat;
 
             //std::ofstream mat_str("restart_matrix_" + std::to_string(n*conf.dt) + ".txt" );
             //mat_str << restart_matrix;
@@ -1886,10 +1907,6 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
             double timer_copy_mat = timer.elapsed();
             timer.reset();
             std::cout << "Copying restart matrix took " << timer_copy_mat << " s." << std::endl;
-
-            std::cout << "After restart: " << std::endl;
-            std::cout << "Min value restart_matrix " << restart_matrix.min() << std::endl;
-            std::cout << "Max value restart_matrix " << restart_matrix.max() << std::endl;
 
             // Copy last entries of coeff vectors.
             #pragma omp parallel for collapse(2)
@@ -1908,10 +1925,13 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
                 }
             }
 
+
+
             conf = config_t<double>(Nx, Ny, Nz, Nu, Nv, Nw, Nt, dt, 
                 0, Lx, 0, Ly, 0, Lz, umin, umax, 
                 vmin, vmax, wmin, wmax,
-                &linear_interpolation_6d);
+                //&linear_interpolation_6d);
+                &eval_f_with_linear_interpolant);
 
             nt_r_curr = 1;
             double timer_copy_coeff = timer.elapsed();
