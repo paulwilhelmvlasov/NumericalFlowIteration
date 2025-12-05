@@ -361,6 +361,9 @@ int main(int argc, char** argv){
 
     // Todo:
     // Tracking of expanding velocity support.
+    // Add MPI parallelization.
+    // Add compressed restart.
+    // Add CMM-restart.
     // Add initialition through init-file.
 
     nufi::dim3::periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned<4>();
