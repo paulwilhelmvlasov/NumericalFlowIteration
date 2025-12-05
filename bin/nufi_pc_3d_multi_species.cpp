@@ -348,7 +348,7 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
 
     // Do first output.
     std::ofstream stat_file( "stats.txt" );
-    analysis::do_stats<double,order>(0, 64, 1, 1, stat_file, coeffs_E, coeffs_B, conf_electron, false, true, 0);
+    analysis::do_stats<double,order>(0, 64, 1, 1, stat_file, coeffs_E, coeffs_B, conf_electron, true, true, 0);
 
     std::cout << "Time-loop." << std::endl;    
     std::cout << " ---------------------------------- " << std::endl;
@@ -382,7 +382,8 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
         double time_for_step = timer.elapsed();
         timer.reset();
         
-        analysis::do_stats<double,order>(nt_r_curr, 64, 1, 1, stat_file, coeffs_E, coeffs_B, conf_electron, false, true, n);
+        bool plot_EB = (n % 25*steps_per_1 == 0);
+        analysis::do_stats<double,order>(nt_r_curr, 64, 1, 1, stat_file, coeffs_E, coeffs_B, conf_electron, plot_EB, true, n);
         if(n % (25*steps_per_1) == 0){
             auto eval_f_electron = [&](double x, double y, double z, double u, double v, double w) {
                 return eval_f_lie_EBf<double, order>( nt_r_curr, x, y, z, u, v, w, coeffs_E, coeffs_B, conf_electron);
