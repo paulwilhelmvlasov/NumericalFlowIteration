@@ -37,7 +37,7 @@ nufi_pc_3d_multi_species_LDADD  += $(BLAS_LIBS) -larmadillo -lgfortran -lfftw3 -
 
 test_lsmr_SOURCES = test_lsmr.cpp
 test_lsmr_LDADD   = $(top_builddir)/nufi/libnufi.a
-test_lsmr_LDADD  += -larmadillo -llapack -lopenblas -lfftw3 -lfftw3f 
+test_lsmr_LDADD  += $(BLAS_LIBS) -larmadillo -lgfortran -lfftw3 -lfftw3f
 
 #test_cpp_interface_SOURCES = test_cpp_interface.cpp
 #test_cpp_interface_LDADD   = $(top_builddir)/nufi/libnufi.a 
