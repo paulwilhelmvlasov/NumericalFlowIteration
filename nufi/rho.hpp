@@ -873,7 +873,7 @@ real eval_f_lie_fBE(size_t n, real x, real y, real z,
 }
 
 
-template <typename real, size_t order, bool single_species = true>
+template <typename real, size_t order>
 real eval_f_lie_EBf(size_t n, real x, real y, real z,
     real u, real v, real w, const std::vector<real>& coeffs_E,
     const std::vector<real>& coeffs_B, const config_t<real>& conf)
@@ -909,14 +909,14 @@ real eval_f_lie_EBf(size_t n, real x, real y, real z,
         }
 
         A = B0 - conf.dt * rot<real,order>(n-1,x_vec(0),x_vec(1),x_vec(2),coeffs_E,conf);
-        arma::Mat<real> J = exp_J<real>(qm * conf.dt * A);
-        v_vec = J*v_vec + conf.dt * qm * E0;
+        arma::Mat<real> J = exp_J<real>(- qm * conf.dt * A);
+        v_vec = J*v_vec - conf.dt * qm * E0;
     }
 
     return conf.f0(x_vec(0), x_vec(1), x_vec(2), v_vec(0), v_vec(1), v_vec(2));
 }
 
-template <typename real, size_t order, bool single_species = true>
+template <typename real, size_t order>
 void eval_j_full_EBf(size_t n, std::vector<real>& j, const std::vector<real>& coeffs_E, 
     const std::vector<real>& coeffs_B, const config_t<real> &conf )
 {
@@ -941,15 +941,15 @@ void eval_j_full_EBf(size_t n, std::vector<real>& j, const std::vector<real>& co
             real v = conf.v_min + (iv + 0.5) * conf.dv;
             real w = conf.w_min + (iw + 0.5) * conf.dw;
 
-            real f = eval_f_lie_EBf<real,order,single_species>(n, x, y, z, u, v, w, coeffs_E, coeffs_B, conf);
+            real f = eval_f_lie_EBf<real,order>(n, x, y, z, u, v, w, coeffs_E, coeffs_B, conf);
 
             sum0 += u * f;
             sum1 += v * f;
             sum2 += w * f;
         }
-        j[l] = sum0 * conf.du * conf.dv * conf.dw;
-        j[l + conf.Nx*conf.Ny*conf.Nz] = sum1 * conf.du * conf.dv * conf.dw;
-        j[l + 2*conf.Nx*conf.Ny*conf.Nz] = sum2 * conf.du * conf.dv * conf.dw;
+        j[l] = conf.q * sum0 * conf.du * conf.dv * conf.dw;
+        j[l + conf.Nx*conf.Ny*conf.Nz] = conf.q * sum1 * conf.du * conf.dv * conf.dw;
+        j[l + 2*conf.Nx*conf.Ny*conf.Nz] = conf.q * sum2 * conf.du * conf.dv * conf.dw;
     }
 }
 

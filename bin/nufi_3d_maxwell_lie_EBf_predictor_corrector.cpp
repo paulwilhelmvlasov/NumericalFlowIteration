@@ -242,7 +242,7 @@ template <typename real>
 arma::Col<real> E0(real x, real y, real z)
 {
     // Electro-Static setup for Weak Landau or TSI:
-    return  arma::Col<real>({0.02 * std::sin(0.5*x), 0, 0});
+    return  arma::Col<real>({- 0.02 * std::sin(0.5*x), 0, 0});
 
     // Kormann Streaming Weibel & magnetic TSI (Filamentation) & 2x3v current filamentation
     //return  arma::Col<real>({0, 0, 0});
@@ -1697,7 +1697,9 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
     conf = config_t<double>(Nx, Ny, Nz, Nu, Nv, Nw, Nt, dt, 
                             0, Lx, 0, Ly, 0, Lz, umin, umax, 
                             vmin, vmax, wmin, wmax,
-                            &f0);
+                            &f0, 1, -1);
+
+    std::cout << conf.q << std::endl;
 
     // Compute E(0) and B(0).
     #pragma omp parallel for
