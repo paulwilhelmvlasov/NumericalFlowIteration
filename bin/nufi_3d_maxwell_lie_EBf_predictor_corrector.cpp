@@ -10,16 +10,11 @@
 #include <nufi/config.hpp>
 #include <nufi/random.hpp>
 #include <nufi/fields.hpp>
+#include <nufi/Maxwell.hpp>
 #include <nufi/poisson.hpp>
 #include <nufi/restart.hpp>
 #include <nufi/rho.hpp>
 #include <nufi/stopwatch.hpp>
-
-// Careful!!!!
-// This still implicitly assumes electrons, which has to be taken into
-// account when simulating!
-// When switching to q, m I have to sign about, where the signs may flip!!!
-
 
 namespace nufi
 {
@@ -279,30 +274,6 @@ arma::Col<real> B0(real x, real y, real z)
     // Magnetic Two Stream Instability by Einkemmer.
     /* constexpr real alpha = 1e-3;
     return arma::Col<real>({0, 0, alpha*std::sin(trigger_k * x)}); */
-}
-
-template<typename real, size_t order>
-void interpolate_fields_aligned(size_t n, std::vector<real>& coeffs, 
-                                std::vector<real>& values, const config_t<real>& conf)
-{
-    // It is assumed that E and B are precomputed correctly already.
-    // Storage of coefficients now via: 
-    // index = nt + Nt * (d + dim * (ix + Nx * (iy + Ny * iz)))
-    const size_t stride_t = (conf.Nx + order - 1) *
-                        (conf.Ny + order - 1) *
-                        (conf.Nz + order - 1);
-
-    const size_t dim = 3;
-    const size_t Nx_ext = conf.Nx + order - 1;
-    const size_t Ny_ext = conf.Ny + order - 1;
-    const size_t Nz_ext = conf.Nz + order - 1;
-    const size_t Nspace = Nx_ext * Ny_ext * Nz_ext;
-
-    #pragma omp parallel for
-    for(size_t d = 0; d < 3; d++){
-        interpolate<real,order>(coeffs.data() + idx_base(n,d,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),
-                                                values.data() + d*conf.Nx*conf.Ny*conf.Nz,conf);
-    }
 }
 
 config_t<double> conf(Nx, Ny, Nz, Nu, Nv, Nw, Nt, dt,
@@ -1482,9 +1453,7 @@ void plot_full_f_3x3v_parallelized(size_t nt, size_t nx_plot, size_t ny_plot, si
     double dv_plot = (vmax_p - vmin_p) / nv_plot;
     double dw_plot = (wmax_p - wmin_p) / nw_plot;
 
-    std::cout << "matrix 1" << std::endl;
     arma::mat matrix(nx_plot*ny_plot*nz_plot,nu_plot*nv_plot*nw_plot);
-    std::cout << "matrix 2" << std::endl;
 
     #pragma omp parallel for collapse(6) 
     for(size_t ix = 0; ix < nx_plot; ix++){

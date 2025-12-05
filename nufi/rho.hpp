@@ -26,6 +26,7 @@
 #include <iostream>
 
 #include <nufi/fields.hpp>
+#include <nufi/misc.hpp>
 #include <nufi/stopwatch.hpp>
 
 namespace nufi
@@ -638,13 +639,6 @@ void exp_J(arma::Mat<real>& J_v, const arma::Col<real>& v, real tol = 1e-16)
     }
 }
 
-inline size_t idx_base(size_t t, size_t d, size_t ix, size_t iy, size_t iz,
-    size_t Nx_ext, size_t Ny_ext, size_t Nz_ext, size_t Nt) {
-    size_t spatial_idx = ix + Nx_ext * (iy + Ny_ext * iz);
-    size_t Nspace = Nx_ext * Ny_ext * Nz_ext;
-    return d * Nspace + spatial_idx + 3 * Nspace * t;
-}
-
 template <typename real,size_t order>
 arma::Col<real> rot(size_t n, real x, real y, real z, 
         const std::vector<std::vector<real>>& coeff, config_t<real> conf)
@@ -859,17 +853,19 @@ real eval_f_lie_fBE(size_t n, real x, real y, real z,
 
         // Apply the correction to E2
         if(single_species){
-            E2 -= conf.dt * conf.q * j_hat;
+            E2 -= conf.dt * conf.q * j_hat; // Check this sign!
         } else {
             E2 -= conf.dt * j_hat;
         }
         // Add the curl(B) term for E2
         E2 += conf.dt * rot<real,order>(n-1,x_vec(0),x_vec(1),x_vec(2),coeffs_B,conf);
 
-        arma::Mat<real> J_B = exp_J<real>(-conf.dt * conf.q / conf.m * B0);
+        // This may be wrong. It probably should be dt * q/m without the (-1).
+        arma::Mat<real> J_B = exp_J<real>(/* - */conf.dt * conf.q / conf.m * B0); 
 
         // Update velocity and position
-        v_vec = J_B * (v_vec - conf.dt * conf.q / conf.m * E2);
+        // Also here this should be (+1) instead of (-1) to not hard-code electrons!
+        v_vec = J_B * (v_vec /* - */ + conf.dt * conf.q / conf.m * E2);
         x_vec -= conf.dt * v_vec;
     }
 

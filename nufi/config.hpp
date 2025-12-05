@@ -186,7 +186,7 @@ struct config_t
 
     real (*f0)( real x, real y, real z, real u, real v, real w );
 
-    void print_config(std::ostream &output);
+    void print_config(std::ostream &output) const;
 };
 
 
@@ -239,7 +239,7 @@ config_t<real>::config_t(size_t nx, size_t ny, size_t nz, size_t nu, size_t nv, 
 }
 
 template <typename real>
-void config_t<real>::print_config(std::ostream &output)
+void config_t<real>::print_config(std::ostream &output) const
 {
     output << "x_min = " << x_min << std::endl;
     output << "x_max = " << x_max << std::endl;

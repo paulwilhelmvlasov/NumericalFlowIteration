@@ -2107,30 +2107,6 @@ void periodically_restarted_nufi_maxwell_lie_fBE()
 }
 
 template<typename real, size_t order>
-void interpolate_fields_aligned(size_t n, std::vector<real>& coeffs, 
-                                std::vector<real>& values, const config_t<real>& conf)
-{
-    // It is assumed that E and B are precomputed correctly already.
-    // Storage of coefficients now via: 
-    // index = nt + Nt * (d + dim * (ix + Nx * (iy + Ny * iz)))
-    const size_t stride_t = (conf.Nx + order - 1) *
-                        (conf.Ny + order - 1) *
-                        (conf.Nz + order - 1);
-
-    const size_t dim = 3;
-    const size_t Nx_ext = conf.Nx + order - 1;
-    const size_t Ny_ext = conf.Ny + order - 1;
-    const size_t Nz_ext = conf.Nz + order - 1;
-    const size_t Nspace = Nx_ext * Ny_ext * Nz_ext;
-
-    #pragma omp parallel for
-    for(size_t d = 0; d < 3; d++){
-        interpolate<real,order>(coeffs.data() + idx_base(n,d,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),
-                                                values.data() + d*conf.Nx*conf.Ny*conf.Nz,conf);
-    }
-}
-
-template<typename real, size_t order>
 void kinetic_energy_and_entropy(size_t nt, size_t nx_plot, std::ofstream& stat_file, 
     const std::vector<real>& coeffs_E, const std::vector<real>& coeffs_B, const std::vector<real>& coeffs_j_hat, 
     const config_t<double>& conf, bool restarted = false, size_t n_full = 0)
