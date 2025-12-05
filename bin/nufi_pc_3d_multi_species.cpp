@@ -17,13 +17,52 @@
 #include <nufi/stopwatch.hpp>
 
 
+namespace pezzini
+{
+// The following sets up the simulation in ion scale units:
+double mass_ratio = 183.6;
+
+double me = 1/mass_ratio;
+double mi = 1;
+
+double uth_elec = 0.02071;
+double vth_elec = 0.02071;
+double wth_elec = 0.02071;
+
+double uth_ion_core = 0.00186;
+double vth_ion_core = 0.00163;
+double wth_ion_core = 0.00163;
+
+double u_drift_ion_core = -0.00053;
+
+double uth_ion_beam = 0.00292;
+double vth_ion_beam = 0.00230;
+double wth_ion_beam = 0.00230;
+
+double u_drift_ion_beam = 0.00339;
+
+double nc = 0.864;
+double nb = 1 - nc;
+
+double B0 = 0.00270;
+
+double xmin = 0;
+double xmax = 64;
+double ymin = 0; 
+double ymax = 256;
+double zmin = 0;
+double zmax = 1;
+}
+
+
 namespace nufi
 {
 
 namespace dim3
 {
 
-double xmin = 0;
+// Electro-static case
+/* double xmin = 0;
 double xmax = 4*M_PI;
 double ymin = 0;
 double ymax = 1;
@@ -55,11 +94,45 @@ size_t Nw_e = 1;
 
 size_t Nu_i = 8;
 size_t Nv_i = 1;
-size_t Nw_i = 1;
+size_t Nw_i = 1; */
 
-size_t steps_per_1 = 10;
+double xmin = pezzini::xmin;
+double xmax = pezzini::xmax;
+double ymin = pezzini::ymin;
+double ymax = pezzini::ymax;
+double zmin = pezzini::zmin;
+double zmax = pezzini::zmax;
+
+double umin_e = -10*pezzini::vth_elec;
+double umax_e = 10*pezzini::vth_elec;
+double vmin_e = -10*pezzini::vth_elec;
+double vmax_e = 10*pezzini::vth_elec;
+double wmin_e = -10*pezzini::vth_elec;
+double wmax_e = 10*pezzini::vth_elec;
+
+double umin_i = -15*pezzini::uth_ion_beam;
+double umax_i = 15*pezzini::uth_ion_beam;
+double vmin_i = -10*pezzini::vth_ion_beam;
+double vmax_i = 10*pezzini::vth_ion_beam;
+double wmin_i = -10*pezzini::wth_ion_beam;
+double wmax_i = 10*pezzini::wth_ion_beam;
+
+// Spatial grid must be the same for both species!!!
+size_t Nx = 16;
+size_t Ny = 16;
+size_t Nz = 1;
+
+size_t Nu_e = 32;
+size_t Nv_e = 32;
+size_t Nw_e = 32;
+
+size_t Nu_i = 48;
+size_t Nv_i = 48;
+size_t Nw_i = 48;
+
+size_t steps_per_1 = 2;
 double   dt = 1.0 / steps_per_1;
-size_t Nt = 30/dt;
+size_t Nt = 10000/dt;
 
 size_t nx_r = Nx;
 size_t ny_r = Ny;
@@ -73,7 +146,7 @@ size_t nu_r_i = Nu_i;
 size_t nv_r_i = Nv_i;
 size_t nw_r_i = Nw_i;
 
-size_t nt_restart = 50;
+size_t nt_restart = 20;
 
 template <typename real>
 real f0_electron(real x, real y, real z, real u, real v, real w) noexcept
@@ -83,7 +156,10 @@ real f0_electron(real x, real y, real z, real u, real v, real w) noexcept
     using std::exp;
 
     // Weak Landau Damping
-    return (1+0.01*cos(0.5*x))*maxwellian_1d<real>(u,1);
+    //return (1+0.01*cos(0.5*x))*maxwellian_1d<real>(u,1);
+
+    // Pezzini
+    return maxwellian<double>(u,v,w,pezzini::uth_elec);
 }
 
 template <typename real>
@@ -94,7 +170,15 @@ real f0_ion(real x, real y, real z, real u, real v, real w) noexcept
     using std::exp;
 
     // Weak Landau Damping
-    return maxwellian_1d<real>(u,1);
+    //return maxwellian_1d<real>(u,1);
+
+    // Pezzini
+    return pezzini::nc * maxwellian_1d<double>(u-pezzini::u_drift_ion_core,pezzini::uth_ion_core)
+                        * maxwellian_1d<double>(v,pezzini::vth_ion_core)
+                        * maxwellian_1d<double>(w,pezzini::wth_ion_core)
+        + pezzini::nb * maxwellian_1d<double>(u-pezzini::u_drift_ion_beam,pezzini::uth_ion_beam)
+                        * maxwellian_1d<double>(v,pezzini::vth_ion_beam)
+                        * maxwellian_1d<double>(w,pezzini::wth_ion_beam);
 }
 
 
@@ -102,14 +186,20 @@ template <typename real>
 arma::Col<real> E0(real x, real y, real z)
 {
     // Electro-Static setup for Weak Landau or TSI:
-    return  arma::Col<real>({-0.02 * std::sin(0.5*x), 0, 0});
+    //return  arma::Col<real>({-0.02 * std::sin(0.5*x), 0, 0});
+
+    // Pezzini
+    return  arma::Col<real>({0, 0, 0});
 }
 
 template <typename real>
 arma::Col<real> B0(real x, real y, real z)
 {
     // Electro-Static
-    return  arma::Col<real>({0, 0, 0});
+    //return  arma::Col<real>({0, 0, 0});
+
+    // Pezzini
+    return  arma::Col<real>({pezzini::B0, 0, 0});
 }
 
 
@@ -293,6 +383,18 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
         timer.reset();
         
         analysis::do_stats<double,order>(nt_r_curr, 64, 1, 1, stat_file, coeffs_E, coeffs_B, conf_electron, false, true, n);
+        if(n % (25*steps_per_1) == 0){
+            auto eval_f_electron = [&](double x, double y, double z, double u, double v, double w) {
+                return eval_f_lie_EBf<double, order>( nt_r_curr, x, y, z, u, v, w, coeffs_E, coeffs_B, conf_electron);
+            };
+            auto eval_f_ion = [&](double x, double y, double z, double u, double v, double w) {
+                return eval_f_lie_EBf<double, order>( nt_r_curr, x, y, z, u, v, w, coeffs_E, coeffs_B, conf_ion);
+            };
+            std::ofstream mat_e_str("f_e_full_" + std::to_string(n*conf_electron.dt) + ".txt" );
+            std::ofstream mat_i_str("f_i_full_" + std::to_string(n*conf_electron.dt) + ".txt" );
+            analysis::plot_full_f_3x3v_parallelized<double,order>(16,16,1,32,32,1,xmin,xmax,ymin,ymax,zmin,zmax,umin_e,umax_e,vmin_e,vmax_e,wmin_e,wmax_e,eval_f_electron,mat_e_str);
+            analysis::plot_full_f_3x3v_parallelized<double,order>(16,16,1,32,32,1,xmin,xmax,ymin,ymax,zmin,zmax,umin_i,umax_i,vmin_i,vmax_i,wmin_e,wmax_i,eval_f_ion,mat_i_str);
+        }
         
         double time_for_plot = timer.elapsed();
         std::cout << "Plotting took " << time_for_plot << " s." << std::endl;
