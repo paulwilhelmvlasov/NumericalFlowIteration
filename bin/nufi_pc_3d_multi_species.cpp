@@ -249,6 +249,8 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
     const size_t Ny_ext = Ny + order - 1;
     const size_t Nz_ext = Nz + order - 1;
     const size_t Nspace = Nx_ext * Ny_ext * Nz_ext;
+
+
     
     std::cout << "Start NuFI Vlasov-Maxwell-Solver with fBE-Lie-Splitting." << std::endl;
     std::cout << "Init helper variables." << std::endl;
@@ -272,6 +274,15 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
     interpolant_ion = nufi::restart::linear_interpolant_6d (xmin, xmax, ymin, ymax, zmin, zmax,
                                         umin_i, umax_i, vmin_i, vmax_i, wmin_i, wmax_i, 
                                         nx_r, ny_r, nz_r, nu_r_i, nv_r_i, nw_r_i);
+
+    size_t nt_r_curr = 1;
+
+    auto eval_f_electron = [&](double x, double y, double z, double u, double v, double w) {
+        return eval_f_lie_EBf<double, order>( nt_r_curr, x, y, z, u, v, w, coeffs_E, coeffs_B, conf_electron);
+    };
+    auto eval_f_ion = [&](double x, double y, double z, double u, double v, double w) {
+        return eval_f_lie_EBf<double, order>( nt_r_curr, x, y, z, u, v, w, coeffs_E, coeffs_B, conf_ion);
+    };
 
     // Compute E(0) and B(0).
     #pragma omp parallel for
@@ -349,11 +360,16 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
     // Do first output.
     std::ofstream stat_file( "stats.txt" );
     analysis::do_stats<double,order>(0, 64, 64, 1, stat_file, coeffs_E, coeffs_B, conf_electron, true, true, 0);
+    {
+        std::ofstream mat_e_str("f_e_full_" + std::to_string(0) + ".txt" );
+        std::ofstream mat_i_str("f_i_full_" + std::to_string(0) + ".txt" );
+        analysis::plot_full_f_3x3v_parallelized<double,order>(16,16,1,32,32,1,xmin,xmax,ymin,ymax,zmin,zmax,umin_e,umax_e,vmin_e,vmax_e,wmin_e,wmax_e,eval_f_electron,mat_e_str);
+        analysis::plot_full_f_3x3v_parallelized<double,order>(16,16,1,32,32,1,xmin,xmax,ymin,ymax,zmin,zmax,umin_i,umax_i,vmin_i,vmax_i,wmin_i,wmax_i,eval_f_ion,mat_i_str);
+    }
 
     std::cout << "Time-loop." << std::endl;    
     std::cout << " ---------------------------------- " << std::endl;
     double total_time, total_time_with_plot = 0;
-    size_t nt_r_curr = 1;
     for(size_t n = 1; n <= Nt; n++)
     {
         nufi::stopwatch<double> timer;
@@ -385,16 +401,10 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
         bool plot_EB = (n % 25*steps_per_1 == 0);
         analysis::do_stats<double,order>(nt_r_curr, 64, 64, 1, stat_file, coeffs_E, coeffs_B, conf_electron, plot_EB, true, n);
         if(n % (25*steps_per_1) == 0){
-            auto eval_f_electron = [&](double x, double y, double z, double u, double v, double w) {
-                return eval_f_lie_EBf<double, order>( nt_r_curr, x, y, z, u, v, w, coeffs_E, coeffs_B, conf_electron);
-            };
-            auto eval_f_ion = [&](double x, double y, double z, double u, double v, double w) {
-                return eval_f_lie_EBf<double, order>( nt_r_curr, x, y, z, u, v, w, coeffs_E, coeffs_B, conf_ion);
-            };
             std::ofstream mat_e_str("f_e_full_" + std::to_string(n*conf_electron.dt) + ".txt" );
             std::ofstream mat_i_str("f_i_full_" + std::to_string(n*conf_electron.dt) + ".txt" );
             analysis::plot_full_f_3x3v_parallelized<double,order>(16,16,1,32,32,1,xmin,xmax,ymin,ymax,zmin,zmax,umin_e,umax_e,vmin_e,vmax_e,wmin_e,wmax_e,eval_f_electron,mat_e_str);
-            analysis::plot_full_f_3x3v_parallelized<double,order>(16,16,1,32,32,1,xmin,xmax,ymin,ymax,zmin,zmax,umin_i,umax_i,vmin_i,vmax_i,wmin_e,wmax_i,eval_f_ion,mat_i_str);
+            analysis::plot_full_f_3x3v_parallelized<double,order>(16,16,1,32,32,1,xmin,xmax,ymin,ymax,zmin,zmax,umin_i,umax_i,vmin_i,vmax_i,wmin_i,wmax_i,eval_f_ion,mat_i_str);
         }
         
         double time_for_plot = timer.elapsed();
@@ -408,12 +418,6 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
         if(nt_r_curr == nt_restart){
             timer.reset();
             std::cout << "Restart simulation. " << std::endl;
-            auto eval_f_electron = [&](double x, double y, double z, double u, double v, double w) {
-                return eval_f_lie_EBf<double, order>( nt_r_curr, x, y, z, u, v, w, coeffs_E, coeffs_B, conf_electron);
-            };
-            auto eval_f_ion = [&](double x, double y, double z, double u, double v, double w) {
-                return eval_f_lie_EBf<double, order>( nt_r_curr, x, y, z, u, v, w, coeffs_E, coeffs_B, conf_ion);
-            };
             interpolant_electron.restart_f(eval_f_electron);
             interpolant_ion.restart_f(eval_f_ion);
             double timer_fill_restart_matrix = timer.elapsed();
