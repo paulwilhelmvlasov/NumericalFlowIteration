@@ -103,19 +103,19 @@ double ymax = pezzini::ymax;
 double zmin = pezzini::zmin;
 double zmax = pezzini::zmax;
 
-double umin_e = -10*pezzini::vth_elec;
-double umax_e = 10*pezzini::vth_elec;
-double vmin_e = -10*pezzini::vth_elec;
-double vmax_e = 10*pezzini::vth_elec;
-double wmin_e = -10*pezzini::vth_elec;
-double wmax_e = 10*pezzini::vth_elec;
+double umin_e = -5*pezzini::vth_elec;
+double umax_e = 5*pezzini::vth_elec;
+double vmin_e = -5*pezzini::vth_elec;
+double vmax_e = 5*pezzini::vth_elec;
+double wmin_e = -5*pezzini::vth_elec;
+double wmax_e = 5*pezzini::vth_elec;
 
-double umin_i = -15*pezzini::uth_ion_beam;
-double umax_i = 15*pezzini::uth_ion_beam;
-double vmin_i = -10*pezzini::vth_ion_beam;
-double vmax_i = 10*pezzini::vth_ion_beam;
-double wmin_i = -10*pezzini::wth_ion_beam;
-double wmax_i = 10*pezzini::wth_ion_beam;
+double umin_i = -5*pezzini::uth_ion_beam;
+double umax_i = 5*pezzini::uth_ion_beam;
+double vmin_i = -5*pezzini::vth_ion_beam;
+double vmax_i = 5*pezzini::vth_ion_beam;
+double wmin_i = -5*pezzini::wth_ion_beam;
+double wmax_i = 5*pezzini::wth_ion_beam;
 
 // Spatial grid must be the same for both species!!!
 size_t Nx = 16;
