@@ -284,6 +284,10 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
         return eval_f_lie_EBf<double, order>( nt_r_curr, x, y, z, u, v, w, coeffs_E, coeffs_B, conf_ion);
     };
 
+    std::random_device dev;
+    std::mt19937 rng(dev());
+    std::uniform_int_distribution<std::mt19937::result_type> dist(1e-8,1e-6);    
+
     // Compute E(0) and B(0).
     #pragma omp parallel for
     for(size_t l = 0; l < Nx*Ny*Nz; l++){
@@ -304,6 +308,11 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
             size_t index = d*Nx*Ny*Nz + l;
             E[index] = E0_vec(d);
             B[index] = B0_vec(d);
+
+            // Small random perturbation.
+            if(d == 0){
+                B[index] *= (1 + dist(rng)); 
+            } 
         }
     }
 

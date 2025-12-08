@@ -291,7 +291,7 @@ arma::Col<real> E0(real x, real y, real z)
 }
 
 // Function to generate random smooth periodic function using Fourier series
-std::vector<double> generateRandomSmoothFunction(double L, int N, int num_points) {
+/* std::vector<double> generateRandomSmoothFunction(double L, int N, int num_points) {
     std::vector<double> x(num_points);
     std::vector<double> f_x(num_points, 0.0);
     
@@ -330,7 +330,7 @@ std::vector<double> generateRandomSmoothFunction(double L, int N, int num_points
     }
 
     return f_x;
-}
+} */
 
 template <typename real>
 arma::Col<real> B0(real x, real y, real z)
