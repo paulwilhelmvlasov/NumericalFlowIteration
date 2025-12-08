@@ -206,6 +206,145 @@ class linear_interpolant_6d
             restart_matrix = copy_mat;
         }
 
+        void restart_f_checking_boundaries(const std::function<double(double,double,double,double,double,double)>& eval_f, 
+                        double& umin_new, double& umax_new, double& vmin_new, 
+                        double& vmax_new, double& wmin_new, double& wmax_new, 
+                        double tol, double expand = 1.5)
+        {
+            // This assumes that the velocity support is of the form v_{i,min} < 0
+            // and v_{i,max} > 0.
+            bool umin_expand = false;
+            bool umax_expand = false;
+            bool vmin_expand = false;
+            bool vmax_expand = false;
+            bool wmin_expand = false;
+            bool wmax_expand = false;
+
+            #pragma omp parallel for collapse(3)
+            for(size_t ix = 0; ix <= nx_r; ix++)
+            for(size_t iy = 0; iy <= ny_r; iy++)
+            for(size_t iz = 0; iz <= nz_r; iz++)
+            for(size_t iu = 0; iu <= nu_r; iu++)
+            for(size_t iv = 0; iv <= nv_r; iv++)
+            for(size_t iw = 0; iw <= nw_r; iw++){
+                double x = xmin + ix*dx_r;
+                double y = ymin + iy*dy_r;
+                double z = zmin + iz*dz_r;
+
+                double u = umin + iu*du_r;
+                double v = vmin + iv*dv_r;
+                double w = wmin + iw*dw_r;
+
+                double f = 0;
+
+                if(iu == 0 || iu == nu_r || iv == 0 
+                    || iv == nv_r || iw == 0 || iw == nw_r){
+                    f = eval_f(x,y,z,u,v,w);
+                }
+
+                // Check u_min boundary.
+                if(iu == 0){
+                    if(f > tol){
+                        umin_expand = true;
+                    }
+                } 
+                // Check u_max boundary.
+                if(iu == nu_r){
+                    if(f > tol){
+                        umax_expand = true;
+                    }
+                }
+                
+                // Check v_min boundary.
+                if(iv == 0){
+                    if(f > tol){
+                        vmin_expand = true;
+                    }
+                } 
+                // Check v_max boundary.
+                if(iv == nv_r){
+                    if(f > tol){
+                        vmax_expand = true;
+                    }
+                }
+
+                // Check w_min boundary.
+                if(iw == 0){
+                    if(f > tol){
+                        wmin_expand = true;
+                    }
+                } 
+                // Check w_max boundary.
+                if(iw == nu_r){
+                    if(f > tol){
+                        wmax_expand = true;
+                    }
+                }
+            }
+
+            if(umin_expand){
+                umin_new = umin*expand;
+            } 
+            if(umax_expand){
+                umax_new = umax*expand;
+            } 
+
+            if(vmin_expand){
+                vmin_new = vmin*expand;
+            } 
+            if(vmax_expand){
+                vmax_new = vmax*expand;
+            } 
+
+            if(wmin_expand){
+                wmin_new = wmin*expand;
+            } 
+            if(wmax_expand){
+                wmax_new = wmax*expand;
+            } 
+
+            // Restart with new velocity boundaries.
+            double du_new = (umax_new - umin_new) / nu_r;
+            double dv_new = (vmax_new - vmin_new) / nv_r;
+            double dw_new = (wmax_new - wmin_new) / nw_r;
+
+            #pragma omp parallel for collapse(6)
+            for(size_t ix = 0; ix <= nx_r; ix++)
+            for(size_t iy = 0; iy <= ny_r; iy++)
+            for(size_t iz = 0; iz <= nz_r; iz++)
+            for(size_t iu = 0; iu <= nu_r; iu++)
+            for(size_t iv = 0; iv <= nv_r; iv++)
+            for(size_t iw = 0; iw <= nw_r; iw++){
+                double x = xmin + ix*dx_r;
+                double y = ymin + iy*dy_r;
+                double z = zmin + iz*dz_r;
+
+                double u = umin_new + iu*du_new;
+                double v = vmin_new + iv*dv_new;
+                double w = wmin_new + iw*dw_new;
+
+                size_t index_0 = ix + (nx_r+1)*(iy + (ny_r+1)*iz);
+                size_t index_1 = iu + (nu_r+1)*(iv + (nv_r+1)*iw);
+
+                copy_mat(index_0,index_1) = eval_f(x, y, z, u, v, w);
+            }
+
+            restart_matrix = copy_mat;
+
+            umin = umin_new;
+            umax = umax_new;
+
+            vmin = vmin_new;
+            vmax = vmax_new;
+
+            wmin = wmin_new;
+            wmax = wmax_new;
+
+            du_r = du_new;
+            dv_r = dv_new;
+            dw_r = dw_new;
+        }
+
         double eval_linear_interpolant(double x, double y, double z, 
                                     double u, double v, double w)
         {

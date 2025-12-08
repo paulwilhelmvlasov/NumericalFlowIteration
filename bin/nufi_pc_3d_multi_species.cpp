@@ -405,6 +405,15 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
             std::ofstream mat_i_str("f_i_full_" + std::to_string(n*conf_electron.dt) + ".txt" );
             analysis::plot_full_f_3x3v_parallelized<double,order>(16,16,1,32,32,1,xmin,xmax,ymin,ymax,zmin,zmax,umin_e,umax_e,vmin_e,vmax_e,wmin_e,wmax_e,eval_f_electron,mat_e_str);
             analysis::plot_full_f_3x3v_parallelized<double,order>(16,16,1,32,32,1,xmin,xmax,ymin,ymax,zmin,zmax,umin_i,umax_i,vmin_i,vmax_i,wmin_i,wmax_i,eval_f_ion,mat_i_str);
+
+            std::ofstream j_e_str("j_e_" + std::to_string(n*conf_electron.dt) + ".txt" );
+            for(size_t i = 0; i < j_electron.size(); i++){
+                j_e_str << j_electron[i] << std::endl;
+            }
+            std::ofstream j_i_str("j_i_" + std::to_string(n*conf_electron.dt) + ".txt" );
+            for(size_t i = 0; i < j_ion.size(); i++){
+                j_i_str << j_ion[i] << std::endl;
+            }
         }
         
         double time_for_plot = timer.elapsed();
@@ -418,8 +427,25 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
         if(nt_r_curr == nt_restart){
             timer.reset();
             std::cout << "Restart simulation. " << std::endl;
-            interpolant_electron.restart_f(eval_f_electron);
-            interpolant_ion.restart_f(eval_f_ion);
+            /* interpolant_electron.restart_f(eval_f_electron);
+            interpolant_ion.restart_f(eval_f_ion); */
+            
+            interpolant_electron.restart_f_checking_boundaries(eval_f_electron, umin_e, umax_e, vmin_e, vmax_e, wmin_e, wmax_e, 1e-9);
+            conf_electron.u_min = umin_e;
+            conf_electron.u_max = umax_e;
+            conf_electron.v_min = vmin_e;
+            conf_electron.v_max = vmax_e;
+            conf_electron.w_min = wmin_e;
+            conf_electron.w_max = wmax_e;
+
+            interpolant_ion.restart_f_checking_boundaries(eval_f_ion, umin_i, umax_i, vmin_i, vmax_i, wmin_i, wmax_i, 1e-6);
+            conf_ion.u_min = umin_i;
+            conf_ion.u_max = umax_i;
+            conf_ion.v_min = vmin_i;
+            conf_ion.v_max = vmax_i;
+            conf_ion.w_min = wmin_i;
+            conf_ion.w_max = wmax_i;
+
             double timer_fill_restart_matrix = timer.elapsed();
             timer.reset();
             std::cout << "Filling restart matrix took " << timer_fill_restart_matrix << " s." << std::endl;
