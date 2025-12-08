@@ -250,8 +250,6 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
     const size_t Nz_ext = Nz + order - 1;
     const size_t Nspace = Nx_ext * Ny_ext * Nz_ext;
 
-
-    
     std::cout << "Start NuFI Vlasov-Maxwell-Solver with fBE-Lie-Splitting." << std::endl;
     std::cout << "Init helper variables." << std::endl;
 
@@ -274,6 +272,11 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
     interpolant_ion = nufi::restart::linear_interpolant_6d (xmin, xmax, ymin, ymax, zmin, zmax,
                                         umin_i, umax_i, vmin_i, vmax_i, wmin_i, wmax_i, 
                                         nx_r, ny_r, nz_r, nu_r_i, nv_r_i, nw_r_i);
+
+    // This assumes that spatial directions are uniform and the maximum is at velocity 0.
+    double tolerance = 1e-6;
+    double tolerance_velocity_electron = tolerance * f0_electron(1, 1, 1, 0, 0, 0);
+    double tolerance_velocity_ion = tolerance * f0_ion(1, 1, 1, 0, 0, 0);
 
     size_t nt_r_curr = 1;
 
@@ -411,9 +414,14 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
         analysis::do_stats<double,order>(nt_r_curr, 64, 64, 1, stat_file, coeffs_E, coeffs_B, conf_electron, plot_EB, true, n);
         if(n % (25*steps_per_1) == 0){
             std::ofstream mat_e_str("f_e_full_" + std::to_string(n*conf_electron.dt) + ".txt" );
-            std::ofstream mat_i_str("f_i_full_" + std::to_string(n*conf_electron.dt) + ".txt" );
             analysis::plot_full_f_3x3v_parallelized<double,order>(16,16,1,32,32,1,xmin,xmax,ymin,ymax,zmin,zmax,umin_e,umax_e,vmin_e,vmax_e,wmin_e,wmax_e,eval_f_electron,mat_e_str);
+            std::ofstream velo_supp_e_str("v_supp_e_" + std::to_string(n*conf_electron.dt) + ".txt" );
+            velo_supp_e_str << umin_e << " " << umax_e << " " << vmin_e << " " << vmax_e << " " << wmin_e << " " << wmax_e;
+            
+            std::ofstream mat_i_str("f_i_full_" + std::to_string(n*conf_electron.dt) + ".txt" );
             analysis::plot_full_f_3x3v_parallelized<double,order>(16,16,1,32,32,1,xmin,xmax,ymin,ymax,zmin,zmax,umin_i,umax_i,vmin_i,vmax_i,wmin_i,wmax_i,eval_f_ion,mat_i_str);
+            std::ofstream velo_supp_i_str("v_supp_i_" + std::to_string(n*conf_electron.dt) + ".txt" );
+            velo_supp_i_str << umin_i << " " << umax_i << " " << vmin_i << " " << vmax_i << " " << wmin_i << " " << wmax_i;
 
             std::ofstream j_e_str("j_e_" + std::to_string(n*conf_electron.dt) + ".txt" );
             for(size_t i = 0; i < j_electron.size(); i++){
@@ -439,7 +447,7 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
             /* interpolant_electron.restart_f(eval_f_electron);
             interpolant_ion.restart_f(eval_f_ion); */
             
-            interpolant_electron.restart_f_checking_boundaries(eval_f_electron, umin_e, umax_e, vmin_e, vmax_e, wmin_e, wmax_e, 1e-9);
+            interpolant_electron.restart_f_checking_boundaries(eval_f_electron, umin_e, umax_e, vmin_e, vmax_e, wmin_e, wmax_e, tolerance_velocity_electron);
             conf_electron.u_min = umin_e;
             conf_electron.u_max = umax_e;
             conf_electron.v_min = vmin_e;
@@ -447,7 +455,7 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
             conf_electron.w_min = wmin_e;
             conf_electron.w_max = wmax_e;
 
-            interpolant_ion.restart_f_checking_boundaries(eval_f_ion, umin_i, umax_i, vmin_i, vmax_i, wmin_i, wmax_i, 1e-6);
+            interpolant_ion.restart_f_checking_boundaries(eval_f_ion, umin_i, umax_i, vmin_i, vmax_i, wmin_i, wmax_i, tolerance_velocity_ion);
             conf_ion.u_min = umin_i;
             conf_ion.u_max = umax_i;
             conf_ion.v_min = vmin_i;
