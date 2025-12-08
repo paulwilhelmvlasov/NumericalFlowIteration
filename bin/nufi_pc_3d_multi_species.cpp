@@ -110,8 +110,8 @@ double vmax_e = 5*pezzini::vth_elec;
 double wmin_e = -5*pezzini::vth_elec;
 double wmax_e = 5*pezzini::vth_elec;
 
-double umin_i = -5*pezzini::uth_ion_beam;
-double umax_i = 5*pezzini::uth_ion_beam;
+double umin_i = -6*pezzini::uth_ion_beam;
+double umax_i = 6*pezzini::uth_ion_beam;
 double vmin_i = -5*pezzini::vth_ion_beam;
 double vmax_i = 5*pezzini::vth_ion_beam;
 double wmin_i = -5*pezzini::wth_ion_beam;
@@ -124,15 +124,15 @@ size_t Nz = 1;
 
 size_t Nu_e = 32;
 size_t Nv_e = 32;
-size_t Nw_e = 32;
+size_t Nw_e = 16;
 
-size_t Nu_i = 48;
-size_t Nv_i = 48;
-size_t Nw_i = 48;
+size_t Nu_i = 64;
+size_t Nv_i = 64;
+size_t Nw_i = 32;
 
 size_t steps_per_1 = 2;
 double   dt = 1.0 / steps_per_1;
-size_t Nt = 10000/dt;
+size_t Nt = 1;//10000/dt;
 
 size_t nx_r = Nx;
 size_t ny_r = Ny;
@@ -146,7 +146,7 @@ size_t nu_r_i = Nu_i;
 size_t nv_r_i = Nv_i;
 size_t nw_r_i = Nw_i;
 
-size_t nt_restart = 20;
+size_t nt_restart = 10;
 
 template <typename real>
 real f0_electron(real x, real y, real z, real u, real v, real w) noexcept
@@ -199,7 +199,12 @@ arma::Col<real> B0(real x, real y, real z)
     //return  arma::Col<real>({0, 0, 0});
 
     // Pezzini
-    return  arma::Col<real>({pezzini::B0, 0, 0});
+    double Lx = xmax - xmin;
+    double Ly = ymax - ymin;
+    double kx = 2*M_PI / Lx;
+    double ky = 2*M_PI / Ly;
+    double perturb = (1 + 0.1* std::cos(kx*x)*std::sin(ky*y));
+    return  arma::Col<real>({pezzini::B0*perturb, 0, 0});
 }
 
 
@@ -223,10 +228,10 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
     // Set up config.
     config_t<double> conf_electron (Nx, Ny, Nz, Nu_e, Nv_e, Nw_e, Nt, dt, 
                             xmin, xmax, ymin, ymax, zmin, zmax, umin_e, umax_e, 
-                            vmin_e, vmax_e, wmin_e, wmax_e, &f0_electron, 1, -1);
+                            vmin_e, vmax_e, wmin_e, wmax_e, &f0_electron, pezzini::me, -1);
     config_t<double> conf_ion (Nx, Ny, Nz, Nu_i, Nv_i, Nw_i, Nt, dt, 
                             xmin, xmax, ymin, ymax, zmin, zmax, umin_i, umax_i, 
-                            vmin_i, vmax_i, wmin_i, wmax_i, &f0_ion, 1836, 1);
+                            vmin_i, vmax_i, wmin_i, wmax_i, &f0_ion, pezzini::mi, 1);
 
     if(conf_electron.Nx != conf_ion.Nx){
         throw std::runtime_error("Nx must be equal for all species!");
@@ -287,9 +292,9 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
         return eval_f_lie_EBf<double, order>( nt_r_curr, x, y, z, u, v, w, coeffs_E, coeffs_B, conf_ion);
     };
 
-    std::random_device dev;
-    std::mt19937 rng(dev());
-    std::uniform_int_distribution<std::mt19937::result_type> dist(1e-8,1e-6);    
+    //std::random_device dev;
+    //std::mt19937 rng(dev());
+    //std::uniform_int_distribution<std::mt19937::result_type> dist(1e-8,1e-6);    
 
     // Compute E(0) and B(0).
     #pragma omp parallel for
@@ -313,9 +318,9 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
             B[index] = B0_vec(d);
 
             // Small random perturbation.
-            if(d == 0){
+            /* if(d == 0){
                 B[index] *= (1 + dist(rng)); 
-            } 
+            }  */
         }
     }
 
@@ -377,6 +382,15 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
         std::ofstream mat_i_str("f_i_full_" + std::to_string(0) + ".txt" );
         analysis::plot_full_f_3x3v_parallelized<double,order>(16,16,1,32,32,1,xmin,xmax,ymin,ymax,zmin,zmax,umin_e,umax_e,vmin_e,vmax_e,wmin_e,wmax_e,eval_f_electron,mat_e_str);
         analysis::plot_full_f_3x3v_parallelized<double,order>(16,16,1,32,32,1,xmin,xmax,ymin,ymax,zmin,zmax,umin_i,umax_i,vmin_i,vmax_i,wmin_i,wmax_i,eval_f_ion,mat_i_str);
+
+        std::ofstream j_e_str("j_e_" + std::to_string(0*conf_electron.dt) + ".txt" );
+        for(size_t i = 0; i < j_electron.size(); i++){
+            j_e_str << j_electron[i] << std::endl;
+        }
+        std::ofstream j_i_str("j_i_" + std::to_string(0*conf_electron.dt) + ".txt" );
+        for(size_t i = 0; i < j_ion.size(); i++){
+            j_i_str << j_ion[i] << std::endl;
+        }
     }
 
     std::cout << "Time-loop." << std::endl;    
