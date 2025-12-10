@@ -953,6 +953,40 @@ void eval_j_full_EBf(size_t n, std::vector<real>& j, const std::vector<real>& co
     }
 }
 
+template <typename real, size_t order>
+void eval_rho_full_EBf(size_t n, std::vector<real>& rho, const std::vector<real>& coeffs_E, 
+    const std::vector<real>& coeffs_B, const config_t<real> &conf )
+{
+    #pragma omp parallel for
+    for(size_t l = 0; l < conf.Nx*conf.Ny*conf.Nz; l++){
+        
+        size_t iz   = l   / (conf.Nx * conf.Ny);
+        size_t tmp  = l   % (conf.Nx * conf.Ny);
+        size_t iy   = tmp / conf.Nx;
+        size_t ix   = tmp % conf.Nx;
+    
+        real x = conf.x_min + ix*conf.dx; 
+        real y = conf.y_min + iy*conf.dy; 
+        real z = conf.z_min + iz*conf.dz; 
+
+        real sum = 0;
+        #pragma omp parallel for collapse(3) reduction(+:sum)
+        for(size_t iu = 0; iu < conf.Nu; iu++)
+        for(size_t iv = 0; iv < conf.Nv; iv++)
+        for(size_t iw = 0; iw < conf.Nw; iw++){
+            real u = conf.u_min + (iu + 0.5) * conf.du;
+            real v = conf.v_min + (iv + 0.5) * conf.dv;
+            real w = conf.w_min + (iw + 0.5) * conf.dw;
+
+            real f = eval_f_lie_EBf<real,order>(n, x, y, z, u, v, w, coeffs_E, coeffs_B, conf);
+
+            sum += f;
+        }
+        rho[l] = conf.q * sum * conf.du * conf.dv * conf.dw;
+    }
+}
+
+
 
 template <typename real, size_t order, bool single_species = true>
 void eval_j_hat(size_t n, std::vector<real>& j_hat, const std::vector<real>& coeffs_E, 

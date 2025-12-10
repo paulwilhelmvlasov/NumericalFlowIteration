@@ -355,6 +355,10 @@ class linear_interpolant_6d
             if( u > umax || u < umin 
                 || v > vmax || v < vmin 
                 || w > wmax || w < wmin){
+                /* std::cout << "Return u " << u << " " << umin << " " << umax << std::endl;
+                std::cout << "Return v " << v << " " << vmin << " " << vmax << std::endl;
+                std::cout << "Return w " << w << " " << wmin << " " << wmax << std::endl;
+                std::cout << "====================================================" << std::endl; */
                 return 0;
             } 
 

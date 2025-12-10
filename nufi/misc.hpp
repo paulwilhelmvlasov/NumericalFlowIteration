@@ -174,7 +174,64 @@ void do_stats(size_t nt, size_t nx_plot, size_t ny_plot, size_t nz_plot, std::of
     }
 }
 
+void compute_j_l2(size_t nt_full, std::ofstream& stat_file, const config_t<double>& conf, 
+        const std::vector<double>& j, const std::vector<double>& j_e, 
+        const std::vector<double> j_i)
+{
+    double jx_l2 = 0;
+    double jy_l2 = 0;
+    double jz_l2 = 0;
 
+    double jx_e_l2 = 0;
+    double jy_e_l2 = 0;
+    double jz_e_l2 = 0;
+
+    double jx_i_l2 = 0;
+    double jy_i_l2 = 0;
+    double jz_i_l2 = 0;
+
+    #pragma omp parallel for reduction(+:jx_l2,jy_l2,jz_l2)
+    for(size_t l = 0; l < conf.Nx*conf.Ny*conf.Nz; l++){
+        jx_l2 += j[l]*j[l];
+        jy_l2 += j[l + conf.Nx*conf.Ny*conf.Nz]*j[l + conf.Nx*conf.Ny*conf.Nz];
+        jz_l2 += j[l + 2*conf.Nx*conf.Ny*conf.Nz]*j[l + 2*conf.Nx*conf.Ny*conf.Nz];
+    }
+
+    #pragma omp parallel for reduction(+:jx_e_l2,jy_e_l2,jz_e_l2)
+    for(size_t l = 0; l < conf.Nx*conf.Ny*conf.Nz; l++){
+        jx_e_l2 += j_e[l]*j_e[l];
+        jy_e_l2 += j_e[l + conf.Nx*conf.Ny*conf.Nz]*j_e[l + conf.Nx*conf.Ny*conf.Nz];
+        jz_e_l2 += j_e[l + 2*conf.Nx*conf.Ny*conf.Nz]*j_e[l + 2*conf.Nx*conf.Ny*conf.Nz];
+    }
+
+    #pragma omp parallel for reduction(+:jx_i_l2,jy_i_l2,jz_i_l2)
+    for(size_t l = 0; l < conf.Nx*conf.Ny*conf.Nz; l++){
+        jx_i_l2 += j_i[l]*j_i[l];
+        jy_i_l2 += j_i[l + conf.Nx*conf.Ny*conf.Nz]*j_i[l + conf.Nx*conf.Ny*conf.Nz];
+        jz_i_l2 += j_i[l + 2*conf.Nx*conf.Ny*conf.Nz]*j_i[l + 2*conf.Nx*conf.Ny*conf.Nz];
+    }
+
+    jx_l2 = conf.dx*conf.dy*conf.dz * std::sqrt(jx_l2);
+    jy_l2 = conf.dx*conf.dy*conf.dz * std::sqrt(jy_l2);
+    jz_l2 = conf.dx*conf.dy*conf.dz * std::sqrt(jz_l2);
+
+    jx_e_l2 = conf.dx*conf.dy*conf.dz * std::sqrt(jx_e_l2);
+    jy_e_l2 = conf.dx*conf.dy*conf.dz * std::sqrt(jy_e_l2);
+    jz_e_l2 = conf.dx*conf.dy*conf.dz * std::sqrt(jz_e_l2);
+
+    jx_i_l2 = conf.dx*conf.dy*conf.dz * std::sqrt(jx_i_l2);
+    jy_i_l2 = conf.dx*conf.dy*conf.dz * std::sqrt(jy_i_l2);
+    jz_i_l2 = conf.dx*conf.dy*conf.dz * std::sqrt(jz_i_l2);
+
+    double j_tot_l2 = std::sqrt(jx_l2*jx_l2 + jy_l2*jy_l2 + jz_l2*jz_l2);
+    double j_e_tot_l2 = std::sqrt(jx_e_l2*jx_e_l2 + jy_e_l2*jy_e_l2 + jz_e_l2*jz_e_l2);
+    double j_i_tot_l2 = std::sqrt(jx_i_l2*jx_i_l2 + jy_i_l2*jy_i_l2 + jz_i_l2*jz_i_l2);
+
+    stat_file << nt_full*conf.dt << " " << j_tot_l2 << " " << j_e_tot_l2 << " " << j_i_tot_l2 
+                << " " << jx_l2 << " " << jy_l2 << " " << jz_l2 
+                << jx_e_l2 << " " << jy_e_l2 << " " << jz_e_l2 
+                << jx_e_l2 << " " << jy_e_l2 << " " << jz_e_l2 << std::endl;
+}
 
 template<typename real, size_t order>
 void plot_full_f_3x3v_parallelized(size_t nx_plot, size_t ny_plot, size_t nz_plot, 

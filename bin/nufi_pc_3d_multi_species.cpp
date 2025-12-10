@@ -22,7 +22,7 @@ namespace pezzini
 // The following sets up the simulation in ion scale units:
 double mass_ratio = 183.6;
 
-double me = 1/mass_ratio;
+double me = 1.0/mass_ratio;
 double mi = 1;
 
 double uth_elec = 0.02071;
@@ -44,7 +44,9 @@ double u_drift_ion_beam = 0.00339;
 double nc = 0.864;
 double nb = 1 - nc;
 
-double B0 = 0.00270;
+// Because I use rationalized CGS instead of plain CGS the initial B0 has to be 
+// divived by 4*pi.
+double B0 = 0.00270 / (4 * M_PI); 
 
 double xmin = 0;
 double xmax = 64;
@@ -122,17 +124,17 @@ size_t Nx = 16;
 size_t Ny = 16;
 size_t Nz = 1;
 
-size_t Nu_e = 32;
-size_t Nv_e = 32;
-size_t Nw_e = 16;
+size_t Nu_e = 64;
+size_t Nv_e = 64;
+size_t Nw_e = 32;
 
 size_t Nu_i = 64;
 size_t Nv_i = 64;
-size_t Nw_i = 32;
+size_t Nw_i = 64;
 
-size_t steps_per_1 = 2;
+size_t steps_per_1 = 100;
 double   dt = 1.0 / steps_per_1;
-size_t Nt = 1;//10000/dt;
+size_t Nt = 500*steps_per_1;
 
 size_t nx_r = Nx;
 size_t ny_r = Ny;
@@ -146,7 +148,7 @@ size_t nu_r_i = Nu_i;
 size_t nv_r_i = Nv_i;
 size_t nw_r_i = Nw_i;
 
-size_t nt_restart = 10;
+size_t nt_restart = 25;
 
 template <typename real>
 real f0_electron(real x, real y, real z, real u, real v, real w) noexcept
@@ -199,14 +201,110 @@ arma::Col<real> B0(real x, real y, real z)
     //return  arma::Col<real>({0, 0, 0});
 
     // Pezzini
-    double Lx = xmax - xmin;
+    /* double Lx = xmax - xmin;
     double Ly = ymax - ymin;
     double kx = 2*M_PI / Lx;
     double ky = 2*M_PI / Ly;
     double perturb = (1 + 0.1* std::cos(kx*x)*std::sin(ky*y));
-    return  arma::Col<real>({pezzini::B0*perturb, 0, 0});
+    return  arma::Col<real>({pezzini::B0*perturb, 0, 0}); */
+    return  arma::Col<real>({pezzini::B0, 0, 0});
 }
 
+void random_perturbation_2d_f0_electron(arma::mat& restart_mat, double eps = 1e-3)
+{
+    double Lx = xmax - xmin;
+    double Ly = ymax - ymin;
+    std::vector<double> x_pertb = generateRandomSmoothFunction(Lx, 100, nx_r);
+    std::vector<double> y_pertb = generateRandomSmoothFunction(Ly, 100, ny_r);
+
+    size_t size_x_r = (nx_r+1)*(ny_r+1)*(nz_r+1);
+    size_t size_v_r = (nu_r_e+1)*(nv_r_e+1)*(nw_r_e+1);
+
+    double dx_r = (xmax - xmin) / nx_r;
+    double dy_r = (ymax - ymin) / ny_r;
+    double dz_r = (zmax - zmin) / nz_r;
+
+    double du_r = (umax_e - umin_e) / nu_r_e;
+    double dv_r = (vmax_e - vmin_e) / nv_r_e;
+    double dw_r = (wmax_e - wmin_e) / nw_r_e;
+
+    std::cout << "Electron restart matrix " << restart_mat.n_rows << " " << restart_mat.n_cols << std::endl;
+
+    #pragma omp parallel for collapse(3)
+    for(size_t iu = 0; iu <= nu_r_e; iu++)
+    for(size_t iv = 0; iv <= nv_r_e; iv++)
+    for(size_t iw = 0; iw <= nw_r_e; iw++)
+    for(size_t ix = 0; ix <= nx_r; ix++)
+    for(size_t iy = 0; iy <= ny_r; iy++)
+    for(size_t iz = 0; iz <= nz_r; iz++){
+        double x = xmin + ix*dx_r;
+        double y = ymin + iy*dy_r;
+        double z = zmin + iz*dz_r;
+
+        double u = umin_e + iu*du_r;
+        double v = vmin_e + iv*dv_r;
+        double w = wmin_e + iw*dw_r;
+
+        size_t index_0 = ix + (nx_r+1)*(iy + (ny_r+1)*iz);
+        size_t index_1 = iu + (nu_r_e+1)*(iv + (nv_r_e+1)*iw);
+
+        if(ix == 0 || ix == nx_r || iy == 0 || iy == ny_r
+                    || iz == 0 || iz == nz_r){
+            restart_mat(index_0, index_1) = f0_electron<double>(x,y,z,u,v,w);
+        } else {
+            restart_mat(index_0, index_1) = (1 + eps * x_pertb[ix]) 
+                                        * (1 + eps * y_pertb[iy]) 
+                                        * f0_electron<double>(x,y,z,u,v,w);
+        }
+    }
+}
+
+void random_perturbation_2d_f0_ion(arma::mat& restart_mat, double eps = 1e-3)
+{
+    double Lx = xmax - xmin;
+    double Ly = ymax - ymin;
+    std::vector<double> x_pertb = generateRandomSmoothFunction(Lx, 100, nx_r);
+    std::vector<double> y_pertb = generateRandomSmoothFunction(Ly, 100, ny_r);
+
+    size_t size_x_r = (nx_r+1)*(ny_r+1)*(nz_r+1);
+    size_t size_v_r = (nu_r_i+1)*(nv_r_i+1)*(nw_r_i+1);
+
+    double dx_r = (xmax - xmin) / nx_r;
+    double dy_r = (ymax - ymin) / ny_r;
+    double dz_r = (zmax - zmin) / nz_r;
+
+    double du_r = (umax_i - umin_i) / nu_r_i;
+    double dv_r = (vmax_i - vmin_i) / nv_r_i;
+    double dw_r = (wmax_i - wmin_i) / nw_r_i;
+
+    #pragma omp parallel for collapse(3)
+    for(size_t iu = 0; iu <= nu_r_i; iu++)
+    for(size_t iv = 0; iv <= nv_r_i; iv++)
+    for(size_t iw = 0; iw <= nw_r_i; iw++)
+    for(size_t ix = 0; ix <= nx_r; ix++)
+    for(size_t iy = 0; iy <= ny_r; iy++)
+    for(size_t iz = 0; iz <= nz_r; iz++){
+        double x = xmin + ix*dx_r;
+        double y = ymin + iy*dy_r;
+        double z = zmin + iz*dz_r;
+
+        double u = umin_i + iu*du_r;
+        double v = vmin_i + iv*dv_r;
+        double w = wmin_i + iw*dw_r;
+
+        size_t index_0 = ix + (nx_r+1)*(iy + (ny_r+1)*iz);
+        size_t index_1 = iu + (nu_r_i+1)*(iv + (nv_r_i+1)*iw);
+
+        if(ix == 0 || ix == nx_r || iy == 0 || iy == ny_r
+                    || iz == 0 || iz == nz_r){
+            restart_mat(index_0, index_1) = f0_ion<double>(x,y,z,u,v,w);
+        } else {
+            restart_mat(index_0, index_1) = (1 + eps * x_pertb[ix]) 
+                                            * (1 + eps * y_pertb[iy]) 
+                                            * f0_ion<double>(x,y,z,u,v,w);
+        }
+    }
+}
 
 
 nufi::restart::linear_interpolant_6d interpolant_electron;
@@ -229,9 +327,11 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
     config_t<double> conf_electron (Nx, Ny, Nz, Nu_e, Nv_e, Nw_e, Nt, dt, 
                             xmin, xmax, ymin, ymax, zmin, zmax, umin_e, umax_e, 
                             vmin_e, vmax_e, wmin_e, wmax_e, &f0_electron, pezzini::me, -1);
+    conf_electron.print_config(std::cout);
     config_t<double> conf_ion (Nx, Ny, Nz, Nu_i, Nv_i, Nw_i, Nt, dt, 
                             xmin, xmax, ymin, ymax, zmin, zmax, umin_i, umax_i, 
                             vmin_i, vmax_i, wmin_i, wmax_i, &f0_ion, pezzini::mi, 1);
+    conf_ion.print_config(std::cout);
 
     if(conf_electron.Nx != conf_ion.Nx){
         throw std::runtime_error("Nx must be equal for all species!");
@@ -278,6 +378,49 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
                                         umin_i, umax_i, vmin_i, vmax_i, wmin_i, wmax_i, 
                                         nx_r, ny_r, nz_r, nu_r_i, nv_r_i, nw_r_i);
 
+    // Init f0 with random perturbation.
+    std::cout << "Random f0_electron perturbation. " << std::endl;
+    random_perturbation_2d_f0_electron(interpolant_electron.restart_matrix, 1e-1);
+    std::cout << "Random f0_ion perturbation. " << std::endl;
+    random_perturbation_2d_f0_ion(interpolant_ion.restart_matrix, 1e-1);
+    /* {
+        std::ofstream restart_mat_electron_str("restart_mat_electron_" + std::to_string(0*conf_electron.dt) + ".txt");
+        restart_mat_electron_str << interpolant_electron.restart_matrix;
+
+        std::ofstream restart_mat_ion_str("restart_mat_ion_" + std::to_string(0*conf_electron.dt) + ".txt");
+        restart_mat_ion_str << interpolant_ion.restart_matrix;
+    } */
+
+    conf_electron.f0 = &eval_f_electron_with_linear_interpolant;
+    conf_ion.f0 = &eval_f_ion_with_linear_interpolant;
+
+    std::vector<double> coeffs_phi(stride_t, 0);
+    std::vector<double> rho_e(Nx*Ny*Nz, 0);
+    std::vector<double> rho_i(Nx*Ny*Nz, 0);
+    std::vector<double> rho(Nx*Ny*Nz, 0);
+    
+    std::cout << "Compute rho_0. " << std::endl;
+    eval_rho_full_EBf<double,order>(0, rho_e, coeffs_E, coeffs_B, conf_electron);
+    eval_rho_full_EBf<double,order>(0, rho_i, coeffs_E, coeffs_B, conf_ion);
+
+    #pragma omp parallel for
+    for(size_t i = 0; i < rho.size(); i++){
+        rho[i] = rho_i[i] + rho_e[i];
+    }
+
+    std::cout << "Compute phi_0. " << std::endl;
+    interpolate<double,order>(coeffs_phi.data(), rho.data(), conf_electron );
+
+    auto eval_E0_random_pertb = [&](double x, double y, double z, size_t d) {
+        if(d == 0){
+            return -eval<double,order,1,0,0>(x,y,z, coeffs_phi.data(), conf_electron);
+        } 
+        if(d == 1 ){
+            return -eval<double,order,0,1,0>(x,y,z, coeffs_phi.data(), conf_electron);
+        }
+        return -eval<double,order,0,0,1>(x,y,z, coeffs_phi.data(), conf_electron);
+    };
+
     // This assumes that spatial directions are uniform and the maximum is at velocity 0.
     double tolerance = 1e-6;
     double tolerance_velocity_electron = tolerance * f0_electron(1, 1, 1, 0, 0, 0);
@@ -309,12 +452,13 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
         double z = zmin + iz*conf_electron.dz; 
         
         // Normal initialization:        
-        arma::Col<double> E0_vec = E0(x,y,z);
+        //arma::Col<double> E0_vec = E0(x,y,z);
         arma::Col<double> B0_vec = B0(x,y,z);
 
          for(size_t d = 0; d < 3; d++){
             size_t index = d*Nx*Ny*Nz + l;
-            E[index] = E0_vec(d);
+            //E[index] = E0_vec(d);
+            E[index] = eval_E0_random_pertb(x,y,z,d);
             B[index] = B0_vec(d);
 
             // Small random perturbation.
@@ -376,7 +520,9 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
 
     // Do first output.
     std::ofstream stat_file( "stats.txt" );
+    std::ofstream j_stat_file( "j_stats.txt" );
     analysis::do_stats<double,order>(0, 64, 64, 1, stat_file, coeffs_E, coeffs_B, conf_electron, true, true, 0);
+    analysis::compute_j_l2(0,j_stat_file,conf_electron,j_0,j_electron,j_ion);
     {
         std::ofstream mat_e_str("f_e_full_" + std::to_string(0) + ".txt" );
         std::ofstream mat_i_str("f_i_full_" + std::to_string(0) + ".txt" );
@@ -424,16 +570,18 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
         double time_for_step = timer.elapsed();
         timer.reset();
         
-        bool plot_EB = (n % 25*steps_per_1 == 0);
+        bool plot_EB = (n % (5*steps_per_1) == 0);
+        bool plot_f_j = (n % (10*steps_per_1) == 0);
         analysis::do_stats<double,order>(nt_r_curr, 64, 64, 1, stat_file, coeffs_E, coeffs_B, conf_electron, plot_EB, true, n);
-        if(n % (25*steps_per_1) == 0){
+        analysis::compute_j_l2(n, j_stat_file, conf_electron, j_0, j_electron, j_ion);
+        if(plot_EB){
             std::ofstream mat_e_str("f_e_full_" + std::to_string(n*conf_electron.dt) + ".txt" );
-            analysis::plot_full_f_3x3v_parallelized<double,order>(16,16,1,32,32,1,xmin,xmax,ymin,ymax,zmin,zmax,umin_e,umax_e,vmin_e,vmax_e,wmin_e,wmax_e,eval_f_electron,mat_e_str);
+            analysis::plot_full_f_3x3v_parallelized<double,order>(16,16,1,32,32,16,xmin,xmax,ymin,ymax,zmin,zmax,umin_e,umax_e,vmin_e,vmax_e,wmin_e,wmax_e,eval_f_electron,mat_e_str);
             std::ofstream velo_supp_e_str("v_supp_e_" + std::to_string(n*conf_electron.dt) + ".txt" );
             velo_supp_e_str << umin_e << " " << umax_e << " " << vmin_e << " " << vmax_e << " " << wmin_e << " " << wmax_e;
             
             std::ofstream mat_i_str("f_i_full_" + std::to_string(n*conf_electron.dt) + ".txt" );
-            analysis::plot_full_f_3x3v_parallelized<double,order>(16,16,1,32,32,1,xmin,xmax,ymin,ymax,zmin,zmax,umin_i,umax_i,vmin_i,vmax_i,wmin_i,wmax_i,eval_f_ion,mat_i_str);
+            analysis::plot_full_f_3x3v_parallelized<double,order>(16,16,1,32,32,16,xmin,xmax,ymin,ymax,zmin,zmax,umin_i,umax_i,vmin_i,vmax_i,wmin_i,wmax_i,eval_f_ion,mat_i_str);
             std::ofstream velo_supp_i_str("v_supp_i_" + std::to_string(n*conf_electron.dt) + ".txt" );
             velo_supp_i_str << umin_i << " " << umax_i << " " << vmin_i << " " << vmax_i << " " << wmin_i << " " << wmax_i;
 
@@ -447,6 +595,16 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
             }
         }
         
+        /* analysis::do_stats<double,order>(nt_r_curr, 32, 32, 1, stat_file, coeffs_E, coeffs_B, conf_electron, true, true, n);
+        std::ofstream j_e_str("j_e_" + std::to_string(n*conf_electron.dt) + ".txt" );
+        for(size_t i = 0; i < j_electron.size(); i++){
+            j_e_str << j_electron[i] << std::endl;
+        }
+        std::ofstream j_i_str("j_i_" + std::to_string(n*conf_electron.dt) + ".txt" );
+        for(size_t i = 0; i < j_ion.size(); i++){
+            j_i_str << j_ion[i] << std::endl;
+        } */
+        
         double time_for_plot = timer.elapsed();
         std::cout << "Plotting took " << time_for_plot << " s." << std::endl;
         analysis::write_coeffs_nufi_pc<double,order>(nt_r_curr,coeffs_E,coeffs_B,conf_electron,coeff_E_str,coeff_B_str);
@@ -458,8 +616,13 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
         if(nt_r_curr == nt_restart){
             timer.reset();
             std::cout << "Restart simulation. " << std::endl;
-            /* interpolant_electron.restart_f(eval_f_electron);
-            interpolant_ion.restart_f(eval_f_ion); */
+            //interpolant_electron.restart_f(eval_f_electron);
+            //std::ofstream restart_mat_electron_str("restart_mat_electron_" + std::to_string(n*conf_electron.dt) + ".txt");
+            //restart_mat_electron_str << interpolant_electron.restart_matrix;
+
+            //interpolant_ion.restart_f(eval_f_ion);
+            //std::ofstream restart_mat_ion_str("restart_mat_ion_" + std::to_string(n*conf_electron.dt) + ".txt");
+            //restart_mat_ion_str << interpolant_ion.restart_matrix;
             
             interpolant_electron.restart_f_checking_boundaries(eval_f_electron, umin_e, umax_e, vmin_e, vmax_e, wmin_e, wmax_e, tolerance_velocity_electron);
             conf_electron.u_min = umin_e;
@@ -524,12 +687,12 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
 int main(int argc, char** argv){
 
     // Todo:
-    // Tracking of expanding velocity support.
     // Add MPI parallelization.
     // Add compressed restart.
     // Add CMM-restart.
     // Add initialition through init-file.
 
+    //omp_set_num_threads(1);
     nufi::dim3::periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned<4>();
 
     return 0;
