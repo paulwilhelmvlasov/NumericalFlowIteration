@@ -388,8 +388,8 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
                                         nx_r, ny_r, nz_r, nu_r_i, nv_r_i, nw_r_i);
 
     // Init f0 with random perturbation.
-    std::cout << "Random f0_electron perturbation. " << std::endl;
-    random_perturbation_2d_f0_electron(interpolant_electron.restart_matrix, 1e-2);
+    //std::cout << "Random f0_electron perturbation. " << std::endl;
+    //random_perturbation_2d_f0_electron(interpolant_electron.restart_matrix, 1e-2);
     std::cout << "Random f0_ion perturbation. " << std::endl;
     random_perturbation_2d_f0_ion(interpolant_ion.restart_matrix, 1e-2);
     /* {
@@ -400,13 +400,13 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
         restart_mat_ion_str << interpolant_ion.restart_matrix;
     } */
 
-    double kin_energy_electron = interpolant_electron.compute_kinetic_energy();
+/*     double kin_energy_electron = interpolant_electron.compute_kinetic_energy();
     double kin_energy_ion = interpolant_electron.compute_kinetic_energy();
     double kin_energy = kin_energy_electron + kin_energy_ion;
 
     kin_energy_file << 0*conf_electron.dt << " " << kin_energy << " " << kin_energy_electron << " " << kin_energy_ion << std::endl;
-
-    conf_electron.f0 = &eval_f_electron_with_linear_interpolant;
+ */
+    //conf_electron.f0 = &eval_f_electron_with_linear_interpolant;
     conf_ion.f0 = &eval_f_ion_with_linear_interpolant;
 
     std::vector<double> coeffs_phi(stride_t, 0);
@@ -418,10 +418,10 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
     eval_rho_full_EBf<double,order>(0, rho_e, coeffs_E, coeffs_B, conf_electron);
     eval_rho_full_EBf<double,order>(0, rho_i, coeffs_E, coeffs_B, conf_ion);
 
-    #pragma omp parallel for
+    //#pragma omp parallel for
     for(size_t i = 0; i < rho.size(); i++){
         rho[i] = rho_i[i] + rho_e[i];
-        //std::cout << rho[i] << " " << rho_e[i] << " " << rho_i[i] << std::endl;
+        std::cout << rho[i] << " " << rho_e[i] << " " << rho_i[i] << std::endl;
     }
 
     std::cout << "Compute phi_0. " << std::endl;
@@ -659,10 +659,10 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
             timer.reset();
             std::cout << "Filling restart matrix took " << timer_fill_restart_matrix << " s." << std::endl;
 
-            kin_energy_electron = interpolant_electron.compute_kinetic_energy();
+            /* kin_energy_electron = interpolant_electron.compute_kinetic_energy();
             kin_energy_ion = interpolant_electron.compute_kinetic_energy();
             kin_energy = kin_energy_electron + kin_energy_ion;
-            kin_energy_file << n*conf_electron.dt << " " << kin_energy << " " << kin_energy_electron << " " << kin_energy_ion << std::endl;
+            kin_energy_file << n*conf_electron.dt << " " << kin_energy << " " << kin_energy_electron << " " << kin_energy_ion << std::endl; */
 
             // Copy last entries of coeff vectors.
             #pragma omp parallel for collapse(2)
