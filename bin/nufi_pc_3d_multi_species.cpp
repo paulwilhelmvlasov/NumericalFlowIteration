@@ -132,7 +132,7 @@ size_t Nu_i = 48;
 size_t Nv_i = 48;
 size_t Nw_i = 24;
 
-size_t steps_per_1 = 50;
+size_t steps_per_1 = 30;
 double   dt = 1.0 / steps_per_1;
 size_t Nt = 500*steps_per_1;
 
@@ -157,7 +157,7 @@ size_t nu_r_i = 8;
 size_t nv_r_i = 8;
 size_t nw_r_i = 8; */
 
-size_t nt_restart = 30;
+size_t nt_restart = 20;
 
 template <typename real>
 real f0_electron(real x, real y, real z, real u, real v, real w) noexcept
