@@ -345,6 +345,37 @@ class linear_interpolant_6d
             dw_r = dw_new;
         }
 
+        double compute_kinetic_energy()
+        {
+            double kin_energy = 0;
+            #pragma omp parallel for collapse(3) reduction(+:kin_energy)
+            for(size_t ix = 0; ix < nx_r; ix++)
+            for(size_t iy = 0; iy < ny_r; iy++)
+            for(size_t iz = 0; iz < nz_r; iz++)
+            for(size_t iu = 0; iu <= nu_r; iu++)
+            for(size_t iv = 0; iv <= nv_r; iv++)
+            for(size_t iw = 0; iw <= nw_r; iw++){
+                double x = xmin + ix*dx_r;
+                double y = ymin + iy*dy_r;
+                double z = zmin + iz*dz_r;
+
+                double u = umin + iu*du_r;
+                double v = vmin + iv*dv_r;
+                double w = wmin + iw*dw_r;
+
+                size_t index_0 = ix + (nx_r+1)*(iy + (ny_r+1)*iz);
+                size_t index_1 = iu + (nu_r+1)*(iv + (nv_r+1)*iw);
+
+                double f = restart_matrix(index_0,index_1);
+
+                kin_energy += (u*u + v*v + w*w)*f;
+            }
+
+            kin_energy *= 0.5 * dx_r * dy_r * dz_r * du_r * dv_r * dw_r;
+
+            return kin_energy;
+        }
+
         double eval_linear_interpolant(double x, double y, double z, 
                                     double u, double v, double w)
         {
@@ -421,6 +452,106 @@ class linear_interpolant_6d
 
             return value;
         }
+};
+
+class flow_map_linear_interpolant_2x3v
+{
+    public:
+    linear_interpolant_6d flow_x;
+    linear_interpolant_6d flow_y;
+    linear_interpolant_6d flow_u;
+    linear_interpolant_6d flow_v;
+    linear_interpolant_6d flow_w;
+
+    flow_map_linear_interpolant_2x3v();
+    flow_map_linear_interpolant_2x3v(double xmin, double xmax, 
+            double ymin, double ymax, double zmin, double zmax,
+            double umin, double umax, double vmin, double vmax,
+            double wmin, double wmax, size_t Nx, size_t Ny, size_t Nz,
+            size_t Nu, size_t Nv, size_t Nw, 
+            const std::function<void(double&,double&,double&,double&,double&,double&)>& eval_flow_map)
+    {
+        flow_x = linear_interpolant_6d(xmin, xmax, ymin, ymax, zmin, zmax, umin, umax,
+                             vmin, vmax, wmin, wmax, Nx, Ny, Nz, Nu, Nv, Nw);
+        flow_y = linear_interpolant_6d(xmin, xmax, ymin, ymax, zmin, zmax, umin, umax,
+                             vmin, vmax, wmin, wmax, Nx, Ny, Nz, Nu, Nv, Nw);
+        flow_u = linear_interpolant_6d(xmin, xmax, ymin, ymax, zmin, zmax, umin, umax,
+                             vmin, vmax, wmin, wmax, Nx, Ny, Nz, Nu, Nv, Nw);
+        flow_v = linear_interpolant_6d(xmin, xmax, ymin, ymax, zmin, zmax, umin, umax,
+                             vmin, vmax, wmin, wmax, Nx, Ny, Nz, Nu, Nv, Nw);
+        flow_w = linear_interpolant_6d(xmin, xmax, ymin, ymax, zmin, zmax, umin, umax,
+                             vmin, vmax, wmin, wmax, Nx, Ny, Nz, Nu, Nv, Nw);
+
+        double dx_r = flow_x.dx_r;
+        double dy_r = flow_x.dy_r;
+        double dz_r = flow_x.dz_r;
+        double du_r = flow_x.du_r;
+        double dv_r = flow_x.dv_r;
+        double dw_r = flow_x.dw_r;
+
+        #pragma omp parallel for collapse(6)
+        for(size_t ix = 0; ix <= Nx; ix++)
+        for(size_t iy = 0; iy <= Ny; iy++)
+        for(size_t iz = 0; iz <= Nz; iz++)
+        for(size_t iu = 0; iu <= Nu; iu++)
+        for(size_t iv = 0; iv <= Nv; iv++)
+        for(size_t iw = 0; iw <= Nw; iw++){
+            double x = xmin + ix*dx_r;
+            double y = ymin + iy*dy_r;
+            double z = zmin + iz*dz_r;
+
+            double u = umin + iu*du_r;
+            double v = vmin + iv*dv_r;
+            double w = wmin + iw*dw_r;
+
+            size_t index_0 = ix + (Nx+1)*(iy + (Ny+1)*iz);
+            size_t index_1 = iu + (Nu+1)*(iv + (Nv+1)*iw);
+
+            eval_flow_map(x, y, z, u, v, w);
+
+            flow_x.restart_matrix(index_0,index_1) = x;
+            flow_y.restart_matrix(index_0,index_1) = y;
+            flow_u.restart_matrix(index_0,index_1) = u;
+            flow_v.restart_matrix(index_0,index_1) = v;
+            flow_w.restart_matrix(index_0,index_1) = w;
+        }
+    }
+
+    double eval_flow_map(size_t d, double x, double y, double z, double u, double v, double w)
+    {
+        switch (d)
+        {
+        case 0:
+            // x
+            return flow_x.eval_linear_interpolant(x,y,z,u,v,w);
+            break;
+        case 1:
+            // y
+            return flow_y.eval_linear_interpolant(x,y,z,u,v,w);
+            break;
+        case 2: 
+            // z
+            return z;
+            break;
+        case 3:
+            // u
+            return flow_u.eval_linear_interpolant(x,y,z,u,v,w);
+            break;
+        case 4:
+            // v
+            return flow_v.eval_linear_interpolant(x,y,z,u,v,w);
+            break;
+        case 5:
+            // w
+            return flow_w.eval_linear_interpolant(x,y,z,u,v,w);
+            break;
+        default:
+            break;
+        }
+
+        return 0;
+    }
+
 };
 
 }

@@ -917,6 +917,56 @@ real eval_f_lie_EBf(size_t n, real x, real y, real z,
 }
 
 template <typename real, size_t order>
+void eval_flow_map_EBf(size_t n, real& x, real& y, real& z,
+    real& u, real& v, real& w, const std::vector<real>& coeffs_E,
+    const std::vector<real>& coeffs_B, const config_t<real>& conf)
+{
+    // F(t) = Ham_f o Ham_B o Ham_E o F(0).
+
+    const size_t dim = 3;
+    const size_t Nx_ext = conf.Nx + order - 1;
+    const size_t Ny_ext = conf.Ny + order - 1;
+    const size_t Nz_ext = conf.Nz + order - 1;
+    const size_t Nspace = Nx_ext * Ny_ext * Nz_ext;
+    const size_t stride_spatial = 1;
+    const size_t stride_comp = dim * stride_spatial;
+    const size_t stride_t = stride_comp * Nspace;
+
+    double qm = conf.q / conf.m;
+
+    arma::Col<real> x_vec({x, y, z});
+    arma::Col<real> v_vec({u, v, w});
+    arma::Col<real> B0({0,0,0});
+    arma::Col<real> E0({0,0,0});
+    arma::Col<real> A({0,0,0});
+
+    for (; n > 0; n--) {
+        x_vec = x_vec - conf.dt * v_vec;
+        for(size_t d = 0; d < 3; d++){
+            B0(d) = eval<real, order>(x_vec(0), x_vec(1), x_vec(2),
+                        &coeffs_B[idx_base(n - 1, d, 0, 0, 0, Nx_ext, Ny_ext, Nz_ext, conf.Nt)], 
+                        conf);
+            E0(d) = eval<real, order>(x_vec(0), x_vec(1), x_vec(2),
+                        &coeffs_E[idx_base(n - 1, d, 0, 0, 0, Nx_ext, Ny_ext, Nz_ext, conf.Nt)], 
+                        conf);
+        }
+
+        A = B0 - conf.dt * rot<real,order>(n-1,x_vec(0),x_vec(1),x_vec(2),coeffs_E,conf);
+        arma::Mat<real> J = exp_J<real>(- qm * conf.dt * A);
+        v_vec = J*v_vec - conf.dt * qm * E0;
+    }
+
+    x = x_vec(0);
+    y = x_vec(1);
+    z = x_vec(2);
+
+    u = v_vec(0);
+    v = v_vec(1);
+    w = v_vec(2);
+}
+
+
+template <typename real, size_t order>
 void eval_j_full_EBf(size_t n, std::vector<real>& j, const std::vector<real>& coeffs_E, 
     const std::vector<real>& coeffs_B, const config_t<real> &conf )
 {

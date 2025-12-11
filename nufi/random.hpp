@@ -88,9 +88,9 @@ std::vector<double> generateRandomSmoothFunction(double L, int N, int num_points
     }
     
     // Generate random Fourier coefficients
-    //std::random_device rd;
-    //std::mt19937 gen(rd()); // Random seed for "true" randomness.
-    std::mt19937 gen(42); // Fixed seed for reproducibility. 
+    std::random_device rd;
+    std::mt19937 gen(rd()); // Random seed for "true" randomness.
+    //std::mt19937 gen(42); // Fixed seed for reproducibility. 
     std::normal_distribution<> dist(0.0, 1.0);  // Normal distribution with mean 0, stddev 1
 
     std::vector<double> a_n(N), b_n(N);
