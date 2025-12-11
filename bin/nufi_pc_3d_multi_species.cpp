@@ -120,13 +120,13 @@ double wmin_i = -8*pezzini::wth_ion_beam;
 double wmax_i = 8*pezzini::wth_ion_beam;
 
 // Spatial grid must be the same for both species!!!
-size_t Nx = 32;
-size_t Ny = 32;
+size_t Nx = 16;
+size_t Ny = 16;
 size_t Nz = 1;
 
-size_t Nu_e = 64;
-size_t Nv_e = 64;
-size_t Nw_e = 32;
+size_t Nu_e = 48;
+size_t Nv_e = 48;
+size_t Nw_e = 24;
 
 size_t Nu_i = 64;
 size_t Nv_i = 64;
@@ -157,7 +157,7 @@ size_t nu_r_i = 8;
 size_t nv_r_i = 8;
 size_t nw_r_i = 8; */
 
-size_t nt_restart = 50;
+size_t nt_restart = 30;
 
 template <typename real>
 real f0_electron(real x, real y, real z, real u, real v, real w) noexcept
