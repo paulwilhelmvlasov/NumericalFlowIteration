@@ -20,7 +20,7 @@
 namespace pezzini
 {
 // The following sets up the simulation in ion scale units:
-double mass_ratio = 183.6;
+double mass_ratio = 183.6 /10.0;
 
 double me = 1.0/mass_ratio;
 double mi = 1;
@@ -124,15 +124,15 @@ size_t Nx = 16;
 size_t Ny = 16;
 size_t Nz = 1;
 
-size_t Nu_e = 48;
-size_t Nv_e = 48;
-size_t Nw_e = 24;
+size_t Nu_e = 32;
+size_t Nv_e = 32;
+size_t Nw_e = 16;
 
-size_t Nu_i = 64;
-size_t Nv_i = 64;
-size_t Nw_i = 32;
+size_t Nu_i = 48;
+size_t Nv_i = 48;
+size_t Nw_i = 24;
 
-size_t steps_per_1 = 200;
+size_t steps_per_1 = 50;
 double   dt = 1.0 / steps_per_1;
 size_t Nt = 500*steps_per_1;
 
