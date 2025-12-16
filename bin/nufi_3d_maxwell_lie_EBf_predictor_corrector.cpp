@@ -70,11 +70,11 @@ double wmin = -10;
 double wmax = 10; */
 
 // Electro-static:
-const double Lx = 4*M_PI;
+const double Lx = 2*M_PI/0.3;
 const double Ly = 1;
 const double Lz = 1;
-const double umin = -5;
-const double umax = 5;
+const double umin = -8;
+const double umax = 8;
 const double vmin = -0.5;
 const double vmax = 0.5;
 const double wmin = -0.5;
@@ -88,7 +88,7 @@ const size_t Nv = 1;
 const size_t Nw = 1;
 const size_t steps_per_1 = 10;
 const double   dt = 1.0 / steps_per_1;
-const size_t Nt = 30/dt;
+const size_t Nt = 100/dt;
 
 const size_t nx_r = Nx;
 const size_t ny_r = Ny;
@@ -96,7 +96,7 @@ const size_t nz_r = Nz;
 const size_t nu_r = Nu;
 const size_t nv_r = Nv;
 const size_t nw_r = Nw;
-size_t nt_restart = 10;
+size_t nt_restart = 500;
 
 
 const double dx_r = Lx / nx_r;
@@ -230,7 +230,11 @@ real f0(real x, real y, real z, real u, real v, real w) noexcept
             + (1-delta)*maxwellian_1d<real>(v-v0_2,omega) ); */
 
     // Weak Landau Damping
-    return (1+0.01*cos(0.5*x))*maxwellian_1d<real>(u,1);
+    //return (1+0.01*cos(0.5*x))*u*u*maxwellian_1d<real>(u,1);
+
+    // Bump on tail
+    return 1.0 / std::sqrt(2.0 * M_PI) * (1 + 0.04 * std::cos(0.3*x)) 
+            *  ( 0.9 * std::exp(-0.5 * u*u)  + 0.2 * std::exp(-0.5/(0.5*0.5) * (u-4.5)*(u-4.5)) ); 
 
     // Paul & Fabio magnetic TSI (Filamentation instability) 
     /* real v_beam = 0.4;
@@ -242,7 +246,10 @@ template <typename real>
 arma::Col<real> E0(real x, real y, real z)
 {
     // Electro-Static setup for Weak Landau or TSI:
-    return  arma::Col<real>({- 0.02 * std::sin(0.5*x), 0, 0});
+    //return  arma::Col<real>({- 0.02 * std::sin(0.5*x), 0, 0});
+
+    // Electro-Static setup for Bump on tail:
+    return  arma::Col<real>({-0.04/0.3 * std::sin(0.3*x), 0, 0});
 
     // Kormann Streaming Weibel & magnetic TSI (Filamentation) & 2x3v current filamentation
     //return  arma::Col<real>({0, 0, 0});

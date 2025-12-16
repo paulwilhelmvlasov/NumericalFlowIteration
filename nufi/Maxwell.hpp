@@ -115,7 +115,7 @@ void E_step_predictor_corrector(size_t n, std::vector<double>& coeffs_E, const s
         }
     }
 
-    // Interpolate B(n + 1/2).
+    // Interpolate E(n).
     interpolate_fields_aligned<double,order>(n, coeffs_E, E, conf);
 }
 
@@ -167,6 +167,81 @@ void B_average(size_t n, std::vector<double>& coeffs_B, std::vector<double>& coe
 
     // Interpolate B(n).
     interpolate_fields_aligned<double,order>(n, coeffs_B, B, conf);
+}
+
+template <typename real, size_t order>
+double E_clean_gauss_law(size_t n, std::vector<double>& coeffs_E, std::vector<double>& E, 
+                        std::vector<double>& rho, std::vector<double>& coeffs_phi, 
+                        const config_t<double>& conf, const poisson<double>& poiss)
+{
+    size_t stride_t =   (conf.Nx + order - 1)   *
+                        (conf.Ny + order - 1)   *
+                        (conf.Nz + order - 1);
+
+    const size_t dim = 3;
+    const size_t Nx_ext = conf.Nx + order - 1;
+    const size_t Ny_ext = conf.Ny + order - 1;
+    const size_t Nz_ext = conf.Nz + order - 1;
+    const size_t Nspace = Nx_ext * Ny_ext * Nz_ext;
+
+    double gauss_law_error = 0;
+    #pragma omp parallel for collapse(3) reduction(+:gauss_law_error)
+    for(size_t i = 0; i < conf.Nx; i++)
+    for(size_t j = 0; j < conf.Ny; j++)
+    for(size_t k = 0; k < conf.Nz; k++){
+        double x = conf.x_min + i*conf.dx;
+        double y = conf.y_min + j*conf.dy;
+        double z = conf.z_min + k*conf.dz;
+
+        size_t l  = i + conf.Nx*j + conf.Nx*conf.Ny*k;
+
+        arma::Col<double> E_diff ({
+                                eval<double,order,1,0,0>(x,y,z,coeffs_E.data() + idx_base(n,0,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf),
+                                eval<double,order,0,1,0>(x,y,z,coeffs_E.data() + idx_base(n,1,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf),
+                                eval<double,order,0,0,1>(x,y,z,coeffs_E.data() + idx_base(n,2,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf)
+                            });
+
+        rho[l] = E_diff(0) + E_diff(1) + E_diff(2) - rho[l];
+        gauss_law_error += rho[l]*rho[l];
+    }
+
+    gauss_law_error = conf.dx*conf.dy*conf.dz*std::sqrt(gauss_law_error);
+
+    poiss.solve(rho.data());
+    nufi::dim3::interpolate<real,order>(coeffs_phi.data(), rho.data(), conf);
+
+    auto eval_correction = [&](double x, double y, double z, size_t d) {
+        if(d == 0){
+            return eval<double,order,1,0,0>(x,y,z, coeffs_phi.data(), conf);
+        } 
+        if(d == 1 ){
+            return eval<double,order,0,1,0>(x,y,z, coeffs_phi.data(), conf);
+        }
+        return eval<double,order,0,0,1>(x,y,z, coeffs_phi.data(), conf);
+    };
+
+    #pragma omp parallel for collapse(3)
+    for(size_t i = 0; i < conf.Nx; i++)
+    for(size_t j = 0; j < conf.Ny; j++)
+    for(size_t k = 0; k < conf.Nz; k++){
+        double x = conf.x_min + i*conf.dx;
+        double y = conf.y_min + j*conf.dy;
+        double z = conf.z_min + k*conf.dz;
+
+        size_t l  = i + conf.Nx*j + conf.Nx*conf.Ny*k;
+
+        E[l] = eval<double,order>(x,y,z,coeffs_E.data() + idx_base(n,0,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf)
+                - eval_correction(x,y,z,0);
+        E[l + conf.Nx*conf.Ny*conf.Nz] = eval<double,order>(x,y,z,coeffs_E.data() + idx_base(n,1,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf)
+                - eval_correction(x,y,z,1);
+        E[l + 2*conf.Nx*conf.Ny*conf.Nz] = eval<double,order>(x,y,z,coeffs_E.data() + idx_base(n,2,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf)
+                - eval_correction(x,y,z,2);
+    }
+
+    // Interpolate gauss-corrected E(n).
+    interpolate_fields_aligned<double,order>(n, coeffs_E, E, conf);
+
+    return gauss_law_error;
 }
 
 

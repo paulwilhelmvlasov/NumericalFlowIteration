@@ -29,15 +29,15 @@ const double Ly = Lx;
 const double Lz = Lx; */
 
 // 1d electro-static
-/* const double Lx = 4*M_PI;
+const double Lx = 2*M_PI/0.3;
 const double Ly = 1;
 const double Lz = 1;
-const double umin = -5;
-const double umax = 5;
+const double umin = -10;
+const double umax = 10;
 const double vmin = -0.5;
 const double vmax = 0.5;
 const double wmin = -0.5;
-const double wmax = 0.5; */
+const double wmax = 0.5;
 
 
 // Magnetic Two Stream Instability by Einkemmer 
@@ -51,7 +51,7 @@ const double Ly = Lx;
 const double Lz = Lx;
  */
 // Kormann's Streaming Weibel Instability
-const double Lx = 2*M_PI/0.2;
+/* const double Lx = 2*M_PI/0.2;
 const double Ly = 1;
 const double Lz = 1;
 const double umin = -0.5;
@@ -59,7 +59,7 @@ const double umax = 0.5;
 const double vmin = -1.2;
 const double vmax = 1.2;
 const double wmin = -0.5;
-const double wmax = 0.5;
+const double wmax = 0.5; */
 // Weibel Instability by Einkemmer
 /* const double umin = -0.15;
 const double umax = 0.15;
@@ -91,20 +91,20 @@ const double wmax = 0.01; */
 const size_t Nx = 16;
 const size_t Ny = 1;
 const size_t Nz = 1;
-const size_t Nu = 16;
-const size_t Nv = 16;
+const size_t Nu = 32;
+const size_t Nv = 1;
 const size_t Nw = 1;
-const size_t steps_per_1 = 200;
+const size_t steps_per_1 = 10;
 const double   dt = 1.0 / steps_per_1;
 const size_t Nt = 200/dt;
 
-const size_t nx_r = 2*Nx;
+const size_t nx_r = Nx;
 const size_t ny_r = Ny;
 const size_t nz_r = Nz;
-const size_t nu_r = 2*Nu;
-const size_t nv_r = 2*Nv;
+const size_t nu_r = Nu;
+const size_t nv_r = Nv;
 const size_t nw_r = Nw; 
-/* const */ size_t nt_restart = Nt + 1 ;
+/* const */ size_t nt_restart = 100 ;
 
 const double dx_r = Lx / nx_r;
 const double dy_r = Ly / ny_r;
@@ -224,12 +224,15 @@ real f0(real x, real y, real z, real u, real v, real w) noexcept
     // domain in that direction as [-0.5,0.5].
     /* constexpr real alpha = 0.01;
     constexpr real k = 0.5;
-    return ( 1. + alpha*cos(k*x)) * maxwellian_1d<real>(u,1);  */
+    return ( 1. + alpha*cos(k*x)) * u*u * maxwellian_1d<real>(u,1);  */
+    // Bump on tail Instability
+    return 1.0 / std::sqrt(2.0 * M_PI) * (1 + 0.04 * std::cos(0.3*x)) 
+            *  ( 0.9 * std::exp(-0.5 * u*u)  + 0.2 * std::exp(-0.5/(0.5*0.5) * (u-4.5)*(u-4.5)) ); 
     //return ( 1. + alpha*cos(k*x)) * maxwellian<real>(u,v,w,1);
 
     // Two Stream Instability in x direction:
 /*    constexpr real c = 1.0 / std::pow(2.0 * M_PI, 3.0/2.0);
-    return c * ( 1. + alpha*cos(k*x)) * u*u * exp( -(u*u+v*v+w*w)/2 );*/
+    return c * ( 1. + alpha*cos(k*x)) * u*u * exp( -(u*u+v*v+w*w)/2 ); */
 
 // Two Stream in y direction
     /* real v_beam = 1;
@@ -243,7 +246,7 @@ real f0(real x, real y, real z, real u, real v, real w) noexcept
     return 0.5 * (maxwellian_2d<real>(u,v-v_beam,vth) + maxwellian_2d<real>(u,v+v_beam,vth)); */
 
     // Streaming Weibel instability 
-    real omega = 0.1/std::sqrt(2);
+    /* real omega = 0.1/std::sqrt(2);
     real theta = 0.2;
     real beta = 1e-3;
     real v0_1 = 0.5;
@@ -252,7 +255,7 @@ real f0(real x, real y, real z, real u, real v, real w) noexcept
 
     return maxwellian_1d(u,omega) 
             * ( delta*maxwellian_1d(v-v0_1,omega) 
-            + (1-delta)*maxwellian_1d(v-v0_2,omega) );
+            + (1-delta)*maxwellian_1d(v-v0_2,omega) ); */
 
     // Magnetic Two Stream by Einkemmer
 /*     real v_beam = 0.2;
@@ -283,54 +286,17 @@ arma::Col<real> E0(real x, real y, real z)
     constexpr real k     = 0.5;
     return  arma::Col<real>({-alpha / k * std::sin(k*x), 0, 0}); */
 
+    // Electro-static Bump-on-tail
+    constexpr real alpha = 0.04;
+    constexpr real k     = 0.3;
+    return  arma::Col<real>({-alpha / k * std::sin(k*x), 0, 0});
+
     // Magnetic Two Stream Instability by Fabio & Paul
     // Note that if we assume only a x-dependent perturbation for f it can only 
     // induce a electric field in the x- but not y-component. This however means 
     // that to induce dynamics along y we need an initial B instead of E.
-    return  arma::Col<real>({0, 0, 0});
+    //return  arma::Col<real>({0, 0, 0});
 }
-
-// Function to generate random smooth periodic function using Fourier series
-/* std::vector<double> generateRandomSmoothFunction(double L, int N, int num_points) {
-    std::vector<double> x(num_points);
-    std::vector<double> f_x(num_points, 0.0);
-    
-    // Create a uniform grid over the domain [0, L]
-    double dx = L / (num_points - 1);
-    for (int i = 0; i < num_points; ++i) {
-        x[i] = i * dx;
-    }
-    
-    // Generate random Fourier coefficients
-    //std::random_device rd;
-    //std::mt19937 gen(rd()); // Random seed for "true" randomness.
-    std::mt19937 gen(42); // Fixed seed for reproducibility. 
-    std::normal_distribution<> dist(0.0, 1.0);  // Normal distribution with mean 0, stddev 1
-
-    std::vector<double> a_n(N), b_n(N);
-    for (int n = 0; n < N; ++n) {
-        a_n[n] = dist(gen);  // Cosine coefficients
-        b_n[n] = dist(gen);  // Sine coefficients
-    }
-
-    // Generate the Fourier series for the random smooth function
-    for (int i = 0; i < num_points; ++i) {
-        double xi = x[i];
-        for (int n = 0; n < N; ++n) {
-            f_x[i] += a_n[n] * std::cos(2 * M_PI * (n + 1) * xi / L) + b_n[n] * std::sin(2 * M_PI * (n + 1) * xi / L);
-        }
-    }
-
-    double max_f = 0;
-    for(size_t i = 0; i < num_points; i++){
-        max_f = std::max(std::abs(f_x[i]),max_f);
-    }
-    for(size_t i = 0; i < num_points; i++){
-        f_x[i] /= max_f;
-    }
-
-    return f_x;
-} */
 
 template <typename real>
 arma::Col<real> B0(real x, real y, real z)
@@ -341,16 +307,16 @@ arma::Col<real> B0(real x, real y, real z)
     return arma::Col<real>({0, 0, beta*std::cos(k*x)}); */
 
     // Electro-static
-    //return arma::Col<real>({0, 0, 0});
+    return arma::Col<real>({0, 0, 0});
 
     // Magnetic Two Stream Instability by Einkemmer.
 /*     constexpr real alpha = 1e-3;
     return arma::Col<real>({0, 0, alpha*std::sin(x)}); */
 
     // Kormann's Streaming Weibel instability
-    constexpr real theta = 0.2;
+    /* constexpr real theta = 0.2;
     constexpr real beta = 1e-3;
-    return arma::Col<real>({0, 0, beta*std::sin(theta*x)});
+    return arma::Col<real>({0, 0, beta*std::sin(theta*x)}); */
 }
 
 template <typename real, size_t order>
@@ -2270,10 +2236,10 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned()
     
     std::cout << "First output." << std::endl;
     std::ofstream stat_file( "stats.txt" );
-    std::ofstream kin_energy_entropy_file( "kinetic_energy_and_entropy.txt" );
+    //std::ofstream kin_energy_entropy_file( "kinetic_energy_and_entropy.txt" );
     // Output stats (Electric/magnetic energy).
     do_stats<double,order>(0, 64, stat_file,coeffs_E, coeffs_B, conf);
-    kinetic_energy_and_entropy<double,order>(0,64,kin_energy_entropy_file,coeffs_E,coeffs_B,coeffs_j_hat,conf,false,0);
+    //kinetic_energy_and_entropy<double,order>(0,64,kin_energy_entropy_file,coeffs_E,coeffs_B,coeffs_j_hat,conf,false,0);
     //plot_f<double,order>(0,coeffs_E, coeffs_B, coeffs_j_hat, conf);
     std::ofstream coeff_out_str_E("coeffs_E.txt");
     std::ofstream coeff_out_str_B("coeffs_B.txt");
@@ -2368,10 +2334,10 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned()
         std::cout << "Time step " << n << " took a total of " << time_for_step << " s." << std::endl;
 
         do_stats<double,order>(nt_r_curr, 64, stat_file, coeffs_E, coeffs_B, conf, true, n);
-        if(n % (5*steps_per_1) == 0){
+        /* if(n % (5*steps_per_1) == 0 && false){
             kinetic_energy_and_entropy<double,order>(nt_r_curr,64,kin_energy_entropy_file,coeffs_E,coeffs_B,coeffs_j_hat,conf,true,n);
             //plot_f<double,order>(nt_r_curr,coeffs_E, coeffs_B, coeffs_j_hat, conf, true, n);
-        }
+        } */
         write_coeffs<double,order>(nt_r_curr, coeffs_E, coeffs_B, coeffs_j_hat, conf, 
                                     coeff_out_str_E, coeff_out_str_B, coeff_out_str_j_hat );
         std::cout << "Do stats took: " << double(timer.elapsed()) << " s." << std::endl;

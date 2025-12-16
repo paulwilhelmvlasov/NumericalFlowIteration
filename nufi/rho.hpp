@@ -861,11 +861,11 @@ real eval_f_lie_fBE(size_t n, real x, real y, real z,
         E2 += conf.dt * rot<real,order>(n-1,x_vec(0),x_vec(1),x_vec(2),coeffs_B,conf);
 
         // This may be wrong. It probably should be dt * q/m without the (-1).
-        arma::Mat<real> J_B = exp_J<real>(/* - */conf.dt * conf.q / conf.m * B0); 
+        arma::Mat<real> J_B = exp_J<real>(-conf.dt * conf.q / conf.m * B0); 
 
         // Update velocity and position
         // Also here this should be (+1) instead of (-1) to not hard-code electrons!
-        v_vec = J_B * (v_vec /* - */ + conf.dt * conf.q / conf.m * E2);
+        v_vec = J_B * (v_vec -  conf.dt * conf.q / conf.m * E2);
         x_vec -= conf.dt * v_vec;
     }
 

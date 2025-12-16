@@ -56,6 +56,45 @@ double zmin = 0;
 double zmax = 1;
 }
 
+namespace electro_static_bump_on_tail
+{
+// The following sets up the simulation in ion scale units:
+double mass_ratio = 183.6 ;
+
+/* double me = 1.0/mass_ratio;
+double mi = 1; */
+
+double me = 1.0;
+double mi = mass_ratio;
+
+double uth_elec_core = 1;
+double vth_elec_core = 1;
+double wth_elec_core = 1;
+
+double uth_elec_beam = 0.5;
+double vth_elec_beam = 0.5;
+double wth_elec_beam = 0.5;
+
+double u_d = 4.5;
+
+double uth_ion_core = 1;
+double vth_ion_core = 1;
+double wth_ion_core = 1;
+
+double nc = 0.9;
+double nb = 0.2;
+
+//double k = 0.3;
+double k = 0.5;
+
+double xmin = 0;
+double xmax = 2*M_PI/k;
+double ymin = 0; 
+double ymax = 1;
+double zmin = 0;
+double zmax = 1;
+}
+
 
 namespace nufi
 {
@@ -84,21 +123,8 @@ double vmin_i = -0.5;
 double vmax_i = 0.5;
 double wmin_i = -0.5;
 double wmax_i = 0.5;
-
-// Spatial grid must be the same for both species!!!
-size_t Nx = 16;
-size_t Ny = 1;
-size_t Nz = 1;
-
-size_t Nu_e = 32;
-size_t Nv_e = 1;
-size_t Nw_e = 1;
-
-size_t Nu_i = 8;
-size_t Nv_i = 1;
-size_t Nw_i = 1; */
-
-double xmin = pezzini::xmin;
+ */
+/* double xmin = pezzini::xmin;
 double xmax = pezzini::xmax;
 double ymin = pezzini::ymin;
 double ymax = pezzini::ymax;
@@ -117,24 +143,55 @@ double umax_i = 15*pezzini::uth_ion_beam;
 double vmin_i = -15*pezzini::vth_ion_beam;
 double vmax_i = 15*pezzini::vth_ion_beam;
 double wmin_i = -8*pezzini::wth_ion_beam;
-double wmax_i = 8*pezzini::wth_ion_beam;
+double wmax_i = 8*pezzini::wth_ion_beam; */
+
+double xmin = electro_static_bump_on_tail::xmin;
+double xmax = electro_static_bump_on_tail::xmax;
+double ymin = electro_static_bump_on_tail::ymin;
+double ymax = electro_static_bump_on_tail::ymax;
+double zmin = electro_static_bump_on_tail::zmin;
+double zmax = electro_static_bump_on_tail::zmax;
+
+double umin_e = -10*electro_static_bump_on_tail::uth_elec_core;
+double umax_e = 10*electro_static_bump_on_tail::uth_elec_core;
+/* double vmin_e = -5*electro_static_bump_on_tail::vth_elec_core;
+double vmax_e = 5*electro_static_bump_on_tail::vth_elec_core;
+double wmin_e = -5*electro_static_bump_on_tail::wth_elec_core;
+double wmax_e = 5*electro_static_bump_on_tail::wth_elec_core; */
+
+double vmin_e = -0.5;
+double vmax_e = 0.5;
+double wmin_e = -0.5;
+double wmax_e = 0.5;
+
+double umin_i = -5*electro_static_bump_on_tail::uth_ion_core;
+double umax_i = 5*electro_static_bump_on_tail::uth_ion_core;
+/* double vmin_i = -5*electro_static_bump_on_tail::uth_ion_core;
+double vmax_i = 5*electro_static_bump_on_tail::uth_ion_core;
+double wmin_i = -5*electro_static_bump_on_tail::uth_ion_core;
+double wmax_i = 5*electro_static_bump_on_tail::uth_ion_core; */
+
+double vmin_i = -0.5;
+double vmax_i = 0.5;
+double wmin_i = -0.5;
+double wmax_i = 0.5;
 
 // Spatial grid must be the same for both species!!!
 size_t Nx = 16;
-size_t Ny = 16;
+size_t Ny = 1;//16;
 size_t Nz = 1;
 
 size_t Nu_e = 32;
-size_t Nv_e = 32;
-size_t Nw_e = 16;
+size_t Nv_e = 1;
+size_t Nw_e = 1;
 
-size_t Nu_i = 48;
-size_t Nv_i = 48;
-size_t Nw_i = 24;
+size_t Nu_i = 16;
+size_t Nv_i = 1;
+size_t Nw_i = 1;
 
-size_t steps_per_1 = 30;
+size_t steps_per_1 = 10;
 double   dt = 1.0 / steps_per_1;
-size_t Nt = 500*steps_per_1;
+size_t Nt = 100*steps_per_1;
 
 size_t nx_r = Nx;
 size_t ny_r = Ny;
@@ -157,7 +214,7 @@ size_t nu_r_i = 8;
 size_t nv_r_i = 8;
 size_t nw_r_i = 8; */
 
-size_t nt_restart = 20;
+size_t nt_restart = 100;
 
 template <typename real>
 real f0_electron(real x, real y, real z, real u, real v, real w) noexcept
@@ -170,7 +227,16 @@ real f0_electron(real x, real y, real z, real u, real v, real w) noexcept
     //return (1+0.01*cos(0.5*x))*maxwellian_1d<real>(u,1);
 
     // Pezzini
-    return maxwellian<double>(u,v,w,pezzini::uth_elec);
+    //return maxwellian<double>(u,v,w,pezzini::uth_elec);
+
+    // Electro-static bump-on-tail
+    return 1.0 / std::sqrt(2.0 * M_PI) * (1 + 0.04 * std::cos(0.3*x)) 
+            *  ( 0.9 * std::exp(-0.5 * u*u)  + 0.2 * std::exp(-0.5/(0.5*0.5) * (u-4.5)*(u-4.5)) ); 
+
+    /* return (1 + 0.04 * std::cos( electro_static_bump_on_tail::k * x )) 
+            * (electro_static_bump_on_tail::nc * maxwellian_1d<real>(u, electro_static_bump_on_tail::uth_elec_core) 
+            + electro_static_bump_on_tail::nb * maxwellian_1d<real>(u - electro_static_bump_on_tail::u_d, electro_static_bump_on_tail::uth_elec_beam))
+            * maxwellian_2d<real>(v, w, electro_static_bump_on_tail::vth_elec_core); */
 }
 
 template <typename real>
@@ -184,12 +250,16 @@ real f0_ion(real x, real y, real z, real u, real v, real w) noexcept
     //return maxwellian_1d<real>(u,1);
 
     // Pezzini
-    return pezzini::nc * maxwellian_1d<double>(u-pezzini::u_drift_ion_core,pezzini::uth_ion_core)
+    /* return pezzini::nc * maxwellian_1d<double>(u-pezzini::u_drift_ion_core,pezzini::uth_ion_core)
                         * maxwellian_1d<double>(v,pezzini::vth_ion_core)
                         * maxwellian_1d<double>(w,pezzini::wth_ion_core)
         + pezzini::nb * maxwellian_1d<double>(u-pezzini::u_drift_ion_beam,pezzini::uth_ion_beam)
                         * maxwellian_1d<double>(v,pezzini::vth_ion_beam)
-                        * maxwellian_1d<double>(w,pezzini::wth_ion_beam);
+                        * maxwellian_1d<double>(w,pezzini::wth_ion_beam); */
+
+    // Electro-static bump on tail.
+    return maxwellian_1d<double>(u,1);
+    //return maxwellian<real>(u,v,w, electro_static_bump_on_tail::uth_ion_core);
 }
 
 
@@ -216,7 +286,11 @@ arma::Col<real> B0(real x, real y, real z)
     double ky = 2*M_PI / Ly;
     double perturb = (1 + 0.1* std::cos(kx*x)*std::sin(ky*y));
     return  arma::Col<real>({pezzini::B0*perturb, 0, 0}); */
-    return  arma::Col<real>({pezzini::B0, 0, 0});
+    //return  arma::Col<real>({pezzini::B0, 0, 0});
+
+
+    // Electro-static bump on tail.
+    return arma::Col<real>({0,0,0});
 }
 
 void random_perturbation_2d_f0_electron(arma::mat& restart_mat, double eps = 1e-3)
@@ -333,11 +407,12 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
     // Set up config.
     config_t<double> conf_electron (Nx, Ny, Nz, Nu_e, Nv_e, Nw_e, Nt, dt, 
                             xmin, xmax, ymin, ymax, zmin, zmax, umin_e, umax_e, 
-                            vmin_e, vmax_e, wmin_e, wmax_e, &f0_electron, pezzini::me, -1);
+                            vmin_e, vmax_e, wmin_e, wmax_e, &f0_electron, electro_static_bump_on_tail::me, -1);
     conf_electron.print_config(std::cout);
     config_t<double> conf_ion (Nx, Ny, Nz, Nu_i, Nv_i, Nw_i, Nt, dt, 
                             xmin, xmax, ymin, ymax, zmin, zmax, umin_i, umax_i, 
-                            vmin_i, vmax_i, wmin_i, wmax_i, &f0_ion, pezzini::mi, 1);
+                            vmin_i, vmax_i, wmin_i, wmax_i, &f0_ion, electro_static_bump_on_tail::mi, 1);
+    poisson<double> poiss( conf_electron );
     conf_ion.print_config(std::cout);
 
     if(conf_electron.Nx != conf_ion.Nx){
@@ -390,8 +465,8 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
     // Init f0 with random perturbation.
     //std::cout << "Random f0_electron perturbation. " << std::endl;
     //random_perturbation_2d_f0_electron(interpolant_electron.restart_matrix, 1e-2);
-    std::cout << "Random f0_ion perturbation. " << std::endl;
-    random_perturbation_2d_f0_ion(interpolant_ion.restart_matrix, 1e-2);
+    /* std::cout << "Random f0_ion perturbation. " << std::endl;
+    random_perturbation_2d_f0_ion(interpolant_ion.restart_matrix, 1e-2); */
     /* {
         std::ofstream restart_mat_electron_str("restart_mat_electron_" + std::to_string(0*conf_electron.dt) + ".txt");
         restart_mat_electron_str << interpolant_electron.restart_matrix;
@@ -407,7 +482,7 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
     kin_energy_file << 0*conf_electron.dt << " " << kin_energy << " " << kin_energy_electron << " " << kin_energy_ion << std::endl;
  */
     //conf_electron.f0 = &eval_f_electron_with_linear_interpolant;
-    conf_ion.f0 = &eval_f_ion_with_linear_interpolant;
+    //conf_ion.f0 = &eval_f_ion_with_linear_interpolant;
 
     std::vector<double> coeffs_phi(stride_t, 0);
     std::vector<double> rho_e(Nx*Ny*Nz, 0);
@@ -418,11 +493,16 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
     eval_rho_full_EBf<double,order>(0, rho_e, coeffs_E, coeffs_B, conf_electron);
     eval_rho_full_EBf<double,order>(0, rho_i, coeffs_E, coeffs_B, conf_ion);
 
-    //#pragma omp parallel for
+    std::ofstream rho_str("rho.txt");
+    #pragma omp parallel for
     for(size_t i = 0; i < rho.size(); i++){
         rho[i] = rho_i[i] + rho_e[i];
-        std::cout << rho[i] << " " << rho_e[i] << " " << rho_i[i] << std::endl;
     }
+    for(size_t i = 0; i < Nx; i++){
+        rho_str << i*conf_electron.dx << " " << rho[i] << " " << rho_e[i] << " " << rho_i[i] << std::endl;
+    }
+
+    poiss.solve( rho.data() );
 
     std::cout << "Compute phi_0. " << std::endl;
     interpolate<double,order>(coeffs_phi.data(), rho.data(), conf_electron );
@@ -436,6 +516,13 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
         }
         return -eval<double,order,0,0,1>(x,y,z, coeffs_phi.data(), conf_electron);
     };
+
+    /* std::ofstream init_E0_str("init_E.txt");
+    for(size_t i = 0; i < Nx; i++){
+        double x = i*conf_electron.dx;
+        init_E0_str << x << " " << eval_E0_random_pertb(x, 0, 0, 0) 
+                    << " " << eval<double,order>(x,0,0,coeffs_phi.data(),conf_electron)    << std::endl;
+    } */
 
     double tolerance = 1e-6;
     double tolerance_velocity_electron = tolerance * interpolant_electron.restart_matrix.max();
@@ -467,7 +554,7 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
         double z = zmin + iz*conf_electron.dz; 
         
         // Normal initialization:        
-        //arma::Col<double> E0_vec = E0(x,y,z);
+        arma::Col<double> E0_vec = E0(x,y,z);
         arma::Col<double> B0_vec = B0(x,y,z);
 
          for(size_t d = 0; d < 3; d++){
@@ -481,6 +568,11 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
                 B[index] *= (1 + dist(rng)); 
             }  */
         }
+    }
+
+    std::ofstream init_E0_1_str("init_E0_1.txt");
+    for(size_t i = 0; i < Nx; i++){
+        init_E0_1_str << i*conf_electron.dx << " " << E[i] << std::endl;
     }
 
     // Interpolate E(0) and B(0).
@@ -536,13 +628,16 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
     // Do first output.
     std::ofstream stat_file( "stats.txt" );
     std::ofstream j_stat_file( "j_stats.txt" );
-    analysis::do_stats<double,order>(0, 64, 64, 1, stat_file, coeffs_E, coeffs_B, conf_electron, true, true, 0);
+    analysis::do_stats<double,order>(0, 64, 1, 1, stat_file, coeffs_E, coeffs_B, conf_electron, true, true, 0);
     analysis::compute_j_l2(0,j_stat_file,conf_electron,j_0,j_electron,j_ion);
     {
         std::ofstream mat_e_str("f_e_full_" + std::to_string(0*conf_electron.dt) + ".txt" );
         std::ofstream mat_i_str("f_i_full_" + std::to_string(0*conf_electron.dt) + ".txt" );
-        analysis::plot_full_f_3x3v_parallelized<double,order>(4,4,1,128,128,8,xmin,xmax,ymin,ymax,zmin,zmax,umin_e,umax_e,vmin_e,vmax_e,wmin_e,wmax_e,eval_f_electron,mat_e_str);
+/*         analysis::plot_full_f_3x3v_parallelized<double,order>(4,4,1,128,128,8,xmin,xmax,ymin,ymax,zmin,zmax,umin_e,umax_e,vmin_e,vmax_e,wmin_e,wmax_e,eval_f_electron,mat_e_str);
         analysis::plot_full_f_3x3v_parallelized<double,order>(4,4,1,128,128,8,xmin,xmax,ymin,ymax,zmin,zmax,umin_i,umax_i,vmin_i,vmax_i,wmin_i,wmax_i,eval_f_ion,mat_i_str);
+ */
+        analysis::plot_full_f_3x3v_parallelized<double,order>(32,1,1,64,1,1,xmin,xmax,ymin,ymax,zmin,zmax,umin_e,umax_e,vmin_e,vmax_e,wmin_e,wmax_e,eval_f_electron,mat_e_str);
+        analysis::plot_full_f_3x3v_parallelized<double,order>(32,1,1,64,1,1,xmin,xmax,ymin,ymax,zmin,zmax,umin_i,umax_i,vmin_i,vmax_i,wmin_i,wmax_i,eval_f_ion,mat_i_str);
 
         std::ofstream j_e_str("j_e_" + std::to_string(0*conf_electron.dt) + ".txt" );
         for(size_t i = 0; i < j_electron.size(); i++){
@@ -556,6 +651,7 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
 
     std::cout << "Time-loop." << std::endl;    
     std::cout << " ---------------------------------- " << std::endl;
+    std::ofstream gauss_law_error_str("gauss_law_error.txt");
     double total_time, total_time_with_plot = 0;
     for(size_t n = 1; n <= Nt; n++)
     {
@@ -573,6 +669,18 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
         // Compute E(n).
         maxwell::E_step_predictor_corrector<double,order>(nt_r_curr,coeffs_E,coeffs_B_staggered,E,j_0,j_1,conf_electron);
 
+        // Clean gauss-law:
+        eval_rho_full_EBf<double,order>(nt_r_curr, rho_e, coeffs_E, coeffs_B, conf_electron);
+        eval_rho_full_EBf<double,order>(nt_r_curr, rho_i, coeffs_E, coeffs_B, conf_ion);
+        #pragma omp parallel for
+        for(size_t i = 0; i < rho.size(); i++){
+            rho[i] = rho_i[i] + rho_e[i];
+        }
+        double gauss_law_error = maxwell::E_clean_gauss_law<double,order>(nt_r_curr,coeffs_E, E, rho, coeffs_phi,
+                                                 conf_electron, poiss);
+        gauss_law_error_str << n*conf_electron.dt << " " << gauss_law_error << std::endl;
+
+
         // Compute B(n+1/2).
         maxwell::B_step_predictor_corrector<double,order>(nt_r_curr+1,coeffs_E, coeffs_B_staggered, B,conf_electron);
 
@@ -585,18 +693,20 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
         double time_for_step = timer.elapsed();
         timer.reset();
         
-        bool plot_EB = (n % (5*steps_per_1) == 0);
-        bool plot_f_j = (n % (5*steps_per_1) == 0);
-        analysis::do_stats<double,order>(nt_r_curr, 64, 64, 1, stat_file, coeffs_E, coeffs_B, conf_electron, plot_EB, true, n);
+        /* bool plot_EB = (n % (5*steps_per_1) == 0);
+        bool plot_f_j = (n % (5*steps_per_1) == 0); */
+        bool plot_EB = false && (n % (20) == 0);
+        bool plot_f_j = false && (n % (20) == 0);
+        analysis::do_stats<double,order>(nt_r_curr, 64, 1, 1, stat_file, coeffs_E, coeffs_B, conf_electron, plot_EB, true, n);
         analysis::compute_j_l2(n, j_stat_file, conf_electron, j_0, j_electron, j_ion);
         if(plot_f_j){
             std::ofstream mat_e_str("f_e_full_" + std::to_string(n*conf_electron.dt) + ".txt" );
-            analysis::plot_full_f_3x3v_parallelized<double,order>(4,4,1,128,128,8,xmin,xmax,ymin,ymax,zmin,zmax,umin_e,umax_e,vmin_e,vmax_e,wmin_e,wmax_e,eval_f_electron,mat_e_str);
+            analysis::plot_full_f_3x3v_parallelized<double,order>(32,1,1,64,1,1,xmin,xmax,ymin,ymax,zmin,zmax,umin_e,umax_e,vmin_e,vmax_e,wmin_e,wmax_e,eval_f_electron,mat_e_str);
             /* std::ofstream velo_supp_e_str("v_supp_e_" + std::to_string(n*conf_electron.dt) + ".txt" );
             velo_supp_e_str << umin_e << " " << umax_e << " " << vmin_e << " " << vmax_e << " " << wmin_e << " " << wmax_e; */
             
             std::ofstream mat_i_str("f_i_full_" + std::to_string(n*conf_electron.dt) + ".txt" );
-            analysis::plot_full_f_3x3v_parallelized<double,order>(2,2,1,128,128,8,xmin,xmax,ymin,ymax,zmin,zmax,umin_i,umax_i,vmin_i,vmax_i,wmin_i,wmax_i,eval_f_ion,mat_i_str);
+            analysis::plot_full_f_3x3v_parallelized<double,order>(32,1,1,64,1,1,xmin,xmax,ymin,ymax,zmin,zmax,umin_i,umax_i,vmin_i,vmax_i,wmin_i,wmax_i,eval_f_ion,mat_i_str);
             /* std::ofstream velo_supp_i_str("v_supp_i_" + std::to_string(n*conf_electron.dt) + ".txt" );
             velo_supp_i_str << umin_i << " " << umax_i << " " << vmin_i << " " << vmax_i << " " << wmin_i << " " << wmax_i; */
 
