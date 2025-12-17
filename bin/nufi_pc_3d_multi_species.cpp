@@ -84,8 +84,8 @@ double wth_ion_core = 1;
 double nc = 0.9;
 double nb = 0.2;
 
-//double k = 0.3;
-double k = 0.5;
+double k = 0.3;
+//double k = 0.5;
 
 double xmin = 0;
 double xmax = 2*M_PI/k;
@@ -177,11 +177,11 @@ double wmin_i = -0.5;
 double wmax_i = 0.5;
 
 // Spatial grid must be the same for both species!!!
-size_t Nx = 16;
+size_t Nx = 64;
 size_t Ny = 1;//16;
 size_t Nz = 1;
 
-size_t Nu_e = 32;
+size_t Nu_e = 128;
 size_t Nv_e = 1;
 size_t Nw_e = 1;
 
@@ -488,6 +488,7 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
     std::vector<double> rho_e(Nx*Ny*Nz, 0);
     std::vector<double> rho_i(Nx*Ny*Nz, 0);
     std::vector<double> rho(Nx*Ny*Nz, 0);
+    std::vector<double> g(Nx*Ny*Nz, 0);
     
     std::cout << "Compute rho_0. " << std::endl;
     eval_rho_full_EBf<double,order>(0, rho_e, coeffs_E, coeffs_B, conf_electron);
@@ -647,6 +648,16 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
         for(size_t i = 0; i < j_ion.size(); i++){
             j_i_str << j_ion[i] << std::endl;
         }
+
+        std::ofstream j_str("j_" + std::to_string(0*conf_electron.dt) + ".txt" );
+        for(size_t i = 0; i < j_0.size(); i++){
+            j_str << j_0[i] << std::endl;
+        }
+
+        std::ofstream rho_str("rho_" + std::to_string(0*conf_electron.dt) + ".txt" );
+        for(size_t i = 0; i < rho.size(); i++){
+            rho_str << rho[i] << std::endl;
+        }
     }
 
     std::cout << "Time-loop." << std::endl;    
@@ -676,8 +687,8 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
         for(size_t i = 0; i < rho.size(); i++){
             rho[i] = rho_i[i] + rho_e[i];
         }
-        double gauss_law_error = maxwell::E_clean_gauss_law<double,order>(nt_r_curr,coeffs_E, E, rho, coeffs_phi,
-                                                 conf_electron, poiss);
+        double gauss_law_error = maxwell::E_clean_gauss_law<double,order>(nt_r_curr,coeffs_E, 
+                                                    E, rho, g, coeffs_phi, conf_electron, poiss);
         gauss_law_error_str << n*conf_electron.dt << " " << gauss_law_error << std::endl;
 
 
@@ -696,17 +707,17 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
         /* bool plot_EB = (n % (5*steps_per_1) == 0);
         bool plot_f_j = (n % (5*steps_per_1) == 0); */
         bool plot_EB = false && (n % (20) == 0);
-        bool plot_f_j = false && (n % (20) == 0);
+        bool plot_f_j = /* false && (n % (20) == 0) */ true;
         analysis::do_stats<double,order>(nt_r_curr, 64, 1, 1, stat_file, coeffs_E, coeffs_B, conf_electron, plot_EB, true, n);
         analysis::compute_j_l2(n, j_stat_file, conf_electron, j_0, j_electron, j_ion);
         if(plot_f_j){
-            std::ofstream mat_e_str("f_e_full_" + std::to_string(n*conf_electron.dt) + ".txt" );
-            analysis::plot_full_f_3x3v_parallelized<double,order>(32,1,1,64,1,1,xmin,xmax,ymin,ymax,zmin,zmax,umin_e,umax_e,vmin_e,vmax_e,wmin_e,wmax_e,eval_f_electron,mat_e_str);
+            /* std::ofstream mat_e_str("f_e_full_" + std::to_string(n*conf_electron.dt) + ".txt" );
+            analysis::plot_full_f_3x3v_parallelized<double,order>(32,1,1,64,1,1,xmin,xmax,ymin,ymax,zmin,zmax,umin_e,umax_e,vmin_e,vmax_e,wmin_e,wmax_e,eval_f_electron,mat_e_str); */
             /* std::ofstream velo_supp_e_str("v_supp_e_" + std::to_string(n*conf_electron.dt) + ".txt" );
             velo_supp_e_str << umin_e << " " << umax_e << " " << vmin_e << " " << vmax_e << " " << wmin_e << " " << wmax_e; */
             
-            std::ofstream mat_i_str("f_i_full_" + std::to_string(n*conf_electron.dt) + ".txt" );
-            analysis::plot_full_f_3x3v_parallelized<double,order>(32,1,1,64,1,1,xmin,xmax,ymin,ymax,zmin,zmax,umin_i,umax_i,vmin_i,vmax_i,wmin_i,wmax_i,eval_f_ion,mat_i_str);
+            /* std::ofstream mat_i_str("f_i_full_" + std::to_string(n*conf_electron.dt) + ".txt" );
+            analysis::plot_full_f_3x3v_parallelized<double,order>(32,1,1,64,1,1,xmin,xmax,ymin,ymax,zmin,zmax,umin_i,umax_i,vmin_i,vmax_i,wmin_i,wmax_i,eval_f_ion,mat_i_str); */
             /* std::ofstream velo_supp_i_str("v_supp_i_" + std::to_string(n*conf_electron.dt) + ".txt" );
             velo_supp_i_str << umin_i << " " << umax_i << " " << vmin_i << " " << vmax_i << " " << wmin_i << " " << wmax_i; */
 
@@ -717,6 +728,16 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
             std::ofstream j_i_str("j_i_" + std::to_string(n*conf_electron.dt) + ".txt" );
             for(size_t i = 0; i < j_ion.size(); i++){
                 j_i_str << j_ion[i] << std::endl;
+            }
+
+            std::ofstream j_str("j_" + std::to_string(n*conf_electron.dt) + ".txt" );
+            for(size_t i = 0; i < j_0.size(); i++){
+                j_str << j_0[i] << std::endl;
+            }
+
+            std::ofstream rho_str("rho_" + std::to_string(n*conf_electron.dt) + ".txt" );
+            for(size_t i = 0; i < rho.size(); i++){
+                rho_str << rho[i] << std::endl;
             }
         }
         
