@@ -206,6 +206,73 @@ class linear_interpolant_6d
             restart_matrix = copy_mat;
         }
 
+        void restart_f_MPI(const std::function<double(double,double,double,double,double,double)>& eval_f)
+        {
+            int rank, size;
+            MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+            MPI_Comm_size(MPI_COMM_WORLD, &size);
+
+            const size_t NxTot = (nx_r+1)*(ny_r+1)*(nz_r+1);
+            const size_t NvTot = (nu_r+1)*(nv_r+1)*(nw_r+1);
+
+            arma::mat local(size_x_r, size_v_r, arma::fill::zeros);
+
+            // -------------------------
+            // MPI decomposition in configuration space
+            // -------------------------
+            size_t base = NxTot / size;
+            size_t rem  = NxTot % size;
+
+            size_t Nloc = base + (rank < rem ? 1 : 0);
+            size_t i0   = base * rank + std::min((size_t)rank, rem);
+            size_t iend = i0 + Nloc;
+
+            // -------------------------
+            // distributed configuration loop
+            // -------------------------
+            for(size_t I = i0; I < iend; I++)
+            {
+                size_t iz = I / ((nx_r+1)*(ny_r+1));
+                size_t tmp = I % ((nx_r+1)*(ny_r+1));
+                size_t iy = tmp / (nx_r+1);
+                size_t ix = tmp % (nx_r+1);
+
+                double x = xmin + ix*dx_r;
+                double y = ymin + iy*dy_r;
+                double z = zmin + iz*dz_r;
+
+                // -------------------------
+                // OpenMP over velocity space
+                // -------------------------
+                #pragma omp parallel for collapse(3)
+                for(size_t iu = 0; iu <= nu_r; iu++)
+                for(size_t iv = 0; iv <= nv_r; iv++)
+                for(size_t iw = 0; iw <= nw_r; iw++)
+                {
+                    double u = umin + iu*du_r;
+                    double v = vmin + iv*dv_r;
+                    double w = wmin + iw*dw_r;
+
+                    size_t index_1 =
+                        iu + (nu_r+1)*(iv + (nv_r+1)*iw);
+
+                    local(I, index_1) =
+                        eval_f(x, y, z, u, v, w);
+                }
+            }
+
+            // -------------------------
+            // reconstruct restart_matrix
+            // -------------------------
+            MPI_Allreduce(local.memptr(),
+                        restart_matrix.memptr(),
+                        size_x_r * size_v_r,
+                        MPI_DOUBLE,
+                        MPI_SUM,
+                        MPI_COMM_WORLD);
+        }
+
+
         void restart_f_checking_boundaries(const std::function<double(double,double,double,double,double,double)>& eval_f, 
                         double& umin_new, double& umax_new, double& vmin_new, 
                         double& vmax_new, double& wmin_new, double& wmax_new, 

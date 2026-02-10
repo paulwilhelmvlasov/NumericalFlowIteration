@@ -1,4 +1,5 @@
 #pragma once
+#include <mpi.h>
 #include <cmath>
 #include <memory>
 #include <iostream>
@@ -70,6 +71,43 @@ void interpolate_fields_aligned(size_t n, std::vector<real>& coeffs,
                                                 values.data() + d*conf.Nx*conf.Ny*conf.Nz,conf);
     }
 }
+
+template<typename real>
+void mpi_allgather_field(std::vector<real>& field,
+                         const config_t<real>& conf)
+{
+    int rank, size;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+
+    const size_t Nspace = conf.Nx * conf.Ny * conf.Nz;
+    const size_t dim = field.size() / Nspace;   // 1 for rho, 3 for j
+
+    size_t base = Nspace / size;
+    size_t rem  = Nspace % size;
+
+    std::vector<int> counts(size), displs(size);
+
+    size_t offset = 0;
+    for(int r = 0; r < size; r++){
+        size_t Nloc = base + (r < rem ? 1 : 0);
+        counts[r] = dim * Nloc;
+        displs[r] = dim * offset;
+        offset += Nloc;
+    }
+
+    std::vector<real> tmp = field;
+
+    MPI_Allgatherv(tmp.data() + displs[rank],
+                   counts[rank],
+                   MPI_DOUBLE,
+                   field.data(),
+                   counts.data(),
+                   displs.data(),
+                   MPI_DOUBLE,
+                   MPI_COMM_WORLD);
+}
+
 
 namespace analysis
 {

@@ -404,6 +404,14 @@ double eval_f_ion_with_linear_interpolant(double x, double y, double z, double u
 template<size_t order>
 void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
 {
+    int mpi_rank, mpi_size;
+    MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &mpi_size);
+
+    if(mpi_rank == 0){
+        std::cout << "Start Simulation with MPI support. Number of MPI processes: " << mpi_size << std::endl;
+    }
+
     // Set up config.
     config_t<double> conf_electron (Nx, Ny, Nz, Nu_e, Nv_e, Nw_e, Nt, dt, 
                             xmin, xmax, ymin, ymax, zmin, zmax, umin_e, umax_e, 
@@ -616,7 +624,9 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
 
     // Compute j(0).
     eval_j_full_EBf<double,order>(0, j_electron, coeffs_E, coeffs_B, conf_electron);
+    mpi_allgather_field(j_electron, conf_electron);
     eval_j_full_EBf<double,order>(0, j_ion, coeffs_E, coeffs_B, conf_ion);
+    mpi_allgather_field(j_ion, conf_ion);
 
     #pragma omp parallel for
     for(size_t i = 0; i < j_0.size(); i++){
@@ -670,7 +680,9 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
         
         // Compute j(n).
         eval_j_full_EBf<double,order>(nt_r_curr, j_electron, coeffs_E, coeffs_B, conf_electron);
+        mpi_allgather_field(j_electron, conf_electron);
         eval_j_full_EBf<double,order>(nt_r_curr, j_ion, coeffs_E, coeffs_B, conf_ion);
+        mpi_allgather_field(j_ion, conf_ion);
 
         #pragma omp parallel for
         for(size_t i = 0; i < j_1.size(); i++){
@@ -682,7 +694,10 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
 
         // Clean gauss-law:
         eval_rho_full_EBf<double,order>(nt_r_curr, rho_e, coeffs_E, coeffs_B, conf_electron);
+        mpi_allgather_field(rho_e, conf_electron);
         eval_rho_full_EBf<double,order>(nt_r_curr, rho_i, coeffs_E, coeffs_B, conf_ion);
+        mpi_allgather_field(rho_i, conf_ion);
+
         #pragma omp parallel for
         for(size_t i = 0; i < rho.size(); i++){
             rho[i] = rho_i[i] + rho_e[i];
@@ -762,11 +777,13 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
         if(nt_r_curr == nt_restart){
             timer.reset();
             std::cout << "Restart simulation. " << std::endl;
-            interpolant_electron.restart_f(eval_f_electron);
+            //interpolant_electron.restart_f(eval_f_electron);
+            interpolant_electron.restart_f_MPI(eval_f_electron);
             //std::ofstream restart_mat_electron_str("restart_mat_electron_" + std::to_string(n*conf_electron.dt) + ".txt");
             //restart_mat_electron_str << interpolant_electron.restart_matrix;
 
-            interpolant_ion.restart_f(eval_f_ion);
+            //interpolant_ion.restart_f(eval_f_ion);
+            interpolant_ion.restart_f_MPI(eval_f_ion);
             //std::ofstream restart_mat_ion_str("restart_mat_ion_" + std::to_string(n*conf_electron.dt) + ".txt");
             //restart_mat_ion_str << interpolant_ion.restart_matrix;
             
@@ -1224,8 +1241,9 @@ int main(int argc, char** argv){
     // Add CMM-restart.
     // Add initialition through init-file.
 
-    //omp_set_num_threads(10);
+    MPI_Init(&argc, &argv);
     nufi::dim3::periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned<4>();
+    MPI_Finalize();
     //nufi::dim3::nufi_cmm_maxwell_lie_EBf_predictor_corrector_aligned<4>();
 
     return 0;
