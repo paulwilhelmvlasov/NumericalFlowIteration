@@ -177,11 +177,11 @@ double wmin_i = -0.5;
 double wmax_i = 0.5;
 
 // Spatial grid must be the same for both species!!!
-size_t Nx = 64;
+size_t Nx = 16;
 size_t Ny = 1;//16;
 size_t Nz = 1;
 
-size_t Nu_e = 128;
+size_t Nu_e = 32;
 size_t Nv_e = 1;
 size_t Nw_e = 1;
 

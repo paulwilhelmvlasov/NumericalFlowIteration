@@ -287,6 +287,7 @@ config_t<double> conf(Nx, Ny, Nz, Nu, Nv, Nw, Nt, dt,
                     0, Lx, 0, Lx, 0, Lx, umin, umax,
                     vmin, vmax, wmin, wmax,  &f0);
 
+/*
 template <typename real, size_t order>
 void B_step_predictor_corrector(size_t n, const std::vector<double>& coeffs_E, std::vector<double>& coeffs_B_staggered,
                                 std::vector<double>& B)
@@ -428,7 +429,7 @@ void B_average(size_t n, std::vector<double>& coeffs_B, std::vector<double>& coe
     // Interpolate B(n).
     interpolate_fields_aligned<double,order>(n, coeffs_B, B, conf);
 }
-
+*/
 
 template<typename real, size_t order>
 void do_stats(size_t nt, size_t nx_plot, std::ofstream& stat_file, 
@@ -1689,6 +1690,11 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
     std::vector<double> j_0(3 * conf.Nx * conf.Ny * conf.Nz, 0);
     std::vector<double> j_1(3 * conf.Nx * conf.Ny * conf.Nz, 0);
 
+    std::vector<double> coeffs_phi(stride_t, 0);
+    std::vector<double> rho(Nx*Ny*Nz, 0);
+    std::vector<double> g(Nx*Ny*Nz, 0);
+    poisson<double> poiss( conf );
+
     // Init restart matrices.
     std::cout << "Initialize restart matrices." << std::endl;
     size_t size_x_r = (nx_r+1)*(ny_r+1)*(nz_r+1);
@@ -1773,7 +1779,7 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
     eval_j_full_EBf<double,order>(0, j_0, coeffs_E, coeffs_B, conf);
 
     // Compute B(1/2).
-    B_step_predictor_corrector<double,order>(1,coeffs_E,coeffs_B_staggered,B);
+    maxwell::B_step_predictor_corrector<double,order>(1,coeffs_E,coeffs_B_staggered,B,conf);
 
     // Do first output.
     std::ofstream stat_file( "stats.txt" );
@@ -1793,13 +1799,23 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
         eval_j_full_EBf<double,order>(nt_r_curr, j_1, coeffs_E, coeffs_B, conf);
 
         // Compute E(n).
-        E_step_predictor_corrector<double,order>(nt_r_curr,coeffs_E,coeffs_B_staggered,E,j_0,j_1);
+        maxwell::E_step_predictor_corrector<double,order>(nt_r_curr,coeffs_E,coeffs_B_staggered,E,j_0,j_1,conf);
 
         // Compute B(n+1/2).
-        B_step_predictor_corrector<double,order>(nt_r_curr+1,coeffs_E, coeffs_B_staggered, B);
+        maxwell::B_step_predictor_corrector<double,order>(nt_r_curr+1,coeffs_E, coeffs_B_staggered, B,conf);
 
         // Compute B(n).
-        B_average<double,order>(nt_r_curr,coeffs_B,coeffs_B_staggered,B);
+        maxwell::B_average<double,order>(nt_r_curr,coeffs_B,coeffs_B_staggered,B,conf);
+
+        // Gauss clean
+        eval_rho_full_EBf<double,order>(nt_r_curr, rho, coeffs_E, coeffs_B, conf);
+        #pragma omp parallel for
+        for(size_t i = 0; i < rho.size(); i++){
+            rho[i] += 1;
+        }
+        double gauss_law_error = maxwell::E_clean_gauss_law<double,order>(nt_r_curr,coeffs_E, 
+                                                    E, rho, g, coeffs_phi, conf, poiss);
+        std::cout << n*conf.dt << " gauss law error " << gauss_law_error << std::endl;
 
         // Shuffle j_1 into j_0.
         j_0 = j_1;

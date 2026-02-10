@@ -86,8 +86,13 @@ void E_step_predictor_corrector(size_t n, std::vector<double>& coeffs_E, const s
     const size_t Nz_ext = conf.Nz + order - 1;
     const size_t Nspace = Nx_ext * Ny_ext * Nz_ext;
 
+    // Fix gauge invariance for E.
+    double Ex_avg = 0;
+    double Ey_avg = 0;
+    double Ez_avg = 0;
+
     // Compute E(n).
-    #pragma omp parallel for
+    #pragma omp parallel for reduction(+:Ex_avg,Ey_avg,Ez_avg)
     for(size_t l = 0; l < conf.Nx*conf.Ny*conf.Nz; l++){
         size_t iz   = l   / (conf.Nx * conf.Ny);
         size_t tmp  = l   % (conf.Nx * conf.Ny);
@@ -113,6 +118,27 @@ void E_step_predictor_corrector(size_t n, std::vector<double>& coeffs_E, const s
             size_t index = d*conf.Nx*conf.Ny*conf.Nz + l;
             E[index] = E0_vec(d);
         }
+
+        Ex_avg += E0_vec(0);
+        Ey_avg += E0_vec(1);
+        Ez_avg += E0_vec(2);
+    }
+
+    // Fix gauge invariance for E.
+    const double invN = 1.0 / (conf.Nx*conf.Ny*conf.Nz);
+    Ex_avg *= invN;
+    Ey_avg *= invN;
+    Ez_avg *= invN;
+
+    #pragma omp parallel for 
+    for(size_t l = 0; l < conf.Nx*conf.Ny*conf.Nz; l++){
+        size_t index_x = l;
+        size_t index_y = conf.Nx*conf.Ny*conf.Nz + l;
+        size_t index_z = 2*conf.Nx*conf.Ny*conf.Nz + l;
+
+        E[index_x] -= Ex_avg;
+        E[index_y] -= Ey_avg;
+        E[index_z] -= Ez_avg;
     }
 
     // Interpolate E(n).
