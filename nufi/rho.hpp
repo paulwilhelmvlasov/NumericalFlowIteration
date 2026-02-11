@@ -917,6 +917,97 @@ real eval_f_lie_EBf(size_t n, real x, real y, real z,
 }
 
 template <typename real, size_t order>
+real eval_f_lie_EBf_HB_Strang_split(size_t n, real x, real y, real z,
+    real u, real v, real w, const std::vector<real>& coeffs_E,
+    const std::vector<real>& coeffs_B, const config_t<real>& conf)
+{
+    // F(t) = Ham_f o Ham_B o Ham_E o F(0).
+
+    const size_t dim = 3;
+    const size_t Nx_ext = conf.Nx + order - 1;
+    const size_t Ny_ext = conf.Ny + order - 1;
+    const size_t Nz_ext = conf.Nz + order - 1;
+
+    double qm = conf.q / conf.m;
+
+    arma::Col<real> x_vec({x, y, z});
+    arma::Col<real> v_vec({u, v, w});
+    arma::Col<real> B0({0,0,0});
+    arma::Col<real> E0({0,0,0});
+    arma::Col<real> A({0,0,0});
+
+    // Local helper: Strang shear-splitting approximation of v <- exp([b]_x dt) v,
+    // with b = (-qm)*A (so that dt*b = -qm*dt*A matches your exp_J argument).
+    auto apply_B_strang_splitting = [&](arma::Col<real>& vv,
+                                        const arma::Col<real>& Avec)
+    {
+        const real dt = conf.dt;
+
+        // b = (-qm) * A
+        const real b1 = (real)(-qm) * Avec(0);
+        const real b2 = (real)(-qm) * Avec(1);
+        const real b3 = (real)(-qm) * Avec(2);
+
+        const real h  = (real)0.5 * dt;
+
+        // We implement:
+        // Phi1(h): v1 += h*(v2*b3 - v3*b2)
+        // Phi2(h): v2 += h*(v3*b1 - v1*b3)
+        // Phi3(dt): v3 += dt*(v1*b2 - v2*b1)
+        // Phi2(h), Phi1(h)
+
+        real v1 = vv(0), v2 = vv(1), v3 = vv(2);
+
+        // Phi1(h)
+        v1 += h * (v2*b3 - v3*b2);
+
+        // Phi2(h) (uses updated v1)
+        v2 += h * (v3*b1 - v1*b3);
+
+        // Phi3(dt) (uses updated v1,v2)
+        v3 += dt * (v1*b2 - v2*b1);
+
+        // Phi2(h) again (uses updated v3 and current v1)
+        v2 += h * (v3*b1 - v1*b3);
+
+        // Phi1(h) again (uses updated v2,v3)
+        v1 += h * (v2*b3 - v3*b2);
+
+        vv(0) = v1; vv(1) = v2; vv(2) = v3;
+    };
+
+    for (; n > 0; n--) {
+        // H_f backward: x <- x - dt v
+        x_vec = x_vec - conf.dt * v_vec;
+
+        // fields at time (n-1)
+        for(size_t d = 0; d < 3; d++){
+            B0(d) = eval<real, order>(x_vec(0), x_vec(1), x_vec(2),
+                        &coeffs_B[idx_base(n - 1, d, 0, 0, 0, Nx_ext, Ny_ext, Nz_ext, conf.Nt)],
+                        conf);
+            E0(d) = eval<real, order>(x_vec(0), x_vec(1), x_vec(2),
+                        &coeffs_E[idx_base(n - 1, d, 0, 0, 0, Nx_ext, Ny_ext, Nz_ext, conf.Nt)],
+                        conf);
+        }
+
+        // same A you used for exp_J
+        A = B0 - conf.dt * rot<real,order>(n-1, x_vec(0), x_vec(1), x_vec(2), coeffs_E, conf);
+
+        // --- old (expensive):
+        // arma::Mat<real> J = exp_J<real>(- qm * conf.dt * A);
+        // v_vec = J*v_vec - conf.dt * qm * E0;
+
+        // --- new (cheaper): v <- approx exp([ -qm*A ]_x dt) v
+        apply_B_strang_splitting(v_vec, A);
+
+        // electric kick (unchanged)
+        v_vec = v_vec - conf.dt * (real)qm * E0;
+    }
+
+    return conf.f0(x_vec(0), x_vec(1), x_vec(2), v_vec(0), v_vec(1), v_vec(2));
+}
+
+template <typename real, size_t order>
 void eval_flow_map_EBf(size_t n, real& x, real& y, real& z,
     real& u, real& v, real& w, const std::vector<real>& coeffs_E,
     const std::vector<real>& coeffs_B, const config_t<real>& conf)
@@ -1055,7 +1146,11 @@ void eval_j_full_EBf_MPI(
             real v = conf.v_min + (iv + 0.5) * conf.dv;
             real w = conf.w_min + (iw + 0.5) * conf.dw;
 
-            real f = eval_f_lie_EBf<real,order>(
+            /* real f = eval_f_lie_EBf<real,order>(
+                n, x, y, z, u, v, w, coeffs_E, coeffs_B, conf
+            ); */
+
+            real f = eval_f_lie_EBf_HB_Strang_split<real,order>(
                 n, x, y, z, u, v, w, coeffs_E, coeffs_B, conf
             );
 
@@ -1148,7 +1243,9 @@ void eval_rho_full_EBf_MPI(size_t n, std::vector<real>& rho, const std::vector<r
             real v = conf.v_min + (iv + 0.5) * conf.dv;
             real w = conf.w_min + (iw + 0.5) * conf.dw;
 
-            real f = eval_f_lie_EBf<real,order>(n, x, y, z, u, v, w, coeffs_E, coeffs_B, conf);
+            //real f = eval_f_lie_EBf<real,order>(n, x, y, z, u, v, w, coeffs_E, coeffs_B, conf);
+
+            real f = eval_f_lie_EBf_HB_Strang_split<real,order>(n, x, y, z, u, v, w, coeffs_E, coeffs_B, conf);
 
             sum += f;
         }
