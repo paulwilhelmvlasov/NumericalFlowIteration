@@ -131,19 +131,19 @@ double ymax = pezzini::ymax;
 double zmin = pezzini::zmin;
 double zmax = pezzini::zmax;
 
-double umin_e = -15*pezzini::vth_elec;
-double umax_e = 15*pezzini::vth_elec;
-double vmin_e = -15*pezzini::vth_elec;
-double vmax_e = 15*pezzini::vth_elec;
-double wmin_e = -8*pezzini::vth_elec;
-double wmax_e = 8*pezzini::vth_elec;
+double umin_e = -5*pezzini::vth_elec;
+double umax_e = 5*pezzini::vth_elec;
+double vmin_e = -5*pezzini::vth_elec;
+double vmax_e = 5*pezzini::vth_elec;
+double wmin_e = -5*pezzini::vth_elec;
+double wmax_e = 5*pezzini::vth_elec;
 
-double umin_i = -15*pezzini::uth_ion_beam;
-double umax_i = 15*pezzini::uth_ion_beam;
-double vmin_i = -15*pezzini::vth_ion_beam;
-double vmax_i = 15*pezzini::vth_ion_beam;
-double wmin_i = -8*pezzini::wth_ion_beam;
-double wmax_i = 8*pezzini::wth_ion_beam;
+double umin_i = -8*pezzini::uth_ion_beam;
+double umax_i = 8*pezzini::uth_ion_beam;
+double vmin_i = -5*pezzini::vth_ion_beam;
+double vmax_i = 5*pezzini::vth_ion_beam;
+double wmin_i = -5*pezzini::wth_ion_beam;
+double wmax_i = 5*pezzini::wth_ion_beam;
 
 /* double xmin = electro_static_bump_on_tail::xmin;
 double xmax = electro_static_bump_on_tail::xmax;
