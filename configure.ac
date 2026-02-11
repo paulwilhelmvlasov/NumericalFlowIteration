@@ -28,7 +28,7 @@ fi
 AX_BLAS
 
 #AC_SUBST([AM_CPPFLAGS],['-I$(top_srcdir) -I$(VSC_SCRATCH_PROJECTS_BASE)/2025_027/paul/Repos/htlib'])
-AC_SUBST([AM_CPPFLAGS],['-I$(top_srcdir)])
+AC_SUBST([AM_CPPFLAGS],['-I$(top_srcdir)'])
 
 AC_CONFIG_HEADERS([nufi/autoconfig.hpp])
 AC_CONFIG_FILES([Makefile
