@@ -204,7 +204,7 @@ size_t nu_r_i = 8;
 size_t nv_r_i = 8;
 size_t nw_r_i = 8; */
 
-size_t nt_restart = 100;
+size_t nt_restart = 20;
 
 template <typename real>
 real f0_electron(real x, real y, real z, real u, real v, real w) noexcept
@@ -636,8 +636,8 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
 /*         analysis::plot_full_f_3x3v_parallelized<double,order>(4,4,1,128,128,8,xmin,xmax,ymin,ymax,zmin,zmax,umin_e,umax_e,vmin_e,vmax_e,wmin_e,wmax_e,eval_f_electron,mat_e_str);
         analysis::plot_full_f_3x3v_parallelized<double,order>(4,4,1,128,128,8,xmin,xmax,ymin,ymax,zmin,zmax,umin_i,umax_i,vmin_i,vmax_i,wmin_i,wmax_i,eval_f_ion,mat_i_str);
  */
-        analysis::plot_full_f_3x3v_parallelized<double,order>(32,1,1,64,1,1,xmin,xmax,ymin,ymax,zmin,zmax,umin_e,umax_e,vmin_e,vmax_e,wmin_e,wmax_e,eval_f_electron,mat_e_str);
-        analysis::plot_full_f_3x3v_parallelized<double,order>(32,1,1,64,1,1,xmin,xmax,ymin,ymax,zmin,zmax,umin_i,umax_i,vmin_i,vmax_i,wmin_i,wmax_i,eval_f_ion,mat_i_str);
+        analysis::plot_full_f_3x3v_parallelized<double,order>(32,32,1,64,64,1,xmin,xmax,ymin,ymax,zmin,zmax,umin_e,umax_e,vmin_e,vmax_e,wmin_e,wmax_e,eval_f_electron,mat_e_str);
+        analysis::plot_full_f_3x3v_parallelized<double,order>(32,32,1,64,64,1,xmin,xmax,ymin,ymax,zmin,zmax,umin_i,umax_i,vmin_i,vmax_i,wmin_i,wmax_i,eval_f_ion,mat_i_str);
 
         std::ofstream j_e_str("j_e_" + std::to_string(0*conf_electron.dt) + ".txt" );
         for(size_t i = 0; i < j_electron.size(); i++){
@@ -713,11 +713,11 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
         analysis::do_stats<double,order>(nt_r_curr, 64, 1, 1, stat_file, coeffs_E, coeffs_B, conf_electron, plot_EB, true, n);
         analysis::compute_j_l2(n, j_stat_file, conf_electron, j_0, j_electron, j_ion);
         if(plot_f_j){
-            /* std::ofstream mat_e_str("f_e_full_" + std::to_string(n*conf_electron.dt) + ".txt" );
-            analysis::plot_full_f_3x3v_parallelized<double,order>(32,1,1,64,1,1,xmin,xmax,ymin,ymax,zmin,zmax,umin_e,umax_e,vmin_e,vmax_e,wmin_e,wmax_e,eval_f_electron,mat_e_str); */
+            std::ofstream mat_e_str("f_e_full_" + std::to_string(n*conf_electron.dt) + ".txt" );
+            analysis::plot_full_f_3x3v_parallelized<double,order>(32,32,1,64,64,1,xmin,xmax,ymin,ymax,zmin,zmax,umin_e,umax_e,vmin_e,vmax_e,wmin_e,wmax_e,eval_f_electron,mat_e_str);
             
-            /* std::ofstream mat_i_str("f_i_full_" + std::to_string(n*conf_electron.dt) + ".txt" );
-            analysis::plot_full_f_3x3v_parallelized<double,order>(32,1,1,64,1,1,xmin,xmax,ymin,ymax,zmin,zmax,umin_i,umax_i,vmin_i,vmax_i,wmin_i,wmax_i,eval_f_ion,mat_i_str); */
+            std::ofstream mat_i_str("f_i_full_" + std::to_string(n*conf_electron.dt) + ".txt" );
+            analysis::plot_full_f_3x3v_parallelized<double,order>(32,32,1,64,64,1,xmin,xmax,ymin,ymax,zmin,zmax,umin_i,umax_i,vmin_i,vmax_i,wmin_i,wmax_i,eval_f_ion,mat_i_str);
 
             std::ofstream j_e_str("j_e_" + std::to_string(n*conf_electron.dt) + ".txt" );
             for(size_t i = 0; i < j_electron.size(); i++){
