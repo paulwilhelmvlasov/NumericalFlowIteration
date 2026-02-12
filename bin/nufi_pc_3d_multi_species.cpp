@@ -96,6 +96,78 @@ double zmin = 0;
 double zmax = 1;
 }
 
+namespace double_harris_magnetic_reconnection
+{
+// The following sets up the simulation in ion scale units:
+double mass_ratio = 25;
+
+double me = 1.0;
+double mi = mass_ratio;
+
+double uth_elec_core = 1;
+
+double uth_ion_core = std::sqrt(0.2);
+
+double k = 0.3;
+//double k = 0.5;
+
+double Lx = 25.6;
+double Ly = 12.8;
+double xmin = 0;
+double xmax = Lx;
+double ymin = 0; 
+double ymax = Ly; 
+double zmin = 0;
+double zmax = 1;
+
+// Sheets
+double l0 = 0.5;
+double y1 = Ly/4.0;
+double y2 = 3 * Ly / 4.0;
+
+// Fields:
+double B0 = 1;
+
+// Density 
+double n0 = 1;
+double nb = 0.2;
+
+double sech2(double x){
+    double y = 1.0 / std::cosh(x);
+    return y*y;
+}
+
+double init_density(double x, double y) {
+    return nb + n0 * (sech2( (y - y1)/l0 ) + sech2( (y-y2)/l0 ));
+}
+
+double Bx(double x, double y) {
+    return B0 * (std::tanh( (y - y1)/l0 ) - tanh( (y-y2)/l0 ) - 1);
+}
+
+arma::Col<double> delta_B(double x, double y){
+    double kx = 2.0*M_PI / Lx;
+    double ky = 2.0*M_PI / Ly;
+
+    double eps = 1e-2;
+
+    double Ap = eps * B0 * (std::min(Lx, Ly) / (2.0*M_PI)); // eps=1e-3..1e-2
+    return arma::Col<double>({
+        -Ap * ky * std::cos(kx*x) * std::sin(ky*y),
+        Ap * kx * std::sin(kx*x) * std::cos(ky*y),
+        0});
+}
+
+double Jz(double x, double y){
+    return -B0/l0 * ( sech2( (y - y1)/l0 ) - sech2( (y-y2)/l0 ) );
+}
+
+double uze(double x, double y){
+    return B0/l0/init_density(x,y) * ( sech2( (y - y1)/l0 ) - sech2( (y-y2)/l0 ) );
+}
+
+}
+
 namespace nufi
 {
 
@@ -145,7 +217,7 @@ double vmax_i = 5*pezzini::vth_ion_beam;
 double wmin_i = -5*pezzini::wth_ion_beam;
 double wmax_i = 5*pezzini::wth_ion_beam;
  */
-double xmin = electro_static_bump_on_tail::xmin;
+/* double xmin = electro_static_bump_on_tail::xmin;
 double xmax = electro_static_bump_on_tail::xmax;
 double ymin = electro_static_bump_on_tail::ymin;
 double ymax = electro_static_bump_on_tail::ymax;
@@ -164,11 +236,32 @@ double umax_i = 5*electro_static_bump_on_tail::uth_ion_core;
 double vmin_i = -5*electro_static_bump_on_tail::uth_ion_core;
 double vmax_i = 5*electro_static_bump_on_tail::uth_ion_core;
 double wmin_i = -5*electro_static_bump_on_tail::uth_ion_core;
-double wmax_i = 5*electro_static_bump_on_tail::uth_ion_core;
+double wmax_i = 5*electro_static_bump_on_tail::uth_ion_core; */
+
+double xmin = double_harris_magnetic_reconnection::xmin;
+double xmax = double_harris_magnetic_reconnection::xmax;
+double ymin = double_harris_magnetic_reconnection::ymin;
+double ymax = double_harris_magnetic_reconnection::ymax;
+double zmin = double_harris_magnetic_reconnection::zmin;
+double zmax = double_harris_magnetic_reconnection::zmax;
+
+double umin_e = -8*double_harris_magnetic_reconnection::uth_elec_core;
+double umax_e = 8*double_harris_magnetic_reconnection::uth_elec_core;
+double vmin_e = -8*double_harris_magnetic_reconnection::uth_elec_core;
+double vmax_e = 8*double_harris_magnetic_reconnection::uth_elec_core;
+double wmin_e = -5*double_harris_magnetic_reconnection::uth_elec_core;
+double wmax_e = 5*double_harris_magnetic_reconnection::uth_elec_core;
+
+double umin_i = -5*double_harris_magnetic_reconnection::uth_ion_core;
+double umax_i = 5*double_harris_magnetic_reconnection::uth_ion_core;
+double vmin_i = -5*double_harris_magnetic_reconnection::uth_ion_core;
+double vmax_i = 5*double_harris_magnetic_reconnection::uth_ion_core;
+double wmin_i = -5*double_harris_magnetic_reconnection::uth_ion_core;
+double wmax_i = 5*double_harris_magnetic_reconnection::uth_ion_core;
 
 // Spatial grid must be the same for both species!!!
-size_t Nx = 16;
-size_t Ny = 16;
+size_t Nx = 32;
+size_t Ny = 32;
 size_t Nz = 1;
 
 size_t Nu_e = 32;
@@ -195,15 +288,6 @@ size_t nu_r_i = Nu_i;
 size_t nv_r_i = Nv_i;
 size_t nw_r_i = Nw_i;
 
-// For CMM:
-/* size_t nu_r_e = 8;
-size_t nv_r_e = 8;
-size_t nw_r_e = 8;
-
-size_t nu_r_i = 8;
-size_t nv_r_i = 8;
-size_t nw_r_i = 8; */
-
 size_t nt_restart = 20;
 
 template <typename real>
@@ -222,10 +306,15 @@ real f0_electron(real x, real y, real z, real u, real v, real w) noexcept
     // Electro-static bump-on-tail
     /* return 1.0 / std::sqrt(2.0 * M_PI) * (1 + 0.04 * std::cos(0.3*x)) 
             *  ( 0.9 * std::exp(-0.5 * u*u)  + 0.2 * std::exp(-0.5/(0.5*0.5) * (u-4.5)*(u-4.5)) );  */
-    return (1 + 0.04 * std::cos( electro_static_bump_on_tail::k * x )) 
+    /* return (1 + 0.04 * std::cos( electro_static_bump_on_tail::k * x )) 
             * (electro_static_bump_on_tail::nc * maxwellian_1d<real>(u, electro_static_bump_on_tail::uth_elec_core) 
             + electro_static_bump_on_tail::nb * maxwellian_1d<real>(u - electro_static_bump_on_tail::u_d, electro_static_bump_on_tail::uth_elec_beam))
-            * maxwellian_2d<real>(v, w, electro_static_bump_on_tail::vth_elec_core);
+            * maxwellian_2d<real>(v, w, electro_static_bump_on_tail::vth_elec_core); */
+
+    // Double Harris Magnetic Reconnection
+    return double_harris_magnetic_reconnection::init_density(x,y) 
+            * maxwellian<double>(u,v,w - double_harris_magnetic_reconnection::uze(x,y),
+                    double_harris_magnetic_reconnection::uth_elec_core);
 }
 
 template <typename real>
@@ -248,7 +337,11 @@ real f0_ion(real x, real y, real z, real u, real v, real w) noexcept
 
     // Electro-static bump on tail.
     //return maxwellian_1d<double>(u,1);
-    return maxwellian<real>(u,v,w, electro_static_bump_on_tail::uth_ion_core);
+    //return maxwellian<real>(u,v,w, electro_static_bump_on_tail::uth_ion_core);
+
+    // Double Harris Magnetic Reconnection
+    return double_harris_magnetic_reconnection::init_density(x,y)
+            * maxwellian<double>(u,v,w,double_harris_magnetic_reconnection::uth_ion_core);
 }
 
 
@@ -269,17 +362,25 @@ arma::Col<real> B0(real x, real y, real z)
     //return  arma::Col<real>({0, 0, 0});
 
     // Pezzini
-    double Lx = xmax - xmin;
+    /* double Lx = xmax - xmin;
     double Ly = ymax - ymin;
     double kx = 2*M_PI / Lx;
     double ky = 2*M_PI / Ly;
     double perturb = (1 + 0.1 * std::cos(kx*x)*std::sin(ky*y));
-    return  arma::Col<real>({pezzini::B0*perturb, 0, 0});
+    return  arma::Col<real>({pezzini::B0*perturb, 0, 0}); */
     //return  arma::Col<real>({pezzini::B0, 0, 0});
 
 
     // Electro-static bump on tail.
     //return arma::Col<real>({0,0,0});
+
+    // Double Harris Magnetic Reconnection
+    arma::Col<real> B_init({
+        double_harris_magnetic_reconnection::Bx(x,y),
+        0, 
+        0
+    });
+    return B_init + double_harris_magnetic_reconnection::delta_B(x,y);
 }
 
 void random_perturbation_2d_f0_electron(arma::mat& restart_mat, double eps = 1e-3)
