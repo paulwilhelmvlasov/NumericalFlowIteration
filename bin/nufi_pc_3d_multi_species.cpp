@@ -737,7 +737,7 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
 /*         analysis::plot_full_f_3x3v_parallelized<double,order>(4,4,1,128,128,8,xmin,xmax,ymin,ymax,zmin,zmax,umin_e,umax_e,vmin_e,vmax_e,wmin_e,wmax_e,eval_f_electron,mat_e_str);
         analysis::plot_full_f_3x3v_parallelized<double,order>(4,4,1,128,128,8,xmin,xmax,ymin,ymax,zmin,zmax,umin_i,umax_i,vmin_i,vmax_i,wmin_i,wmax_i,eval_f_ion,mat_i_str);
  */
-        //analysis::plot_full_f_3x3v_parallelized<double,order>(32,32,1,64,64,1,xmin,xmax,ymin,ymax,zmin,zmax,umin_e,umax_e,vmin_e,vmax_e,wmin_e,wmax_e,eval_f_electron,mat_e_str);
+        analysis::plot_full_f_3x3v_parallelized<double,order>(32,32,1,64,64,1,xmin,xmax,ymin,ymax,zmin,zmax,umin_e,umax_e,vmin_e,vmax_e,wmin_e,wmax_e,eval_f_electron,mat_e_str);
         analysis::plot_full_f_3x3v_parallelized<double,order>(32,32,1,64,64,1,xmin,xmax,ymin,ymax,zmin,zmax,umin_i,umax_i,vmin_i,vmax_i,wmin_i,wmax_i,eval_f_ion,mat_i_str);
 
         std::ofstream j_e_str("j_e_" + std::to_string(0*conf_electron.dt) + ".txt" );
