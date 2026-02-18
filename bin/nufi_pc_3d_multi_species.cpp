@@ -811,6 +811,7 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
         
         bool plot_EB = (n % (5*steps_per_1) == 0);
         bool plot_f_j = (n % (5*steps_per_1) == 0);
+        // Careful: Currently stats only evaluates in x not y!!!
         analysis::do_stats<double,order>(nt_r_curr, 64, 1, 1, stat_file, coeffs_E, coeffs_B, conf_electron, plot_EB, true, n);
         analysis::compute_j_l2(n, j_stat_file, conf_electron, j_0, j_electron, j_ion);
         if(plot_f_j){
@@ -1325,10 +1326,10 @@ int main(int argc, char** argv){
     // Add CMM-restart.
     // Add initialition through init-file.
 
-    MPI_Init(&argc, &argv);
+    /* MPI_Init(&argc, &argv);
     nufi::dim3::periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned<4>();
-    MPI_Finalize();
-    //nufi::dim3::nufi_cmm_maxwell_lie_EBf_predictor_corrector_aligned<4>();
+    MPI_Finalize(); */
+    nufi::dim3::nufi_cmm_maxwell_lie_EBf_predictor_corrector_aligned<4>();
 
     return 0;
 }

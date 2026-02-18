@@ -107,6 +107,42 @@ real eval_f( size_t n, real x, real u,
 }
 
 template <typename real, size_t order>
+void eval_char_map( size_t n, real& x, real& u, 
+             const real *coeffs, const config_t<real> &conf, 
+             bool is_electron = true )
+{
+    if ( n > 0) {
+        const size_t stride_x = 1;
+        const size_t stride_t = stride_x*(conf.Nx + order - 1);
+
+        real Ex;
+        const real *c;
+
+        real q = (-1)*(is_electron) + (!is_electron)/conf.Mr;
+
+        // Initial half-step.
+        c  = coeffs + n*stride_t;
+        Ex = q*eval<real,order,1>( x, c, conf );
+        u += 0.5*conf.dt*Ex;
+
+        while ( --n )
+        {
+            x -= conf.dt*u;
+            c  = coeffs + n*stride_t;
+            Ex = q*eval<real,order,1>( x, c, conf );
+            u += conf.dt*Ex;
+        }
+
+        // Final half-step.
+        x -= conf.dt*u;
+        c  = coeffs + n*stride_t;
+        Ex = q*eval<real,order,1>( x, c, conf );
+        u += 0.5*conf.dt*Ex;
+    }
+}
+
+
+template <typename real, size_t order>
 real eval_f_on_grid( size_t n, size_t index_x, size_t index_u,
              const real *coeffs, const config_t<real> &conf, bool is_electron = true )
 {
