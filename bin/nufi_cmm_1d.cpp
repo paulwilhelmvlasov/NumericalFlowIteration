@@ -50,14 +50,14 @@ template <typename real>
 real f0(real x, real u) noexcept
 {
 	//real alpha = 1e-2; // Linear Landau Damping or Two Stream instability
-	//real alpha = 0.5; // Strong Landau Damping
-	//real k = 0.5;
+	real alpha = 0.5; // Strong Landau Damping
+	real k = 0.5;
     //return 1.0 / std::sqrt(2.0 * M_PI) * u*u * std::exp(-0.5 * u*u) * (1 + alpha * std::cos(k*x)); // Two Stream Instability
-	//return 1.0 / std::sqrt(2.0 * M_PI) * exp(-0.5 * u*u) * (1 + alpha * cos(k*x)); // Landau Damping
+	return 1.0 / std::sqrt(2.0 * M_PI) * exp(-0.5 * u*u) * (1 + alpha * cos(k*x)); // Landau Damping
 
     // Bump on tail Instability
-    return 1.0 / std::sqrt(2.0 * M_PI) * (1 + 0.04 * std::cos(0.3*x)) 
-            *  ( 0.9 * std::exp(-0.5 * u*u)  + 0.2 * std::exp(-0.5/(0.5*0.5) * (u-4.5)*(u-4.5)) ); 
+    /* return 1.0 / std::sqrt(2.0 * M_PI) * (1 + 0.04 * std::cos(0.3*x)) 
+            *  ( 0.9 * std::exp(-0.5 * u*u)  + 0.2 * std::exp(-0.5/(0.5*0.5) * (u-4.5)*(u-4.5)) );  */
 }
 
 template <typename real>
@@ -74,14 +74,19 @@ config_t<double> conf(64, 128, 500, 0.1, 0, 4*M_PI, -10, 10, &f0);
 
 double eval_interpolant(double x, double u, const arma::mat& value_mat) noexcept
 {
-	if(u > conf.u_max || u < conf.u_min){
-		return 0;
-	}
+	// Velocity boundary treatment: If u gets close to a boundary, then
+    // f(u) ~ 0 anyway, so we can safely assume u = umin or 
+    // u = umax respectively.
+    if(u < conf.u_min){
+        u = conf.u_min;
+    } else if(u > conf.u_max){
+        u = conf.u_max;
+    }
 
 	size_t nx_r = value_mat.n_rows - 1;
 	size_t nu_r = value_mat.n_cols - 1;
 
-	double dx_r = conf.Lx/ nx_r;
+	double dx_r = conf.Lx / nx_r;
 	double du_r = (conf.u_max - conf.u_min)/nu_r;
 
     x = std::fmod(std::fmod(x, conf.Lx) + conf.Lx, conf.Lx);
@@ -125,21 +130,21 @@ void cmm_nufi()
     using std::abs;
     using std::max;
 
-    size_t Nx = 32;  // Number of grid points in physical space.
-    size_t Nu = 128;  // Number of quadrature points in velocity space.
+    size_t Nx = 128;  // Number of grid points in physical space.
+    size_t Nu = 256;  // Number of quadrature points in velocity space.
     double   dt = 0.1;  // Time-step size.
-    size_t Nt = 200/dt;  // Number of time-steps.
+    size_t Nt = 100/dt;  // Number of time-steps.
 
     // Dimensions of physical domain.
     double x_min = 0;
-    //double x_max = 4*M_PI;
-    double x_max = 2*M_PI/0.3;
+    double x_max = 4*M_PI;
+    //double x_max = 2*M_PI/0.3;
     conf.x_min = x_min;
     conf.x_max = x_max; // Actually I should also set Lx etc.
 
     // Integration limits for velocity space.
-    double u_min = -10;
-    double u_max = 15;
+    double u_min = -6;
+    double u_max = 6;
     conf.u_min = u_min;
     conf.u_max = u_max;
 
