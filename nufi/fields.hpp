@@ -205,8 +205,8 @@ void interpolate( real *coeffs, const real *values, const config_t<real> &config
     for ( size_t j = 0; j < config.Ny; ++j )
     for ( size_t i = 0; i < config.Nx; ++i )
     {
-        //tmp [ j*config.Nx + i ] = coeffs[ j*stride_y + i*stride_x ];
-        tmp [ j*config.Nx + i ] = 0;
+        tmp [ j*config.Nx + i ] = coeffs[ j*stride_y + i*stride_x ];
+        //tmp [ j*config.Nx + i ] = 0;
     }
 
     struct mat_t
@@ -309,6 +309,191 @@ void interpolate( real *coeffs, const real *values, const config_t<real> &config
                                                  (i%config.Nx) ];
     }
 }
+
+namespace dirichlet
+{
+
+template <typename real, size_t order, size_t dx = 0, size_t dy = 0>
+real eval(real x, real y, const real *coeffs, const config_t<real> &config)
+{
+    using std::floor;
+
+    // Shift to box starting at 0
+    x -= config.x_min;
+    y -= config.y_min;
+
+    // Periodic in x
+    x = x - config.Lx * floor(x * config.Lx_inv);
+
+    // Clamp in y  (constant extension)
+    if (y < real(0)) y = real(0);
+    if (y > config.Ly) y = config.Ly;
+
+    real x_knot = floor(x * config.dx_inv);
+    real y_knot = floor(y * config.dy_inv);
+
+    int ii = static_cast<int>(x_knot);
+    int jj = static_cast<int>(y_knot);
+
+    // Clamp knot indices so stencil is valid
+    if (ii < 0) ii = 0;
+    if (ii > int(config.Nx) - 1) ii = int(config.Nx) - 1;
+    if (jj < 0) jj = 0;
+    if (jj > int(config.Ny) - 1) jj = int(config.Ny) - 1;
+
+    // Reference coordinates
+    x = x * config.dx_inv - x_knot;
+    y = y * config.dy_inv - y_knot;
+
+    const size_t stride_x = 1;
+    const size_t stride_y = config.Nx + order - 1;
+
+    real factor = 1;
+    for (size_t i = 0; i < dx; ++i) factor *= config.dx_inv;
+    for (size_t j = 0; j < dy; ++j) factor *= config.dy_inv;
+
+    coeffs += size_t(jj) * stride_y + size_t(ii);
+    return factor * splines2d::eval<real, order, dx, dy>(x, y, coeffs, stride_y, stride_x);
+}
+
+
+template <typename real, size_t order>
+void interpolate(real *coeffs, const real *values, const config_t<real> &config)
+{
+    std::unique_ptr<real[]> tmp{ new real[ config.Nx * config.Ny ] };
+
+    const size_t stride_x = 1;
+    const size_t stride_y = config.Nx + order - 1;
+
+    struct mat_t
+    {
+        const config_t<real> &config;
+        real N[order];
+
+        mat_t(const config_t<real> &conf) : config{conf}
+        {
+            splines1d::N<real, order>(0, N);
+        }
+
+        inline int wrap_x(int i) const
+        {
+            int n = int(config.Nx);
+            i %= n;
+            if (i < 0) i += n;
+            return i;
+        }
+
+        inline int clamp_y(int j) const
+        {
+            if (j < 0) return 0;
+            int n = int(config.Ny);
+            if (j > n - 1) return n - 1;
+            return j;
+        }
+
+        void operator()(const real *in, real *out) const
+        {
+            #pragma omp parallel for
+            for (size_t l = 0; l < config.Nx * config.Ny; ++l)
+            {
+                size_t j0 = l / config.Nx;
+                size_t i0 = l % config.Nx;
+
+                real result = 0;
+                for (size_t jj = 0; jj < order; ++jj)
+                for (size_t ii = 0; ii < order; ++ii)
+                {
+                    int I = wrap_x(int(i0) + int(ii));
+                    int J = clamp_y(int(j0) + int(jj));
+                    result += N[jj] * N[ii] * in[size_t(J) * config.Nx + size_t(I)];
+                }
+                out[l] = result;
+            }
+        }
+    };
+
+
+    struct transposed_mat_t
+    {
+        const config_t<real> &config;
+        real N[order];
+
+        transposed_mat_t(const config_t<real> &conf) : config{conf}
+        {
+            splines1d::N<real, order>(0, N);
+        }
+
+        inline int wrap_x(int i) const
+        {
+            int n = int(config.Nx);
+            i %= n;
+            if (i < 0) i += n;
+            return i;
+        }
+
+        inline int clamp_y(int j) const
+        {
+            if (j < 0) return 0;
+            int n = int(config.Ny);
+            if (j > n - 1) return n - 1;
+            return j;
+        }
+
+        void operator()(const real *in, real *out) const
+        {
+            #pragma omp parallel for
+            for (size_t l = 0; l < config.Nx * config.Ny; ++l)
+                out[l] = 0;
+
+            #pragma omp parallel for
+            for (size_t l = 0; l < config.Nx * config.Ny; ++l)
+            {
+                size_t j0 = l / config.Nx;
+                size_t i0 = l % config.Nx;
+                const real rhs = in[l];
+
+                for (size_t jj = 0; jj < order; ++jj)
+                for (size_t ii = 0; ii < order; ++ii)
+                {
+                    int I = wrap_x(int(i0) + int(ii));
+                    int J = clamp_y(int(j0) + int(jj));
+                    const size_t idx = size_t(J) * config.Nx + size_t(I);
+
+                    #pragma omp atomic
+                    out[idx] += N[jj] * N[ii] * rhs;
+                }
+            }
+        }
+    };
+
+    mat_t M{config};
+    transposed_mat_t Mt{config};
+
+    lsmr_options<real> opt;
+    opt.silent = true;
+
+    lsmr(config.Nx * config.Ny, config.Nx * config.Ny, M, Mt, values, tmp.get(), opt);
+
+    if (opt.iter == opt.max_iter)
+        std::cerr << "Warning. LSMR did not converge. Residual = " << opt.residual << std::endl;
+
+    // Fill padded coeff array
+    for (size_t j = 0; j < config.Ny + order - 1; ++j)
+    for (size_t i = 0; i < config.Nx + order - 1; ++i)
+    {
+        int I = int(i) % int(config.Nx);
+        if (I < 0) I += int(config.Nx);
+
+        int J = int(j);
+        if (J < 0) J = 0;
+        if (J > int(config.Ny) - 1) J = int(config.Ny) - 1;
+
+        coeffs[j * stride_y + i * stride_x] =
+            tmp[size_t(J) * config.Nx + size_t(I)];
+    }
+}
+
+} // namespace dirichlet
 
 }
 

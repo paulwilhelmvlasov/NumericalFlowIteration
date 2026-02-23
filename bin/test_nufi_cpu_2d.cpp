@@ -149,8 +149,8 @@ size_t restart_counter = 0;
 bool restarted = false;
 
 const size_t order = 4;
-const size_t Nx = 32;  // Number of grid points in physical space.
-const size_t Nu = 2*Nx;  // Number of quadrature points in velocity space.
+const size_t Nx = 16;  // Number of grid points in physical space.
+const size_t Nu = 32;  // Number of quadrature points in velocity space.
 const double   dt = 0.1;  // Time-step size.
 const size_t Nt = 500/dt;  // Number of time-steps.
 config_t<double> conf(Nx, Nx, Nu, Nu, Nt, dt, 
@@ -158,7 +158,7 @@ config_t<double> conf(Nx, Nx, Nu, Nu, Nt, dt,
                     &f0);
 size_t stride_t = (conf.Nx + order - 1) *
                   (conf.Ny + order - 1) ;
-const size_t nt_restart = 30*10;
+const size_t nt_restart = Nt + 1; //30*10;
 const size_t max_rank = 500;
 const double tol = 5e-2;
 std::unique_ptr<double[]> coeffs_full { new double[ (Nt+1)*stride_t ] {} };
@@ -191,7 +191,10 @@ void test()
     	}
 
         double electric_energy = poiss.solve( rho.get() );
+        nufi::stopwatch<double> timer_interpol;
         interpolate<real,order>( coeffs_full.get() + n*stride_t, rho.get(), conf );
+        double time_interpol = timer_interpol.elapsed();
+        std::cout << "Time interpolation = " << time_interpol << std::endl;
 
         double timer_elapsed = timer.elapsed();
         total_time += timer_elapsed;
@@ -757,9 +760,9 @@ int main()
 
     //nufi::dim2::test_read_in();
 
-    nufi::dim2::restart_with_svd();
+    //nufi::dim2::restart_with_svd();
 
-	//nufi::dim2::test<double,4>();
+	nufi::dim2::test<double,4>();
 
     //nufi::dim2::read_in_and_plot();
 

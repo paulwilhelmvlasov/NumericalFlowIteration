@@ -1,8 +1,10 @@
 #pragma once
 #include <mpi.h>
+#include <algorithm>
 #include <cmath>
 #include <memory>
 #include <iostream>
+#include <stdexcept>
 #include <iomanip>
 #include <fstream>
 #include <sstream>
@@ -443,6 +445,242 @@ void read_in_coeff_and_plot_aligned_nufi_pc(const config_t<double>& conf)
 
 
 }
+
+}
+
+namespace BSpline
+{
+
+struct BSpline1D {
+  int p;                    // degree
+  std::vector<double> t;    // knot vector, nondecreasing
+  int nBasis;               // number of basis functions
+
+  BSpline1D() = default;
+  BSpline1D(int degree, std::vector<double> knots)
+      : p(degree), t(std::move(knots)) {
+    if (p < 0) throw std::invalid_argument("Degree must be >= 0.");
+    if ((int)t.size() < 2 * (p + 1))
+      throw std::invalid_argument("Knot vector too short for degree.");
+    for (size_t i = 1; i < t.size(); ++i)
+      if (t[i] < t[i - 1])
+        throw std::invalid_argument("Knot vector must be nondecreasing.");
+    // Standard relation: m+1 knots, n basis => m = n + p + 1
+    // => n = (m+1) - p - 1 = (#knots) - p - 1
+    nBasis = (int)t.size() - p - 1;
+    if (nBasis <= 0) throw std::invalid_argument("No basis functions.");
+  }
+
+  // Find span i such that t[i] <= x < t[i+1], with special handling at right end.
+  int findSpan(double x) const {
+    const int n = nBasis - 1;         // last basis index
+    const int m = (int)t.size() - 1;  // last knot index
+
+    // Clamp x into [t[p], t[m-p]] for safety (open knot vector domain).
+    const double left = t[p];
+    const double right = t[m - p];
+    if (x <= left) return p;
+    if (x >= right) return n; // rightmost span
+
+    // Binary search in [p, n]
+    int low = p, high = n + 1;
+    int mid = (low + high) / 2;
+    while (!(x >= t[mid] && x < t[mid + 1])) {
+      if (x < t[mid]) high = mid;
+      else low = mid;
+      mid = (low + high) / 2;
+    }
+    return mid;
+  }
+
+  // Evaluate all nonzero basis functions at x.
+  // Returns arrays (idx, N) such that basis indices are idx = span-p ... span
+  // and N[k] = B_{idx+k}^{p}(x).
+void basisFuns(double x, int &firstIdx, std::vector<double> &N) const {
+  const int m = (int)t.size() - 1;
+  const double a = t[p];
+  const double b = t[m - p];
+
+  // Robust endpoint handling for open/clamped knots
+  const double eps = 64.0 * std::numeric_limits<double>::epsilon() * (std::abs(b) + std::abs(a) + 1.0);
+
+  if (x <= a + eps) {
+    firstIdx = 0;
+    N.assign(p + 1, 0.0);
+    N[0] = 1.0;
+    return;
+  }
+  if (x >= b - eps) {
+    firstIdx = nBasis - (p + 1);
+    N.assign(p + 1, 0.0);
+    N[p] = 1.0;
+    return;
+  }
+
+  const int span = findSpan(x);
+  firstIdx = span - p;
+  N.assign(p + 1, 0.0);
+
+  std::vector<double> left(p + 1), right(p + 1);
+  N[0] = 1.0;
+
+  for (int j = 1; j <= p; ++j) {
+    left[j]  = x - t[span + 1 - j];
+    right[j] = t[span + j] - x;
+    double saved = 0.0;
+    for (int r = 0; r < j; ++r) {
+      const double denom = right[r + 1] + left[j - r];
+      double temp = 0.0;
+      if (denom != 0.0) temp = N[r] / denom;
+      const double val = temp * right[r + 1];
+      N[r] = saved + val;
+      saved = temp * left[j - r];
+    }
+    N[j] = saved;
+  }
+}
+
+  // Convenience: evaluate the full basis vector of length nBasis at x (sparse fill).
+  arma::rowvec evalAll(double x) const {
+    arma::rowvec v(nBasis, arma::fill::zeros);
+    int first = 0;
+    std::vector<double> N;
+    basisFuns(x, first, N);
+    for (int k = 0; k <= p; ++k) {
+      const int idx = first + k;
+      if (0 <= idx && idx < nBasis) v((arma::uword)idx) = N[(size_t)k];
+    }
+    return v;
+  }
+};
+
+// Open/clamped uniform knot vector on [a,b] with nBasis basis functions, degree p.
+// Creates nBasis = nCtrl basis functions, knots length = nBasis + p + 1.
+// Interior knots are uniform (or as uniform as possible).
+static std::vector<double> makeOpenUniformKnots(int nBasis, int p, double a, double b) {
+  if (nBasis <= p) throw std::invalid_argument("Need nBasis > p for open uniform knots.");
+  if (!(b > a)) throw std::invalid_argument("Require b > a.");
+
+  const int mPlus1 = nBasis + p + 1;            // number of knots
+  std::vector<double> t(mPlus1);
+
+  // First p+1 are a, last p+1 are b
+  for (int i = 0; i <= p; ++i) t[i] = a;
+  for (int i = mPlus1 - p - 1; i < mPlus1; ++i) t[i] = b;
+
+  // Number of interior knots (not counting endpoint repeats)
+  // Indices: p+1 ... mPlus1-p-2 inclusive
+  const int nInterior = mPlus1 - 2 * (p + 1);
+  if (nInterior > 0) {
+    // Uniform interior knots in (a,b): a + k * (b-a)/(nInterior+1), k=1..nInterior
+    for (int k = 1; k <= nInterior; ++k) {
+      t[p + k] = a + (b - a) * (double)k / (double)(nInterior + 1);
+    }
+  }
+  return t;
+}
+
+// Build 1D collocation matrix A where A(i,j) = B_j(x_i), size nPts x nBasis.
+// For interpolation we typically set nPts == nBasis and choose x_i as data nodes.
+static arma::mat buildCollocation(const BSpline1D &spl, const arma::vec &x) {
+  arma::mat A(x.n_elem, (arma::uword)spl.nBasis, arma::fill::zeros);
+  for (arma::uword i = 0; i < x.n_elem; ++i) {
+    arma::rowvec r = spl.evalAll(x[i]);
+    A.row(i) = r;
+  }
+  return A;
+}
+
+struct TensorSpline2D {
+  BSpline1D sx, sy;
+  arma::mat C;   // coefficients, size nxBasis x nyBasis
+
+  // Fit interpolant on tensor grid (x nodes, y nodes), with F size nx x ny.
+  // Requirement for interpolation: x.n_elem == sx.nBasis and y.n_elem == sy.nBasis.
+  static TensorSpline2D interpolate(const arma::vec &x, const arma::vec &y,
+                                    const arma::mat &F,
+                                    int px, int py,
+                                    double ax, double bx,
+                                    double ay, double by) {
+    const int nxBasis = (int)x.n_elem; // choose basis count = number of nodes
+    const int nyBasis = (int)y.n_elem;
+
+    if ((int)F.n_rows != nxBasis || (int)F.n_cols != nyBasis)
+      throw std::invalid_argument("F must have size (x.n_elem, y.n_elem).");
+
+    TensorSpline2D s;
+    s.sx = BSpline1D(px, makeOpenUniformKnots(nxBasis, px, ax, bx));
+    s.sy = BSpline1D(py, makeOpenUniformKnots(nyBasis, py, ay, by));
+
+    // Collocation matrices
+    arma::mat Ax = buildCollocation(s.sx, x); // nx x nx
+    std::cout << "cond(Ax) = " << arma::cond(Ax) << std::endl;
+    arma::mat Ay = buildCollocation(s.sy, y); // ny x ny
+    std::cout << "cond(Ay) = " << arma::cond(Ay) << std::endl;
+
+    // Solve Ax * G = F  (G is nx x ny)
+    arma::mat G = arma::solve(Ax, F); // uses LU/QR depending on properties
+
+    // Solve Ay * (C^T) = (G^T)  => C^T = solve(Ay, G^T)
+    arma::mat Ct = arma::solve(Ay, G.t());
+    s.C = Ct.t();
+    return s;
+  }
+
+  // Evaluate s(xq, yq)
+  double eval(double xq, double yq) const {
+    // Evaluate sparse basis vectors via local support
+    int ix0 = 0, iy0 = 0;
+    std::vector<double> Nx, Ny;
+    sx.basisFuns(xq, ix0, Nx);
+    sy.basisFuns(yq, iy0, Ny);
+
+    double val = 0.0;
+    for (int a = 0; a <= sx.p; ++a) {
+      const int ia = ix0 + a;
+      if (ia < 0 || ia >= sx.nBasis) continue;
+      const double bx = Nx[(size_t)a];
+      if (bx == 0.0) continue;
+      for (int b = 0; b <= sy.p; ++b) {
+        const int ib = iy0 + b;
+        if (ib < 0 || ib >= sy.nBasis) continue;
+        val += C((arma::uword)ia, (arma::uword)ib) * bx * Ny[(size_t)b];
+      }
+    }
+    return val;
+  }
+
+  // Vectorized evaluation on a grid (xq size M, yq size N) -> MxN matrix
+  arma::mat evalGrid(const arma::vec &xq, const arma::vec &yq) const {
+    arma::mat S(xq.n_elem, yq.n_elem, arma::fill::zeros);
+    for (arma::uword i = 0; i < xq.n_elem; ++i) {
+      for (arma::uword j = 0; j < yq.n_elem; ++j) {
+        S(i, j) = eval(xq[i], yq[j]);
+      }
+    }
+    return S;
+  }
+};
+
+static arma::vec grevillePoints(const BSpline1D& spl) {
+  // Greville abscissae: g_i = (t_{i+1}+...+t_{i+p})/p, i=0..nBasis-1
+  // For p=0, the "Greville" points can be taken as midpoints of knot intervals.
+  arma::vec g(spl.nBasis);
+
+  if (spl.p == 0) {
+    for (int i = 0; i < spl.nBasis; ++i) {
+      g[i] = 0.5 * (spl.t[i] + spl.t[i+1]);
+    }
+    return g;
+  }
+
+  for (int i = 0; i < spl.nBasis; ++i) {
+    double s = 0.0;
+    for (int k = 1; k <= spl.p; ++k) s += spl.t[i + k];
+    g[i] = s / (double)spl.p;
+  }
+  return g;
+}    
 
 }
 

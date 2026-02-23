@@ -301,47 +301,40 @@ void cmm_nufi_linear()
 }
 
 
-double bogus(double x, double y, double u, double v)
+std::vector<BSpline::TensorSpline2D> char_map_x_splines;
+std::vector<BSpline::TensorSpline2D> char_map_v_splines;
+
+double eval_BSpline_char_map_interpolant(double x, double u, 
+                        const BSpline::TensorSpline2D& spline)
 {
-    return -1;
-}
+    // Map x back to its (periodic) counterpart within [xmin, xmax).
+    x = x - conf.Lx * std::floor( (x - conf.x_min)*conf.Lx_inv ); 
 
-dim2::config_t<double> spline_conf(1, 1, 1, 1, 1, 1, 
-                    0, 1, 0, 1, -1, 1, -1, 1, 
-                    &bogus);
-
-std::vector<std::vector<double>> char_map_x_coeff;
-std::vector<std::vector<double>> char_map_v_coeff;
-
-template <size_t order>
-double eval_BSpline_interpolant(double x, double u, double* coeff)
-{
-    // Velocity boundary treatment: If u gets close to a boundary, then
-    // f(u) ~ 0 anyway, so we can safely assume u = umin or 
+    // Velocity boundary treatment: If u gets close to a boundary, 
+    // then f(u) ~ 0 anyway, so we can safely assume u = umin or 
     // u = umax respectively.
-    if(u < conf.u_min){
+    if(u < (conf.u_min)){
         u = conf.u_min;
-    } else if(u > conf.u_max){
+    } else if(u > (conf.u_max)){
         u = conf.u_max;
     }
 
-    return dim2::eval<double,order>(x, u, coeff, spline_conf);
+    return spline.eval(x,u);
 }
 
-template <size_t order>
 double eval_f_cmm_spline(double x, double v)
 {
     for(size_t i = restart_counter; i > 0; i--){
         double x0 = x, v0 = v;
-        x = eval_BSpline_interpolant<order>(x0, v0, char_map_x_coeff[i].data());
-        v = eval_BSpline_interpolant<order>(x0, v0, char_map_v_coeff[i].data());
+        x = eval_BSpline_char_map_interpolant(x0, v0, char_map_x_splines[i]);
+        v = eval_BSpline_char_map_interpolant(x0, v0, char_map_v_splines[i]);
     }
 
     return f0(x,v);
 }
 
 
-template <size_t order>
+template <size_t order, size_t order_x_map_spline=3, size_t order_u_map_spline=3>
 void cmm_nufi_spline()
 {
 	using std::exp;
@@ -378,13 +371,17 @@ void cmm_nufi_spline()
     config_t<double> conf_full(Nx, Nu, Nt, dt, x_min, x_max, u_min, u_max, &f0);
     const size_t stride_t = conf.Nx + order - 1;
 
-    char_map_x_coeff.resize(Nt/nt_restart + 1);
-    char_map_v_coeff.resize(Nt/nt_restart + 1);
-    // For spline-conf only "x" coordinates and sizes are relevant. Rest are placeholders with bogus values.
-    spline_conf = dim2::config_t<double>(nx_r,nu_r, 1, 1, 1, 1, x_min, x_max, u_min, u_max, -1, 1, -1, 1, &bogus); 
-    size_t stride_spline = (spline_conf.Nx + order - 1) * (spline_conf.Ny + order - 1);
-    std::vector<double> map_values_x(nx_r*nu_r, 0);
-    std::vector<double> map_values_v(nx_r*nu_r, 0);
+    // Build splines just to get knots + Greville points
+    BSpline::BSpline1D sx(order_x_map_spline, BSpline::makeOpenUniformKnots(nx_r, order_x_map_spline, x_min, x_max));
+    BSpline::BSpline1D su(order_u_map_spline, BSpline::makeOpenUniformKnots(nu_r, order_u_map_spline, u_min, u_max));
+
+    arma::vec xx = grevillePoints(sx);
+    arma::vec uu = grevillePoints(su);
+
+    char_map_x_splines.resize(Nt/nt_restart + 1);
+    char_map_v_splines.resize(Nt/nt_restart + 1);
+    arma::mat map_values_x(nx_r,nu_r,arma::fill::zeros);
+    arma::mat map_values_u(nx_r,nu_r,arma::fill::zeros);
     restart_counter = 0;
 
     std::unique_ptr<double[]> coeffs { new double[ (conf.Nt+1)*stride_t ] {} };
@@ -488,27 +485,39 @@ void cmm_nufi_spline()
             std::cout << "Restart" << std::endl;
             nufi::stopwatch<double> timer_restart;
 
-            char_map_x_coeff[restart_counter + 1] = std::vector<double>(stride_spline,0);
-            char_map_v_coeff[restart_counter + 1] = std::vector<double>(stride_spline,0);
-
             #pragma omp parallel for
     		for(size_t i = 0; i < nx_r; i++ ){
     			for(size_t j = 0; j < nu_r; j++){
-                    size_t l = i + j*nx_r;
-    				double x = i*dx_r;
-    				double u = conf.u_min + j*du_r;
+    				double x = xx(i);
+    				double u = uu(j);
 
                     periodic::eval_char_map<double,order>(nt_r_curr,x,u,coeffs_restart.get(),conf);
 
-                    map_values_x[l] = x;
-                    map_values_v[l] = u;
+                    map_values_x(i,j) = x;
+                    map_values_u(i,j) = u;
     			}
     		}
 
-            dim2::interpolate<double,order>(char_map_x_coeff[restart_counter+1].data(), map_values_x.data(),spline_conf);
-            dim2::interpolate<double,order>(char_map_v_coeff[restart_counter+1].data(), map_values_v.data(),spline_conf);
+            nufi::stopwatch<double> timer_restart_interpol;
+            char_map_x_splines[restart_counter + 1] = BSpline::TensorSpline2D::interpolate(
+                                                        xx, uu, map_values_x, 
+                                                        order_x_map_spline, 
+                                                        order_u_map_spline,
+                                                        x_min, x_max,
+                                                        u_min, u_max);
+            double time_interpol = timer_restart_interpol.elapsed();
+            std::cout << "First interpol took = " << time_interpol << std::endl;
+            timer_restart_interpol.reset();
+            char_map_v_splines[restart_counter + 1]= BSpline::TensorSpline2D::interpolate(
+                                                        xx, uu, map_values_u, 
+                                                        order_x_map_spline, 
+                                                        order_u_map_spline,
+                                                        x_min, x_max,
+                                                        u_min, u_max);
+            time_interpol = timer_restart_interpol.elapsed();
+            std::cout << "Second interpol took = " << time_interpol << std::endl;
 
-            conf = config_t<double>(Nx, Nu, Nt, dt, x_min, x_max, u_min, u_max, &eval_f_cmm_spline<order>);
+            conf = config_t<double>(Nx, Nu, Nt, dt, x_min, x_max, u_min, u_max, &eval_f_cmm_spline);
 
             // Copy last entry of coeff vector into restarted coeff vector.
             #pragma omp parallel for

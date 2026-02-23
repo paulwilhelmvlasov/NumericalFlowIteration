@@ -88,6 +88,8 @@ struct config_t
     size_t Nt;      // Number of time-steps.
     real   dt;      // Time-step size.
 
+    size_t lx, ly; // Helper variables for Dirichlet case.
+
     // Dimensions of physical domain.
     real x_min, x_max;
     real y_min, y_max;
@@ -141,6 +143,9 @@ config_t<real>::config_t(size_t nx, size_t ny, size_t nu, size_t nv, size_t nt,
     dv = (v_max - v_min)/Nv;
 
     f0 = init_data;
+
+    lx = Nx - 1;
+    ly = Ny - 1;
 }
 
 }

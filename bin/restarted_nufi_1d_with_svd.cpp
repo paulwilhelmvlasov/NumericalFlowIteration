@@ -144,10 +144,10 @@ void test_rsvd()
 namespace dim1
 {
 
-size_t Nx = 256;  // Number of grid points in physical space.
-size_t Nu = Nx;  // Number of quadrature points in velocity space.
+size_t Nx = 128;  // Number of grid points in physical space.
+size_t Nu = 256;  // Number of quadrature points in velocity space.
 double   dt = 0.1;  // Time-step size.
-size_t Nt = 30/dt;  // Number of time-steps.
+size_t Nt = 100/dt;  // Number of time-steps.
 
 // Dimensions of physical domain.
 double x_min = 0;
@@ -159,8 +159,8 @@ double u_min = -6;
 double u_max = 6;
 
 size_t nx_r = Nx;
-size_t nu_r = nx_r;
-size_t nt_restart = 50;
+size_t nu_r = Nu;
+size_t nt_restart = 100;
 double dx_r = (x_max - x_min) / nx_r;
 double du_r = (u_max - u_min) / nu_r;
 
@@ -176,9 +176,11 @@ real maxwellian_1d(real u, real vth) noexcept
 template <typename real>
 real f0(real x, real u) noexcept
 {
-	real alpha = 1e-2; // Linear Landau Damping or Two Stream instability
+	//real alpha = 1e-2; // Linear Landau Damping or Two Stream instability
+    real alpha = 0.5; // Linear Landau Damping or Two Stream instability
 	real k = 0.5;
-    return 1.0 / std::sqrt(2.0 * M_PI) * u*u * std::exp(-0.5 * u*u) * (1 + alpha * std::cos(k*x)); // Two Stream Instability
+    //return 1.0 / std::sqrt(2.0 * M_PI) * u*u * std::exp(-0.5 * u*u) * (1 + alpha * std::cos(k*x)); // Two Stream Instability
+    return 1.0 / std::sqrt(2.0 * M_PI) * exp(-0.5 * u*u) * (1 + alpha * cos(k*x)); // Landau Damping
 }
 
 template <typename real>
@@ -294,7 +296,7 @@ void restart_with_full_matrix(size_t& nt_r_curr, size_t n, double* coeffs, confi
             f0_r_copy(i,j) = f;
     	}
     }
-
+/* 
     // Let's try SVD compression:
     arma::mat U;
     arma::vec s;
@@ -316,7 +318,7 @@ void restart_with_full_matrix(size_t& nt_r_curr, size_t n, double* coeffs, confi
 
     auto At_mv = [&](const arma::vec& x) -> arma::vec {
         return f0_r_copy.t() * x;
-    };
+    }; */
 
     //arma::svd_econ(U, s, V, f0_r_copy);
 
@@ -331,7 +333,7 @@ void restart_with_full_matrix(size_t& nt_r_curr, size_t n, double* coeffs, confi
 
     // Find how many singular values are above the 
     // (relative) tolerance:
-    arma::uword r = arma::sum(s > tol * s(0));
+    /* arma::uword r = arma::sum(s > tol * s(0));
     if ( r > max_rank){
         r = max_rank;
     }
@@ -341,8 +343,8 @@ void restart_with_full_matrix(size_t& nt_r_curr, size_t n, double* coeffs, confi
     U = U.cols(0, r - 1);
     s = s.rows(0, r - 1);
     V = V.cols(0, r - 1);
-    f0_r = U * arma::diagmat(s) * V.t();
-    //f0_r = f0_r_copy;
+    f0_r = U * arma::diagmat(s) * V.t(); */
+    f0_r = f0_r_copy;
 
     conf = config_t<double>(conf.Nx, conf.Nu, conf.Nt, conf.dt, conf.x_min, 
                             conf.x_max, conf.u_min, conf.u_max, &f_t);
@@ -514,7 +516,7 @@ void run_restarted_simulation(bool with_svd_compression = true)
         std::cout << std::setw(15) << t << std::setw(15) << std::setprecision(5) << std::scientific << Emax << " Comp-time: " << timer_elapsed;
         std::cout << " Total comp time s.f.: " << total_time << std::endl; 
 
-        if(n % 10 == 0){
+        if(n % 10 == 0 && false){
             arma::mat f0_r_copy(nx_r + 1, nu_r + 1);
             #pragma omp parallel for
             for(size_t i = 0; i <= nx_r; i++ ){
@@ -613,7 +615,7 @@ void run_restarted_simulation(bool with_svd_compression = true)
 
 int main()
 {
-	nufi::dim1::run_restarted_simulation<2>(true);
+	nufi::dim1::run_restarted_simulation<4>(true);
 
     //nufi::svd_magic::test_rsvd();
 }
