@@ -33,6 +33,58 @@
 #include <nufi/rho.hpp>
 #include <nufi/stopwatch.hpp>
 
+namespace keen_waves
+{
+
+// Canonical drive:
+double a_dr = 0.2;
+double k_dr = 0.26;
+double w_dr = 0.37;
+double t0 = 0;
+double tL = 69;
+double twL = 20;
+double twR = 20;
+double T_DR = 100;
+double tR = 207 + T_DR;
+
+// Weak drive:
+/* double a_dr = 0.00625;
+double k_dr = 0.26;
+double w_dr = 0.37;
+double t0 = 0;
+double tL = 69;
+double twL = 20;
+double twR = 20;
+double T_DR = 200;
+double tR = 207 + T_DR; */
+
+double gt(double t){
+    return 0.5 * ( std::tanh((t - tL) / twL) - std::tanh((t-tR)/twR) );
+}
+
+double at(double t){
+    return (gt(t) - gt(t0)) / (1 - gt(t0));
+}
+
+double phi_pond(double t, double x){
+    return a_dr * at(t) * std::cos(k_dr*x - w_dr * t);
+}
+
+double xmin = 0;
+double xmax = 2*M_PI/k_dr;
+double umin = -6;
+double umax = 6;
+
+double dt = 0.1;
+double T_final = 1000;
+
+
+double f0(double x, double u){
+    return 1.0 / std::sqrt(2*M_PI) * std::exp(-0.5 * u*u);
+}
+
+}
+
 namespace nufi
 {
 
@@ -53,11 +105,14 @@ real f0(real x, real u) noexcept
 	real alpha = 0.5; // Strong Landau Damping
 	real k = 0.5;
     //return 1.0 / std::sqrt(2.0 * M_PI) * u*u * std::exp(-0.5 * u*u) * (1 + alpha * std::cos(k*x)); // Two Stream Instability
-	return 1.0 / std::sqrt(2.0 * M_PI) * exp(-0.5 * u*u) * (1 + alpha * cos(k*x)); // Landau Damping
+	//return 1.0 / std::sqrt(2.0 * M_PI) * exp(-0.5 * u*u) * (1 + alpha * cos(k*x)); // Landau Damping
 
     // Bump on tail Instability
     /* return 1.0 / std::sqrt(2.0 * M_PI) * (1 + 0.04 * std::cos(0.3*x)) 
             *  ( 0.9 * std::exp(-0.5 * u*u)  + 0.2 * std::exp(-0.5/(0.5*0.5) * (u-4.5)*(u-4.5)) );  */
+
+    // Keen waves
+    return keen_waves::f0(x,u);
 }
 
 template <typename real>
@@ -343,7 +398,8 @@ void cmm_nufi_spline()
     using std::abs;
     using std::max;
 
-    size_t Nx = 128;  // Number of grid points in physical space.
+    // Normal
+    /* size_t Nx = 128;  // Number of grid points in physical space.
     size_t Nu = 256;  // Number of quadrature points in velocity space.
     double   dt = 0.1;  // Time-step size.
     size_t Nt = 100/dt;  // Number of time-steps.
@@ -352,25 +408,33 @@ void cmm_nufi_spline()
     double x_min = 0;
     double x_max = 4*M_PI;
     //double x_max = 2*M_PI/0.3;
-    conf.x_min = x_min;
-    conf.x_max = x_max; // Actually I should also set Lx etc.
 
     // Integration limits for velocity space.
     double u_min = -6;
-    double u_max = 6;
-    conf.u_min = u_min;
-    conf.u_max = u_max;
+    double u_max = 6; 
+    */
+
+    // Keen waves
+    size_t Nx = 128;  // Number of grid points in physical space.
+    size_t Nu = 256;  // Number of quadrature points in velocity space.
+    double dt = keen_waves::dt;  // Time-step size.
+    size_t Nt = keen_waves::T_final/dt;  // Number of time-steps.
+
+    double x_min = keen_waves::xmin;
+    double x_max = keen_waves::xmax;
+    double u_min = keen_waves::xmin;
+    double u_max = keen_waves::xmax; 
+
+    conf = config_t<double>(Nx, Nu, Nt, dt, x_min, x_max, u_min, u_max, &f0);
+    const size_t stride_t = conf.Nx + order - 1;
 
     // Set up CMM restart.
     size_t nx_r = Nx;
 	size_t nu_r = Nu;
     size_t nt_restart = 50;
     double dx_r = conf.Lx / nx_r;
-    double du_r = (conf.u_max - conf.u_min)/ nu_r;
-    conf = config_t<double>(Nx, Nu, Nt, dt, x_min, x_max, u_min, u_max, &f0);
-    config_t<double> conf_full(Nx, Nu, Nt, dt, x_min, x_max, u_min, u_max, &f0);
-    const size_t stride_t = conf.Nx + order - 1;
-
+    double du_r = (u_max - u_min)/ nu_r;
+    
     // Build splines just to get knots + Greville points
     BSpline::BSpline1D sx(order_x_map_spline, BSpline::makeOpenUniformKnots(nx_r, order_x_map_spline, x_min, x_max));
     BSpline::BSpline1D su(order_u_map_spline, BSpline::makeOpenUniformKnots(nu_r, order_u_map_spline, u_min, u_max));
@@ -402,6 +466,7 @@ void cmm_nufi_spline()
     for ( size_t n = 0; n <= Nt; ++n )
     {
     	nufi::stopwatch<double> timer;
+        double t = n*conf.dt;
 
         std::cout << " start of time step "<< n << " " << nt_r_curr  << std::endl; 
     	// Compute rho:
@@ -412,6 +477,14 @@ void cmm_nufi_spline()
     	}
 
         double elec_energy = poiss.solve( rho.get() );
+
+        // External force.
+        #pragma omp parallel for
+        for(size_t i = 0; i<conf.Nx; i++)
+    	{
+            double x = i*conf.dx;
+    		rho.get()[i] += keen_waves::phi_pond(t,x);
+    	}
 
         // Interpolation of Poisson solution.
         periodic::interpolate<double,order>( coeffs_restart.get() + nt_r_curr*stride_t, rho.get(), conf );
@@ -434,7 +507,6 @@ void cmm_nufi_spline()
             Emax = max( Emax, std::abs(E) );
         }
 
-	    double t = n*conf.dt;
         stat_file << std::setw(15) << t << std::setw(15) << std::setprecision(5) << std::scientific << Emax  << " " << elec_energy << std::endl;
         std::cout << std::setw(15) << t << std::setw(15) << std::setprecision(5) << std::scientific << Emax << " Comp-time: " << timer_elapsed;
         std::cout << " Total comp time s.f.: " << total_time << std::endl; 
