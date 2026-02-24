@@ -75,7 +75,7 @@ double xmax = 2*M_PI/k_dr;
 double umin = -6;
 double umax = 6;
 
-double dt = 0.1;
+double dt = 1.0/16.0;
 double T_final = 1000;
 
 
@@ -230,7 +230,6 @@ void cmm_nufi_linear()
     std::ofstream stat_file( "stats.txt" );
     std::ofstream stat_full_file( "stats_full.txt" );
     std::ofstream coeff_str("coeff_restart.txt");
-    std::ofstream coeff_r_str("coeff_r_restart.txt");
     double total_time = 0;
     size_t nt_r_curr = 0;
     for ( size_t n = 0; n <= Nt; ++n )
@@ -416,14 +415,14 @@ void cmm_nufi_spline()
 
     // Keen waves
     size_t Nx = 128;  // Number of grid points in physical space.
-    size_t Nu = 256;  // Number of quadrature points in velocity space.
-    double dt = keen_waves::dt;  // Time-step size.
-    size_t Nt = keen_waves::T_final/dt;  // Number of time-steps.
+    size_t Nu = 64;  // Number of quadrature points in velocity space.
+    double dt = 1.0/10.0;  // Time-step size.
+    size_t Nt = 1000/dt;  // Number of time-steps.
 
     double x_min = keen_waves::xmin;
     double x_max = keen_waves::xmax;
-    double u_min = keen_waves::xmin;
-    double u_max = keen_waves::xmax; 
+    double u_min = keen_waves::umin;
+    double u_max = keen_waves::umax; 
 
     conf = config_t<double>(Nx, Nu, Nt, dt, x_min, x_max, u_min, u_max, &f0);
     const size_t stride_t = conf.Nx + order - 1;
@@ -431,7 +430,7 @@ void cmm_nufi_spline()
     // Set up CMM restart.
     size_t nx_r = Nx;
 	size_t nu_r = Nu;
-    size_t nt_restart = 50;
+    size_t nt_restart = 100;
     double dx_r = conf.Lx / nx_r;
     double du_r = (u_max - u_min)/ nu_r;
     
@@ -456,11 +455,20 @@ void cmm_nufi_spline()
     poisson<double> poiss( conf );
 
     std::cout << nx_r << " " << nu_r << std::endl;
+
+    // For keen waves diagnostics:
+    std::vector<double> rho_fft_in(conf.Nx);
+    std::vector<std::complex<double>> rho_fft_out(conf.Nx/2 + 1);
+
+    fftw_plan rho_plan = fftw_plan_dft_r2c_1d(conf.Nx,
+                         rho_fft_in.data(),
+                         reinterpret_cast<fftw_complex*>(rho_fft_out.data()),
+                         FFTW_MEASURE);
     
     std::ofstream stat_file( "stats.txt" );
+    std::ofstream rho_harmonics_file( "rho_harmonics.txt" );
     std::ofstream stat_full_file( "stats_full.txt" );
     std::ofstream coeff_str("coeff_restart.txt");
-    std::ofstream coeff_r_str("coeff_r_restart.txt");
     double total_time = 0;
     size_t nt_r_curr = 0;
     for ( size_t n = 0; n <= Nt; ++n )
@@ -473,7 +481,11 @@ void cmm_nufi_spline()
 		#pragma omp parallel for
     	for(size_t i = 0; i<conf.Nx; i++)
     	{
-    		rho.get()[i] = periodic::eval_rho<double,order>(nt_r_curr, i, coeffs_restart.get(), conf);
+    		//rho.get()[i] = periodic::eval_rho<double,order>(nt_r_curr, i, coeffs_restart.get(), conf);
+            double rho_e = periodic::adaptive::eval_rho_adaptive_trapezoidal_simpson_rule<double,order>
+                                    (nt_r_curr,i*conf.dx, coeffs_restart.get(), conf, u_min, u_max);
+            rho.get()[i] = 1 - rho_e;
+            rho_fft_in[i] = rho_e;
     	}
 
         double elec_energy = poiss.solve( rho.get() );
@@ -483,7 +495,7 @@ void cmm_nufi_spline()
         for(size_t i = 0; i<conf.Nx; i++)
     	{
             double x = i*conf.dx;
-    		rho.get()[i] += keen_waves::phi_pond(t,x);
+    		rho.get()[i] = keen_waves::phi_pond(t,x) + rho.get()[i]; // Note rho is here already phi.
     	}
 
         // Interpolation of Poisson solution.
@@ -497,13 +509,29 @@ void cmm_nufi_spline()
         double timer_elapsed = timer.elapsed();
         total_time += timer_elapsed;
 
+        // Keen wave diagnostics
+        fftw_execute(rho_plan);
+        std::array<double,5> rho_harmonics;
+        for(int m=1; m<=5; ++m)
+        {
+            double re = rho_fft_out[m].real();
+            double im = rho_fft_out[m].imag();
+            rho_harmonics[m-1] = std::sqrt(re*re + im*im) / conf.Nx;   // normalization optional
+        }
+        rho_harmonics_file << t << " " << rho_harmonics[0] 
+                                << " " << rho_harmonics[1] 
+                                << " " << rho_harmonics[2] 
+                                << " " << rho_harmonics[3] 
+                                << " " << rho_harmonics[4] 
+                                << std::endl; 
+
         double Emax = 0;
-        size_t plot_n_x = 128;
+        size_t plot_n_x = 256;
         double dx_plot = conf.Lx / plot_n_x;
         for ( size_t i = 0; i <= plot_n_x; ++i )
         {
             double x = conf.x_min + i*dx_plot;
-            double E = periodic::eval<double,order,1>(x,coeffs_restart.get()+nt_r_curr*stride_t,conf);
+            double E = -periodic::eval<double,order,1>(x,coeffs_restart.get()+nt_r_curr*stride_t,conf);
             Emax = max( Emax, std::abs(E) );
         }
 
@@ -511,7 +539,8 @@ void cmm_nufi_spline()
         std::cout << std::setw(15) << t << std::setw(15) << std::setprecision(5) << std::scientific << Emax << " Comp-time: " << timer_elapsed;
         std::cout << " Total comp time s.f.: " << total_time << std::endl; 
 
-        if(n % (5*16) == 0){
+        bool with_f_plot = (n % (5*10) == 0);
+        if(n % (10) == 0){
             size_t plot_n_u = plot_n_x;
             double du_plot = (conf.u_max - conf.u_min) / plot_n_u;
 
@@ -521,11 +550,20 @@ void cmm_nufi_spline()
             double l2_norm = 0;
             double max_norm = 0;
 
+            std::vector<double> f_values;
+            if(with_f_plot){
+                f_values = std::vector<double>(plot_n_x*plot_n_u);
+            }
             for(size_t i = 0; i < plot_n_x; i++){
                 for(size_t j = 0; j < plot_n_u; j++){
+                    size_t l = i + plot_n_x*j;
                     double x = conf.x_min + i*dx_plot;
                     double u = conf.u_min + j*du_plot;
                     double f = periodic::eval_f<double,order>(nt_r_curr, x, u, coeffs_restart.get(), conf);
+
+                    if(with_f_plot){
+                        f_values[l] = f;
+                    }
 
                     kinetic_energy += u*u*f;
                     if(f > 0){
@@ -534,6 +572,20 @@ void cmm_nufi_spline()
                     l1_norm += f;
                     l2_norm += f*f;
                     max_norm = std::max(f, max_norm);
+                }
+            }
+
+            if(with_f_plot){
+                std::ofstream f_str("f_" + std::to_string(t) + ".txt");
+                for(size_t i = 0; i < plot_n_x; i++){
+                    for(size_t j = 0; j < plot_n_u; j++){
+                        size_t l = i + plot_n_x*j;
+                        double x = conf.x_min + i*dx_plot;
+                        double u = conf.u_min + j*du_plot;
+                        double f = f_values[l];
+                        f_str << x << " " << u << " " << f << std::endl;
+                    }
+                    f_str << std::endl;
                 }
             }
 

@@ -178,8 +178,12 @@ void run_restarted_simulation()
 
     conf_electron = config_t<double>(Nx, Nu_electron, Nt, dt, x_min, x_max, 
                                         u_min_electron, u_max_electron, &f0_electron);
+    conf_electron.q = -1;
+    conf_electron.m = 1;
     conf_ion = config_t<double>(Nx, Nu_ion, Nt, dt, x_min, x_max, u_min_ion, 
                                         u_max_ion, &f0_ion);
+    conf_ion.q = 1;
+    conf_ion.m = 1000;
 
     const size_t stride_t = Nx + order - 1;
 
@@ -216,9 +220,9 @@ void run_restarted_simulation()
     	for(size_t i = 0; i < Nx; i++)
     	{
             double rho_electron = periodic::eval_rho_single_species<double,order>(nt_r_curr, i, 
-                                            coeffs_restart.get(), conf_electron, true);
+                                            coeffs_restart.get(), conf_electron);
             double rho_ion = periodic::eval_rho_single_species<double,order>(nt_r_curr, i, 
-                                            coeffs_restart.get(), conf_ion, false);
+                                            coeffs_restart.get(), conf_ion);
     		rho.get()[i] = rho_ion - rho_electron;
     	}
 
@@ -265,14 +269,14 @@ void run_restarted_simulation()
     				double x = i*dx_r;
     				double u = conf_ion.u_min + j*du_r_ion;
 
-                    double f = periodic::eval_f<double,order>(nt_r_curr,x,u,coeffs_restart.get(),conf_ion,false);
+                    double f = periodic::eval_f<double,order>(nt_r_curr,x,u,coeffs_restart.get(),conf_ion);
 
                     f0_r_copy(i,j) = f;
     			}
     		}
 
             f0_r_ion = f0_r_copy;
-            conf_ion = config_t<double>(Nx, Nu_ion, Nt, dt, x_min, x_max, u_min_ion, u_max_ion, &f_t_ion);
+            conf_ion.f0 = f_t_ion;
 
             // Restart electrons.
             #pragma omp parallel for
@@ -281,14 +285,14 @@ void run_restarted_simulation()
     				double x = i*dx_r;
     				double u = conf_electron.u_min + j*du_r_electron;
 
-                    double f = periodic::eval_f<double,order>(nt_r_curr,x,u,coeffs_restart.get(),conf_electron,true);
+                    double f = periodic::eval_f<double,order>(nt_r_curr,x,u,coeffs_restart.get(),conf_electron);
 
                     f0_r_copy(i,j) = f;
     			}
     		}
 
             f0_r_electron = f0_r_copy;
-            conf_electron = config_t<double>(Nx, Nu_electron, Nt, dt, x_min, x_max, u_min_electron, u_max_electron, &f_t_electron);
+            conf_electron.f0 = f_t_electron;
 
             // Copy last entry of coeff vector into restarted coeff vector.
             #pragma omp parallel for
@@ -321,8 +325,8 @@ void run_restarted_simulation()
                     double u_elec = u_min_electron + j*dv_plot_electron;
                     double u_ion = u_min_ion + j*dv_plot_ion;
 
-                    double f_elec = periodic::eval_f<double,order>(nt_r_curr,x,u_elec,coeffs_restart.get(),conf_electron,true); 
-                    double f_ion = periodic::eval_f<double,order>(nt_r_curr,x,u_ion,coeffs_restart.get(),conf_ion,false); 
+                    double f_elec = periodic::eval_f<double,order>(nt_r_curr,x,u_elec,coeffs_restart.get(),conf_electron); 
+                    double f_ion = periodic::eval_f<double,order>(nt_r_curr,x,u_ion,coeffs_restart.get(),conf_ion); 
 
                     f_electron_str << x << " " << u_elec << " " << f_elec << std::endl;
                     f_ion_str << x << " " << u_ion << " " << f_ion << std::endl;

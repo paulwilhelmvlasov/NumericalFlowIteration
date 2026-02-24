@@ -37,8 +37,8 @@ namespace periodic
 {
 template <typename real, size_t order>
 real eval_ftilda( size_t n, real x, real u,
-                  const real *coeffs, const config_t<real> &conf, 
-                  bool is_electron = true )
+                  const real *coeffs, const config_t<real> &conf/* , 
+                  bool is_electron = true  */)
 {
     if ( n == 0 ) return conf.f0(x,u);
 
@@ -48,7 +48,8 @@ real eval_ftilda( size_t n, real x, real u,
     real Ex;
     const real *c;
 
-    real q = (-1)*(is_electron) + (!is_electron)/conf.Mr;
+    //real q = (-1)*(is_electron) + (!is_electron)/conf.Mr;
+    real qm = conf.q / conf.m;
 
     // We omit the initial half-step.
 
@@ -56,14 +57,14 @@ real eval_ftilda( size_t n, real x, real u,
     {
         x  = x - conf.dt*u;
         c  = coeffs + n*stride_t;
-        Ex = q*eval<real,order,1>(x,c,conf);
+        Ex = /* q */qm*eval<real,order,1>(x,c,conf);
         u  = u + conf.dt*Ex;
     }
 
     // The final half-step.
     x -= conf.dt*u;
     c  = coeffs + n*stride_t;
-    Ex = q*eval<real,order,1>(x,c,conf);
+    Ex = /* q */qm*eval<real,order,1>(x,c,conf);
     u += 0.5*conf.dt*Ex;
 
     return conf.f0(x,u);
@@ -71,8 +72,8 @@ real eval_ftilda( size_t n, real x, real u,
 
 template <typename real, size_t order>
 real eval_f( size_t n, real x, real u, 
-             const real *coeffs, const config_t<real> &conf, 
-             bool is_electron = true )
+             const real *coeffs, const config_t<real> &conf/* , 
+             bool is_electron = true  */)
 {
     if ( n == 0 ) return conf.f0(x,u);
 
@@ -82,25 +83,26 @@ real eval_f( size_t n, real x, real u,
     real Ex;
     const real *c;
 
-    real q = (-1)*(is_electron) + (!is_electron)/conf.Mr;
+    //real q = (-1)*(is_electron) + (!is_electron)/conf.Mr;
+    real qm = conf.q / conf.m;
 
     // Initial half-step.
     c  = coeffs + n*stride_t;
-    Ex = q*eval<real,order,1>( x, c, conf );
+    Ex = /* q */qm*eval<real,order,1>( x, c, conf );
     u += 0.5*conf.dt*Ex;
 
     while ( --n )
     {
         x -= conf.dt*u;
         c  = coeffs + n*stride_t;
-        Ex = q*eval<real,order,1>( x, c, conf );
+        Ex = /* q */qm*eval<real,order,1>( x, c, conf );
         u += conf.dt*Ex;
     }
 
     // Final half-step.
     x -= conf.dt*u;
     c  = coeffs + n*stride_t;
-    Ex = q*eval<real,order,1>( x, c, conf );
+    Ex = /* q */qm*eval<real,order,1>( x, c, conf );
     u += 0.5*conf.dt*Ex;
 
     return conf.f0(x,u);
@@ -108,8 +110,8 @@ real eval_f( size_t n, real x, real u,
 
 template <typename real, size_t order>
 void eval_char_map( size_t n, real& x, real& u, 
-             const real *coeffs, const config_t<real> &conf, 
-             bool is_electron = true )
+             const real *coeffs, const config_t<real> &conf/* , 
+             bool is_electron = true  */)
 {
     if ( n > 0) {
         const size_t stride_x = 1;
@@ -118,25 +120,26 @@ void eval_char_map( size_t n, real& x, real& u,
         real Ex;
         const real *c;
 
-        real q = (-1)*(is_electron) + (!is_electron)/conf.Mr;
+        //real q = (-1)*(is_electron) + (!is_electron)/conf.Mr;
+        real qm = conf.q / conf.m;
 
         // Initial half-step.
         c  = coeffs + n*stride_t;
-        Ex = q*eval<real,order,1>( x, c, conf );
+        Ex = /* q */qm*eval<real,order,1>( x, c, conf );
         u += 0.5*conf.dt*Ex;
 
         while ( --n )
         {
             x -= conf.dt*u;
             c  = coeffs + n*stride_t;
-            Ex = q*eval<real,order,1>( x, c, conf );
+            Ex = /* q */qm*eval<real,order,1>( x, c, conf );
             u += conf.dt*Ex;
         }
 
         // Final half-step.
         x -= conf.dt*u;
         c  = coeffs + n*stride_t;
-        Ex = q*eval<real,order,1>( x, c, conf );
+        Ex = /* q */qm*eval<real,order,1>( x, c, conf );
         u += 0.5*conf.dt*Ex;
     }
 }
@@ -144,7 +147,7 @@ void eval_char_map( size_t n, real& x, real& u,
 
 template <typename real, size_t order>
 real eval_f_on_grid( size_t n, size_t index_x, size_t index_u,
-             const real *coeffs, const config_t<real> &conf, bool is_electron = true )
+             const real *coeffs, const config_t<real> &conf/* , bool is_electron = true  */)
 {
 	real x = conf.x_min + index_x*conf.dx;
 	real u = conf.u_min + index_u*conf.du;
@@ -157,25 +160,26 @@ real eval_f_on_grid( size_t n, size_t index_x, size_t index_u,
     real Ex;
     const real *c;
 
-    real q = (-1)*(is_electron) + (!is_electron)/conf.Mr;
+    //real q = (-1)*(is_electron) + (!is_electron)/conf.Mr;
+    real qm = conf.q / conf.m;
 
     // Initial half-step.
     c  = coeffs + n*stride_t;
-    Ex = q*eval<real,order,1>( x, c, conf );
+    Ex = /* q */qm*eval<real,order,1>( x, c, conf );
     u += 0.5*conf.dt*Ex;
 
     while ( --n )
     {
         x -= conf.dt*u;
         c  = coeffs + n*stride_t;
-        Ex = q*eval<real,order,1>( x, c, conf );
+        Ex = /* q */qm*eval<real,order,1>( x, c, conf );
         u += conf.dt*Ex;
     }
 
     // Final half-step.
     x -= conf.dt*u;
     c  = coeffs + n*stride_t;
-    Ex = q*eval<real,order,1>( x, c, conf );
+    Ex = /* q */qm*eval<real,order,1>( x, c, conf );
     u += 0.5*conf.dt*Ex;
 
     return conf.f0(x,u);
@@ -198,8 +202,8 @@ real eval_rho( size_t n, size_t i, const real *coeffs, const config_t<real> &con
 }
 
 template <typename real, size_t order>
-real eval_rho_single_species( size_t n, size_t i, const real *coeffs, const config_t<real> &conf, 
-                                bool is_electron = true )
+real eval_rho_single_species( size_t n, size_t i, const real *coeffs, 
+                                const config_t<real> &conf/* , bool is_electron = true  */)
 {
     const real x = conf.x_min + i*conf.dx; 
     const real du = (conf.u_max-conf.u_min) / conf.Nu;
@@ -208,11 +212,129 @@ real eval_rho_single_species( size_t n, size_t i, const real *coeffs, const conf
     real rho = 0;
     for ( size_t ii = 0; ii < conf.Nu; ++ii )
     {
-        rho += eval_ftilda<real,order>( n, x, u_min + ii*du, coeffs, conf, is_electron );
+        rho += eval_ftilda<real,order>( n, x, u_min + ii*du, coeffs, conf/* , is_electron  */);
     }
     rho *= du; 
 
     return rho;
+}
+
+namespace adaptive
+{
+
+template <typename real, size_t order>
+real sub_integral_eval_rho_adaptive_trapezoidal_simpson_rule( size_t n, real x, const real *coeffs, 
+                const config_t<real> &conf, real u_left, real u_right, real f_left, real f_right, 
+                size_t depth)
+{
+	real u_middle = 0.5 * (u_left + u_right);
+	real f_middle = eval_ftilda<real,order>( n, x, u_middle, coeffs, conf);
+	real du = u_right - u_left;
+
+	real QT = 0.5 * du * (f_left + f_right);
+	real QS = 1.0 / 6.0 * du * (f_left + 4 * f_middle + f_right);
+
+	if(QS < conf.tol_QS_0){
+		// If QS=0, then also QT=0 as f>=0 everywhere. Thus we can return the value here.
+		return QS;
+	}
+
+	if(std::abs(QT - QS)/QS < conf.tol_QS_QT_rel_diff || depth >= conf.max_depth_integration){
+		// If relative integration error is lower than tolerance or maximum depth is reached return value
+		// computed using Simpson quadrature rule.
+		return QS;
+	} else{
+		// Else split integral once more.
+		return sub_integral_eval_rho_adaptive_trapezoidal_simpson_rule<real,order>( n, x, coeffs, conf, u_left, u_middle, f_left, f_middle, depth+1)
+			+ sub_integral_eval_rho_adaptive_trapezoidal_simpson_rule<real,order>( n, x, coeffs, conf, u_middle, u_right, f_middle, f_right, depth+1);
+	}
+}
+
+
+template <typename real, size_t order>
+real eval_rho_adaptive_trapezoidal_simpson_rule( size_t n, real x, const real *coeffs, const config_t<real> &conf,
+											real& u_min, real& u_max, bool check_velocity_cut_off = false)
+{
+	// Check u_min and u_max for feasibility. If need be extend boundaries and re-check
+	// until value of f again under tolerance. Note that the support should at most extend by the (maximum)
+	// value of E at x in between this and the previous time-step.
+    const size_t stride_x = 1;
+    const size_t stride_t = stride_x*(conf.Nx + order - 1);
+	real f_left = eval_ftilda<real,order>( n, x, u_min, coeffs, conf);
+	real f_right = eval_ftilda<real,order>( n, x, u_max, coeffs, conf);
+	if(n>0 && check_velocity_cut_off){
+		// Don't test for initial time-step.
+		const real *c;
+		c  = coeffs + (n-1)*stride_t;
+		real E_abs = std::abs(eval<real,order,1>( x, c, conf ));
+
+		while(f_left > conf.tol_cut_off_velocity_supp){
+			u_min -= 1.1 * conf.dt * E_abs;
+			f_left = eval_ftilda<real,order>( n, x, u_min, coeffs, conf);
+		}
+		while(f_right > conf.tol_cut_off_velocity_supp){
+			u_max += 1.1 * conf.dt * E_abs;
+			f_right = eval_ftilda<real,order>( n, x, u_max, coeffs, conf);
+		}
+	}
+
+	// Compute integral.
+	real rho = 0;
+	real du = (u_max - u_min) / conf.Nu;
+	real u_left = u_min;
+	real u_right = u_min + du;
+	real fl = f_left;
+	real fr = eval_ftilda<real,order>( n, x, u_right, coeffs, conf);
+	rho += sub_integral_eval_rho_adaptive_trapezoidal_simpson_rule<real,order>( n, x, coeffs, conf, u_left, u_right, fl, fr, 1);
+	for(size_t i  = 1; i < conf.Nu-1; i++){
+		u_left = u_min + i * du;
+		u_right = u_left + du;
+		fl = fr;
+		fr = eval_ftilda<real,order>( n, x, u_right, coeffs, conf);
+		rho += sub_integral_eval_rho_adaptive_trapezoidal_simpson_rule<real,order>( n, x, coeffs, conf, u_left, u_right, fl, fr, 1);
+	}
+	fl = fr;
+	fr = f_right;
+	rho += sub_integral_eval_rho_adaptive_trapezoidal_simpson_rule<real,order>( n, x, coeffs, conf, u_left, u_right, fl, fr, 1);
+
+	return rho;
+}
+
+template <typename real, size_t order>
+real eval_rho_simpson( size_t n, size_t i, const real *coeffs, const config_t<real> &conf )
+{
+    const real x = conf.x_min + i*conf.dx;
+    const real du = (conf.u_max-conf.u_min) / conf.Nu;
+    const real u_min = conf.u_min + 0.5*du;
+
+    real rho = 0;
+
+    real c_left = 1.0 /6.0;
+    real c_mid = 4.0 / 6.0;
+    real c_right = 1.0 /6.0;
+
+    real left = u_min;
+	real mid = left + 0.5*du;
+	real right = left + du;
+    real f_left = eval_ftilda<real,order>( n, x, left, coeffs, conf );
+    real f_mid = eval_ftilda<real,order>( n, x, mid, coeffs, conf );
+    real f_right = eval_ftilda<real,order>( n, x, right, coeffs, conf );
+    rho += c_left*f_left + c_mid*f_mid + c_right*f_right;
+    for ( size_t ii = 1; ii < conf.Nu; ++ii )
+    {
+    	left = u_min + ii*du;
+    	mid = left + 0.5*du;
+		right = left + du;
+
+	    real f_left = f_right;
+	    real f_mid = eval_ftilda<real,order>( n, x, mid, coeffs, conf );
+	    real f_right = eval_ftilda<real,order>( n, x, right, coeffs, conf );
+
+		rho += c_left*f_left + c_mid*f_mid + c_right*f_right;
+    }
+
+    return 1 - du*rho;
+}
 }
 
 }

@@ -47,7 +47,18 @@ struct config_t
     real dx, dx_inv, Lx, Lx_inv;
     real du;
 
+    // Careful: Deprecated. Do not use. Only left for legacy 
+    // compatibility!!!
     real Mr = 1000; // Mass ratio. Only needed for multi-species.
+
+    real q = -1;
+    real m = 1;
+
+    // Adaptive integration parameters. 
+    real tol_cut_off_velocity_supp = 1e-8;
+    real tol_QS_0 = 1e-7;
+    real tol_QS_QT_rel_diff = 1e-3;
+    size_t max_depth_integration = 5;
 
     config_t(size_t nx, size_t nu, size_t nt, real dt, real xmin, real xmax,
     		real umin, real umax, real(*init_data)(real,real)) noexcept;
