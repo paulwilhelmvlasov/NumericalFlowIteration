@@ -414,9 +414,10 @@ void cmm_nufi_spline()
     */
 
     // Keen waves
-    size_t Nx = 128;  // Number of grid points in physical space.
-    size_t Nu = 64;  // Number of quadrature points in velocity space.
-    double dt = 1.0/10.0;  // Time-step size.
+    size_t Nx = 512;  // Number of grid points in physical space.
+    size_t Nu = 512;  // Number of quadrature points in velocity space.
+    size_t nt_per_one = 20;
+    double dt = 1.0/nt_per_one;  // Time-step size.
     size_t Nt = 1000/dt;  // Number of time-steps.
 
     double x_min = keen_waves::xmin;
@@ -500,14 +501,18 @@ void cmm_nufi_spline()
 
         // Interpolation of Poisson solution.
         periodic::interpolate<double,order>( coeffs_restart.get() + nt_r_curr*stride_t, rho.get(), conf );
-        // Copy solution also into global coeffs-vector.
-        #pragma omp parallel for
-        for(size_t i = 0; i < stride_t; i++){
-            coeffs.get()[n*stride_t + i ] = coeffs_restart.get()[nt_r_curr*stride_t + i];
-        }
 
         double timer_elapsed = timer.elapsed();
         total_time += timer_elapsed;
+
+        // Copy solution also into global coeffs-vector.
+        //#pragma omp parallel for
+        for(size_t i = 0; i < stride_t; i++){
+            double c = coeffs_restart.get()[nt_r_curr*stride_t + i];
+            coeff_str << c << std::endl;
+            coeffs.get()[n*stride_t + i ] = c;
+        }
+
 
         // Keen wave diagnostics
         fftw_execute(rho_plan);
@@ -526,7 +531,7 @@ void cmm_nufi_spline()
                                 << std::endl; 
 
         double Emax = 0;
-        size_t plot_n_x = 256;
+        size_t plot_n_x = 512;
         double dx_plot = conf.Lx / plot_n_x;
         for ( size_t i = 0; i <= plot_n_x; ++i )
         {
@@ -539,8 +544,8 @@ void cmm_nufi_spline()
         std::cout << std::setw(15) << t << std::setw(15) << std::setprecision(5) << std::scientific << Emax << " Comp-time: " << timer_elapsed;
         std::cout << " Total comp time s.f.: " << total_time << std::endl; 
 
-        bool with_f_plot = (n % (5*10) == 0);
-        if(n % (10) == 0){
+        bool with_f_plot = (n % (25*nt_per_one) == 0);
+        if(n % (nt_per_one) == 0){
             size_t plot_n_u = plot_n_x;
             double du_plot = (conf.u_max - conf.u_min) / plot_n_u;
 
@@ -554,6 +559,7 @@ void cmm_nufi_spline()
             if(with_f_plot){
                 f_values = std::vector<double>(plot_n_x*plot_n_u);
             }
+            #pragma omp parallel for reduction(+:kinetic_energy,entropy,l1_norm,l2_norm)
             for(size_t i = 0; i < plot_n_x; i++){
                 for(size_t j = 0; j < plot_n_u; j++){
                     size_t l = i + plot_n_x*j;
