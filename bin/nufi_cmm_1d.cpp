@@ -414,7 +414,7 @@ void cmm_nufi_spline()
     */
 
     // Keen waves
-    size_t Nx = 512;  // Number of grid points in physical space.
+    size_t Nx = 1024;  // Number of grid points in physical space.
     size_t Nu = 512;  // Number of quadrature points in velocity space.
     size_t nt_per_one = 20;
     double dt = 1.0/nt_per_one;  // Time-step size.
@@ -426,12 +426,15 @@ void cmm_nufi_spline()
     double u_max = keen_waves::umax; 
 
     conf = config_t<double>(Nx, Nu, Nt, dt, x_min, x_max, u_min, u_max, &f0);
+    conf.max_depth_integration = 5;
+    conf.tol_QS_QT_rel_diff = 1e-5;
+    conf.tol_QS_0 = 1e-8;
     const size_t stride_t = conf.Nx + order - 1;
 
     // Set up CMM restart.
-    size_t nx_r = Nx;
-	size_t nu_r = Nu;
-    size_t nt_restart = 100;
+    size_t nx_r = 64;
+	size_t nu_r = 256;
+    size_t nt_restart = 200;
     double dx_r = conf.Lx / nx_r;
     double du_r = (u_max - u_min)/ nu_r;
     
@@ -531,7 +534,7 @@ void cmm_nufi_spline()
                                 << std::endl; 
 
         double Emax = 0;
-        size_t plot_n_x = 512;
+        size_t plot_n_x = 256;
         double dx_plot = conf.Lx / plot_n_x;
         for ( size_t i = 0; i <= plot_n_x; ++i )
         {
@@ -546,6 +549,10 @@ void cmm_nufi_spline()
 
         bool with_f_plot = (n % (25*nt_per_one) == 0);
         if(n % (nt_per_one) == 0){
+            if(with_f_plot){
+                plot_n_x = 1024;
+                dx_plot = conf.Lx / plot_n_x;
+            }
             size_t plot_n_u = plot_n_x;
             double du_plot = (conf.u_max - conf.u_min) / plot_n_u;
 
@@ -592,6 +599,21 @@ void cmm_nufi_spline()
                         f_str << x << " " << u << " " << f << std::endl;
                     }
                     f_str << std::endl;
+                }
+
+                std::ofstream f_zoomed_str("f_zoomed_" + std::to_string(t) + ".txt");
+                double umin_fine = 0;
+                double umax_fine = 2.5;
+                double du_plot_fine = (umax_fine - umin_fine) / plot_n_u;
+                for(size_t i = 0; i < plot_n_x; i++){
+                    for(size_t j = 0; j < plot_n_u; j++){
+                        size_t l = i + plot_n_x*j;
+                        double x = conf.x_min + i*dx_plot;
+                        double u = umin_fine + j*du_plot_fine;
+                        double f = periodic::eval_f<double,order>(nt_r_curr, x, u, coeffs_restart.get(), conf);
+                        f_zoomed_str << x << " " << u << " " << f << std::endl;
+                    }
+                    f_zoomed_str << std::endl;
                 }
             }
 
