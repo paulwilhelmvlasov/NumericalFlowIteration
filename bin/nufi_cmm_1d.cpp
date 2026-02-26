@@ -37,7 +37,7 @@ namespace keen_waves
 {
 
 // Canonical drive:
-double a_dr = 0.2;
+/* double a_dr = 0.2;
 double k_dr = 0.26;
 double w_dr = 0.37;
 double t0 = 0;
@@ -45,10 +45,10 @@ double tL = 69;
 double twL = 20;
 double twR = 20;
 double T_DR = 100;
-double tR = 207 + T_DR;
+double tR = 207 + T_DR; */
 
 // Weak drive:
-/* double a_dr = 0.00625;
+double a_dr = 0.00625;
 double k_dr = 0.26;
 double w_dr = 0.37;
 double t0 = 0;
@@ -56,7 +56,7 @@ double tL = 69;
 double twL = 20;
 double twR = 20;
 double T_DR = 200;
-double tR = 207 + T_DR; */
+double tR = 207 + T_DR;
 
 double gt(double t){
     return 0.5 * ( std::tanh((t - tL) / twL) - std::tanh((t-tR)/twR) );
@@ -418,7 +418,7 @@ void cmm_nufi_spline()
     size_t Nu = 512;  // Number of quadrature points in velocity space.
     size_t nt_per_one = 20;
     double dt = 1.0/nt_per_one;  // Time-step size.
-    size_t Nt = 1000/dt;  // Number of time-steps.
+    size_t Nt = 10000/dt;  // Number of time-steps.
 
     double x_min = keen_waves::xmin;
     double x_max = keen_waves::xmax;
@@ -602,8 +602,8 @@ void cmm_nufi_spline()
                 }
 
                 std::ofstream f_zoomed_str("f_zoomed_" + std::to_string(t) + ".txt");
-                double umin_fine = 0;
-                double umax_fine = 2.5;
+                double umin_fine = 1.2;
+                double umax_fine = 1.6;
                 double du_plot_fine = (umax_fine - umin_fine) / plot_n_u;
                 for(size_t i = 0; i < plot_n_x; i++){
                     for(size_t j = 0; j < plot_n_u; j++){
