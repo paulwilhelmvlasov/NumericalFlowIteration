@@ -49,15 +49,15 @@ real maxwellian_1d(real u, real vth) noexcept
 template <typename real>
 real f0(real x, real u) noexcept
 {
-	//real alpha = 1e-2; // Linear Landau Damping or Two Stream instability
+	real alpha = 1e-2; // Linear Landau Damping or Two Stream instability
 	//real alpha = 0.5; // Strong Landau Damping
-	//real k = 0.5;
-    //return 1.0 / std::sqrt(2.0 * M_PI) * u*u * std::exp(-0.5 * u*u) * (1 + alpha * std::cos(k*x)); // Two Stream Instability
+	real k = 0.5;
+    return 1.0 / std::sqrt(2.0 * M_PI) * u*u * std::exp(-0.5 * u*u) * (1 + alpha * std::cos(k*x)); // Two Stream Instability
 	//return 1.0 / std::sqrt(2.0 * M_PI) * exp(-0.5 * u*u) * (1 + alpha * cos(k*x)); // Landau Damping
 
     // Bump on tail Instability
-    return 1.0 / std::sqrt(2.0 * M_PI) * (1 + 0.04 * std::cos(0.3*x)) 
-            *  ( 0.9 * std::exp(-0.5 * u*u)  + 0.2 * std::exp(-0.5/(0.5*0.5) * (u-4.5)*(u-4.5)) ); 
+    //return 1.0 / std::sqrt(2.0 * M_PI) * (1 + 0.04 * std::cos(0.3*x)) 
+//            *  ( 0.9 * std::exp(-0.5 * u*u)  + 0.2 * std::exp(-0.5/(0.5*0.5) * (u-4.5)*(u-4.5)) ); 
 }
 
 template <typename real>
@@ -123,15 +123,15 @@ void run_restarted_simulation()
 
     //omp_set_num_threads(1);
 
-    size_t Nx = 128;  // Number of grid points in physical space.
-    size_t Nu = 256;  // Number of quadrature points in velocity space.
+    size_t Nx = 32;  // Number of grid points in physical space.
+    size_t Nu = 64;  // Number of quadrature points in velocity space.
     double   dt = 0.1;  // Time-step size.
-    size_t Nt = 200/dt;  // Number of time-steps.
+    size_t Nt = 500/dt;  // Number of time-steps.
 
     // Dimensions of physical domain.
     double x_min = 0;
-    //double x_max = 4*M_PI;
-    double x_max = 2*M_PI/0.3;
+    double x_max = 4*M_PI;
+    //double x_max = 2*M_PI/0.3;
     conf.x_min = x_min;
     conf.x_max = x_max; // Actually I should also set Lx etc.
 
@@ -157,6 +157,8 @@ void run_restarted_simulation()
     std::unique_ptr<double,decltype(std::free)*> rho { reinterpret_cast<double*>(std::aligned_alloc(64,sizeof(double)*conf.Nx)), std::free };
     if ( rho == nullptr ) throw std::bad_alloc {};
 
+    std::vector<double> rho_test(conf.Nx);
+
     poisson<double> poiss( conf );
 
     std::cout << f0_r.n_rows << " " << f0_r.n_cols << std::endl;
@@ -167,6 +169,7 @@ void run_restarted_simulation()
     std::ofstream stat_full_file( "stats_full.txt" );
     std::ofstream coeff_str("coeff_restart.txt");
     std::ofstream coeff_r_str("coeff_r_restart.txt");
+    std::ofstream rho_error_str("rho_error_str.txt");
     double total_time = 0;
     size_t restart_counter = 0;
     size_t nt_r_curr = 0;
@@ -180,6 +183,7 @@ void run_restarted_simulation()
     	for(size_t i = 0; i<conf.Nx; i++)
     	{
     		rho.get()[i] = periodic::eval_rho<double,order>(nt_r_curr, i, coeffs_restart.get(), conf);
+            rho_test[i] = rho.get()[i];
     	}
 
 /*         std::ofstream rho_str("rho_" + std::to_string(n*conf.dt) + ".txt");
@@ -217,6 +221,20 @@ void run_restarted_simulation()
         stat_file << std::setw(15) << t << std::setw(15) << std::setprecision(5) << std::scientific << Emax  << " " << elec_energy << std::endl;
         std::cout << std::setw(15) << t << std::setw(15) << std::setprecision(5) << std::scientific << Emax << " Comp-time: " << timer_elapsed;
         std::cout << " Total comp time s.f.: " << total_time << std::endl; 
+
+        // Test phi error
+        double l2_rho_error = 0;
+        double l2_rho = 0;
+        for(size_t i = 0; i < conf.Nx; i++){
+            double x = conf.x_min + i*conf.dx;
+            double dE = -periodic::eval<double,order,2>(x,coeffs_restart.get()+nt_r_curr*stride_t,conf);
+            double error = dE - rho_test[i];
+            l2_rho_error += error*error;
+            l2_rho += rho_test[i]*rho_test[i];
+        }
+        l2_rho_error = std::sqrt(conf.dx*l2_rho_error);
+        l2_rho = std::sqrt(conf.dx*l2_rho);
+        rho_error_str << t << " " << l2_rho_error << " " << l2_rho_error/l2_rho << std::endl;
 
         if(n % (5*16) == 0 && false){
             size_t plot_n_u = plot_n_x;

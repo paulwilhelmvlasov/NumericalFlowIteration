@@ -1900,8 +1900,10 @@ void periodically_restarted_nufi_maxwell_lie_fBE()
     for(size_t n = 1; n <= conf.Nt; n++)
     {
         nufi::stopwatch<double> timer;
-                // Compute E(n) and B(n).
-        #pragma omp parallel for
+                
+        // Compute E(n) and B(n).
+        double Ex_mean = 0, Ey_mean = 0, Ez_mean = 0;
+        #pragma omp parallel for reduction(+:Ex_mean,Ey_mean,Ez_mean)
         for(size_t l = 0; l < conf.Nx*conf.Ny*conf.Nz; l++){
             size_t iz   = l   / (conf.Nx * conf.Ny);
             size_t tmp  = l   % (conf.Nx * conf.Ny);
@@ -1941,10 +1943,26 @@ void periodically_restarted_nufi_maxwell_lie_fBE()
             B[0][l] = B0_vec(0);
             B[1][l] = B0_vec(1);
             B[2][l] = B0_vec(2);
+
+            Ex_mean += E0_vec(0);
+            Ey_mean += E0_vec(1);
+            Ez_mean += E0_vec(2);
         }
         double time_compute_EB = timer.elapsed();
         std::cout << "Compute EB took " << time_compute_EB << " s." << std::endl;
         timer.reset();
+
+        // I must gauge-fix E here! This means E -= mean(E).        
+        Ex_mean /= conf.Nx*conf.Ny*conf.Nz;
+        Ey_mean /= conf.Nx*conf.Ny*conf.Nz;
+        Ez_mean /= conf.Nx*conf.Ny*conf.Nz;
+
+        #pragma omp parallel for
+        for(size_t l = 0; l < conf.Nx*conf.Ny*conf.Nz; l++){
+            E[0][l] -= Ex_mean;
+            E[1][l] -= Ey_mean;
+            E[2][l] -= Ez_mean;
+        }
 
         // Interpolate E(n) and B(n).
         //std::cout << "Interpolate E(n) and B(n)." << std::endl;
@@ -2254,7 +2272,8 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned()
     {
         nufi::stopwatch<double> timer;
         // Compute E(n) and B(n).
-        #pragma omp parallel for
+        double Ex_mean = 0, Ey_mean = 0, Ez_mean = 0;
+        #pragma omp parallel for reduction(+:Ex_mean,Ey_mean,Ez_mean)
         for(size_t l = 0; l < conf.Nx*conf.Ny*conf.Nz; l++){
             size_t iz   = l   / (conf.Nx * conf.Ny);
             size_t tmp  = l   % (conf.Nx * conf.Ny);
@@ -2292,10 +2311,27 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned()
                 E[index] = E0_vec(d);
                 B[index] = B0_vec(d);
             }
+
+            Ex_mean += E0_vec(0);
+            Ey_mean += E0_vec(1);
+            Ez_mean += E0_vec(2);
         }
         double time_compute_EB = timer.elapsed();
         std::cout << "Compute EB took " << time_compute_EB << " s." << std::endl;
         timer.reset();
+
+        // Gauge fix!!!
+        // I must gauge-fix E here! This means E -= mean(E).        
+        Ex_mean /= conf.Nx*conf.Ny*conf.Nz;
+        Ey_mean /= conf.Nx*conf.Ny*conf.Nz;
+        Ez_mean /= conf.Nx*conf.Ny*conf.Nz;
+
+        #pragma omp parallel for
+        for(size_t l = 0; l < conf.Nx*conf.Ny*conf.Nz; l++){
+            E[l] -= Ex_mean;
+            E[conf.Nx*conf.Ny*conf.Nz + l] -= Ey_mean;
+            E[2*conf.Nx*conf.Ny*conf.Nz + l] -= Ez_mean;
+        }
 
         // Interpolate E(n) and B(n).
         //std::cout << "Interpolate E(n) and B(n)." << std::endl;
@@ -2586,7 +2622,8 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned_mpi()
         nufi::stopwatch<double> timer;
         if(mpi_rank == 0){
             // Compute E(n) and B(n).
-            #pragma omp parallel for
+            double Ex_mean = 0, Ey_mean = 0, Ez_mean = 0;
+            #pragma omp parallel for reduction(+:Ex_mean,Ey_mean,Ez_mean)
             for(size_t l = 0; l < conf.Nx*conf.Ny*conf.Nz; l++){
                 size_t iz   = l   / (conf.Nx * conf.Ny);
                 size_t tmp  = l   % (conf.Nx * conf.Ny);
@@ -2624,15 +2661,30 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned_mpi()
                     E[index] = E0_vec(d);
                     B[index] = B0_vec(d);
                 }
+
+                Ex_mean += E0_vec(0);
+                Ey_mean += E0_vec(1);
+                Ez_mean += E0_vec(2);
             }
             time_compute_EB = timer.elapsed();
             std::cout << "Compute EB took " << time_compute_EB << " s." << std::endl;
             timer.reset();
-        }
 
-        // Interpolate E(n) and B(n).
-        //std::cout << "Interpolate E(n) and B(n)." << std::endl;
-        if(mpi_rank == 0){
+            // Gauge fix!!!
+            // I must gauge-fix E here! This means E -= mean(E).        
+            Ex_mean /= conf.Nx*conf.Ny*conf.Nz;
+            Ey_mean /= conf.Nx*conf.Ny*conf.Nz;
+            Ez_mean /= conf.Nx*conf.Ny*conf.Nz;
+
+            #pragma omp parallel for
+            for(size_t l = 0; l < conf.Nx*conf.Ny*conf.Nz; l++){
+                E[l] -= Ex_mean;
+                E[conf.Nx*conf.Ny*conf.Nz + l] -= Ey_mean;
+                E[2*conf.Nx*conf.Ny*conf.Nz + l] -= Ez_mean;
+            }
+
+            // Interpolate E(n) and B(n).
+            //std::cout << "Interpolate E(n) and B(n)." << std::endl;
             interpolate_fields_aligned<double,order>(nt_r_curr,coeffs_E, E, conf);
             interpolate_fields_aligned<double,order>(nt_r_curr,coeffs_B, B, conf);
 

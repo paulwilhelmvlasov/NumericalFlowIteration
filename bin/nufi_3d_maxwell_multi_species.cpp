@@ -1140,7 +1140,8 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned_mpi()
         nufi::stopwatch<double> timer;
         if(mpi_rank == 0){
             // Compute E(n) and B(n).
-            #pragma omp parallel for
+            double Ex_mean = 0, Ey_mean = 0, Ez_mean = 0;
+            #pragma omp parallel for reduction(+:Ex_mean,Ey_mean,Ez_mean)
             for(size_t l = 0; l < Nx*Ny*Nz; l++){
                 size_t iz   = l   / (Nx * Ny);
                 size_t tmp  = l   % (Nx * Ny);
@@ -1183,14 +1184,30 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned_mpi()
                     E[index] = E0_vec(d);
                     B[index] = B0_vec(d);
                 }
+
+                Ex_mean += E0_vec(0);
+                Ey_mean += E0_vec(1);
+                Ez_mean += E0_vec(2);
             }
             time_compute_EB = timer.elapsed();
             std::cout << "Compute EB took " << time_compute_EB << " s." << std::endl;
             timer.reset();
-        }
 
-        // Interpolate E(n) and B(n).
-        if(mpi_rank == 0){
+
+            // Gauge fix!!!
+            // I must gauge-fix E here! This means E -= mean(E).        
+            Ex_mean /= Nx*Ny*Nz;
+            Ey_mean /= Nx*Ny*Nz;
+            Ez_mean /= Nx*Ny*Nz;
+
+            #pragma omp parallel for
+            for(size_t l = 0; l < Nx*Ny*Nz; l++){
+                E[l] -= Ex_mean;
+                E[Nx*Ny*Nz + l] -= Ey_mean;
+                E[2*Nx*Ny*Nz + l] -= Ez_mean;
+            }
+
+            // Interpolate E(n) and B(n).
             interpolate_fields_aligned<double,order>(nt_r_curr,coeffs_E, E, conf_elec);
             interpolate_fields_aligned<double,order>(nt_r_curr,coeffs_B, B, conf_elec);
 

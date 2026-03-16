@@ -88,7 +88,7 @@ real eval_f( size_t n, real x, real u,
 
     // Initial half-step.
     c  = coeffs + n*stride_t;
-    Ex = /* q */qm*eval<real,order,1>( x, c, conf );
+    Ex = /* q */qm*eval<real,order,1>( x, c, conf );  // Careful: eval uses phi, for which we have E(x) = -d/dx phi(x)
     u += 0.5*conf.dt*Ex;
 
     while ( --n )
