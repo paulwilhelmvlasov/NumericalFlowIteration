@@ -1451,6 +1451,41 @@ void eval_j_hat(size_t n, std::vector<real>& j_hat, const std::vector<real>& coe
     }
 }
 
+template <typename real, size_t order, bool single_species = true>
+void eval_rho_fBE(size_t n, std::vector<real>& rho, const std::vector<real>& coeffs_E, 
+    const std::vector<real>& coeffs_B, const std::vector<real>& coeffs_j_hat, 
+    const config_t<real> &conf )
+{
+    #pragma omp parallel for
+    for(size_t l = 0; l < conf.Nx*conf.Ny*conf.Nz; l++){
+        
+        size_t iz   = l   / (conf.Nx * conf.Ny);
+        size_t tmp  = l   % (conf.Nx * conf.Ny);
+        size_t iy   = tmp / conf.Nx;
+        size_t ix   = tmp % conf.Nx;
+    
+        real x = conf.x_min + ix*conf.dx; 
+        real y = conf.y_min + iy*conf.dy; 
+        real z = conf.z_min + iz*conf.dz; 
+
+        real sum0 = 0;
+        #pragma omp parallel for collapse(3) reduction(+:sum0)
+        for(size_t iu = 0; iu < conf.Nu; iu++)
+        for(size_t iv = 0; iv < conf.Nv; iv++)
+        for(size_t iw = 0; iw < conf.Nw; iw++){
+            real u = conf.u_min + (iu + 0.5) * conf.du;
+            real v = conf.v_min + (iv + 0.5) * conf.dv;
+            real w = conf.w_min + (iw + 0.5) * conf.dw;
+
+            real f = eval_f_lie_fBE<real,order,single_species>(n, x, y, z, u, v, w, 
+                                coeffs_E, coeffs_B, coeffs_j_hat, conf );
+
+            sum0 += f;
+        }
+        rho[l] = sum0 * conf.du * conf.dv * conf.dw;
+    }
+}
+
 template<typename real, size_t order>
 std::vector<real> sub_integral_j_hat_adaptive_trapezoidal_simpson_rule(size_t n, real x, real y, real z, const std::vector<real>& coeffs_E, 
     const std::vector<real>& coeffs_B, const std::vector<real>& coeffs_j_hat, const config_t<real> &conf,  

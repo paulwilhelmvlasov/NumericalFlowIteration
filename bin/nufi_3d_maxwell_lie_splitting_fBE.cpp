@@ -8,11 +8,13 @@
 #include <armadillo>
 
 #include <nufi/config.hpp>
-#include <nufi/random.hpp>
 #include <nufi/fields.hpp>
+#include <nufi/Maxwell.hpp>
 #include <nufi/poisson.hpp>
+#include <nufi/random.hpp>
 #include <nufi/rho.hpp>
 #include <nufi/stopwatch.hpp>
+
 
 namespace nufi
 {
@@ -29,7 +31,8 @@ const double Ly = Lx;
 const double Lz = Lx; */
 
 // 1d electro-static
-const double Lx = 2*M_PI/0.3;
+//const double Lx = 2*M_PI/0.3;
+/* const double Lx = 2*M_PI/0.5;
 const double Ly = 1;
 const double Lz = 1;
 const double umin = -10;
@@ -37,7 +40,7 @@ const double umax = 10;
 const double vmin = -0.5;
 const double vmax = 0.5;
 const double wmin = -0.5;
-const double wmax = 0.5;
+const double wmax = 0.5; */
 
 
 // Magnetic Two Stream Instability by Einkemmer 
@@ -51,7 +54,7 @@ const double Ly = Lx;
 const double Lz = Lx;
  */
 // Kormann's Streaming Weibel Instability
-/* const double Lx = 2*M_PI/0.2;
+const double Lx = 2*M_PI/0.2;
 const double Ly = 1;
 const double Lz = 1;
 const double umin = -0.5;
@@ -59,7 +62,7 @@ const double umax = 0.5;
 const double vmin = -1.2;
 const double vmax = 1.2;
 const double wmin = -0.5;
-const double wmax = 0.5; */
+const double wmax = 0.5;
 // Weibel Instability by Einkemmer
 /* const double umin = -0.15;
 const double umax = 0.15;
@@ -92,19 +95,21 @@ const size_t Nx = 16;
 const size_t Ny = 1;
 const size_t Nz = 1;
 const size_t Nu = 32;
-const size_t Nv = 1;
+const size_t Nv = 32;
 const size_t Nw = 1;
 const size_t steps_per_1 = 10;
 const double   dt = 1.0 / steps_per_1;
 const size_t Nt = 200/dt;
 
-const size_t nx_r = Nx;
+bool gauss_clean = false;
+
+const size_t nx_r = 2*Nx;
 const size_t ny_r = Ny;
 const size_t nz_r = Nz;
-const size_t nu_r = Nu;
-const size_t nv_r = Nv;
+const size_t nu_r = 2*Nu;
+const size_t nv_r = 2*Nv;
 const size_t nw_r = Nw; 
-/* const */ size_t nt_restart = 100 ;
+/* const */ size_t nt_restart = 100 /* Nt + 1 */ ;
 
 const double dx_r = Lx / nx_r;
 const double dy_r = Ly / ny_r;
@@ -226,8 +231,8 @@ real f0(real x, real y, real z, real u, real v, real w) noexcept
     constexpr real k = 0.5;
     return ( 1. + alpha*cos(k*x)) * u*u * maxwellian_1d<real>(u,1);  */
     // Bump on tail Instability
-    return 1.0 / std::sqrt(2.0 * M_PI) * (1 + 0.04 * std::cos(0.3*x)) 
-            *  ( 0.9 * std::exp(-0.5 * u*u)  + 0.2 * std::exp(-0.5/(0.5*0.5) * (u-4.5)*(u-4.5)) ); 
+    /* return 1.0 / std::sqrt(2.0 * M_PI) * (1 + 0.04 * std::cos(0.3*x)) 
+            *  ( 0.9 * std::exp(-0.5 * u*u)  + 0.2 * std::exp(-0.5/(0.5*0.5) * (u-4.5)*(u-4.5)) );  */
     //return ( 1. + alpha*cos(k*x)) * maxwellian<real>(u,v,w,1);
 
     // Two Stream Instability in x direction:
@@ -245,8 +250,8 @@ real f0(real x, real y, real z, real u, real v, real w) noexcept
     real vth = 0.1;
     return 0.5 * (maxwellian_2d<real>(u,v-v_beam,vth) + maxwellian_2d<real>(u,v+v_beam,vth)); */
 
-    // Streaming Weibel instability 
-    /* real omega = 0.1/std::sqrt(2);
+    // Kormann Streaming Weibel instability 
+    real omega = 0.1/std::sqrt(2);
     real theta = 0.2;
     real beta = 1e-3;
     real v0_1 = 0.5;
@@ -255,7 +260,7 @@ real f0(real x, real y, real z, real u, real v, real w) noexcept
 
     return maxwellian_1d(u,omega) 
             * ( delta*maxwellian_1d(v-v0_1,omega) 
-            + (1-delta)*maxwellian_1d(v-v0_2,omega) ); */
+            + (1-delta)*maxwellian_1d(v-v0_2,omega) );
 
     // Magnetic Two Stream by Einkemmer
 /*     real v_beam = 0.2;
@@ -287,15 +292,15 @@ arma::Col<real> E0(real x, real y, real z)
     return  arma::Col<real>({-alpha / k * std::sin(k*x), 0, 0}); */
 
     // Electro-static Bump-on-tail
-    constexpr real alpha = 0.04;
+    /* constexpr real alpha = 0.04;
     constexpr real k     = 0.3;
-    return  arma::Col<real>({-alpha / k * std::sin(k*x), 0, 0});
+    return  arma::Col<real>({-alpha / k * std::sin(k*x), 0, 0}); */
 
-    // Magnetic Two Stream Instability by Fabio & Paul
+    // Magnetic Two Stream Instability by Fabio & Paul as well as Kormann Streaming.
     // Note that if we assume only a x-dependent perturbation for f it can only 
     // induce a electric field in the x- but not y-component. This however means 
     // that to induce dynamics along y we need an initial B instead of E.
-    //return  arma::Col<real>({0, 0, 0});
+    return  arma::Col<real>({0, 0, 0});
 }
 
 template <typename real>
@@ -307,16 +312,16 @@ arma::Col<real> B0(real x, real y, real z)
     return arma::Col<real>({0, 0, beta*std::cos(k*x)}); */
 
     // Electro-static
-    return arma::Col<real>({0, 0, 0});
+    //return arma::Col<real>({0, 0, 0});
 
     // Magnetic Two Stream Instability by Einkemmer.
 /*     constexpr real alpha = 1e-3;
     return arma::Col<real>({0, 0, alpha*std::sin(x)}); */
 
     // Kormann's Streaming Weibel instability
-    /* constexpr real theta = 0.2;
+    constexpr real theta = 0.2;
     constexpr real beta = 1e-3;
-    return arma::Col<real>({0, 0, beta*std::sin(theta*x)}); */
+    return arma::Col<real>({0, 0, beta*std::sin(theta*x)});
 }
 
 template <typename real, size_t order>
@@ -441,9 +446,10 @@ void do_stats(size_t nt, size_t nx_plot, std::ofstream& stat_file,
 }
 
 template<typename real, size_t order>
-void do_stats(size_t nt, size_t nx_plot, std::ofstream& stat_file, 
+void do_stats(size_t nt, double kinetic_energy, double entropy, std::ofstream& stat_file, 
     const std::vector<real>& coeffs_E, const std::vector<real>& coeffs_B, 
-    const config_t<double>& conf, bool restarted = false, size_t n_full = 0)
+    const config_t<double>& conf, bool restarted = false, size_t n_full = 0, 
+    size_t nx_plot = 128, size_t ny_plot = 1, size_t nz_plot = 1, bool with_plot = false)
 {
     // Storage of coefficients now via: 
     // index = nt + Nt * (d + dim * (ix + Nx * (iy + Ny * iz)))
@@ -458,8 +464,8 @@ void do_stats(size_t nt, size_t nx_plot, std::ofstream& stat_file,
     const size_t Nspace = Nx_ext * Ny_ext * Nz_ext;
 
     double dx_plot = conf.Lx/nx_plot; 
-    double dy_plot = conf.Ly/nx_plot; 
-    double dz_plot = conf.Lz/nx_plot; 
+    double dy_plot = conf.Ly/ny_plot; 
+    double dz_plot = conf.Lz/nz_plot; 
     double electric_energy = 0;
     double magnetic_energy = 0;
 
@@ -477,21 +483,23 @@ void do_stats(size_t nt, size_t nx_plot, std::ofstream& stat_file,
         current_time = nt * conf.dt;
     }
 
-    if(n_full % (50*steps_per_1) == 0){
+    if(with_plot){
         std::ofstream Ex_str("Ex_" + std::to_string(current_time) + ".txt");
+        std::ofstream dxEx_str("dxEx_" + std::to_string(current_time) + ".txt");
         std::ofstream Ey_str("Ey_" + std::to_string(current_time) + ".txt");
         std::ofstream Ez_str("Ez_" + std::to_string(current_time) + ".txt");
         std::ofstream Bx_str("Bx_" + std::to_string(current_time) + ".txt");
         std::ofstream By_str("By_" + std::to_string(current_time) + ".txt");
         std::ofstream Bz_str("Bz_" + std::to_string(current_time) + ".txt");
         for(size_t ix = 0; ix < nx_plot; ix++){
-            for(size_t iy = 0; iy < nx_plot; iy++){
-                for(size_t iz = 0; iz < nx_plot; iz++){
+            for(size_t iy = 0; iy < ny_plot; iy++){
+                for(size_t iz = 0; iz < nz_plot; iz++){
                     double x = (ix+0.5)*dx_plot;
                     double y = (iy+0.5)*dy_plot;
                     double z = (iz+0.5)*dz_plot;
 
                     double Ex = eval<real,order>(x,y,z,coeffs_E.data() + idx_base(nt,0,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf);
+                    double dxEx = eval<real,order,1,0,0>(x,y,z,coeffs_E.data() + idx_base(nt,0,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf);
                     double Ey = eval<real,order>(x,y,z,coeffs_E.data() + idx_base(nt,1,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf);
                     double Ez = eval<real,order>(x,y,z,coeffs_E.data() + idx_base(nt,2,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf);
 
@@ -512,6 +520,7 @@ void do_stats(size_t nt, size_t nx_plot, std::ofstream& stat_file,
 
                     if(iy == nx_plot/2 && iz == nx_plot/2){
                         Ex_str << x << " " << Ex << std::endl;
+                        dxEx_str << x << " " << dxEx << std::endl;
                         Ey_str << x << " " << Ey << std::endl;
                         Ez_str << x << " " << Ez << std::endl;
                         Bx_str << x << " " << Bx << std::endl;
@@ -522,9 +531,10 @@ void do_stats(size_t nt, size_t nx_plot, std::ofstream& stat_file,
             }
         }
     } else {
+        #pragma omp parallel for collapse(3) reduction(+:electric_energy,magnetic_energy,electric_x_energy,electric_y_energy,electric_z_energy, magnetic_x_energy,magnetic_y_energy,magnetic_z_energy)
         for(size_t ix = 0; ix < nx_plot; ix++){
-            for(size_t iy = 0; iy < nx_plot; iy++){
-                for(size_t iz = 0; iz < nx_plot; iz++){
+            for(size_t iy = 0; iy < ny_plot; iy++){
+                for(size_t iz = 0; iz < nz_plot; iz++){
                     double x = (ix+0.5)*dx_plot;
                     double y = (iy+0.5)*dy_plot;
                     double z = (iz+0.5)*dz_plot;
@@ -564,7 +574,9 @@ void do_stats(size_t nt, size_t nx_plot, std::ofstream& stat_file,
     magnetic_y_energy *= 0.5*dx_plot*dy_plot*dz_plot;
     magnetic_z_energy *= 0.5*dx_plot*dy_plot*dz_plot;
 
-    stat_file << current_time << " " << electric_energy << " " << magnetic_energy << " "
+    double total_energy = electric_energy + magnetic_energy + kinetic_energy;
+    stat_file << current_time << " " << electric_energy << " " << magnetic_energy  << " " 
+        << kinetic_energy << " " << total_energy << " " << entropy << " "
         << electric_x_energy << " " << electric_y_energy << " " << electric_z_energy << " "
         << magnetic_x_energy << " " << magnetic_y_energy << " " << magnetic_z_energy << " "
         << std::endl;
@@ -2091,48 +2103,59 @@ void periodically_restarted_nufi_maxwell_lie_fBE()
 }
 
 template<typename real, size_t order>
-void kinetic_energy_and_entropy(size_t nt, size_t nx_plot, std::ofstream& stat_file, 
+void kinetic_energy_and_entropy(size_t nt, std::ofstream& stat_file, 
     const std::vector<real>& coeffs_E, const std::vector<real>& coeffs_B, const std::vector<real>& coeffs_j_hat, 
-    const config_t<double>& conf, bool restarted = false, size_t n_full = 0)
+    const config_t<double>& conf, double& kin_energy, double& entropy, bool restarted = false, size_t n_full = 0, size_t nx_plot = 128,
+    size_t ny_plot = 1, size_t nz_plot = 1, size_t nu_plot = 128, size_t nv_plot = 1, size_t nw_plot = 1)
 {
     double t = nt*dt;
     if(restarted){
         t = n_full*dt;
     }
-    // Hard coded for 1x2v !!!
-    size_t n_plot = 64;
 
-    double dx_plot = Lx/n_plot;
-    double du_plot = (umax - umin)/n_plot;
-    double dv_plot = (vmax - vmin)/n_plot;
+    double dx_plot = Lx/nx_plot;
+    double dy_plot = Ly/ny_plot;
+    double dz_plot = Lz/ny_plot;
+    double du_plot = (umax - umin)/nu_plot;
+    double dv_plot = (vmax - vmin)/nv_plot;
+    double dw_plot = (wmax - wmin)/nw_plot;
 
-    double kin_energy = 0;
-    double entropy = 0;
+    kin_energy = 0;
+    entropy = 0;
+    double l1_norm = 0;
+    double l2_norm = 0;
 
-    for(size_t ix = 0; ix < n_plot; ix++){
-        for(size_t iu = 0; iu < n_plot; iu++){
-            for(size_t iv = 0; iv < n_plot; iv++){
-                double x = ix*dx_plot;
-                double y = Ly/2.0;
-                double z = Lz/2.0;
-                double u = umin + iu*du_plot;
-                double v = vmin + iv*dv_plot;
-                double w = 0;
+    #pragma omp parallel for collapse(6) reduction(+:kin_energy,entropy,l1_norm,l2_norm)
+    for(size_t ix = 0; ix < nx_plot; ix++)
+    for(size_t iy = 0; iy < ny_plot; iy++)
+    for(size_t iz = 0; iz < nz_plot; iz++)
+    for(size_t iu = 0; iu < nu_plot; iu++)
+    for(size_t iv = 0; iv < nv_plot; iv++)
+    for(size_t iw = 0; iw < nw_plot; iw++){
+        double x = (ix + 0.5)*dx_plot;
+        double y = (iy + 0.5)*dy_plot;
+        double z = (iz + 0.5)*dz_plot;
+        double u = umin + (iu + 0.5)*du_plot;
+        double v = vmin + (iv + 0.5)*dv_plot;
+        double w = wmin + (iw + 0.5)*dw_plot;
 
-                double f = eval_f_lie_fBE<double,order>(nt,x,y,z,u,v,w,coeffs_E,coeffs_B,coeffs_j_hat,conf);
+        double f = eval_f_lie_fBE<double,order>(nt,x,y,z,u,v,w,coeffs_E,coeffs_B,coeffs_j_hat,conf);
 
-                kin_energy += (u*u + v*v) * f;
-                if(f > 1e-16){
-                    entropy += f * std::log(f);
-                }
-            }
+        kin_energy += (u*u + v*v) * f;
+        if(f > 1e-16){
+            entropy += f * std::log(f);
         }
+
+        l1_norm += std::abs(f);
+        l2_norm += f*f;
     }
 
     kin_energy *= 0.5*dx_plot*du_plot*dv_plot;
     entropy *= dx_plot*du_plot*dv_plot;
+    l1_norm *= dx_plot*du_plot*dv_plot;
+    l2_norm = std::sqrt(dx_plot*dy_plot*dz_plot*l2_norm);
 
-    stat_file << t << " " << kin_energy << " " << entropy << std::endl;
+    stat_file << t << " " << kin_energy << " " << entropy << " " << l1_norm << " " << l2_norm << std::endl;
 }
 
 
@@ -2163,6 +2186,12 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned()
     std::vector<double> j_hat(3 * conf.Nx * conf.Ny * conf.Nz, 0);
 
 
+    std::vector<double> coeffs_phi(stride_t, 0);
+    std::vector<double> rho(Nx*Ny*Nz, 0);
+    std::vector<double> rho_test(Nx*Ny*Nz, 0);
+    std::vector<double> g(Nx*Ny*Nz, 0);
+    poisson<double> poiss( conf );
+
     // Init restart matrices.
     std::cout << "Initialize restart matrices." << std::endl;
     size_t size_x_r = (nx_r+1)*(ny_r+1)*(nz_r+1);
@@ -2173,6 +2202,10 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned()
 
     // Set up config.
     conf = config_t<double>(Nx, Ny, Nz, Nu, Nv, Nw, Nt, dt, 
+                            0, Lx, 0, Ly, 0, Lz, umin, umax, 
+                            vmin, vmax, wmin, wmax,
+                            &f0);
+    config_t<double> conf_test(Nx, Ny, Nz, 2*Nu, 2*Nv, Nw, Nt, dt, 
                             0, Lx, 0, Ly, 0, Lz, umin, umax, 
                             vmin, vmax, wmin, wmax,
                             &f0);
@@ -2254,15 +2287,21 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned()
     
     std::cout << "First output." << std::endl;
     std::ofstream stat_file( "stats.txt" );
-    //std::ofstream kin_energy_entropy_file( "kinetic_energy_and_entropy.txt" );
+    std::ofstream kin_energy_entropy_file( "kinetic_energy_and_entropy.txt" );
+    double kinetic_energy = 0;
+    double entropy = 0;
     // Output stats (Electric/magnetic energy).
-    do_stats<double,order>(0, 64, stat_file,coeffs_E, coeffs_B, conf);
-    //kinetic_energy_and_entropy<double,order>(0,64,kin_energy_entropy_file,coeffs_E,coeffs_B,coeffs_j_hat,conf,false,0);
+    kinetic_energy_and_entropy<double,order>(0,kin_energy_entropy_file,coeffs_E,coeffs_B,coeffs_j_hat,conf, kinetic_energy, entropy,false,0,64,1,1,64,64,1);
+    do_stats<double,order>(0, kinetic_energy, entropy, stat_file,coeffs_E, coeffs_B, conf, false, 0, 128, 1, 1, true);
     //plot_f<double,order>(0,coeffs_E, coeffs_B, coeffs_j_hat, conf);
     std::ofstream coeff_out_str_E("coeffs_E.txt");
     std::ofstream coeff_out_str_B("coeffs_B.txt");
     std::ofstream coeff_out_str_j_hat("coeffs_j_hat.txt");
     write_coeffs<double,order>(0, coeffs_E, coeffs_B, coeffs_j_hat, conf, coeff_out_str_E, coeff_out_str_B, coeff_out_str_j_hat );
+
+    std::ofstream gle_file( "gle.txt" );
+    double rho_integration_error = 0;
+    gle_file << 0 << " " << 0 << " " << rho_integration_error << std::endl;
 
     std::cout << "Restart time-loop." << std::endl;    
     std::cout << " ---------------------------------- " << std::endl;
@@ -2342,13 +2381,36 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned()
         std::cout << "EB interpolation took " << time_interpolate_EB << " s." << std::endl;
         timer.reset();
 
-        // Debug:
-        double x = conf.Lx * 0.25;
-        double y = conf.Ly * 0.5;
-        double z = conf.Lz * 0.5;
+        // Gauss clean & integration error test
+        eval_rho_fBE<double,order>(nt_r_curr, rho, coeffs_E, coeffs_B, coeffs_j_hat, conf);
+        #pragma omp parallel for
+        for(size_t i = 0; i < rho.size(); i++){
+            rho[i] = 1 - rho[i];
+        }
+        double gle = maxwell::E_clean_gauss_law<double,order>(nt_r_curr,coeffs_E,E,rho,g,coeffs_phi,conf,poiss,!gauss_clean);
 
-        double Ex_sim = eval<double,order>(x,y,z, coeffs_E.data() + idx_base(nt_r_curr,0,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf);
-        std::cout << "Ex_sim = " << Ex_sim << std::endl;
+        if(n % steps_per_1 == 0){
+            eval_rho_fBE<double,order>(nt_r_curr, rho_test, coeffs_E, coeffs_B, coeffs_j_hat, conf_test);
+            rho_integration_error = 0;
+            #pragma omp parallel for reduction(+:rho_integration_error)
+            for(size_t i = 0; i < rho.size(); i++){
+                rho_test[i] = 1 - rho_test[i];
+                double error = rho[i] - rho_test[i];
+                rho_integration_error += error*error;
+            }
+            rho_integration_error = std::sqrt(conf.dx*conf.dy*conf.dz*rho_integration_error);
+
+            if(n % (5*steps_per_1) == 0){
+                // Careful: Hardcoded for d = 1! 
+                std::ofstream rho_str("rho_" + std::to_string(n*conf.dt) + ".txt");
+                for(size_t i = 0; i < conf.Nx; i++){
+                    double x = conf.x_min + i * conf.dx;
+                    rho_str << x << " " << rho[i] << std::endl;
+                }
+            }
+        }
+
+        gle_file << n*conf.dt << " " << gle << " " << rho_integration_error << std::endl;
 
         // Compute j_hat(n).
         eval_j_hat<double,order>(nt_r_curr, j_hat, coeffs_E, coeffs_B, coeffs_j_hat, conf);
@@ -2369,11 +2431,12 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned()
         total_time += time_for_step;
         std::cout << "Time step " << n << " took a total of " << time_for_step << " s." << std::endl;
 
-        do_stats<double,order>(nt_r_curr, 64, stat_file, coeffs_E, coeffs_B, conf, true, n);
-        /* if(n % (5*steps_per_1) == 0 && false){
-            kinetic_energy_and_entropy<double,order>(nt_r_curr,64,kin_energy_entropy_file,coeffs_E,coeffs_B,coeffs_j_hat,conf,true,n);
+        if(n % (steps_per_1) == 0 ){
+            kinetic_energy_and_entropy<double,order>(nt_r_curr,kin_energy_entropy_file,coeffs_E,coeffs_B,coeffs_j_hat,conf,kinetic_energy,entropy,true, n,64,1,1,64,64,1);
             //plot_f<double,order>(nt_r_curr,coeffs_E, coeffs_B, coeffs_j_hat, conf, true, n);
-        } */
+        }
+        do_stats<double,order>(nt_r_curr, kinetic_energy, entropy, stat_file, coeffs_E, coeffs_B, conf, true, n, 128, 1, 1, (n % (5*steps_per_1) == 0));
+
         write_coeffs<double,order>(nt_r_curr, coeffs_E, coeffs_B, coeffs_j_hat, conf, 
                                     coeff_out_str_E, coeff_out_str_B, coeff_out_str_j_hat );
         std::cout << "Do stats took: " << double(timer.elapsed()) << " s." << std::endl;
@@ -2436,10 +2499,12 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned()
                 }
             }
 
-            conf = config_t<double>(Nx, Ny, Nz, Nu, Nv, Nw, Nt, dt, 
+            /* conf = config_t<double>(Nx, Ny, Nz, Nu, Nv, Nw, Nt, dt, 
                 0, Lx, 0, Ly, 0, Lz, umin, umax, 
                 vmin, vmax, wmin, wmax,
-                &linear_interpolation_6d);
+                &linear_interpolation_6d); */
+            conf.f0 = linear_interpolation_6d;
+            conf_test.f0 = linear_interpolation_6d;
 
             nt_r_curr = 1;
             double timer_copy_coeff = timer.elapsed();
@@ -2598,11 +2663,14 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned_mpi()
     MPI_Bcast(coeffs_j_hat.data(), 3*stride_t, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
     std::ofstream stat_file, coeff_out_str_E, coeff_out_str_B, coeff_out_str_j_hat;
+    double kinetic_energy = 0;
+    double entropy = 0;
     if(mpi_rank == 0){
         std::cout << "First output." << std::endl;
         stat_file.open( "stats.txt" );
         // Output stats (Electric/magnetic energy).
-        do_stats<double,order>(0, 64, stat_file,coeffs_E, coeffs_B, conf);
+        kinetic_energy_and_entropy<double,order>(0,nullptr,coeffs_E,coeffs_B, coeffs_j_hat,conf,kinetic_energy,entropy,false,0,128,1,1,128,1,1);
+        do_stats<double,order>(0, kinetic_energy, entropy,stat_file,coeffs_E, coeffs_B, conf, false, 0);
         plot_f<double,order>(0,coeffs_E, coeffs_B, coeffs_j_hat, conf);
         coeff_out_str_E.open("coeffs_E.txt");
         coeff_out_str_B.open("coeffs_B.txt");
@@ -2733,10 +2801,11 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned_mpi()
             total_time += time_for_step;
             std::cout << "Time step " << n << " took a total of " << time_for_step << " s." << std::endl;
 
-            do_stats<double,order>(nt_r_curr, 64, stat_file, coeffs_E, coeffs_B, conf, true, n);
             if(n % (5*steps_per_1) == 0){
+                kinetic_energy_and_entropy<double,order>(nt_r_curr,nullptr,coeffs_E,coeffs_B, coeffs_j_hat,conf,kinetic_energy,entropy,true,n,128,1,1,128,1,1);
                 plot_f<double,order>(nt_r_curr,coeffs_E, coeffs_B, coeffs_j_hat, conf, true, n);
             }
+            do_stats<double,order>(nt_r_curr, kinetic_energy, entropy,stat_file,coeffs_E, coeffs_B, conf, true, n);
             write_coeffs<double,order>(nt_r_curr, coeffs_E, coeffs_B, coeffs_j_hat, conf, 
                                         coeff_out_str_E, coeff_out_str_B, coeff_out_str_j_hat );
             std::cout << "Do stats took: " << double(timer.elapsed()) << " s." << std::endl;
@@ -2881,11 +2950,11 @@ int main(int argc, char** argv)
 
     //nufi::dim3::periodically_restarted_nufi_maxwell_lie_fBE<4>();
     
-    //nufi::dim3::periodically_restarted_nufi_maxwell_lie_fBE_aligned<4>();
+    nufi::dim3::periodically_restarted_nufi_maxwell_lie_fBE_aligned<4>();
 
-    MPI_Init(&argc, &argv);
+    /* MPI_Init(&argc, &argv);
     nufi::dim3::periodically_restarted_nufi_maxwell_lie_fBE_aligned_mpi<4>();
-    MPI_Finalize();
+    MPI_Finalize(); */
 
    // nufi::dim3::read_in_coeff_and_plot_aligned<double,4>();
 /* 
