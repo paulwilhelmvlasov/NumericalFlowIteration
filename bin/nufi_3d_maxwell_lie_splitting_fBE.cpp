@@ -109,7 +109,7 @@ const size_t nz_r = Nz;
 const size_t nu_r = 2*Nu;
 const size_t nv_r = 2*Nv;
 const size_t nw_r = Nw; 
-/* const */ size_t nt_restart = 100 /* Nt + 1 */ ;
+/* const */ size_t nt_restart = /* 100 */ Nt + 1 ;
 
 const double dx_r = Lx / nx_r;
 const double dy_r = Ly / ny_r;
@@ -2141,7 +2141,7 @@ void kinetic_energy_and_entropy(size_t nt, std::ofstream& stat_file,
 
         double f = eval_f_lie_fBE<double,order>(nt,x,y,z,u,v,w,coeffs_E,coeffs_B,coeffs_j_hat,conf);
 
-        kin_energy += (u*u + v*v) * f;
+        kin_energy += (u*u + v*v + w*w) * f;
         if(f > 1e-16){
             entropy += f * std::log(f);
         }
@@ -2150,10 +2150,11 @@ void kinetic_energy_and_entropy(size_t nt, std::ofstream& stat_file,
         l2_norm += f*f;
     }
 
-    kin_energy *= 0.5*dx_plot*du_plot*dv_plot;
-    entropy *= dx_plot*du_plot*dv_plot;
-    l1_norm *= dx_plot*du_plot*dv_plot;
-    l2_norm = std::sqrt(dx_plot*dy_plot*dz_plot*l2_norm);
+    double dplot = dx_plot*dy_plot*dz_plot*du_plot*dv_plot*dw_plot;
+    kin_energy *= 0.5*dplot;
+    entropy *= dplot;
+    l1_norm *= dplot;
+    l2_norm = std::sqrt(dplot*l2_norm);
 
     stat_file << t << " " << kin_energy << " " << entropy << " " << l1_norm << " " << l2_norm << std::endl;
 }
@@ -2324,14 +2325,14 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned()
             double z = conf.z_min + iz*conf.dz; 
     
             arma::Col<double> E0_vec({
-                                eval<double,order>(x,y,z,coeffs_E.data() + idx_base(nt_r_curr-1,0,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf),
-                                eval<double,order>(x,y,z,coeffs_E.data() + idx_base(nt_r_curr-1,1,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf),
-                                eval<double,order>(x,y,z,coeffs_E.data() + idx_base(nt_r_curr-1,2,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf)
+                eval<double,order>(x,y,z,coeffs_E.data() + idx_base(nt_r_curr-1,0,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf),
+                eval<double,order>(x,y,z,coeffs_E.data() + idx_base(nt_r_curr-1,1,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf),
+                eval<double,order>(x,y,z,coeffs_E.data() + idx_base(nt_r_curr-1,2,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf)
                             });
             arma::Col<double> B0_vec({
-                                eval<double,order>(x,y,z,coeffs_B.data() + idx_base(nt_r_curr-1,0,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf),
-                                eval<double,order>(x,y,z,coeffs_B.data() + idx_base(nt_r_curr-1,1,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf),
-                                eval<double,order>(x,y,z,coeffs_B.data() + idx_base(nt_r_curr-1,2,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf)
+                eval<double,order>(x,y,z,coeffs_B.data() + idx_base(nt_r_curr-1,0,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf),
+                eval<double,order>(x,y,z,coeffs_B.data() + idx_base(nt_r_curr-1,1,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf),
+                eval<double,order>(x,y,z,coeffs_B.data() + idx_base(nt_r_curr-1,2,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf)
                             });
             
             arma::Col<double> j_hat({
@@ -2340,7 +2341,9 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned()
                 eval<double,order>(x,y,z,coeffs_j_hat.data() + idx_base(nt_r_curr-1,2,0,0,0,Nx_ext,Ny_ext,Nz_ext,conf.Nt),conf)
             });
 
-            E0_vec = E0_vec - conf.dt*conf.q/conf.m*j_hat + conf.dt*rot<double,order>(nt_r_curr-1,x,y,z,coeffs_B,conf);
+            // I believe the q/m term is out of place here!
+            E0_vec = E0_vec - conf.dt*conf.q/conf.m*j_hat 
+                        + conf.dt*rot<double,order>(nt_r_curr-1,x,y,z,coeffs_B,conf);
             B0_vec = B0_vec - conf.dt*rot<double,order>(nt_r_curr-1,x,y,z,coeffs_E,conf) 
                     - conf.dt*conf.dt*conf.q/conf.m*rot<double,order>(nt_r_curr-1,x,y,z,coeffs_j_hat,conf)
                     + conf.dt*conf.dt*rot_rot<double,order>(nt_r_curr-1,x,y,z,coeffs_B,conf);

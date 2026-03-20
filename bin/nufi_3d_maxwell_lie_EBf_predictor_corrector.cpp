@@ -37,7 +37,7 @@ const double wmin = -0.5;
 const double wmax = 0.5; */
 
 // Kormann Streaming Weibel
-/* const double Lx = 2*M_PI/0.2;
+const double Lx = 2*M_PI/0.2;
 const double Ly = 1;
 const double Lz = 1;
 const double umin = -0.5;
@@ -45,7 +45,7 @@ const double umax = 0.5;
 const double vmin = -1.2;
 const double vmax = 1.2;
 const double wmin = -0.5;
-const double wmax = 0.5; */
+const double wmax = 0.5;
 
 // 2x3v Current Filamentation
 /* const double Lx = 2*M_PI;
@@ -70,7 +70,7 @@ double wmin = -10;
 double wmax = 10; */
 
 // Electro-static:
-const double Lx = 2*M_PI/0.3;
+/* const double Lx = 2*M_PI/0.3;
 const double Ly = 1;
 const double Lz = 1;
 const double umin = -8;
@@ -78,17 +78,17 @@ const double umax = 8;
 const double vmin = -0.5;
 const double vmax = 0.5;
 const double wmin = -0.5;
-const double wmax = 0.5;
+const double wmax = 0.5; */
 
 const size_t Nx = 16;
 const size_t Ny = 1;
 const size_t Nz = 1;
 const size_t Nu = 32;
-const size_t Nv = 1;
+const size_t Nv = 32;
 const size_t Nw = 1;
 const size_t steps_per_1 = 10;
 const double   dt = 1.0 / steps_per_1;
-const size_t Nt = 100/dt;
+const size_t Nt = 200/dt;
 
 const size_t nx_r = Nx;
 const size_t ny_r = Ny;
@@ -96,7 +96,7 @@ const size_t nz_r = Nz;
 const size_t nu_r = Nu;
 const size_t nv_r = Nv;
 const size_t nw_r = Nw;
-size_t nt_restart = 500;
+size_t nt_restart = Nt + 1;
 
 
 const double dx_r = Lx / nx_r;
@@ -219,7 +219,7 @@ real f0(real x, real y, real z, real u, real v, real w) noexcept
                 * maxwellian_2d<real>(v,w,vth); */
 
     // Kormann Streaming Weibel
-    /* real omega = 0.1/std::sqrt(2);
+    real omega = 0.1/std::sqrt(2);
     real theta = 0.2;
     real beta = 1e-3;
     real v0_1 = 0.5;
@@ -227,14 +227,14 @@ real f0(real x, real y, real z, real u, real v, real w) noexcept
     real delta = 1.0/6.0;
     return maxwellian_1d<real>(u,omega) 
             * ( delta*maxwellian_1d<real>(v-v0_1,omega) 
-            + (1-delta)*maxwellian_1d<real>(v-v0_2,omega) ); */
+            + (1-delta)*maxwellian_1d<real>(v-v0_2,omega) );
 
     // Weak Landau Damping
     //return (1+0.01*cos(0.5*x))*u*u*maxwellian_1d<real>(u,1);
 
     // Bump on tail
-    return 1.0 / std::sqrt(2.0 * M_PI) * (1 + 0.04 * std::cos(0.3*x)) 
-            *  ( 0.9 * std::exp(-0.5 * u*u)  + 0.2 * std::exp(-0.5/(0.5*0.5) * (u-4.5)*(u-4.5)) ); 
+    /* return 1.0 / std::sqrt(2.0 * M_PI) * (1 + 0.04 * std::cos(0.3*x)) 
+            *  ( 0.9 * std::exp(-0.5 * u*u)  + 0.2 * std::exp(-0.5/(0.5*0.5) * (u-4.5)*(u-4.5)) );  */
 
     // Paul & Fabio magnetic TSI (Filamentation instability) 
     /* real v_beam = 0.4;
@@ -249,10 +249,10 @@ arma::Col<real> E0(real x, real y, real z)
     //return  arma::Col<real>({- 0.02 * std::sin(0.5*x), 0, 0});
 
     // Electro-Static setup for Bump on tail:
-    return  arma::Col<real>({-0.04/0.3 * std::sin(0.3*x), 0, 0});
+    //return  arma::Col<real>({-0.04/0.3 * std::sin(0.3*x), 0, 0});
 
     // Kormann Streaming Weibel & magnetic TSI (Filamentation) & 2x3v current filamentation
-    //return  arma::Col<real>({0, 0, 0});
+    return  arma::Col<real>({0, 0, 0});
 
     // 2x3v Pseudo-Electro-Static TSI
     /* real alpha = 0.5*0.01;
@@ -263,7 +263,7 @@ template <typename real>
 arma::Col<real> B0(real x, real y, real z)
 {
     // Electro-Static
-    return  arma::Col<real>({0, 0, 0});
+    //return  arma::Col<real>({0, 0, 0});
 
     // 2x3v current filamentation
     /* real B0 = 0.1;
@@ -274,9 +274,9 @@ arma::Col<real> B0(real x, real y, real z)
     return arma::Col<real>({0, 0, B0*std::cos(x)*std::cos(y)}); */
 
     // Kormann's Streaming Weibel instability
-    /* constexpr real theta = 0.2;
+    constexpr real theta = 0.2;
     constexpr real beta = 1e-3;
-    return arma::Col<real>({0, 0, beta*std::sin(theta*x)}); */
+    return arma::Col<real>({0, 0, beta*std::sin(theta*x)});
 
     // Magnetic Two Stream Instability by Einkemmer.
     /* constexpr real alpha = 1e-3;
@@ -1811,7 +1811,8 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
         eval_rho_full_EBf<double,order>(nt_r_curr, rho, coeffs_E, coeffs_B, conf);
         #pragma omp parallel for
         for(size_t i = 0; i < rho.size(); i++){
-            rho[i] += 1;
+            //rho[i] = 1 - rho[i];
+            rho[i] = 1 + rho[i]; // rho already computed with q = -1.
         }
         double gauss_law_error = maxwell::E_clean_gauss_law<double,order>(nt_r_curr,coeffs_E, 
                                                     E, rho, g, coeffs_phi, conf, poiss);
@@ -1824,7 +1825,7 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
         timer.reset();
         // Do stats...
         //bool plot_f = (n % (50*steps_per_1) == 0) || (n > 100*steps_per_1 && n < 200*steps_per_1 && (n % (10*steps_per_1) == 0));
-        bool plot_f = (n % (50*steps_per_1) == 0);
+        bool plot_f = (n % (50*steps_per_1) == 0) && false;
         bool comp_kin_energy = plot_f & false;
         size_t nx_plot = 64;
         if(plot_f){

@@ -219,6 +219,8 @@ real eval_rho_single_species( size_t n, size_t i, const real *coeffs,
     return rho;
 }
 
+
+
 namespace adaptive
 {
 
@@ -335,6 +337,123 @@ real eval_rho_simpson( size_t n, size_t i, const real *coeffs, const config_t<re
 
     return 1 - du*rho;
 }
+}
+
+namespace redux_1x2v
+{
+
+template <typename real, size_t order>
+real eval_f_nufi_ham_lie_fBE_1x2v(size_t n, real x, real u, real v,
+    const std::vector<real>& coeffs_Ex, const std::vector<real>& coeffs_Ey, 
+    const std::vector<real>& coeffs_Bz, const std::vector<real>& coeffs_jx_hat,
+    const std::vector<real>& coeffs_jy_hat, const config_t<real>& conf)
+{
+    const size_t dim = 1;
+    const size_t Nx_ext = conf.Nx + order - 1;
+    const size_t Nspace = Nx_ext;
+    const size_t stride_spatial = 1;
+    const size_t stride_comp = dim * stride_spatial;
+    const size_t stride_t = stride_comp * Nspace;
+
+
+    for (; n > 0; n--) {
+
+        real Bz = eval<real, order>(x,&coeffs_Bz[(n-1)*stride_t],conf);
+        real Ex = eval<real, order>(x,&coeffs_Ex[(n-1)*stride_t],conf);
+        real Ey = eval<real, order>(x,&coeffs_Ey[(n-1)*stride_t],conf);
+        real jx_hat = eval<real, order>(x,&coeffs_jx_hat[(n-1)*stride_t],conf);
+        real jy_hat = eval<real, order>(x,&coeffs_jy_hat[(n-1)*stride_t],conf);
+
+        // Apply the correction to E2
+        Ex -= conf.dt * jx_hat;
+        Ey -= conf.dt * jy_hat;
+
+        // Add the curl(B) term for E2
+        Ey -= conf.dt * eval<real,order,1>(x,&coeffs_Bz[(n-1)*stride_t],conf);
+
+        u -= conf.dt * conf.q * Ex;
+        v -= conf.dt * conf.q * Ey;
+
+        // exact rotation
+        Bz *= -conf.dt*conf.q;
+        if(std::abs(Bz) > 1e-12){
+            // Else the exp(J_B) = Identity.
+            real alpha = std::sin(std::abs(Bz))/std::abs(Bz);
+            real beta = (1 - std::cos(std::abs(Bz)))/std::abs(Bz);
+
+            real u_old = u;
+            real v_old = v;
+
+            u = u_old + alpha * v_old * Bz - beta * Bz*Bz*u_old;
+            v = v_old - alpha * u_old * Bz - beta * Bz*Bz*v_old;
+        }
+
+        // Strang Split magnetic rotation.
+        /* v -= 0.5 * conf.dt * conf.q * u * Bz;
+        u += conf.dt * conf.q * v * Bz;
+        v -= 0.5 * conf.dt * conf.q * u * Bz; */
+
+        // Update x.
+        x -= conf.dt * u;
+    }
+
+    return conf.f0_1x2v(x, u, v);
+}
+
+template <typename real, size_t order>
+void eval_j_hat(size_t n, std::vector<real>& jx_hat, std::vector<real>& jy_hat, const std::vector<real>& coeffs_Ex, 
+    const std::vector<real>& coeffs_Ey, const std::vector<real>& coeffs_Bz, 
+    const std::vector<real>& coeffs_jx_hat, const std::vector<real>& coeffs_jy_hat,
+    const config_t<real> &conf )
+{
+    #pragma omp parallel for
+    for(size_t l = 0; l < conf.Nx; l++){
+        
+        real x = conf.x_min + l*conf.dx; 
+
+        real sum0 = 0, sum1 = 0;
+        #pragma omp parallel for collapse(2) reduction(+:sum0,sum1)
+        for(size_t iu = 0; iu < conf.Nu; iu++)
+        for(size_t iv = 0; iv < conf.Nv; iv++){
+            real u = conf.u_min + (iu + 0.5) * conf.du;
+            real v = conf.v_min + (iv + 0.5) * conf.dv;
+
+            real f_half = eval_f_nufi_ham_lie_fBE_1x2v<real,order>(n, x - 0.5*conf.dt*u, u, v, coeffs_Ex, coeffs_Ey, coeffs_Bz, coeffs_jx_hat, coeffs_jy_hat, conf );
+
+            sum0 += u * f_half;
+            sum1 += v * f_half;
+        }
+        jx_hat[l] = conf.q * sum0 * conf.du * conf.dv;
+        jy_hat[l] = conf.q * sum1 * conf.du * conf.dv;
+    }
+}
+
+template <typename real, size_t order>
+void eval_rho(size_t n, std::vector<real>& rho, const std::vector<real>& coeffs_Ex, 
+    const std::vector<real>& coeffs_Ey, const std::vector<real>& coeffs_Bz, 
+    const std::vector<real>& coeffs_jx_hat, const std::vector<real>& coeffs_jy_hat,
+    const config_t<real> &conf )
+{
+    #pragma omp parallel for
+    for(size_t l = 0; l < conf.Nx; l++){
+        real x = conf.x_min + l*conf.dx; 
+
+        real sum0 = 0;
+        #pragma omp parallel for collapse(2) reduction(+:sum0)
+        for(size_t iu = 0; iu < conf.Nu; iu++)
+        for(size_t iv = 0; iv < conf.Nv; iv++){
+            real u = conf.u_min + (iu + 0.5) * conf.du;
+            real v = conf.v_min + (iv + 0.5) * conf.dv;
+
+            real f = eval_f_nufi_ham_lie_fBE_1x2v<real,order>(n, x, u, v, coeffs_Ex, coeffs_Ey, coeffs_Bz, coeffs_jx_hat, coeffs_jy_hat, conf );
+
+            sum0 += f;
+        }
+        
+        rho[l] = conf.q * sum0 * conf.du * conf.dv;
+    }
+}
+
 }
 
 }

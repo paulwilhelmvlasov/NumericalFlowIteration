@@ -43,6 +43,8 @@ struct config_t
     // Integration limits for velocity space.
     real u_min, u_max;
 
+
+
     // Grid-sizes and their reciprocals.
     real dx, dx_inv, Lx, Lx_inv;
     real du;
@@ -64,6 +66,14 @@ struct config_t
     		real umin, real umax, real(*init_data)(real,real)) noexcept;
 
     real (*f0)( real x, real u );
+
+    // In case you want 1x2v use these parameters. Otherwise leave
+    // them untouched! This way we can use 1d interpolation routines.
+    real v_min = -0.5; 
+    real v_max = 0.5;
+    size_t Nv = 1;
+    real dv = 1;
+    real (*f0_1x2v)( real x, real u, real v );
 };
 
 template <typename real>

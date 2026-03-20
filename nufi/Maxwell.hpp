@@ -19,6 +19,81 @@
 namespace nufi
 {
 
+namespace dim1
+{
+
+namespace periodic
+{
+
+namespace maxwell
+{
+template <typename real, size_t order>
+double E_clean_gauss_law_1x2v(size_t n, std::vector<double>& coeffs_Ex, std::vector<double>& E, 
+                        std::vector<double>& rho, std::vector<double>& g, 
+                        std::vector<double>& coeffs_phi, const config_t<double>& conf, 
+                        const poisson<double>& poiss, bool only_gle = false)
+{
+    size_t stride_t =   (conf.Nx + order - 1);
+
+    const size_t dim = 1;
+    const size_t Nx_ext = conf.Nx + order - 1;
+    const size_t Nspace = Nx_ext;
+
+    double gauss_law_l2_error = 0;
+    #pragma omp parallel for reduction(+:gauss_law_l2_error)
+    for(size_t i = 0; i < conf.Nx; i++){
+        double x = conf.x_min + i*conf.dx;
+
+        double dxEx = eval<double,order,1>(x,coeffs_Ex.data() + n*stride_t,conf);
+
+        g[i] = dxEx - rho[i];
+        gauss_law_l2_error += g[i]*g[i];
+    }
+
+    gauss_law_l2_error = std::sqrt(conf.dx*gauss_law_l2_error);
+
+    std::cout << "gauss law error before " << gauss_law_l2_error << std::endl;
+
+    if(!only_gle){
+        poiss.solve(g.data());
+        interpolate<real,order>(coeffs_phi.data(), g.data(), conf);
+
+        auto eval_correction = [&](double x) {
+            return -eval<double,order,1>(x,coeffs_phi.data(), conf);
+        };
+
+        #pragma omp parallel for collapse(1)
+        for(size_t i = 0; i < conf.Nx; i++){
+            double x = conf.x_min + i*conf.dx;
+
+            E[i] = eval<double,order>(x,coeffs_Ex.data() + n*stride_t,conf)
+                    - eval_correction(x);
+        }
+
+        // Interpolate gauss-corrected E(n).
+        interpolate<double,order>(coeffs_Ex.data() + n*stride_t, E.data(), conf);
+
+        gauss_law_l2_error = 0;
+        #pragma omp parallel for reduction(+:gauss_law_l2_error)
+        for(size_t i = 0; i < conf.Nx; i++){
+            double x = conf.x_min + i*conf.dx;
+
+            double E_new = eval<double,order,1>(x,coeffs_Ex.data() + n*stride_t,conf);
+
+            g[i] = E_new - rho[i];
+            gauss_law_l2_error += g[i]*g[i];
+        }
+
+        gauss_law_l2_error = std::sqrt(conf.dx*gauss_law_l2_error);
+
+        std::cout << "gauss law error after " << gauss_law_l2_error << std::endl;
+    }
+    return gauss_law_l2_error;
+}
+}
+}
+}
+
 namespace dim3
 {    
 
