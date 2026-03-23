@@ -454,6 +454,214 @@ void eval_rho(size_t n, std::vector<real>& rho, const std::vector<real>& coeffs_
     }
 }
 
+
+template <typename real, size_t order>
+real eval_f_nufi_ham_lie_Hf_HB_HE_1x2v(size_t n, real x, real u, real v,
+    const std::vector<real>& coeffs_Ex, const std::vector<real>& coeffs_Ey, 
+    const std::vector<real>& coeffs_Bz, const config_t<real>& conf)
+{
+    const size_t dim = 1;
+    const size_t Nx_ext = conf.Nx + order - 1;
+    const size_t Nspace = Nx_ext;
+    const size_t stride_spatial = 1;
+    const size_t stride_comp = dim * stride_spatial;
+    const size_t stride_t = stride_comp * Nspace;
+
+
+    for (; n > 0; n--) {
+
+        real Ex = eval<real, order>(x,&coeffs_Ex[(n)*stride_t],conf);
+        real Ey = eval<real, order>(x,&coeffs_Ey[(n)*stride_t],conf);
+        real Bz = eval<real, order>(x,&coeffs_Bz[(n-1)*stride_t],conf);
+
+
+        u -= conf.dt * conf.q * Ex;
+        v -= conf.dt * conf.q * Ey;
+
+        // exact rotation
+        Bz *= -conf.dt*conf.q;
+        if(std::abs(Bz) > 1e-12){
+            // Else the exp(J_B) = Identity.
+            /* real alpha = std::sin(std::abs(Bz))/std::abs(Bz);
+            real beta = (1 - std::cos(std::abs(Bz)))/(std::abs(Bz)*std::abs(Bz));
+
+            real u_old = u;
+            real v_old = v;
+
+            u = u_old + alpha * v_old * Bz - beta * Bz*Bz*u_old;
+            v = v_old - alpha * u_old * Bz - beta * Bz*Bz*v_old; */
+
+            real u_old = u;
+            real v_old = v;
+            const real theta = Bz;
+            const real abs_theta = std::abs(theta);
+            const real alpha = std::sin(abs_theta) / abs_theta;
+            const real beta  = (1 - std::cos(abs_theta)) / (abs_theta * abs_theta);
+
+            u = u_old + alpha * v_old * theta - beta * theta * theta * u_old;
+            v = v_old - alpha * u_old * theta - beta * theta * theta * v_old;
+        }
+
+        // Update x.
+        x -= conf.dt * u;
+    }
+
+    return conf.f0_1x2v(x, u, v);
+}
+
+template <typename real, size_t order>
+void eval_rho_ham_lie_Hf_HB_HE_1x2v(size_t n, std::vector<real>& rho, 
+    const std::vector<real>& coeffs_Ex, const std::vector<real>& coeffs_Ey, 
+    const std::vector<real>& coeffs_Bz, const config_t<real> &conf )
+{
+    #pragma omp parallel for
+    for(size_t l = 0; l < conf.Nx; l++){
+        real x = conf.x_min + l*conf.dx; 
+
+        real sum0 = 0;
+        #pragma omp parallel for collapse(2) reduction(+:sum0)
+        for(size_t iu = 0; iu < conf.Nu; iu++)
+        for(size_t iv = 0; iv < conf.Nv; iv++){
+            real u = conf.u_min + (iu + 0.5) * conf.du;
+            real v = conf.v_min + (iv + 0.5) * conf.dv;
+
+            real f = eval_f_nufi_ham_lie_Hf_HB_HE_1x2v<real,order>(n, x, u, v, coeffs_Ex, coeffs_Ey, coeffs_Bz, conf );
+
+            sum0 += f;
+        }
+        
+        rho[l] = conf.q * sum0 * conf.du * conf.dv;
+    }
+}
+
+
+inline int fourier_mode_1d(size_t m, size_t N)
+{
+    if (m <= N / 2) return static_cast<int>(m);
+    return static_cast<int>(m) - static_cast<int>(N);
+}
+
+template <size_t order>
+void eval_j_time_integral_Hf_exact_1x2v_fourier(
+    size_t n_state,
+    std::vector<double>& jx_hat_re,
+    std::vector<double>& jx_hat_im,
+    std::vector<double>& jy_hat_re,
+    std::vector<double>& jy_hat_im,
+    const std::vector<double>& coeffs_Ex,
+    const std::vector<double>& coeffs_Ey,
+    const std::vector<double>& coeffs_Bz,
+    const config_t<double>& conf)
+{
+    const size_t Nx = conf.Nx;
+    const double dt = conf.dt;
+    const double Lx = conf.Lx;
+    const double weight_v = conf.q * conf.du * conf.dv;
+    const double two_pi_over_Lx = 2.0 * M_PI / Lx;
+
+    jx_hat_re.assign(Nx, 0.0);
+    jx_hat_im.assign(Nx, 0.0);
+    jy_hat_re.assign(Nx, 0.0);
+    jy_hat_im.assign(Nx, 0.0);
+
+    fftw_complex* buf = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * Nx);
+    if (!buf) {
+        throw std::runtime_error("FFTW allocation failed.");
+    }
+
+    fftw_plan plan_fwd = fftw_plan_dft_1d(
+        static_cast<int>(Nx), buf, buf, FFTW_FORWARD, FFTW_MEASURE
+    );
+    if (!plan_fwd) {
+        fftw_free(buf);
+        throw std::runtime_error("FFTW plan creation failed.");
+    }
+
+    const double eps = 1e-14;
+
+    for (size_t iu = 0; iu < conf.Nu; ++iu) {
+        const double u = conf.u_min + (iu + 0.5) * conf.du;
+
+        for (size_t iv = 0; iv < conf.Nv; ++iv) {
+            const double v = conf.v_min + (iv + 0.5) * conf.dv;
+
+            #pragma omp parallel for
+            for (size_t ix = 0; ix < Nx; ++ix) {
+                const double xpos = conf.x_min + ix * conf.dx;
+
+                const double f = eval_f_nufi_ham_lie_Hf_HB_HE_1x2v<double, order>(
+                    n_state, xpos, u, v,
+                    coeffs_Ex, coeffs_Ey, coeffs_Bz, conf
+                );
+
+                buf[ix][0] = f;
+                buf[ix][1] = 0.0;
+            }
+
+            fftw_execute(plan_fwd);
+
+            for (size_t m = 0; m < Nx; ++m) {
+                const int kmode = fourier_mode_1d(m, Nx);
+                const double k = two_pi_over_Lx * static_cast<double>(kmode);
+                const double ku = k * u;
+                const double phase = ku * dt;
+
+                const double a = buf[m][0];
+                const double b = buf[m][1];
+
+                // ----------------------------
+                // j_x kernel
+                // Kx = (1 - exp(-i ku dt)) / (i k)
+                // ----------------------------
+                double Kx_re, Kx_im;
+
+                if (std::abs(k) < eps) {
+                    Kx_re = u * dt;
+                    Kx_im = 0.0;
+                } else {
+                    Kx_re = std::sin(phase) / k;
+                    Kx_im = -(1.0 - std::cos(phase)) / k;
+                }
+
+                // ----------------------------
+                // j_y kernel
+                // Ky = v * (1 - exp(-i ku dt)) / (i ku)
+                // ----------------------------
+                double Ky_re, Ky_im;
+
+                if (std::abs(ku) < eps) {
+                    Ky_re = v * dt;
+                    Ky_im = 0.0;
+                } else {
+                    Ky_re = v * std::sin(phase) / ku;
+                    Ky_im = -v * (1.0 - std::cos(phase)) / ku;
+                }
+
+                // jx contribution
+                {
+                    const double real_part = a * Kx_re - b * Kx_im;
+                    const double imag_part = a * Kx_im + b * Kx_re;
+
+                    jx_hat_re[m] += weight_v * real_part;
+                    jx_hat_im[m] += weight_v * imag_part;
+                }
+
+                // jy contribution
+                {
+                    const double real_part = a * Ky_re - b * Ky_im;
+                    const double imag_part = a * Ky_im + b * Ky_re;
+
+                    jy_hat_re[m] += weight_v * real_part;
+                    jy_hat_im[m] += weight_v * imag_part;
+                }
+            }
+        }
+    }
+
+    fftw_destroy_plan(plan_fwd);
+    fftw_free(buf);
+}
+
 }
 
 }

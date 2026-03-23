@@ -40,7 +40,8 @@ double E_clean_gauss_law_1x2v(size_t n, std::vector<double>& coeffs_Ex, std::vec
     const size_t Nspace = Nx_ext;
 
     double gauss_law_l2_error = 0;
-    #pragma omp parallel for reduction(+:gauss_law_l2_error)
+    double rho_l2_norm = 0;
+    #pragma omp parallel for reduction(+:gauss_law_l2_error,rho_l2_norm)
     for(size_t i = 0; i < conf.Nx; i++){
         double x = conf.x_min + i*conf.dx;
 
@@ -48,9 +49,11 @@ double E_clean_gauss_law_1x2v(size_t n, std::vector<double>& coeffs_Ex, std::vec
 
         g[i] = dxEx - rho[i];
         gauss_law_l2_error += g[i]*g[i];
+        rho_l2_norm += rho[i]*rho[i];
     }
 
-    gauss_law_l2_error = std::sqrt(conf.dx*gauss_law_l2_error);
+    rho_l2_norm = std::sqrt(conf.dx*rho_l2_norm);
+    gauss_law_l2_error = std::sqrt(conf.dx*gauss_law_l2_error) / rho_l2_norm;
 
     std::cout << "gauss law error before " << gauss_law_l2_error << std::endl;
 
@@ -62,12 +65,21 @@ double E_clean_gauss_law_1x2v(size_t n, std::vector<double>& coeffs_Ex, std::vec
             return -eval<double,order,1>(x,coeffs_phi.data(), conf);
         };
 
-        #pragma omp parallel for collapse(1)
+        double E_mean = 0;
+        #pragma omp parallel for reduction(+:E_mean)
         for(size_t i = 0; i < conf.Nx; i++){
             double x = conf.x_min + i*conf.dx;
 
             E[i] = eval<double,order>(x,coeffs_Ex.data() + n*stride_t,conf)
                     - eval_correction(x);
+            E_mean += E_mean;
+        }
+        E_mean /= conf.Nx;
+        #pragma omp parallel for
+        for(size_t i = 0; i < conf.Nx; i++){
+            double x = conf.x_min + i*conf.dx;
+
+            E[i] -= E_mean;
         }
 
         // Interpolate gauss-corrected E(n).
@@ -88,7 +100,7 @@ double E_clean_gauss_law_1x2v(size_t n, std::vector<double>& coeffs_Ex, std::vec
 
         std::cout << "gauss law error after " << gauss_law_l2_error << std::endl;
     }
-    return gauss_law_l2_error;
+    return gauss_law_l2_error / rho_l2_norm;
 }
 }
 }
