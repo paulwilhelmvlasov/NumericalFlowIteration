@@ -75,13 +75,13 @@ double E_clean_gauss_law_1x2v(size_t n, std::vector<double>& coeffs_Ex, std::vec
                     - eval_correction(x);
             E_mean += E[i];
         }
-        E_mean /= conf.Nx;
+        /* E_mean /= conf.Nx;
         #pragma omp parallel for
         for(size_t i = 0; i < conf.Nx; i++){
             double x = conf.x_min + i*conf.dx;
 
             E[i] -= E_mean;
-        }
+        } */
 
         // Interpolate gauss-corrected E(n).
         interpolate<double,order>(coeffs_Ex.data() + n*stride_t, E.data(), conf);

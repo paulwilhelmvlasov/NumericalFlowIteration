@@ -44,15 +44,15 @@ const size_t steps_per_1 = 10;
 const double   dt = 1.0 / steps_per_1;
 const size_t Nt = 100/dt;
 
-bool gauss_clean = true;
+bool gauss_clean = false;
 bool with_filter = false;
 
 const size_t nx_r = Nx;
 const size_t nu_r = Nu;
 const size_t nv_r = Nv;
 
-//size_t nt_restart = Nt + 1;
-size_t nt_restart = 100;
+size_t nt_restart = Nt + 1;
+//size_t nt_restart = 10;
 
 const double dx_r = Lx / nx_r;
 
@@ -380,6 +380,55 @@ void kinetic_energy_and_entropy_1x2v(size_t nt, std::ofstream& stat_file,
         double v = vmin + (iv + 0.5)*dv_plot;
 
         double f = periodic::redux_1x2v::eval_f_nufi_ham_lie_fBE_1x2v<real,order>(nt, x, u, v, coeffs_Ex, coeffs_Ey, coeffs_Bz, coeffs_jx_hat, coeffs_jy_hat, conf );
+
+        kin_energy += (u*u + v*v) * f;
+        if(f > 1e-16){
+            entropy += f * std::log(f);
+        }
+
+        l1_norm += std::abs(f);
+        l2_norm += f*f;
+    }
+
+    double dplot = dx_plot*du_plot*dv_plot;
+    kin_energy *= 0.5*dplot;
+    entropy *= dplot;
+    l1_norm *= dplot;
+    l2_norm = std::sqrt(dplot*l2_norm);
+
+    stat_file << t << " " << kin_energy << " " << entropy << " " << l1_norm << " " << l2_norm << std::endl;
+}
+
+template<typename real, size_t order>
+void kinetic_energy_and_entropy_1x2v(size_t nt, std::ofstream& stat_file, 
+    const std::vector<real>& coeffs_Ex, const std::vector<real>& coeffs_Ey, 
+    const std::vector<real>& coeffs_Bz, const config_t<double>& conf, 
+    double& kin_energy, double& entropy, bool restarted = false, size_t n_full = 0, 
+    size_t nx_plot = 128, size_t nu_plot = 128, size_t nv_plot = 128)
+{
+    double t = nt*dt;
+    if(restarted){
+        t = n_full*dt;
+    }
+
+    double dx_plot = Lx/nx_plot;
+    double du_plot = (umax - umin)/nu_plot;
+    double dv_plot = (vmax - vmin)/nv_plot;
+
+    kin_energy = 0;
+    entropy = 0;
+    double l1_norm = 0;
+    double l2_norm = 0;
+
+    #pragma omp parallel for collapse(3) reduction(+:kin_energy,entropy,l1_norm,l2_norm)
+    for(size_t ix = 0; ix < nx_plot; ix++)
+    for(size_t iu = 0; iu < nu_plot; iu++)
+    for(size_t iv = 0; iv < nv_plot; iv++){
+        double x = (ix + 0.5)*dx_plot;
+        double u = umin + (iu + 0.5)*du_plot;
+        double v = vmin + (iv + 0.5)*dv_plot;
+
+        double f = periodic::redux_1x2v::eval_f_nufi_ham_lie_Hf_HB_HE_1x2v<real,order>(nt, x, u, v, coeffs_Ex, coeffs_Ey, coeffs_Bz, conf );
 
         kin_energy += (u*u + v*v) * f;
         if(f > 1e-16){
@@ -849,6 +898,7 @@ void periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned()
     std::ofstream kin_energy_entropy_file("kinetic_energy_and_entropy.txt");
     double kinetic_energy = 0.0;
     double entropy = 0.0;
+    kinetic_energy_and_entropy_1x2v<double,order>(0,kin_energy_entropy_file,coeffs_Ex,coeffs_Ey,coeffs_Bz,conf, kinetic_energy, entropy,false,0,64,64,64);
     do_stats_1x2v<double, order>(0, kinetic_energy, entropy, stat_file, coeffs_Ex, coeffs_Ey, coeffs_Bz, conf, false, 0, 128, true);
 
     std::ofstream gle_file("gle.txt");
@@ -1018,8 +1068,8 @@ void periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned()
             nt_r_curr, coeffs_Ex, Ex, rho, g, coeffs_phi, conf, poiss, !gauss_clean
         );
 
-        //if (n % (steps_per_1) == 0) {
-        if (true) {
+        if (n % (steps_per_1) == 0) {
+        //if (true) {
             periodic::redux_1x2v::eval_rho_ham_lie_Hf_HB_HE_1x2v<double, order>(nt_r_curr, rho_test, coeffs_Ex, coeffs_Ey, coeffs_Bz, conf_test);
             rho_integration_error = 0.0;
             double rho_l2_norm = 0.0;
@@ -1044,8 +1094,8 @@ void periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned()
             rho_l2_norm = std::sqrt(conf.dx * rho_l2_norm);
             rho_integration_error = std::sqrt(conf.dx * rho_integration_error) / rho_l2_norm;
 
-            //if (n % (steps_per_1) == 0) {
-            if (true) {
+            if (n % (steps_per_1) == 0) {
+            //if (true) {
                 std::ofstream rho_str("rho_" + std::to_string(n * conf.dt) + ".txt");
                 for (size_t i = 0; i < conf.Nx; i++) {
                     const double x = conf.x_min + i * conf.dx;
@@ -1075,8 +1125,9 @@ void periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned()
         total_time += time_for_step;
         std::cout << "Time step " << n << " took a total of " << time_for_step << " s." << std::endl;
 
-        //do_stats_1x2v<double, order>(nt_r_curr, kinetic_energy, entropy, stat_file, coeffs_Ex, coeffs_Ey, coeffs_Bz, conf, true, n, 128, (n % (5*steps_per_1) == 0));
-        do_stats_1x2v<double, order>(nt_r_curr, kinetic_energy, entropy, stat_file, coeffs_Ex, coeffs_Ey, coeffs_Bz, conf, true, n, 128, true);
+        kinetic_energy_and_entropy_1x2v<double,order>(nt_r_curr,kin_energy_entropy_file,coeffs_Ex,coeffs_Ey,coeffs_Bz,conf, kinetic_energy, entropy,true,n,64,64,64);
+        do_stats_1x2v<double, order>(nt_r_curr, kinetic_energy, entropy, stat_file, coeffs_Ex, coeffs_Ey, coeffs_Bz, conf, true, n, 128, (n % (steps_per_1) == 0));
+        //do_stats_1x2v<double, order>(nt_r_curr, kinetic_energy, entropy, stat_file, coeffs_Ex, coeffs_Ey, coeffs_Bz, conf, true, n, 128, true);
 
         std::cout << "Do stats took: " << double(timer.elapsed()) << " s." << std::endl;
         std::cout << " ---------------------------------- " << std::endl;
