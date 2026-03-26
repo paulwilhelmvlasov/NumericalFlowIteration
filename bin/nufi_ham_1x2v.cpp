@@ -24,26 +24,35 @@ namespace dim1
 arma::mat restart_matrix;
 
 // Kormann's Streaming Weibel Instability
-const double Lx = 2*M_PI/0.2;
+/* const double Lx = 2*M_PI/0.2;
 const double umin = -0.5;
 const double umax = 0.5;
 const double vmin = -1.2;
-const double vmax = 1.2;
+const double vmax = 1.2; */
 
-const size_t Nx = 33;
+// TSI
+const double Lx = 2*M_PI/0.5;
+const double umin = -8;
+const double umax = 8;
+const double vmin = -5;
+const double vmax = 5;
+
+const size_t Nx = 16;
 const size_t Nu = 32;
 const size_t Nv = 32;
 const size_t steps_per_1 = 10;
 const double   dt = 1.0 / steps_per_1;
-const size_t Nt = 200/dt;
+const size_t Nt = 100/dt;
 
 bool gauss_clean = true;
+bool with_filter = false;
 
-const size_t nx_r = 2*Nx;
-const size_t nu_r = 2*Nu;
-const size_t nv_r = 2*Nv;
+const size_t nx_r = Nx;
+const size_t nu_r = Nu;
+const size_t nv_r = Nv;
 
-/* const */ size_t nt_restart = Nt + 1;
+//size_t nt_restart = Nt + 1;
+size_t nt_restart = 100;
 
 const double dx_r = Lx / nx_r;
 
@@ -52,8 +61,6 @@ const double dv_r = (vmax - vmin) / nv_r;
 
 double linear_interpolation_3d(double x, double u, double v)
 {
-    // TODO: Check whether this is correct!!! It is just copy & paste from the 6d version!
-
     // This version is more stable.
     if( u > umax || u < umin 
         || v > vmax || v < vmin ){
@@ -97,6 +104,99 @@ double linear_interpolation_3d(double x, double u, double v)
     return value;
 }
 
+inline double cubic_interp(double p0, double p1, double p2, double p3, double t)
+{
+    // Catmull-Rom spline
+    double a0 = -0.5*p0 + 1.5*p1 - 1.5*p2 + 0.5*p3;
+    double a1 = p0 - 2.5*p1 + 2.0*p2 - 0.5*p3;
+    double a2 = -0.5*p0 + 0.5*p2;
+    double a3 = p1;
+
+    return ((a0*t + a1)*t + a2)*t + a3;
+}
+
+inline size_t clamp_index(int i, size_t N)
+{
+    if (i < 0) return 0;
+    if (i >= static_cast<int>(N)) return N - 1;
+    return static_cast<size_t>(i);
+}
+
+inline size_t periodic_index(int i, size_t N)
+{
+    int res = i % static_cast<int>(N);
+    if (res < 0) res += N;
+    return static_cast<size_t>(res);
+}
+
+double cubic_interpolation_3d(double x, double u, double v)
+{
+    if (u > umax || u < umin || v > vmax || v < vmin) {
+        return 0.0;
+    }
+
+    // periodic x
+    x = std::fmod(std::fmod(x, Lx) + Lx, Lx);
+
+    double gx = x / dx_r;
+    double gu = (u - umin) / du_r;
+    double gv = (v - vmin) / dv_r;
+
+    int ix = static_cast<int>(std::floor(gx));
+    int iu = static_cast<int>(std::floor(gu));
+    int iv = static_cast<int>(std::floor(gv));
+
+    double tx = gx - ix;
+    double tu = gu - iu;
+    double tv = gv - iv;
+
+    double val_u_v[4][4];
+
+    // Loop over stencil in v and u
+    for (int kv = -1; kv <= 2; kv++) {
+        int iv_idx = iv + kv;
+        size_t ivc = clamp_index(iv_idx, nv_r + 1);
+
+        for (int ku = -1; ku <= 2; ku++) {
+            int iu_idx = iu + ku;
+            size_t iuc = clamp_index(iu_idx, nu_r + 1);
+
+            double px[4];
+
+            // interpolate along x first
+            for (int kx = -1; kx <= 2; kx++) {
+                int ix_idx = ix + kx;
+                size_t ixc = periodic_index(ix_idx, nx_r + 1);
+
+                size_t index_0 = ixc;
+                size_t index_1 = iuc + (nu_r + 1) * ivc;
+
+                px[kx + 1] = restart_matrix(index_0, index_1);
+            }
+
+            val_u_v[ku + 1][kv + 1] = cubic_interp(px[0], px[1], px[2], px[3], tx);
+        }
+    }
+
+    double val_v[4];
+
+    // interpolate along u
+    for (int kv = 0; kv < 4; kv++) {
+        val_v[kv] = cubic_interp(
+            val_u_v[0][kv],
+            val_u_v[1][kv],
+            val_u_v[2][kv],
+            val_u_v[3][kv],
+            tu
+        );
+    }
+
+    // interpolate along v
+    double result = cubic_interp(val_v[0], val_v[1], val_v[2], val_v[3], tv);
+
+    return result;
+}
+
 template <typename real>
 real f0(real x, real u) noexcept
 {
@@ -112,7 +212,7 @@ real f0_1x2v(real x, real u, real v) noexcept
     using std::exp;
 
     // Kormann Streaming Weibel instability 
-    real omega = 0.1/std::sqrt(2);
+    /* real omega = 0.1/std::sqrt(2);
     real theta = 0.2;
     real beta = 1e-3;
     real v0_1 = 0.5;
@@ -121,22 +221,36 @@ real f0_1x2v(real x, real u, real v) noexcept
 
     return maxwellian_1d(u,omega) 
             * ( delta*maxwellian_1d(v-v0_1,omega) 
-            + (1-delta)*maxwellian_1d(v-v0_2,omega) );
+            + (1-delta)*maxwellian_1d(v-v0_2,omega) ); */
+
+    // TSI
+    real alpha = 0.01;
+    real k = 0.5;
+    return (1 + alpha * std::cos(k*x)) * u*u * maxwellian_1d(u,1.0) * maxwellian_1d(v,1.0);
 }
 
 template <typename real>
 arma::Col<real> E0(real x, real y, real z)
 {
-    return  arma::Col<real>({0, 0, 0});
+    // Kormann Streaming
+    //return  arma::Col<real>({0, 0, 0});
+
+    // TSI
+    constexpr real alpha = 1e-2;
+    constexpr real k     = 0.5;
+    return  arma::Col<real>({-alpha / k * std::sin(k*x), 0, 0});
 }
 
 template <typename real>
 arma::Col<real> B0(real x, real y, real z)
 {
     // Kormann's Streaming Weibel instability
-    constexpr real theta = 0.2;
+    /* constexpr real theta = 0.2;
     constexpr real beta = 1e-3;
-    return arma::Col<real>({0, 0, beta*std::sin(theta*x)});
+    return arma::Col<real>({0, 0, beta*std::sin(theta*x)}); */
+
+    // TSI
+    return arma::Col<real>({0, 0, 0});
 }
 
 
@@ -466,7 +580,7 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned()
 
         double gle = periodic::maxwell::E_clean_gauss_law_1x2v<double,order>(nt_r_curr,coeffs_Ex,Ex,rho,g,coeffs_phi,conf,poiss,!gauss_clean);
 
-        if(n % steps_per_1 == 0){
+        if(n % (5*steps_per_1) == 0){
             periodic::redux_1x2v::eval_rho<double,order>(nt_r_curr, rho_test, coeffs_Ex, coeffs_Ey, coeffs_Bz, 
                         coeffs_jx_hat, coeffs_jy_hat, conf_test);
             rho_integration_error = 0;
@@ -489,9 +603,10 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned()
             }
 
             rho_l2_norm = std::sqrt(conf.dx*rho_l2_norm);
-            rho_integration_error = std::sqrt(conf.dx*rho_integration_error) / rho_l2_norm;
+            //rho_integration_error = std::sqrt(conf.dx*rho_integration_error) / rho_l2_norm;
+            rho_integration_error = std::sqrt(conf.dx*rho_integration_error);
 
-            if(n % (steps_per_1) == 0){
+            if(n % (5*steps_per_1) == 0){
                 // Careful: Hardcoded for d = 1! 
                 std::ofstream rho_str("rho_" + std::to_string(n*conf.dt) + ".txt");
                 for(size_t i = 0; i < conf.Nx; i++){
@@ -533,7 +648,7 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned()
         if(n % (steps_per_1) == 0 ){
             kinetic_energy_and_entropy_1x2v<double,order>(nt_r_curr,kin_energy_entropy_file,coeffs_Ex,coeffs_Ey,coeffs_Bz,coeffs_jx_hat,coeffs_jy_hat,conf,kinetic_energy,entropy,true, n,64,64,64);
         }
-        do_stats_1x2v<double,order>(nt_r_curr, kinetic_energy, entropy, stat_file, coeffs_Ex,coeffs_Ey,coeffs_Bz,conf, true, n, 128, (n % (steps_per_1) == 0));
+        do_stats_1x2v<double,order>(nt_r_curr, kinetic_energy, entropy, stat_file, coeffs_Ex,coeffs_Ey,coeffs_Bz,conf, true, n, 128, (n % (5*steps_per_1) == 0));
         //do_stats_1x2v<double,order>(nt_r_curr, kinetic_energy, entropy, stat_file, coeffs_Ex,coeffs_Ey,coeffs_Bz,conf, true, n, 128, true);
 
         std::cout << "Do stats took: " << double(timer.elapsed()) << " s." << std::endl;
@@ -603,8 +718,8 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned()
 inline void spectral_filter_hat_1d(
     std::vector<double>& hat_re,
     std::vector<double>& hat_im,
-    double alpha = 50.0,
-    int p = 4
+    double alpha = 60.0,
+    int p = 12
 )
 {
     const size_t Nx = hat_re.size();
@@ -835,9 +950,11 @@ void periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned()
             Bz_hat_im[m] -= conf.dt * ( k * ey_re);
         }
 
-        spectral_filter_hat_1d(Ey_hat_re, Ey_hat_im);
-        spectral_filter_hat_1d(Bz_hat_re, Bz_hat_im);
-        spectral_filter_hat_1d(Ex_hat_re, Ex_hat_im);
+        if(with_filter){
+            spectral_filter_hat_1d(Ey_hat_re, Ey_hat_im);
+            spectral_filter_hat_1d(Bz_hat_re, Bz_hat_im);
+            spectral_filter_hat_1d(Ex_hat_re, Ex_hat_im);
+        }
 
         // IFFT Ex
         for (size_t l = 0; l < conf.Nx; l++) {
@@ -901,7 +1018,8 @@ void periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned()
             nt_r_curr, coeffs_Ex, Ex, rho, g, coeffs_phi, conf, poiss, !gauss_clean
         );
 
-        if (n % (5*steps_per_1) == 0) {
+        //if (n % (steps_per_1) == 0) {
+        if (true) {
             periodic::redux_1x2v::eval_rho_ham_lie_Hf_HB_HE_1x2v<double, order>(nt_r_curr, rho_test, coeffs_Ex, coeffs_Ey, coeffs_Bz, conf_test);
             rho_integration_error = 0.0;
             double rho_l2_norm = 0.0;
@@ -926,7 +1044,8 @@ void periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned()
             rho_l2_norm = std::sqrt(conf.dx * rho_l2_norm);
             rho_integration_error = std::sqrt(conf.dx * rho_integration_error) / rho_l2_norm;
 
-            if (n % (steps_per_1) == 0) {
+            //if (n % (steps_per_1) == 0) {
+            if (true) {
                 std::ofstream rho_str("rho_" + std::to_string(n * conf.dt) + ".txt");
                 for (size_t i = 0; i < conf.Nx; i++) {
                     const double x = conf.x_min + i * conf.dx;
@@ -956,7 +1075,8 @@ void periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned()
         total_time += time_for_step;
         std::cout << "Time step " << n << " took a total of " << time_for_step << " s." << std::endl;
 
-        do_stats_1x2v<double, order>(nt_r_curr, kinetic_energy, entropy, stat_file, coeffs_Ex, coeffs_Ey, coeffs_Bz, conf, true, n, 128, (n % (5*steps_per_1) == 0));
+        //do_stats_1x2v<double, order>(nt_r_curr, kinetic_energy, entropy, stat_file, coeffs_Ex, coeffs_Ey, coeffs_Bz, conf, true, n, 128, (n % (5*steps_per_1) == 0));
+        do_stats_1x2v<double, order>(nt_r_curr, kinetic_energy, entropy, stat_file, coeffs_Ex, coeffs_Ey, coeffs_Bz, conf, true, n, 128, true);
 
         std::cout << "Do stats took: " << double(timer.elapsed()) << " s." << std::endl;
         std::cout << " ---------------------------------- " << std::endl;
@@ -989,6 +1109,8 @@ void periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned()
             std::cout << "Filling restart matrix took " << timer_fill_restart_matrix << " s." << std::endl;
 
             restart_matrix = copy_mat;
+            std::ofstream mat_str("mat_" + std::to_string(n*dt) + ".txt");
+            mat_str << restart_matrix;
             double timer_copy_mat = timer.elapsed();
             timer.reset();
             std::cout << "Copying restart matrix took " << timer_copy_mat << " s." << std::endl;
@@ -998,14 +1120,17 @@ void periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned()
             std::cout << "Max value restart_matrix " << restart_matrix.max() << std::endl;
 
             #pragma omp parallel for
-            for (size_t ix = 0; ix < Nx_ext; ix++) {
+            for (size_t ix = 0; ix < stride_t; ix++) {
                 coeffs_Ex[ix] = coeffs_Ex[nt_r_curr * stride_t + ix];
                 coeffs_Ey[ix] = coeffs_Ey[nt_r_curr * stride_t + ix];
                 coeffs_Bz[ix] = coeffs_Bz[nt_r_curr * stride_t + ix];
             }
 
-            conf.f0_1x2v = linear_interpolation_3d;
-            conf_test.f0_1x2v = linear_interpolation_3d;
+            //conf.f0_1x2v = linear_interpolation_3d;
+            //conf_test.f0_1x2v = linear_interpolation_3d;
+
+            conf.f0_1x2v = cubic_interpolation_3d;
+            conf_test.f0_1x2v = cubic_interpolation_3d;
 
             nt_r_curr = 1;
             double timer_copy_coeff = timer.elapsed();

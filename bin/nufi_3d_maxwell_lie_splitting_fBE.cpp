@@ -97,11 +97,11 @@ const size_t Nz = 1;
 const size_t Nu = 32;
 const size_t Nv = 32;
 const size_t Nw = 1;
-const size_t steps_per_1 = 10;
+const size_t steps_per_1 = 20;
 const double   dt = 1.0 / steps_per_1;
 const size_t Nt = 200/dt;
 
-bool gauss_clean = false;
+bool gauss_clean = true;
 
 const size_t nx_r = 2*Nx;
 const size_t ny_r = Ny;
@@ -109,7 +109,8 @@ const size_t nz_r = Nz;
 const size_t nu_r = 2*Nu;
 const size_t nv_r = 2*Nv;
 const size_t nw_r = Nw; 
-/* const */ size_t nt_restart = /* 100 */ Nt + 1 ;
+//size_t nt_restart = Nt + 1 ;
+size_t nt_restart = 50;
 
 const double dx_r = Lx / nx_r;
 const double dy_r = Ly / ny_r;
@@ -2434,7 +2435,7 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned()
         total_time += time_for_step;
         std::cout << "Time step " << n << " took a total of " << time_for_step << " s." << std::endl;
 
-        if(n % (steps_per_1) == 0 ){
+        if(n % (2*steps_per_1) == 0 ){
             kinetic_energy_and_entropy<double,order>(nt_r_curr,kin_energy_entropy_file,coeffs_E,coeffs_B,coeffs_j_hat,conf,kinetic_energy,entropy,true, n,64,1,1,64,64,1);
             //plot_f<double,order>(nt_r_curr,coeffs_E, coeffs_B, coeffs_j_hat, conf, true, n);
         }

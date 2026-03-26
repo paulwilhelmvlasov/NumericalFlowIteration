@@ -53,7 +53,8 @@ double E_clean_gauss_law_1x2v(size_t n, std::vector<double>& coeffs_Ex, std::vec
     }
 
     rho_l2_norm = std::sqrt(conf.dx*rho_l2_norm);
-    gauss_law_l2_error = std::sqrt(conf.dx*gauss_law_l2_error) / rho_l2_norm;
+    //gauss_law_l2_error = std::sqrt(conf.dx*gauss_law_l2_error) / rho_l2_norm;
+    gauss_law_l2_error = std::sqrt(conf.dx*gauss_law_l2_error);
 
     std::cout << "gauss law error before " << gauss_law_l2_error << std::endl;
 
@@ -72,7 +73,7 @@ double E_clean_gauss_law_1x2v(size_t n, std::vector<double>& coeffs_Ex, std::vec
 
             E[i] = eval<double,order>(x,coeffs_Ex.data() + n*stride_t,conf)
                     - eval_correction(x);
-            E_mean += E_mean;
+            E_mean += E[i];
         }
         E_mean /= conf.Nx;
         #pragma omp parallel for
@@ -90,9 +91,9 @@ double E_clean_gauss_law_1x2v(size_t n, std::vector<double>& coeffs_Ex, std::vec
         for(size_t i = 0; i < conf.Nx; i++){
             double x = conf.x_min + i*conf.dx;
 
-            double E_new = eval<double,order,1>(x,coeffs_Ex.data() + n*stride_t,conf);
+            double dxE_new = eval<double,order,1>(x,coeffs_Ex.data() + n*stride_t,conf);
 
-            g[i] = E_new - rho[i];
+            g[i] = dxE_new - rho[i];
             gauss_law_l2_error += g[i]*g[i];
         }
 
@@ -100,7 +101,8 @@ double E_clean_gauss_law_1x2v(size_t n, std::vector<double>& coeffs_Ex, std::vec
 
         std::cout << "gauss law error after " << gauss_law_l2_error << std::endl;
     }
-    return gauss_law_l2_error / rho_l2_norm;
+    //return gauss_law_l2_error / rho_l2_norm;
+    return gauss_law_l2_error;
 }
 }
 }
