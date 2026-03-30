@@ -45,7 +45,7 @@ const double   dt = 1.0 / steps_per_1;
 const size_t Nt = 200/dt;
 
 bool strang_split = true;
-bool gauss_clean = false;
+bool gauss_clean = true;
 bool with_filter = false;
 
 const size_t nx_r = Nx;
