@@ -24,11 +24,18 @@ namespace dim1
 arma::mat restart_matrix;
 
 // Kormann's Streaming Weibel Instability
-const double Lx = 2*M_PI/0.2;
+/* const double Lx = 2*M_PI/0.2;
 const double umin = -0.5;
 const double umax = 0.5;
 const double vmin = -1.2;
-const double vmax = 1.2;
+const double vmax = 1.2; */
+
+// Weak Landau
+/* const double Lx = 2*M_PI/0.5;
+const double umin = -5;
+const double umax = 5;
+const double vmin = -5;
+const double vmax = 5; */
 
 // TSI
 /* const double Lx = 2*M_PI/0.5;
@@ -37,23 +44,31 @@ const double umax = 8;
 const double vmin = -5;
 const double vmax = 5; */
 
+// Paul & Fabio magnetic TSI (Filamentation instability) 
+const double trigger_k = 2;
+const double Lx = 2*M_PI/trigger_k;
+const double umin = -1;
+const double umax = 1;
+const double vmin = -1.2;
+const double vmax = 1.2;
+
 const size_t Nx = 32;
 const size_t Nu = 64;
 const size_t Nv = 64;
-const size_t steps_per_1 = 10;
+const size_t steps_per_1 = 40;
 const double   dt = 1.0 / steps_per_1;
-const size_t Nt = 200/dt;
+const size_t Nt = 50/dt;
 
-bool strang_split = true;
-bool gauss_clean = true;
+bool strang_split = false;
+bool gauss_clean = false;
 bool with_filter = false;
 
 const size_t nx_r = Nx;
 const size_t nu_r = Nu;
 const size_t nv_r = Nv;
 
-//size_t nt_restart = Nt + 1;
-size_t nt_restart = 50;
+size_t nt_restart = Nt + 1;
+//size_t nt_restart = 50;
 
 const double dx_r = Lx / nx_r;
 
@@ -213,7 +228,7 @@ real f0_1x2v(real x, real u, real v) noexcept
     using std::exp;
 
     // Kormann Streaming Weibel instability 
-    real omega = 0.1/std::sqrt(2);
+    /* real omega = 0.1/std::sqrt(2);
     real theta = 0.2;
     real beta = 1e-3;
     real v0_1 = 0.5;
@@ -222,21 +237,31 @@ real f0_1x2v(real x, real u, real v) noexcept
 
     return maxwellian_1d(u,omega) 
             * ( delta*maxwellian_1d(v-v0_1,omega) 
-            + (1-delta)*maxwellian_1d(v-v0_2,omega) );
+            + (1-delta)*maxwellian_1d(v-v0_2,omega) ); */
+
+    // Weak Landau Damping
+    /* real alpha = 0.01;
+    real k = 0.5;
+    return (1 + alpha * std::cos(k*x)) * maxwellian_1d(u,1.0) * maxwellian_1d(v,1.0); */
 
     // TSI
     /* real alpha = 0.01;
     real k = 0.5;
     return (1 + alpha * std::cos(k*x)) * u*u * maxwellian_1d(u,1.0) * maxwellian_1d(v,1.0); */
+
+    // Paul & Fabio magnetic TSI (Filamentation instability) 
+    real v_beam = 0.4;
+    real vth = 0.1;
+    return 0.5 * (maxwellian_2d<real>(u,v-v_beam,vth) + maxwellian_2d<real>(u,v+v_beam,vth));
 }
 
 template <typename real>
 arma::Col<real> E0(real x, real y, real z)
 {
-    // Kormann Streaming
+    // Kormann Streaming & Filamentation instability
     return  arma::Col<real>({0, 0, 0});
 
-    // TSI
+    // Weak Landau & TSI
     /* constexpr real alpha = 1e-2;
     constexpr real k     = 0.5;
     return  arma::Col<real>({-alpha / k * std::sin(k*x), 0, 0}); */
@@ -246,9 +271,13 @@ template <typename real>
 arma::Col<real> B0(real x, real y, real z)
 {
     // Kormann's Streaming Weibel instability
-    constexpr real theta = 0.2;
+    /* constexpr real theta = 0.2;
     constexpr real beta = 1e-3;
-    return arma::Col<real>({0, 0, beta*std::sin(theta*x)});
+    return arma::Col<real>({0, 0, beta*std::sin(theta*x)}); */
+
+    // Filamentation instability
+    constexpr real beta = 1e-3;
+    return arma::Col<real>({0, 0, beta*std::sin(trigger_k*x)});
 
     // TSI
     //return arma::Col<real>({0, 0, 0});
@@ -343,7 +372,7 @@ void do_stats_1x2v(size_t nt, double kinetic_energy, double entropy, std::ofstre
     magnetic_z_energy *= 0.5*dx_plot;
 
     double total_energy = electric_energy + magnetic_energy + kinetic_energy;
-    stat_file << current_time << " " << electric_energy << " " << magnetic_energy  << " " 
+    stat_file << std::setprecision(15) << current_time << " " << electric_energy << " " << magnetic_energy  << " " 
         << kinetic_energy << " " << total_energy << " " << entropy << " "
         << electric_x_energy << " " << electric_y_energy << " " << magnetic_z_energy << " "
         << std::endl;
@@ -397,7 +426,7 @@ void kinetic_energy_and_entropy_1x2v(size_t nt, std::ofstream& stat_file,
     l1_norm *= dplot;
     l2_norm = std::sqrt(dplot*l2_norm);
 
-    stat_file << t << " " << kin_energy << " " << entropy << " " << l1_norm << " " << l2_norm << std::endl;
+    stat_file << std::setprecision(15) << t << " " << kin_energy << " " << entropy << " " << l1_norm << " " << l2_norm << std::endl;
 }
 
 template<typename real, size_t order>
@@ -451,7 +480,7 @@ void kinetic_energy_and_entropy_1x2v(size_t nt, std::ofstream& stat_file,
     l1_norm *= dplot;
     l2_norm = std::sqrt(dplot*l2_norm);
 
-    stat_file << t << " " << kin_energy << " " << entropy << " " << l1_norm << " " << l2_norm << std::endl;
+    stat_file << std::setprecision(15) << t << " " << kin_energy << " " << entropy << " " << l1_norm << " " << l2_norm << std::endl;
 }
 
 config_t<double> conf(Nx, Nu, Nt, dt, 0, Lx, umin, umax, &f0);
@@ -1098,7 +1127,8 @@ void periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned()
             }
 
             rho_l2_norm = std::sqrt(conf.dx * rho_l2_norm);
-            rho_integration_error = std::sqrt(conf.dx * rho_integration_error) / rho_l2_norm;
+            //rho_integration_error = std::sqrt(conf.dx * rho_integration_error) / rho_l2_norm;
+            rho_integration_error = std::sqrt(conf.dx * rho_integration_error);
 
             if (n % (steps_per_1) == 0) {
             //if (true) {
@@ -1131,8 +1161,11 @@ void periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned()
         total_time += time_for_step;
         std::cout << "Time step " << n << " took a total of " << time_for_step << " s." << std::endl;
 
-        kinetic_energy_and_entropy_1x2v<double,order>(nt_r_curr,kin_energy_entropy_file,coeffs_Ex,coeffs_Ey,coeffs_Bz,conf, kinetic_energy, entropy,true,n,64,64,64);
-        do_stats_1x2v<double, order>(nt_r_curr, kinetic_energy, entropy, stat_file, coeffs_Ex, coeffs_Ey, coeffs_Bz, conf, true, n, 128, (n % (steps_per_1) == 0));
+        //if(n % (steps_per_1) == 0){
+        if(true){
+            kinetic_energy_and_entropy_1x2v<double,order>(nt_r_curr,kin_energy_entropy_file,coeffs_Ex,coeffs_Ey,coeffs_Bz,conf, kinetic_energy, entropy,true,n,64,64,64);
+        }
+        do_stats_1x2v<double, order>(nt_r_curr, kinetic_energy, entropy, stat_file, coeffs_Ex, coeffs_Ey, coeffs_Bz, conf, true, n, 128, (n % (50 * steps_per_1) == 0));
         //do_stats_1x2v<double, order>(nt_r_curr, kinetic_energy, entropy, stat_file, coeffs_Ex, coeffs_Ey, coeffs_Bz, conf, true, n, 128, true);
 
         std::cout << "Do stats took: " << double(timer.elapsed()) << " s." << std::endl;
@@ -1574,7 +1607,8 @@ void periodically_restarted_nufi_maxwell_strang_exact_fourier_integral_aligned()
             }
 
             rho_l2_norm = std::sqrt(conf.dx * rho_l2_norm);
-            rho_integration_error = std::sqrt(conf.dx * rho_integration_error) / rho_l2_norm;
+            //rho_integration_error = std::sqrt(conf.dx * rho_integration_error) / rho_l2_norm;
+            rho_integration_error = std::sqrt(conf.dx * rho_integration_error);
 
             if (n % (steps_per_1) == 0) {
                 std::ofstream rho_str("rho_" + std::to_string(n * conf.dt) + ".txt");
