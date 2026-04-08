@@ -37,7 +37,7 @@ const double wmin = -0.5;
 const double wmax = 0.5; */
 
 // Kormann Streaming Weibel
-const double Lx = 2*M_PI/0.2;
+/* const double Lx = 2*M_PI/0.2;
 const double Ly = 1;
 const double Lz = 1;
 const double umin = -0.5;
@@ -45,7 +45,7 @@ const double umax = 0.5;
 const double vmin = -1.2;
 const double vmax = 1.2;
 const double wmin = -0.5;
-const double wmax = 0.5;
+const double wmax = 0.5; */
 
 // 2x3v Current Filamentation
 /* const double Lx = 2*M_PI;
@@ -59,7 +59,7 @@ double wmin = -2;
 double wmax = 2; */
 
 // 2x3v Pseudo-electro-static TSI
-/* const double Lx = 2*M_PI;
+const double Lx = 2*M_PI;
 const double Ly = 2*M_PI;
 const double Lz = 1;
 double umin = -30;
@@ -67,28 +67,28 @@ double umax = 30;
 double vmin = -30;
 double vmax = 30;
 double wmin = -10;
-double wmax = 10; */
+double wmax = 10;
 
 // Electro-static:
-/* const double Lx = 2*M_PI/0.3;
+/* const double Lx = 2*M_PI/0.5;
 const double Ly = 1;
 const double Lz = 1;
-const double umin = -8;
-const double umax = 8;
-const double vmin = -0.5;
-const double vmax = 0.5;
+const double umin = -5;
+const double umax = 5;
+const double vmin = -5;
+const double vmax = 5;
 const double wmin = -0.5;
 const double wmax = 0.5; */
 
 const size_t Nx = 16;
-const size_t Ny = 1;
+const size_t Ny = 16;
 const size_t Nz = 1;
-const size_t Nu = 32;
-const size_t Nv = 32;
-const size_t Nw = 1;
+const size_t Nu = 48;
+const size_t Nv = 48;
+const size_t Nw = 16;
 const size_t steps_per_1 = 10;
 const double   dt = 1.0 / steps_per_1;
-const size_t Nt = 200/dt;
+const size_t Nt = 300/dt;
 
 const size_t nx_r = Nx;
 const size_t ny_r = Ny;
@@ -96,7 +96,8 @@ const size_t nz_r = Nz;
 const size_t nu_r = Nu;
 const size_t nv_r = Nv;
 const size_t nw_r = Nw;
-size_t nt_restart = Nt + 1;
+//size_t nt_restart = Nt + 1;
+size_t nt_restart = 20;
 
 
 const double dx_r = Lx / nx_r;
@@ -211,15 +212,15 @@ real f0(real x, real y, real z, real u, real v, real w) noexcept
     return maxwellian<real>(u - ux, v - uy, w, vth); */
 
     // 2x3v Pseudo-Electro-static TSI
-    /* real vth = 1;
+    real vth = 1;
     real ux = 2;
     real alpha = 0.01;
     real perturbation = 0.5*(1 + alpha * std::cos(x)*cos(y));
     return perturbation * (maxwellian_1d<real>(u - ux, vth) + maxwellian_1d<real>(u + ux, vth))
-                * maxwellian_2d<real>(v,w,vth); */
+                * maxwellian_2d<real>(v,w,vth);
 
     // Kormann Streaming Weibel
-    real omega = 0.1/std::sqrt(2);
+    /* real omega = 0.1/std::sqrt(2);
     real theta = 0.2;
     real beta = 1e-3;
     real v0_1 = 0.5;
@@ -227,9 +228,12 @@ real f0(real x, real y, real z, real u, real v, real w) noexcept
     real delta = 1.0/6.0;
     return maxwellian_1d<real>(u,omega) 
             * ( delta*maxwellian_1d<real>(v-v0_1,omega) 
-            + (1-delta)*maxwellian_1d<real>(v-v0_2,omega) );
+            + (1-delta)*maxwellian_1d<real>(v-v0_2,omega) ); */
 
     // Weak Landau Damping
+    //return (1+0.01*cos(0.5*x))*maxwellian_1d<real>(u,1) * maxwellian_1d<real>(v,1);
+
+    // Two Stream instability
     //return (1+0.01*cos(0.5*x))*u*u*maxwellian_1d<real>(u,1);
 
     // Bump on tail
@@ -252,11 +256,11 @@ arma::Col<real> E0(real x, real y, real z)
     //return  arma::Col<real>({-0.04/0.3 * std::sin(0.3*x), 0, 0});
 
     // Kormann Streaming Weibel & magnetic TSI (Filamentation) & 2x3v current filamentation
-    return  arma::Col<real>({0, 0, 0});
+    //return  arma::Col<real>({0, 0, 0});
 
     // 2x3v Pseudo-Electro-Static TSI
-    /* real alpha = 0.5*0.01;
-    return  arma::Col<real>({alpha*std::sin(x)*std::cos(y), alpha*std::cos(x)*std::sin(y), 0}); */
+    real alpha = 0.5*0.01;
+    return  arma::Col<real>({alpha*std::sin(x)*std::cos(y), alpha*std::cos(x)*std::sin(y), 0});
 }
 
 template <typename real>
@@ -270,13 +274,13 @@ arma::Col<real> B0(real x, real y, real z)
     return arma::Col<real>({0, 0, B0*std::cos(x)*std::cos(y)}); */
 
     // 2x3v Pseudo-Electro-Static TSI
-    /* real B0 = 0.1;
-    return arma::Col<real>({0, 0, B0*std::cos(x)*std::cos(y)}); */
+    real B0 = 0.1;
+    return arma::Col<real>({0, 0, B0*std::cos(x)*std::cos(y)});
 
     // Kormann's Streaming Weibel instability
-    constexpr real theta = 0.2;
+    /* constexpr real theta = 0.2;
     constexpr real beta = 1e-3;
-    return arma::Col<real>({0, 0, beta*std::sin(theta*x)});
+    return arma::Col<real>({0, 0, beta*std::sin(theta*x)}); */
 
     // Magnetic Two Stream Instability by Einkemmer.
     /* constexpr real alpha = 1e-3;
@@ -864,17 +868,17 @@ void do_stats_2x3v(size_t nt, size_t nx_plot, std::ofstream& stat_file,
 
 
 template<typename real, size_t order>
-void do_stats_2x3v_parallelized(size_t nt, size_t nx_plot, std::ofstream& stat_file, 
+void do_stats_2x3v_parallelized(size_t nt, double kinetic_energy, std::ofstream& stat_file, 
     const std::vector<real>& coeffs_E, const std::vector<real>& coeffs_B, 
     const config_t<double>& conf, bool plot_E_B = false, bool restarted = false, size_t n_full = 0, 
-    bool plot_f = false)
+    bool plot_f = false, size_t nx_plot = 64, size_t ny_plot = 64)
 {
     const size_t Nx_ext = conf.Nx + order - 1;
     const size_t Ny_ext = conf.Ny + order - 1;
     const size_t Nz_ext = conf.Nz + order - 1;
 
     double dx_plot = conf.Lx / nx_plot; 
-    double dy_plot = conf.Ly / nx_plot; 
+    double dy_plot = conf.Ly / ny_plot; 
 
     double electric_energy = 0;
     double magnetic_energy = 0;
@@ -897,7 +901,7 @@ void do_stats_2x3v_parallelized(size_t nt, size_t nx_plot, std::ofstream& stat_f
                                                    electric_x_energy, electric_y_energy, electric_z_energy, \
                                                    magnetic_x_energy, magnetic_y_energy, magnetic_z_energy)
         for(size_t ix = 0; ix < nx_plot; ix++){
-            for(size_t iy = 0; iy < nx_plot; iy++){
+            for(size_t iy = 0; iy < ny_plot; iy++){
                 double x = (ix+0.5)*dx_plot;
                 double y = (iy+0.5)*dy_plot;
                 double z = conf.Lz * 0.5;
@@ -942,7 +946,7 @@ void do_stats_2x3v_parallelized(size_t nt, size_t nx_plot, std::ofstream& stat_f
                                                       electric_x_energy, electric_y_energy, electric_z_energy, \
                                                       magnetic_x_energy, magnetic_y_energy, magnetic_z_energy)
         for(size_t ix = 0; ix < nx_plot; ix++){
-            for(size_t iy = 0; iy < nx_plot; iy++){
+            for(size_t iy = 0; iy < ny_plot; iy++){
                 size_t idx = ix*nx_plot + iy;
 
                 double x = (ix+0.5)*dx_plot;
@@ -986,7 +990,7 @@ void do_stats_2x3v_parallelized(size_t nt, size_t nx_plot, std::ofstream& stat_f
         std::ofstream Bz_str("Bz_" + std::to_string(current_time) + ".txt");
 
         for(size_t ix = 0; ix < nx_plot; ix++){
-            for(size_t iy = 0; iy < nx_plot; iy++){
+            for(size_t iy = 0; iy < ny_plot; iy++){
                 size_t idx = ix*nx_plot + iy;
                 double x = (ix+0.5)*dx_plot;
                 double y = (iy+0.5)*dy_plot;
@@ -1014,8 +1018,10 @@ void do_stats_2x3v_parallelized(size_t nt, size_t nx_plot, std::ofstream& stat_f
     magnetic_y_energy *= 0.5*dx_plot*dy_plot;
     magnetic_z_energy *= 0.5*dx_plot*dy_plot;
 
-    stat_file << current_time << " "
-              << electric_energy << " " << magnetic_energy << " "
+    double total_energy = electric_energy + magnetic_energy + kinetic_energy;
+
+    stat_file << std::setprecision(15) << current_time << " "
+              << electric_energy << " " << magnetic_energy << " " << kinetic_energy << " " << total_energy << " "
               << electric_x_energy << " " << electric_y_energy << " " << electric_z_energy << " "
               << magnetic_x_energy << " " << magnetic_y_energy << " " << magnetic_z_energy
               << std::endl;
@@ -1041,7 +1047,7 @@ void do_stats_2x3v_parallelized(size_t nt, size_t nx_plot, std::ofstream& stat_f
 
             #pragma omp parallel for collapse(2)
             for(size_t ix = 0; ix <= nx_plot; ix++){
-                for(size_t iy = 0; iy <= nx_plot; iy++){
+                for(size_t iy = 0; iy <= ny_plot; iy++){
                     size_t idx = ix*(nx_plot+1) + iy;
 
                     double x = ix * dx_plot;
@@ -1059,7 +1065,7 @@ void do_stats_2x3v_parallelized(size_t nt, size_t nx_plot, std::ofstream& stat_f
             std::ofstream f_x_y_str("f_x_y_" + std::to_string(current_time) + ".txt");
 
             for(size_t ix = 0; ix <= nx_plot; ix++){
-                for(size_t iy = 0; iy <= nx_plot; iy++){
+                for(size_t iy = 0; iy <= ny_plot; iy++){
                     double x = ix * dx_plot;
                     double y = iy * dx_plot;
 
@@ -1331,42 +1337,42 @@ void kinetic_energy_and_entropy_2x3v(size_t nt, size_t nx_plot, std::ofstream& s
 }
 
 template<typename real, size_t order>
-void kinetic_energy_and_entropy_2x3v_parallelized(size_t nt, size_t nx_plot, std::ofstream& stat_file, 
+void kinetic_energy_and_entropy_2x3v_parallelized(size_t nt, double& kinetic_energy, std::ofstream& stat_file, 
     const std::vector<real>& coeffs_E, const std::vector<real>& coeffs_B, 
-    const config_t<double>& conf, bool restarted = false, size_t n_full = 0)
+    const config_t<double>& conf, bool restarted = false, size_t n_full = 0, 
+    size_t nx_plot = 64, size_t ny_plot = 64, size_t nu_plot = 64, size_t nv_plot = 64, size_t nw_plot = 64)
 {
     double t = restarted ? n_full * conf.dt : nt * conf.dt;
 
-    // Hard-coded for 2x3v as in your original code
-    size_t n_plot = 64;
-
-    double dx_plot = conf.Lx / n_plot;
-    double dy_plot = conf.Ly / n_plot;
+    double dx_plot = conf.Lx / nx_plot;
+    double dy_plot = conf.Ly / ny_plot;
     double dz_plot = 0.0; // (z is fixed, so no dz factor)
-    double du_plot = (conf.u_max - conf.u_min) / n_plot;
-    double dv_plot = (conf.v_max - conf.v_min) / n_plot;
-    double dw_plot = (conf.w_max - conf.w_min) / n_plot;
+    double du_plot = (conf.u_max - conf.u_min) / nu_plot;
+    double dv_plot = (conf.v_max - conf.v_min) / nv_plot;
+    double dw_plot = (conf.w_max - conf.w_min) / nw_plot;
 
     double kin_energy = 0.0;
     double entropy = 0.0;
+    double l1_norm = 0;
+    double l2_norm = 0;
 
     // ============================
     // Fully parallel 5D integral
     // ============================
-    #pragma omp parallel for collapse(5) reduction(+:kin_energy, entropy)
-    for(size_t ix = 0; ix < n_plot; ix++){
-        for(size_t iy = 0; iy < n_plot; iy++){
-            for(size_t iu = 0; iu < n_plot; iu++){
-                for(size_t iv = 0; iv < n_plot; iv++){
-                    for(size_t iw = 0; iw < n_plot; iw++){
+    #pragma omp parallel for collapse(5) reduction(+:kin_energy, entropy,l1_norm,l2_norm)
+    for(size_t ix = 0; ix < nx_plot; ix++){
+        for(size_t iy = 0; iy < ny_plot; iy++){
+            for(size_t iu = 0; iu < nu_plot; iu++){
+                for(size_t iv = 0; iv < nv_plot; iv++){
+                    for(size_t iw = 0; iw < nw_plot; iw++){
 
-                        double x = ix * dx_plot;
-                        double y = iy * dy_plot;
+                        double x = (ix + 0.5) * dx_plot;
+                        double y = (iy + 0.5) * dy_plot;
                         double z = conf.Lz * 0.5;
 
-                        double u = umin + iu * du_plot;
-                        double v = vmin + iv * dv_plot;
-                        double w = wmin + iw * dw_plot;
+                        double u = umin + (iu + 0.5) * du_plot;
+                        double v = vmin + (iv + 0.5) * dv_plot;
+                        double w = wmin + (iw + 0.5) * dw_plot;
 
                         double f =
                             eval_f_lie_EBf<double,order>(nt, x, y, z, u, v, w,
@@ -1377,6 +1383,9 @@ void kinetic_energy_and_entropy_2x3v_parallelized(size_t nt, size_t nx_plot, std
                         if(f > 1e-16){
                             entropy += f * std::log(f);
                         }
+
+                        l1_norm += std::abs(f);
+                        l2_norm += f*f;
                     }
                 }
             }
@@ -1387,8 +1396,12 @@ void kinetic_energy_and_entropy_2x3v_parallelized(size_t nt, size_t nx_plot, std
 
     kin_energy *= 0.5 * dv5;
     entropy    *= dv5;
+    l1_norm    *= dv5;
+    l2_norm = std::sqrt(dv5*l2_norm);
 
-    stat_file << t << " " << kin_energy << " " << entropy << std::endl;
+    kinetic_energy = kin_energy;
+
+    stat_file << std::setprecision(15) << t << " " << kin_energy << " " << entropy << " " << l1_norm << " " << l2_norm << std::endl;
 }
 
 
@@ -1782,10 +1795,12 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
     maxwell::B_step_predictor_corrector<double,order>(1,coeffs_E,coeffs_B_staggered,B,conf);
 
     // Do first output.
+    double kinetic_energy = 0;
     std::ofstream stat_file( "stats.txt" );
     std::ofstream kin_energy_and_entropy_file( "kin_energy_entropy.txt" );
-    do_stats_2x3v_parallelized<double,order>(0, 64, stat_file,coeffs_E, coeffs_B, conf, true, true, 0, true);
-    //kinetic_energy_and_entropy_2x3v_parallelized<double,order>(0,64,kin_energy_and_entropy_file,coeffs_E,coeffs_B,conf,false,0);
+    kinetic_energy_and_entropy_2x3v_parallelized<double,order>(0,kinetic_energy,kin_energy_and_entropy_file,coeffs_E,coeffs_B,conf,false,0,64,1,64,16,1);
+    do_stats_2x3v_parallelized<double,order>(0, kinetic_energy, stat_file,coeffs_E, coeffs_B, conf, true, true, 0, true, 64, 1);
+    
 
     std::cout << "Time-loop." << std::endl;    
     std::cout << " ---------------------------------- " << std::endl;
@@ -1825,26 +1840,25 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
         timer.reset();
         // Do stats...
         //bool plot_f = (n % (50*steps_per_1) == 0) || (n > 100*steps_per_1 && n < 200*steps_per_1 && (n % (10*steps_per_1) == 0));
-        bool plot_f = (n % (50*steps_per_1) == 0) && false;
-        bool comp_kin_energy = plot_f & false;
+        bool plot_f = (n % (50*steps_per_1) == 0);
+        bool comp_kin_energy = true;
         size_t nx_plot = 64;
         if(plot_f){
             nx_plot = 64;
-/*             std::ofstream mat_uv_str("f_full_matrix_velocity_uv_" + std::to_string(n*conf.dt) + ".txt" );
-            plot_full_f_3x3v_parallelized<double,order>(nt_r_curr,4,4,1,512,512,1,mat_uv_str,coeffs_E,coeffs_B,conf,true,n,
-                                            0,conf.Lx,0,conf.Ly,0,conf.Lz,0,conf.du,-conf.dv,0,-6,6); */
-           std::ofstream mat_xy_str("f_full_matrix_velocity_xy_" + std::to_string(n*conf.dt) + ".txt" );
-             plot_full_f_3x3v_parallelized<double,order>(nt_r_curr,512,512,1,1,1,1,mat_xy_str,coeffs_E,coeffs_B,conf,true,n,
-                                        5.5*conf.dx,9.5*conf.dx,1.5*conf.dy,5.5*conf.dy,0,conf.Lz,-6,6,-6,6,-6,6);
-/*             std::ofstream mat_xu_str("f_full_matrix_velocity_xu_" + std::to_string(n*conf.dt) + ".txt" );
-            plot_full_f_3x3v_parallelized<double,order>(nt_r_curr,512,4,1,512,1,1,mat_xu_str,coeffs_E,coeffs_B,conf,true,n,
-                                                    0,conf.Lx,0,conf.Ly,0,conf.Lz,-6,6,-6,6,-6,6); */
+            std::ofstream mat_uvw_full_str("f_full_velocity_uvw_4x4x1x256x256x256_" + std::to_string(n*conf.dt) + ".txt" );
+            plot_full_f_3x3v_parallelized<double,order>(nt_r_curr,4,4,1,256,256,256,mat_uvw_full_str,coeffs_E,coeffs_B,conf,true,n,
+                    0,conf.Lx,0,conf.Ly,0,conf.Lz,umin,umax,vmin,vmax,wmin,wmax);
+
+            std::ofstream mat_uvw_zooom_str("f_zoomed_velocity_uvw_4x4x1x256x256x256_" + std::to_string(n*conf.dt) + ".txt" );
+            plot_full_f_3x3v_parallelized<double,order>(nt_r_curr,4,4,1,256,256,256,mat_uvw_zooom_str,coeffs_E,coeffs_B,conf,true,n,
+                    0,conf.Lx,0,conf.Ly,0,conf.Lz,-10,10,-10,10,wmin,wmax);
         }
         //do_stats_2x3v_parallelized<double,order>(nt_r_curr, nx_plot, stat_file,coeffs_E, coeffs_B, conf, plot_f, true, n, plot_f);
-        do_stats_2x3v_parallelized<double,order>(nt_r_curr, nx_plot, stat_file,coeffs_E, coeffs_B, conf, plot_f, true, n, false);
         if(comp_kin_energy){
-            kinetic_energy_and_entropy_2x3v_parallelized<double,order>(nt_r_curr,64,kin_energy_and_entropy_file,coeffs_E,coeffs_B,conf,true,n);
+            kinetic_energy_and_entropy_2x3v_parallelized<double,order>(nt_r_curr,kinetic_energy,kin_energy_and_entropy_file,coeffs_E,coeffs_B,conf,true,n,64,1,64,16,1);
         }
+        do_stats_2x3v_parallelized<double,order>(nt_r_curr, kinetic_energy, stat_file,coeffs_E, coeffs_B, conf, plot_f, true, n, false, 64, 1);
+        
         double time_for_plot = timer.elapsed();
         std::cout << "Plotting took " << time_for_plot << " s." << std::endl;
         write_coeffs<double,order>(nt_r_curr,coeffs_E,coeffs_B,conf,coeff_E_str,coeff_B_str);
