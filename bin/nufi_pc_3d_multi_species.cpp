@@ -938,7 +938,7 @@ std::vector<nufi::restart::flow_map_linear_interpolant_2x3v> char_maps_ion;
 
 size_t restart_counter = 0;
 
-// This functions are general placeholds for the case that I want a function pointer as above
+// These functions are general placeholds for the case that I want a function pointer as above
 // or a restart with a linear interpolant of some f.
 std::function<double(double,double,double,double,double,double)> restart_f0_electron;
 std::function<double(double,double,double,double,double,double)> restart_f0_ion;
