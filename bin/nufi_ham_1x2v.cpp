@@ -434,7 +434,7 @@ void kinetic_energy_and_entropy_1x2v(size_t nt, std::ofstream& stat_file,
     const std::vector<real>& coeffs_Ex, const std::vector<real>& coeffs_Ey, 
     const std::vector<real>& coeffs_Bz, const config_t<double>& conf, 
     double& kin_energy, double& entropy, bool restarted = false, size_t n_full = 0, 
-    size_t nx_plot = 128, size_t nu_plot = 128, size_t nv_plot = 128, bool plot_f = false)
+    size_t nx_plot = 128, size_t nu_plot = 128, size_t nv_plot = 128, bool plot_f = false, std::string name_add = "")
 {
     double t = nt*dt;
     if(restarted){
@@ -492,7 +492,7 @@ void kinetic_energy_and_entropy_1x2v(size_t nt, std::ofstream& stat_file,
     stat_file << std::setprecision(15) << t << " " << kin_energy << " " << entropy << " " << l1_norm << " " << l2_norm << std::endl;
 
     if(plot_f){
-        std::ofstream f_str("f_" + std::to_string(t) + ".txt");
+        std::ofstream f_str("f_" + std::to_string(t) + name_add + ".txt");
         for(size_t l = 0; l < nx_plot*nu_plot*nv_plot; l++){
             f_str << f_values[l] << std::endl;
         }
@@ -1180,7 +1180,9 @@ void periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned()
         //if(n % (steps_per_1) == 0){
         if(true){
             if(n % (50*steps_per_1) == 0){
-                kinetic_energy_and_entropy_1x2v<double,order>(nt_r_curr,kin_energy_entropy_file,coeffs_Ex,coeffs_Ey,coeffs_Bz,conf, kinetic_energy, entropy,true,n,1,512,512,true);
+                kinetic_energy_and_entropy_1x2v<double,order>(nt_r_curr,kin_energy_entropy_file,coeffs_Ex,coeffs_Ey,coeffs_Bz,conf, kinetic_energy, entropy,true,n,1,512,512,true,"uv");
+                kinetic_energy_and_entropy_1x2v<double,order>(nt_r_curr,kin_energy_entropy_file,coeffs_Ex,coeffs_Ey,coeffs_Bz,conf, kinetic_energy, entropy,true,n,512,512,1,true,"xu");
+                kinetic_energy_and_entropy_1x2v<double,order>(nt_r_curr,kin_energy_entropy_file,coeffs_Ex,coeffs_Ey,coeffs_Bz,conf, kinetic_energy, entropy,true,n,512,1,512,true,"xv");
             } else {
                 kinetic_energy_and_entropy_1x2v<double,order>(nt_r_curr,kin_energy_entropy_file,coeffs_Ex,coeffs_Ey,coeffs_Bz,conf, kinetic_energy, entropy,true,n,64,64,64);
             }
