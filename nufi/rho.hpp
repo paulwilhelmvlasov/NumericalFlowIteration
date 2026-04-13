@@ -1619,6 +1619,10 @@ real eval_f_lie_fBE(size_t n, real x, real y, real z,
                         &coeffs_B[idx_base(n - 1, d, 0, 0, 0, Nx_ext, Ny_ext, Nz_ext, conf.Nt)], 
                         conf);
 
+            
+            // Remark: I probably don't need j_hat here. E_3 = E_2 = E(n). If that was anyway computed 
+            // before this method is called, then j_hat is not necessary here and it's storage can be
+            // avoided...
             j_hat(d) = eval<real, order>(x_vec(0), x_vec(1), x_vec(2),
                         &coeffs_j_hat[idx_base(n - 1, d, 0, 0, 0, Nx_ext, Ny_ext, Nz_ext, conf.Nt)], 
                         conf);

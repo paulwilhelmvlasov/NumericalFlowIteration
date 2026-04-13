@@ -53,9 +53,9 @@ const double vmin = -1.2;
 const double vmax = 1.2;
 
 const size_t Nx = 32;
-const size_t Nu = 64;
-const size_t Nv = 64;
-const size_t steps_per_1 = 40;
+const size_t Nu = 32;
+const size_t Nv = 32;
+const size_t steps_per_1 = 30;
 const double   dt = 1.0 / steps_per_1;
 const size_t Nt = 50/dt;
 
@@ -68,7 +68,7 @@ const size_t nu_r = Nu;
 const size_t nv_r = Nv;
 
 size_t nt_restart = Nt + 1;
-//size_t nt_restart = 50;
+//size_t nt_restart = 20;
 
 const double dx_r = Lx / nx_r;
 
@@ -279,7 +279,7 @@ arma::Col<real> B0(real x, real y, real z)
     constexpr real beta = 1e-3;
     return arma::Col<real>({0, 0, beta*std::sin(trigger_k*x)});
 
-    // TSI
+    // Electro-static: Landau Damping & TSI
     //return arma::Col<real>({0, 0, 0});
 }
 
@@ -434,7 +434,7 @@ void kinetic_energy_and_entropy_1x2v(size_t nt, std::ofstream& stat_file,
     const std::vector<real>& coeffs_Ex, const std::vector<real>& coeffs_Ey, 
     const std::vector<real>& coeffs_Bz, const config_t<double>& conf, 
     double& kin_energy, double& entropy, bool restarted = false, size_t n_full = 0, 
-    size_t nx_plot = 128, size_t nu_plot = 128, size_t nv_plot = 128)
+    size_t nx_plot = 128, size_t nu_plot = 128, size_t nv_plot = 128, bool plot_f = false)
 {
     double t = nt*dt;
     if(restarted){
@@ -444,6 +444,11 @@ void kinetic_energy_and_entropy_1x2v(size_t nt, std::ofstream& stat_file,
     double dx_plot = Lx/nx_plot;
     double du_plot = (umax - umin)/nu_plot;
     double dv_plot = (vmax - vmin)/nv_plot;
+
+    std::vector<double> f_values;
+    if(plot_f){
+        f_values.resize(nx_plot*nu_plot*nv_plot);
+    }
 
     kin_energy = 0;
     entropy = 0;
@@ -472,6 +477,10 @@ void kinetic_energy_and_entropy_1x2v(size_t nt, std::ofstream& stat_file,
 
         l1_norm += std::abs(f);
         l2_norm += f*f;
+
+        if(plot_f){
+            f_values[ix + nx_plot*(iu + nu_plot*iv)] = f;
+        }
     }
 
     double dplot = dx_plot*du_plot*dv_plot;
@@ -481,6 +490,13 @@ void kinetic_energy_and_entropy_1x2v(size_t nt, std::ofstream& stat_file,
     l2_norm = std::sqrt(dplot*l2_norm);
 
     stat_file << std::setprecision(15) << t << " " << kin_energy << " " << entropy << " " << l1_norm << " " << l2_norm << std::endl;
+
+    if(plot_f){
+        std::ofstream f_str("f_" + std::to_string(t) + ".txt");
+        for(size_t l = 0; l < nx_plot*nu_plot*nv_plot; l++){
+            f_str << f_values[l] << std::endl;
+        }
+    }
 }
 
 config_t<double> conf(Nx, Nu, Nt, dt, 0, Lx, umin, umax, &f0);
@@ -1130,7 +1146,7 @@ void periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned()
             //rho_integration_error = std::sqrt(conf.dx * rho_integration_error) / rho_l2_norm;
             rho_integration_error = std::sqrt(conf.dx * rho_integration_error);
 
-            if (n % (steps_per_1) == 0) {
+            /* if (n % (steps_per_1) == 0) {
             //if (true) {
                 std::ofstream rho_str("rho_" + std::to_string(n * conf.dt) + ".txt");
                 for (size_t i = 0; i < conf.Nx; i++) {
@@ -1143,7 +1159,7 @@ void periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned()
                     const double x = conf.x_min + i * conf.dx;
                     j_str << x << " " << jx_hat[i] << " " << jy_hat[i] << std::endl;
                 }
-            }
+            } */
         }
 
         gle_file << n * conf.dt << " " << gle << " " << rho_integration_error << std::endl;
@@ -1163,7 +1179,11 @@ void periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned()
 
         //if(n % (steps_per_1) == 0){
         if(true){
-            kinetic_energy_and_entropy_1x2v<double,order>(nt_r_curr,kin_energy_entropy_file,coeffs_Ex,coeffs_Ey,coeffs_Bz,conf, kinetic_energy, entropy,true,n,64,64,64);
+            if(n % (50*steps_per_1) == 0){
+                kinetic_energy_and_entropy_1x2v<double,order>(nt_r_curr,kin_energy_entropy_file,coeffs_Ex,coeffs_Ey,coeffs_Bz,conf, kinetic_energy, entropy,true,n,1,512,512,true);
+            } else {
+                kinetic_energy_and_entropy_1x2v<double,order>(nt_r_curr,kin_energy_entropy_file,coeffs_Ex,coeffs_Ey,coeffs_Bz,conf, kinetic_energy, entropy,true,n,64,64,64);
+            }
         }
         do_stats_1x2v<double, order>(nt_r_curr, kinetic_energy, entropy, stat_file, coeffs_Ex, coeffs_Ey, coeffs_Bz, conf, true, n, 128, (n % (50 * steps_per_1) == 0));
         //do_stats_1x2v<double, order>(nt_r_curr, kinetic_energy, entropy, stat_file, coeffs_Ex, coeffs_Ey, coeffs_Bz, conf, true, n, 128, true);
