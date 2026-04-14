@@ -53,15 +53,15 @@ const double vmin = -1.2;
 const double vmax = 1.2; */
 
 const size_t Nx = 32;
-const size_t Nu = 32;
-const size_t Nv = 32;
-const size_t steps_per_1 = 50;
+const size_t Nu = 64;
+const size_t Nv = 64;
+const size_t steps_per_1 = 100;
 const double   dt = 1.0 / steps_per_1;
 const size_t Nt = 200/dt;
 
 bool strang_split = true;
 bool gauss_clean = true;
-bool with_filter = false;
+bool with_filter = true;
 
 const size_t nx_r = Nx;
 const size_t nu_r = Nu;
@@ -818,8 +818,8 @@ void periodically_restarted_nufi_maxwell_lie_fBE_aligned()
 inline void spectral_filter_hat_1d(
     std::vector<double>& hat_re,
     std::vector<double>& hat_im,
-    double alpha = 60.0,
-    int p = 12
+    double alpha = 30.0,
+    int p = 8
 )
 {
     const size_t Nx = hat_re.size();
