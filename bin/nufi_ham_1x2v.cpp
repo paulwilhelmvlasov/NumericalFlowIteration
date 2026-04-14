@@ -24,11 +24,11 @@ namespace dim1
 arma::mat restart_matrix;
 
 // Kormann's Streaming Weibel Instability
-/* const double Lx = 2*M_PI/0.2;
+const double Lx = 2*M_PI/0.2;
 const double umin = -0.5;
 const double umax = 0.5;
 const double vmin = -1.2;
-const double vmax = 1.2; */
+const double vmax = 1.2;
 
 // Weak Landau
 /* const double Lx = 2*M_PI/0.5;
@@ -45,22 +45,22 @@ const double vmin = -5;
 const double vmax = 5; */
 
 // Paul & Fabio magnetic TSI (Filamentation instability) 
-const double trigger_k = 2;
+/* const double trigger_k = 2;
 const double Lx = 2*M_PI/trigger_k;
 const double umin = -1;
 const double umax = 1;
 const double vmin = -1.2;
-const double vmax = 1.2;
+const double vmax = 1.2; */
 
 const size_t Nx = 32;
 const size_t Nu = 32;
 const size_t Nv = 32;
-const size_t steps_per_1 = 30;
+const size_t steps_per_1 = 50;
 const double   dt = 1.0 / steps_per_1;
-const size_t Nt = 50/dt;
+const size_t Nt = 200/dt;
 
-bool strang_split = false;
-bool gauss_clean = false;
+bool strang_split = true;
+bool gauss_clean = true;
 bool with_filter = false;
 
 const size_t nx_r = Nx;
@@ -228,7 +228,7 @@ real f0_1x2v(real x, real u, real v) noexcept
     using std::exp;
 
     // Kormann Streaming Weibel instability 
-    /* real omega = 0.1/std::sqrt(2);
+    real omega = 0.1/std::sqrt(2);
     real theta = 0.2;
     real beta = 1e-3;
     real v0_1 = 0.5;
@@ -237,7 +237,7 @@ real f0_1x2v(real x, real u, real v) noexcept
 
     return maxwellian_1d(u,omega) 
             * ( delta*maxwellian_1d(v-v0_1,omega) 
-            + (1-delta)*maxwellian_1d(v-v0_2,omega) ); */
+            + (1-delta)*maxwellian_1d(v-v0_2,omega) );
 
     // Weak Landau Damping
     /* real alpha = 0.01;
@@ -250,9 +250,9 @@ real f0_1x2v(real x, real u, real v) noexcept
     return (1 + alpha * std::cos(k*x)) * u*u * maxwellian_1d(u,1.0) * maxwellian_1d(v,1.0); */
 
     // Paul & Fabio magnetic TSI (Filamentation instability) 
-    real v_beam = 0.4;
+    /* real v_beam = 0.4;
     real vth = 0.1;
-    return 0.5 * (maxwellian_2d<real>(u,v-v_beam,vth) + maxwellian_2d<real>(u,v+v_beam,vth));
+    return 0.5 * (maxwellian_2d<real>(u,v-v_beam,vth) + maxwellian_2d<real>(u,v+v_beam,vth)); */
 }
 
 template <typename real>
@@ -271,13 +271,13 @@ template <typename real>
 arma::Col<real> B0(real x, real y, real z)
 {
     // Kormann's Streaming Weibel instability
-    /* constexpr real theta = 0.2;
+    constexpr real theta = 0.2;
     constexpr real beta = 1e-3;
-    return arma::Col<real>({0, 0, beta*std::sin(theta*x)}); */
+    return arma::Col<real>({0, 0, beta*std::sin(theta*x)});
 
     // Filamentation instability
-    constexpr real beta = 1e-3;
-    return arma::Col<real>({0, 0, beta*std::sin(trigger_k*x)});
+    /* constexpr real beta = 1e-3;
+    return arma::Col<real>({0, 0, beta*std::sin(trigger_k*x)}); */
 
     // Electro-static: Landau Damping & TSI
     //return arma::Col<real>({0, 0, 0});
@@ -1632,7 +1632,7 @@ void periodically_restarted_nufi_maxwell_strang_exact_fourier_integral_aligned()
             //rho_integration_error = std::sqrt(conf.dx * rho_integration_error) / rho_l2_norm;
             rho_integration_error = std::sqrt(conf.dx * rho_integration_error);
 
-            if (n % (steps_per_1) == 0) {
+            /* if (n % (steps_per_1) == 0) {
                 std::ofstream rho_str("rho_" + std::to_string(n * conf.dt) + ".txt");
                 for (size_t i = 0; i < conf.Nx; i++) {
                     const double x = conf.x_min + i * conf.dx;
@@ -1644,7 +1644,7 @@ void periodically_restarted_nufi_maxwell_strang_exact_fourier_integral_aligned()
                     const double x = conf.x_min + i * conf.dx;
                     j_str << x << " " << jx_hat[i] << " " << jy_hat[i] << std::endl;
                 }
-            }
+            } */
         }
 
         gle_file << n * conf.dt << " " << gle << " " << rho_integration_error << std::endl;
@@ -1691,8 +1691,8 @@ void periodically_restarted_nufi_maxwell_strang_exact_fourier_integral_aligned()
             std::cout << "Filling restart matrix took " << timer_fill_restart_matrix << " s." << std::endl;
 
             restart_matrix = copy_mat;
-            std::ofstream mat_str("mat_" + std::to_string(n*dt) + ".txt");
-            mat_str << restart_matrix;
+            /* std::ofstream mat_str("mat_" + std::to_string(n*dt) + ".txt");
+            mat_str << restart_matrix; */
             double timer_copy_mat = timer.elapsed();
             timer.reset();
             std::cout << "Copying restart matrix took " << timer_copy_mat << " s." << std::endl;
