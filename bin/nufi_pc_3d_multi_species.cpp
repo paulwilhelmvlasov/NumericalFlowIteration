@@ -272,7 +272,7 @@ size_t Nu_i = 32;
 size_t Nv_i = 32;
 size_t Nw_i = 16;
 
-size_t steps_per_1 = 10;
+size_t steps_per_1 = 100;
 double   dt = 1.0 / steps_per_1;
 size_t Nt = 1000*steps_per_1;
 
@@ -288,7 +288,7 @@ size_t nu_r_i = Nu_i;
 size_t nv_r_i = Nv_i;
 size_t nw_r_i = Nw_i;
 
-size_t nt_restart = 20;
+size_t nt_restart = 10;
 
 template <typename real>
 real f0_electron(real x, real y, real z, real u, real v, real w) noexcept
@@ -729,7 +729,7 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
     // Do first output.
     std::ofstream stat_file( "stats.txt" );
     std::ofstream j_stat_file( "j_stats.txt" );
-    analysis::do_stats<double,order>(0, 64, 1, 1, stat_file, coeffs_E, coeffs_B, conf_electron, true, true, 0);
+    analysis::do_stats<double,order>(0, 64, 64, 1, stat_file, coeffs_E, coeffs_B, conf_electron, true, true, 0);
     analysis::compute_j_l2(0,j_stat_file,conf_electron,j_0,j_electron,j_ion);
     {
         std::ofstream mat_e_str("f_e_full_" + std::to_string(0*conf_electron.dt) + ".txt" );
@@ -809,10 +809,10 @@ void periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned()
         double time_for_step = timer.elapsed();
         timer.reset();
         
-        bool plot_EB = (n % (5*steps_per_1) == 0);
+        bool plot_EB = (n % (steps_per_1) == 0);
         bool plot_f_j = (n % (5*steps_per_1) == 0);
         // Careful: Currently stats only evaluates in x not y!!!
-        analysis::do_stats<double,order>(nt_r_curr, 64, 1, 1, stat_file, coeffs_E, coeffs_B, conf_electron, plot_EB, true, n);
+        analysis::do_stats<double,order>(nt_r_curr, 64, 64, 1, stat_file, coeffs_E, coeffs_B, conf_electron, plot_EB, true, n);
         analysis::compute_j_l2(n, j_stat_file, conf_electron, j_0, j_electron, j_ion);
         if(plot_f_j){
             std::ofstream mat_e_str("f_e_full_" + std::to_string(n*conf_electron.dt) + ".txt" );
@@ -1326,10 +1326,12 @@ int main(int argc, char** argv){
     // Add CMM-restart.
     // Add initialition through init-file.
 
-    /* MPI_Init(&argc, &argv);
+    MPI_Init(&argc, &argv);
     nufi::dim3::periodically_restarted_nufi_maxwell_lie_EBf_predictor_corrector_aligned<4>();
-    MPI_Finalize(); */
-    nufi::dim3::nufi_cmm_maxwell_lie_EBf_predictor_corrector_aligned<4>();
+    MPI_Finalize();
+    
+    
+    //nufi::dim3::nufi_cmm_maxwell_lie_EBf_predictor_corrector_aligned<4>();
 
     return 0;
 }
