@@ -1136,6 +1136,363 @@ real eval_rho( size_t n, size_t l, const real *coeffs, const config_t<real> &con
     return rho;
 }
 
+namespace redux_2x3v
+{
+
+template <typename real, size_t order>
+real eval_f_nufi_ham_lie_Hf_HB_HE_2x3v(size_t n, real x, real y, real u, real v, real w,
+    const std::vector<real>& coeffs_Ex, const std::vector<real>& coeffs_Ey, const std::vector<real>& coeffs_Ez, 
+    const std::vector<real>& coeffs_Bx, const std::vector<real>& coeffs_By, const std::vector<real>& coeffs_Bz, 
+    const config_t<real>& conf)
+{
+    const size_t dim = 2;
+    const size_t stride_x = 1;
+    const size_t stride_y = stride_x*(conf.Nx + order - 1);
+    const size_t stride_t = stride_y*(conf.Ny + order - 1);
+
+    for (; n > 0; n--) {
+
+        real Ex = eval<real, order>(x,y,&coeffs_Ex[(n)*stride_t],conf);
+        real Ey = eval<real, order>(x,y,&coeffs_Ey[(n)*stride_t],conf);
+        real Ez = eval<real, order>(x,y,&coeffs_Ez[(n)*stride_t],conf);
+        real Bx = eval<real, order>(x,y,&coeffs_Bx[(n-1)*stride_t],conf);
+        real By = eval<real, order>(x,y,&coeffs_By[(n-1)*stride_t],conf);
+        real Bz = eval<real, order>(x,y,&coeffs_Bz[(n-1)*stride_t],conf);
+
+
+        u -= conf.dt * conf.q * Ex;
+        v -= conf.dt * conf.q * Ey;
+        w -= conf.dt * conf.q * Ez;
+
+        // exact rotation
+        // scale with timestep and charge
+        real theta_x = -conf.dt * conf.q * Bx;
+        real theta_y = -conf.dt * conf.q * By;
+        real theta_z = -conf.dt * conf.q * Bz;
+
+        // magnitude
+        real theta = std::sqrt(theta_x*theta_x + theta_y*theta_y + theta_z*theta_z);
+
+        if (theta > 1e-12) {
+            // normalized rotation axis
+            real bx = theta_x / theta;
+            real by = theta_y / theta;
+            real bz = theta_z / theta;
+
+            // trig coefficients
+            real s = std::sin(theta);
+            real c = std::cos(theta);
+
+            // original velocity
+            real u_old = u;
+            real v_old = v;
+            real w_old = w;
+
+            // cross product b × v
+            real cx = by * w_old - bz * v_old;
+            real cy = bz * u_old - bx * w_old;
+            real cz = bx * v_old - by * u_old;
+
+            // double cross b × (b × v)
+            real dx = by * cz - bz * cy;
+            real dy = bz * cx - bx * cz;
+            real dz = bx * cy - by * cx;
+
+            // Rodrigues update
+            u = u_old + s * cx + (1 - c) * dx;
+            v = v_old + s * cy + (1 - c) * dy;
+            w = w_old + s * cz + (1 - c) * dz;
+        }
+
+        // Update x.
+        x -= conf.dt * u;
+        y -= conf.dt * v;
+    }
+
+    return conf.f0_2x3v(x, y, u, v, w);
+}
+
+template <typename real, size_t order>
+void eval_rho_ham_lie_Hf_HB_HE_2x3v(size_t n, std::vector<real>& rho, 
+    const std::vector<real>& coeffs_Ex, const std::vector<real>& coeffs_Ey,
+    const std::vector<real>& coeffs_Ez, const std::vector<real>& coeffs_Bx,
+    const std::vector<real>& coeffs_By, const std::vector<real>& coeffs_Bz, 
+    const config_t<real> &conf )
+{
+    #pragma omp parallel for
+    for(size_t l = 0; l < conf.Nx*conf.Ny; l++){
+        size_t ix = l % conf.Nx;
+        size_t iy = l / conf.Nx;
+
+        real x = conf.x_min + ix*conf.dx; 
+        real y = conf.y_min + iy*conf.dy; 
+
+        real sum0 = 0;
+        #pragma omp parallel for collapse(3) reduction(+:sum0)
+        for(size_t iu = 0; iu < conf.Nu; iu++)
+        for(size_t iv = 0; iv < conf.Nv; iv++)
+        for(size_t iw = 0; iw < conf.Nw; iw++){
+            real u = conf.u_min + (iu + 0.5) * conf.du;
+            real v = conf.v_min + (iv + 0.5) * conf.dv;
+            real w = conf.w_min + (iw + 0.5) * conf.dw;
+
+            real f = eval_f_nufi_ham_lie_Hf_HB_HE_2x3v<real,order>(n, x, y, u, v, w, 
+                            coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz, conf );
+
+            sum0 += f;
+        }
+        
+        rho[l] = conf.q * sum0 * conf.du * conf.dv * conf.dw;
+    }
+}
+
+inline int fourier_mode_1d(size_t m, size_t N)
+{
+    if (m <= N / 2) return static_cast<int>(m);
+    return static_cast<int>(m) - static_cast<int>(N);
+}
+
+template <size_t order>
+void eval_j_time_integral_Hf_exact_2x3v_fourier(
+    size_t n_state,
+    std::vector<double>& jx_hat_re,
+    std::vector<double>& jx_hat_im,
+    std::vector<double>& jy_hat_re,
+    std::vector<double>& jy_hat_im,
+    std::vector<double>& jz_hat_re,
+    std::vector<double>& jz_hat_im,
+    const std::vector<double>& coeffs_Ex,
+    const std::vector<double>& coeffs_Ey,
+    const std::vector<double>& coeffs_Ez,
+    const std::vector<double>& coeffs_Bx,
+    const std::vector<double>& coeffs_By,
+    const std::vector<double>& coeffs_Bz,
+    const config_t<double>& conf)
+{
+    const size_t Nx = conf.Nx;
+    const size_t Ny = conf.Ny;
+    const size_t Nxy = Nx * Ny;
+
+    const double dt = conf.dt;
+    const double Lx = conf.Lx;
+    const double Ly = conf.Ly;
+
+    const double weight_v = conf.q * conf.du * conf.dv * conf.dw;
+    const double two_pi_over_Lx = 2.0 * M_PI / Lx;
+    const double two_pi_over_Ly = 2.0 * M_PI / Ly;
+
+    jx_hat_re.assign(Nxy, 0.0);
+    jx_hat_im.assign(Nxy, 0.0);
+    jy_hat_re.assign(Nxy, 0.0);
+    jy_hat_im.assign(Nxy, 0.0);
+    jz_hat_re.assign(Nxy, 0.0);
+    jz_hat_im.assign(Nxy, 0.0);
+
+    fftw_complex* buf =
+        (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * Nxy);
+    if (!buf) {
+        throw std::runtime_error("FFTW allocation failed.");
+    }
+
+    fftw_plan plan_fwd = fftw_plan_dft_2d(
+        static_cast<int>(Ny), static_cast<int>(Nx),
+        buf, buf, FFTW_FORWARD, FFTW_MEASURE
+    );
+    if (!plan_fwd) {
+        fftw_free(buf);
+        throw std::runtime_error("FFTW plan creation failed.");
+    }
+
+    const double eps = 1e-14;
+
+    for (size_t iu = 0; iu < conf.Nu; ++iu) {
+        const double u = conf.u_min + (iu + 0.5) * conf.du;
+
+        for (size_t iv = 0; iv < conf.Nv; ++iv) {
+            const double v = conf.v_min + (iv + 0.5) * conf.dv;
+
+            for (size_t iw = 0; iw < conf.Nw; ++iw) {
+                const double w = conf.w_min + (iw + 0.5) * conf.dw;
+
+                #pragma omp parallel for collapse(2)
+                for (size_t iy = 0; iy < Ny; ++iy) {
+                    for (size_t ix = 0; ix < Nx; ++ix) {
+                        const double xpos = conf.x_min + ix * conf.dx;
+                        const double ypos = conf.y_min + iy * conf.dy;
+
+                        const double f =
+                            eval_f_nufi_ham_lie_Hf_HB_HE_2x3v<double, order>(
+                                n_state, xpos, ypos, u, v, w,
+                                coeffs_Ex, coeffs_Ey, coeffs_Ez,
+                                coeffs_Bx, coeffs_By, coeffs_Bz,
+                                conf
+                            );
+
+                        const size_t idx = iy * Nx + ix;
+                        buf[idx][0] = f;
+                        buf[idx][1] = 0.0;
+                    }
+                }
+
+                fftw_execute(plan_fwd);
+
+                for (size_t my = 0; my < Ny; ++my) {
+                    const int ky_mode = fourier_mode_1d(my, Ny);
+                    const double ky =
+                        two_pi_over_Ly * static_cast<double>(ky_mode);
+
+                    for (size_t mx = 0; mx < Nx; ++mx) {
+                        const int kx_mode = fourier_mode_1d(mx, Nx);
+                        const double kx =
+                            two_pi_over_Lx * static_cast<double>(kx_mode);
+
+                        const size_t m = my * Nx + mx;
+
+                        // xi = v · k = u*kx + v*ky
+                        const double xi = u * kx + v * ky;
+                        const double phase = xi * dt;
+
+                        const double a = buf[m][0];
+                        const double b = buf[m][1];
+
+                        // Common kernel:
+                        // G = (1 - exp(-i xi dt)) / (i xi)
+                        //   = sin(phase)/xi - i (1-cos(phase))/xi
+                        double G_re, G_im;
+                        if (std::abs(xi) < eps) {
+                            G_re = dt;
+                            G_im = 0.0;
+                        } else {
+                            G_re = std::sin(phase) / xi;
+                            G_im = -(1.0 - std::cos(phase)) / xi;
+                        }
+
+                        auto accumulate_component =
+                            [&](double vel_comp,
+                                std::vector<double>& hat_re,
+                                std::vector<double>& hat_im)
+                        {
+                            const double K_re = vel_comp * G_re;
+                            const double K_im = vel_comp * G_im;
+
+                            const double real_part = a * K_re - b * K_im;
+                            const double imag_part = a * K_im + b * K_re;
+
+                            hat_re[m] += weight_v * real_part;
+                            hat_im[m] += weight_v * imag_part;
+                        };
+
+                        accumulate_component(u, jx_hat_re, jx_hat_im);
+                        accumulate_component(v, jy_hat_re, jy_hat_im);
+                        accumulate_component(w, jz_hat_re, jz_hat_im);
+                    }
+                }
+            }
+        }
+    }
+
+    fftw_destroy_plan(plan_fwd);
+    fftw_free(buf);
+}
+
+namespace strang_2nd_order
+{
+
+template <typename real, size_t order>
+real eval_f_nufi_ham_strang_HE_HB_Hf_HB_HE_2x3v(
+    size_t n, real x, real y, real u, real v, real w,
+    const std::vector<real>& coeffs_Ex,
+    const std::vector<real>& coeffs_Ey,
+    const std::vector<real>& coeffs_Ez,
+    const std::vector<real>& coeffs_Bx,
+    const std::vector<real>& coeffs_By,
+    const std::vector<real>& coeffs_Bz,
+    const config_t<real>& conf)
+{
+    const size_t dim = 2;
+    const size_t stride_x = 1;
+    const size_t stride_y = stride_x*(conf.Nx + order - 1);
+    const size_t stride_t = stride_y*(conf.Ny + order - 1);
+
+    for (; n > 0; --n) {
+
+        // 1) Undo final H_E(dt/2)
+        {
+            const real Ex = eval<real, order>(x, y, &coeffs_Ex[n * stride_t], conf);
+            const real Ey = eval<real, order>(x, y, &coeffs_Ey[n * stride_t], conf);
+            const real Ez = eval<real, order>(x, y, &coeffs_Ez[n * stride_t], conf);
+
+            u -= real(0.5) * conf.dt * conf.q * Ex;
+            v -= real(0.5) * conf.dt * conf.q * Ey;
+            w -= real(0.5) * conf.dt * conf.q * Ez;
+        }
+
+        // 2) Undo second H_B(dt/2)
+        {
+            const real Bz     = eval<real, order>(x, &coeffs_Bz[(n - 1) * stride_t], conf);
+            const real dEy_dx = eval<real, order, 1>(x, &coeffs_Ey[n * stride_t], conf);
+            const real Bz_star = Bz - real(0.5) * conf.dt * dEy_dx;
+
+            const real theta = -real(0.5) * conf.dt * conf.q * Bz_star;
+
+            if (std::abs(theta) > real(1e-12)) {
+                const real u_old = u;
+                const real v_old = v;
+
+                const real abs_theta = std::abs(theta);
+                const real alpha = std::sin(abs_theta) / abs_theta;
+                const real beta  = (real(1) - std::cos(abs_theta)) / (abs_theta * abs_theta);
+
+                u = u_old + alpha * v_old * theta - beta * theta * theta * u_old;
+                v = v_old - alpha * u_old * theta - beta * theta * theta * v_old;
+            }
+        }
+
+        // 3) Undo H_f
+        x -= conf.dt * u;
+        y -= conf.dt * v;
+
+        // 4) Undo first H_B(dt/2)
+        {
+            const real Bz     = eval<real, order>(x, &coeffs_Bz[(n - 1) * stride_t], conf);
+            const real dEy_dx = eval<real, order, 1>(x, &coeffs_Ey[n * stride_t], conf);
+            const real Bz_star = Bz - real(0.5) * conf.dt * dEy_dx;
+
+            const real theta = -real(0.5) * conf.dt * conf.q * Bz_star;
+
+            if (std::abs(theta) > real(1e-12)) {
+                const real u_old = u;
+                const real v_old = v;
+
+                const real abs_theta = std::abs(theta);
+                const real alpha = std::sin(abs_theta) / abs_theta;
+                const real beta  = (real(1) - std::cos(abs_theta)) / (abs_theta * abs_theta);
+
+                u = u_old + alpha * v_old * theta - beta * theta * theta * u_old;
+                v = v_old - alpha * u_old * theta - beta * theta * theta * v_old;
+            }
+        }
+
+        // 5) Undo first H_E(dt/2)
+        {
+            const real Ex = eval<real, order>(x, y, &coeffs_Ex[n * stride_t], conf);
+            const real Ey = eval<real, order>(x, y, &coeffs_Ey[n * stride_t], conf);
+            const real Ez = eval<real, order>(x, y, &coeffs_Ey[n * stride_t], conf);
+
+            u -= real(0.5) * conf.dt * conf.q * Ex;
+            v -= real(0.5) * conf.dt * conf.q * Ey;
+            w -= real(0.5) * conf.dt * conf.q * Ez;
+        }
+    }
+
+    return conf.f0_2x3v(x, y, u, v, w);
+}
+
+
+}
+
+}
+
 }
 
 namespace dim3

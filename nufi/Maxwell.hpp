@@ -108,6 +108,113 @@ double E_clean_gauss_law_1x2v(size_t n, std::vector<double>& coeffs_Ex, std::vec
 }
 }
 
+namespace dim2
+{
+
+namespace maxwell
+{
+
+template <typename real, size_t order>
+double E_clean_gauss_law_2x3v(size_t n, std::vector<double>& coeffs_Ex, std::vector<double>& coeffs_Ey,
+                        std::vector<double>& Ex, std::vector<double>& Ey,  
+                        std::vector<double>& rho, std::vector<double>& g, 
+                        std::vector<double>& coeffs_phi, 
+                        const config_t<double>& conf, const poisson<double>& poiss, 
+                        bool only_gle = false, bool relative_err = false)
+{
+    const size_t dim = 2;
+    const size_t stride_x = 1;
+    const size_t stride_y = stride_x*(conf.Nx + order - 1);
+    const size_t stride_t = stride_y*(conf.Ny + order - 1);
+
+    double gauss_law_l2_error = 0;
+    double rho_l2_norm = 0;
+    #pragma omp parallel for reduction(+:gauss_law_l2_error,rho_l2_norm)
+    for(size_t l = 0; l < conf.Nx*conf.Ny; l++){
+        size_t ix = l % conf.Nx;
+        size_t iy = l / conf.Nx;
+        double x = conf.x_min + ix*conf.dx;
+        double y = conf.y_min + iy*conf.dy;
+
+        double dxEx = eval<double,order,1,0>(x,y,coeffs_Ex.data() + n*stride_t,conf);
+        double dyEy = eval<double,order,0,1>(x,y,coeffs_Ey.data() + n*stride_t,conf);
+
+        g[l] = (dxEx + dyEy) - rho[l];
+        gauss_law_l2_error += g[l]*g[l];
+        rho_l2_norm += rho[l]*rho[l];
+    }
+
+    if(relative_err){
+        rho_l2_norm = std::sqrt(conf.dx*conf.dy*rho_l2_norm);
+        gauss_law_l2_error = std::sqrt(conf.dx*gauss_law_l2_error) / rho_l2_norm;
+    } else {
+        gauss_law_l2_error = std::sqrt(conf.dx*conf.dy*gauss_law_l2_error);
+    }
+
+    std::cout << "gauss law error before " << gauss_law_l2_error << std::endl;
+
+    if(!only_gle){
+        poiss.solve(g.data());
+        interpolate<real,order>(coeffs_phi.data(), g.data(), conf);
+
+        auto eval_correction = [&](double x, double y, size_t d) {
+            if(d==0){
+                return -eval<double,order,1,0>(x,y,coeffs_phi.data(), conf);
+            }  
+            return -eval<double,order,0,1>(x,y,coeffs_phi.data(), conf);
+        };
+
+        #pragma omp parallel for
+        for(size_t l = 0; l < conf.Nx*conf.Ny; l++){
+            size_t ix = l % conf.Nx;
+            size_t iy = l / conf.Nx;
+            double x = conf.x_min + ix*conf.dx;
+            double y = conf.y_min + iy*conf.dy;
+
+            Ex[l] = eval<double,order>(x,y,coeffs_Ex.data() + n*stride_t,conf)
+                    - eval_correction(x,y,0);
+
+            Ey[l] = eval<double,order>(x,y,coeffs_Ey.data() + n*stride_t,conf)
+                    - eval_correction(x,y,1);
+        }
+
+        // Interpolate gauss-corrected E(n).
+        interpolate<double,order>(coeffs_Ex.data() + n*stride_t, Ex.data(), conf);
+        interpolate<double,order>(coeffs_Ey.data() + n*stride_t, Ey.data(), conf);
+
+        gauss_law_l2_error = 0;
+        #pragma omp parallel for reduction(+:gauss_law_l2_error)
+        for(size_t l = 0; l < conf.Nx*conf.Ny; l++){
+            size_t ix = l % conf.Nx;
+            size_t iy = l / conf.Nx;
+            double x = conf.x_min + ix*conf.dx;
+            double y = conf.y_min + iy*conf.dy;
+
+            double dxEx_new = eval<double,order,1>(x,y,coeffs_Ex.data() + n*stride_t,conf);
+            double dyEy_new = eval<double,order,1>(x,y,coeffs_Ey.data() + n*stride_t,conf);
+
+            g[l] = (dxEx_new + dyEy_new) - rho[l];
+            gauss_law_l2_error += g[l]*g[l];
+        }
+
+        gauss_law_l2_error = std::sqrt(conf.dx*conf.dy*gauss_law_l2_error);
+
+        std::cout << "gauss law error after " << gauss_law_l2_error << std::endl;
+    }
+    
+    
+    if(relative_err){
+        return gauss_law_l2_error / rho_l2_norm;
+    }
+
+    return gauss_law_l2_error;
+}
+
+
+}
+
+}
+
 namespace dim3
 {    
 

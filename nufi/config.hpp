@@ -124,12 +124,25 @@ struct config_t
     real dy, dy_inv, Ly, Ly_inv;
     real du, dv;
 
+    // Physical particle parameters.
+    real q = -1;
+    real m = 1;
+
     config_t(size_t nx, size_t ny, size_t nu, size_t nv, size_t nt,
     		real delta_t, real xmin, real xmax, real ymin, real ymax,
     		real umin, real umax, real vmin, real vmax,
 			real(*init_data)(real,real,real,real)) noexcept;
 
     real (*f0)( real x, real y, real u, real v );
+
+
+    // In case you want 1x2v use these parameters. Otherwise leave
+    // them untouched! This way we can use 1d interpolation routines.
+    real w_min = -0.5; 
+    real w_max = 0.5;
+    size_t Nw = 1;
+    real dw = 1;
+    real (*f0_2x3v)( real x, real y, real u, real v, real w );
 };
 
 
