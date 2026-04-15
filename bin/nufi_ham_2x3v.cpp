@@ -44,9 +44,9 @@ const size_t steps_per_1 = 10;
 const double   dt = 1.0 / steps_per_1;
 const size_t Nt = 30/dt;
 
-bool strang_split = true; // Not implemented yet!
-bool gauss_clean = true;
-bool with_filter = true;
+bool strang_split = false; // Not implemented yet!
+bool gauss_clean = false;
+bool with_filter = false;
 
 // size: (Nx_r+1)*(Ny_r+1) \times (Nu_r+1)*(Nv_r+1)*(Nw_r+1)
 arma::mat restart_matrix;
