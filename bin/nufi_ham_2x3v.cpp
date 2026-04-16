@@ -23,7 +23,7 @@ namespace dim2
 {
 
 // Weak Landau
-const double Lx = 2*M_PI/0.5;
+/* const double Lx = 2*M_PI/0.5;
 const double xmin = 0;
 const double xmax = Lx;
 const double Ly = 1;
@@ -41,27 +41,49 @@ const double umax_i = 5*vth_ion;
 const double vmin_i = -5*vth_ion;
 const double vmax_i = 5*vth_ion;
 const double wmin_i = -5*vth_ion;
+const double wmax_i = 5*vth_ion; */
+
+// Paul & Fabio magnetic TSI (Filamentation instability) 
+const double trigger_k = 2;
+const double Lx = 2*M_PI/trigger_k;
+const double xmin = 0;
+const double xmax = Lx;
+const double Ly = 1;
+const double ymin = 0;
+const double ymax = Ly;
+const double umin_e = -1;
+const double umax_e = 1;
+const double vmin_e = -1.2;
+const double vmax_e = 1.2;
+const double wmin_e = -5;
+const double wmax_e = 5;
+const double vth_ion = 1e-8;
+const double umin_i = -5*vth_ion;
+const double umax_i = 5*vth_ion;
+const double vmin_i = -5*vth_ion;
+const double vmax_i = 5*vth_ion;
+const double wmin_i = -5*vth_ion;
 const double wmax_i = 5*vth_ion;
 
 // Careful: Electrons and ions must have the same underlying spatial (x,y) grid!
 const size_t Nx = 32;
 const size_t Ny = 1;
 const size_t Nu_e = 32;
-const size_t Nv_e = 16;
+const size_t Nv_e = 32;
 const size_t Nw_e = 16;
 const size_t Nu_i = 16;
 const size_t Nv_i = 16;
 const size_t Nw_i = 16;
-const size_t steps_per_1 = 10;
+const size_t steps_per_1 = 30;
 const double   dt = 1.0 / steps_per_1;
-const size_t Nt = 30/dt;
+const size_t Nt = 50/dt;
 
 bool strang_split = false; // Not implemented yet!
 bool gauss_clean = false;
 bool with_filter = false;
 
 //size_t nt_restart = Nt + 1;
-size_t nt_restart = 20;
+size_t nt_restart = 10;
 
 const size_t nx_r = Nx;
 const size_t ny_r = Ny;
@@ -100,9 +122,14 @@ real f0_2x3v_electron(real x, real y, real u, real v, real w) noexcept
     using std::exp;
 
     // Weak Landau Damping
-    real alpha = 0.01;
+    /* real alpha = 0.01;
     real k = 0.5;
-    return (1 + alpha * std::cos(k*x)) * maxwellian_1d(u,1.0) * maxwellian_1d(v,1.0) * maxwellian_1d(w,1.0);
+    return (1 + alpha * std::cos(k*x)) * maxwellian_1d(u,1.0) * maxwellian_1d(v,1.0) * maxwellian_1d(w,1.0); */
+
+    // Paul & Fabio magnetic TSI (Filamentation instability) 
+    real v_beam = 0.4;
+    real vth = 0.1;
+    return 0.5 * (maxwellian_2d<real>(u,v-v_beam,vth) + maxwellian_2d<real>(u,v+v_beam,vth)) * maxwellian_1d(w,1.0);
 }
 
 template <typename real>
@@ -124,16 +151,23 @@ template <typename real>
 arma::Col<real> E0(real x, real y, real z)
 {
     // Weak Landau & TSI
-    constexpr real alpha = 1e-2;
+    /* constexpr real alpha = 1e-2;
     constexpr real k     = 0.5;
-    return  arma::Col<real>({-alpha / k * std::sin(k*x), 0, 0});
+    return  arma::Col<real>({-alpha / k * std::sin(k*x), 0, 0}); */
+
+    // Kormann Streaming & Filamentation instability
+    return  arma::Col<real>({0, 0, 0});
 }
 
 template <typename real>
 arma::Col<real> B0(real x, real y, real z)
 {
     // Electro-static: Landau Damping & TSI
-    return arma::Col<real>({0, 0, 0});
+    //return arma::Col<real>({0, 0, 0});
+
+    // Filamentation instability
+    constexpr real beta = 1e-3;
+    return arma::Col<real>({0, 0, beta*std::sin(trigger_k*x)});
 }
 
 template<typename real, size_t order>
