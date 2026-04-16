@@ -621,6 +621,235 @@ class flow_map_linear_interpolant_2x3v
 
 };
 
+
+class cubic_interpolant_2x3v
+{
+    public:
+        double xmin = 0;
+        double xmax = 1;
+        double ymin = 0;
+        double ymax = 1;
+
+        double Lx = 1;
+        double Ly = 1;
+        
+        double umin = -1;
+        double umax = 1;
+        double vmin = -1;
+        double vmax = 1;
+        double wmin = -1;
+        double wmax = 1;
+
+        size_t nx_r = 8;
+        size_t ny_r = 8;
+        size_t nz_r = 8;
+        size_t nu_r = 8;
+        size_t nv_r = 8;
+        size_t nw_r = 8;
+
+        size_t size_x_r = 1;
+        size_t size_v_r = 1;
+
+        double dx_r = 1;
+        double dy_r = 1;
+        double dz_r = 1;
+        double du_r = 1;
+        double dv_r = 1;
+        double dw_r = 1;
+
+        bool non_negative_enforce = true;
+
+        arma::mat restart_matrix; // size: (Nx_r+1)*(Ny_r+1) \times (Nu_r+1)*(Nv_r+1)*(Nw_r+1)
+        arma::mat copy_mat;
+
+        cubic_interpolant_2x3v() { }
+
+        cubic_interpolant_2x3v(double xmin, double xmax, 
+            double ymin, double ymax, double umin, double umax, 
+            double vmin, double vmax, double wmin, double wmax, 
+            size_t Nx, size_t Ny, size_t Nu, size_t Nv, size_t Nw,
+            bool non_negative = true) 
+            : xmin(xmin), xmax(xmax), ymin(ymin), ymax(ymax), 
+            umin(umin), umax(umax), vmin(vmin), vmax(vmax), wmin(wmin), wmax(wmax),
+            nx_r(Nx), ny_r(Ny), nu_r(Nu), nv_r(Nv), nw_r(Nw), non_negative_enforce(non_negative)
+        {
+            size_x_r = (nx_r+1)*(ny_r+1);
+            size_v_r = (nu_r+1)*(nv_r+1)*(nw_r+1);
+
+            dx_r = (xmax - xmin) / nx_r;
+            dy_r = (ymax - ymin) / ny_r;
+
+            du_r = (umax - umin) / nu_r;
+            dv_r = (vmax - vmin) / nv_r;
+            dw_r = (wmax - wmin) / nw_r;
+
+            Lx = (xmax - xmin);
+            Ly = (ymax - ymin);
+
+            restart_matrix = arma::mat(size_x_r, size_v_r, arma::fill::zeros);
+            copy_mat = arma::mat(size_x_r, size_v_r, arma::fill::zeros);
+        }
+
+        void restart_f(const std::function<double(double,double,double,double,double)>& eval_f)
+        {
+            #pragma omp parallel for collapse(5)
+            for(size_t ix = 0; ix <= nx_r; ix++)
+            for(size_t iy = 0; iy <= ny_r; iy++)
+            for(size_t iu = 0; iu <= nu_r; iu++)
+            for(size_t iv = 0; iv <= nv_r; iv++)
+            for(size_t iw = 0; iw <= nw_r; iw++){
+                double x = xmin + ix*dx_r;
+                double y = ymin + iy*dy_r;
+
+                double u = umin + iu*du_r;
+                double v = vmin + iv*dv_r;
+                double w = wmin + iw*dw_r;
+
+                size_t index_0 = ix + (nx_r+1)*iy;
+                size_t index_1 = iu + (nu_r+1)*(iv + (nv_r+1)*iw);
+
+                copy_mat(index_0,index_1) = eval_f(x, y, u, v, w);
+            }
+
+            restart_matrix = copy_mat;
+        }
+
+        inline size_t index_xy(size_t ix, size_t iy)
+        {
+            return ix + (nx_r + 1) * iy;
+        }
+
+        inline size_t index_uvw(size_t iu, size_t iv, size_t iw)
+        {
+            return iu + (nu_r + 1) * (iv + (nv_r + 1) * iw);
+        }
+
+        inline double restart_value_2x3v(
+            size_t ix, size_t iy,
+            size_t iu, size_t iv, size_t iw)
+        {
+            return restart_matrix(
+                index_xy(ix, iy),
+                index_uvw(iu, iv, iw)
+            );
+        }
+
+        inline double cubic_interp(double p0, double p1, double p2, double p3, double t)
+        {
+            // Catmull-Rom spline
+            double a0 = -0.5*p0 + 1.5*p1 - 1.5*p2 + 0.5*p3;
+            double a1 = p0 - 2.5*p1 + 2.0*p2 - 0.5*p3;
+            double a2 = -0.5*p0 + 0.5*p2;
+            double a3 = p1;
+
+            return ((a0*t + a1)*t + a2)*t + a3;
+        }
+
+        inline size_t clamp_index(int i, size_t N)
+        {
+            if (i < 0) return 0;
+            if (i >= static_cast<int>(N)) return N - 1;
+            return static_cast<size_t>(i);
+        }
+
+        inline size_t periodic_index(int i, size_t N)
+        {
+            int res = i % static_cast<int>(N);
+            if (res < 0) res += N;
+            return static_cast<size_t>(res);
+        }
+
+        double cubic_interpolation_5d_streaming(
+            double x, double y,
+            double u, double v, double w)
+        {
+            if (u < umin || u > umax ||
+                v < vmin || v > vmax ||
+                w < wmin || w > wmax) {
+                return 0.0;
+            }
+
+            // periodic space
+            x = std::fmod(std::fmod(x, Lx) + Lx, Lx);
+            y = std::fmod(std::fmod(y, Ly) + Ly, Ly);
+
+            const double gx = x / dx_r;
+            const double gy = y / dy_r;
+            const double gu = (u - umin) / du_r;
+            const double gv = (v - vmin) / dv_r;
+            const double gw = (w - wmin) / dw_r;
+
+            const int ix = static_cast<int>(std::floor(gx));
+            const int iy = static_cast<int>(std::floor(gy));
+            const int iu = static_cast<int>(std::floor(gu));
+            const int iv = static_cast<int>(std::floor(gv));
+            const int iw = static_cast<int>(std::floor(gw));
+
+            const double tx = gx - ix;
+            const double ty = gy - iy;
+            const double tu = gu - iu;
+            const double tv = gv - iv;
+            const double tw = gw - iw;
+
+            double buf_w[4];
+
+            for (int kw = -1; kw <= 2; ++kw) {
+                const size_t iwc = clamp_index(iw + kw, nw_r + 1);
+
+                double buf_v[4];
+
+                for (int kv = -1; kv <= 2; ++kv) {
+                    const size_t ivc = clamp_index(iv + kv, nv_r + 1);
+
+                    double buf_u[4];
+
+                    for (int ku = -1; ku <= 2; ++ku) {
+                        const size_t iuc = clamp_index(iu + ku, nu_r + 1);
+
+                        double buf_y[4];
+
+                        for (int ky = -1; ky <= 2; ++ky) {
+                            const size_t iyc = periodic_index(iy + ky, ny_r + 1);
+
+                            double px[4];
+
+                            for (int kx = -1; kx <= 2; ++kx) {
+                                const size_t ixc = periodic_index(ix + kx, nx_r + 1);
+
+                                px[kx + 1] = restart_value_2x3v(
+                                    ixc, iyc, iuc, ivc, iwc
+                                );
+                            }
+
+                            buf_y[ky + 1] =
+                                cubic_interp(px[0], px[1], px[2], px[3], tx);
+                        }
+
+                        buf_u[ku + 1] =
+                            cubic_interp(buf_y[0], buf_y[1], buf_y[2], buf_y[3], ty);
+                    }
+
+                    buf_v[kv + 1] =
+                        cubic_interp(buf_u[0], buf_u[1], buf_u[2], buf_u[3], tu);
+                }
+
+                buf_w[kw + 1] =
+                    cubic_interp(buf_v[0], buf_v[1], buf_v[2], buf_v[3], tv);
+            }
+
+            double value = cubic_interp(
+                buf_w[0], buf_w[1], buf_w[2], buf_w[3], tw
+            );
+
+            if(non_negative_enforce){
+                return std::max(0.0,value);
+            }
+            return value;
+        }
+
+};
+
+
 }
 
 }

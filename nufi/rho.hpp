@@ -1150,6 +1150,8 @@ real eval_f_nufi_ham_lie_Hf_HB_HE_2x3v(size_t n, real x, real y, real u, real v,
     const size_t stride_y = stride_x*(conf.Nx + order - 1);
     const size_t stride_t = stride_y*(conf.Ny + order - 1);
 
+    real q_over_m = conf.q / conf.m;
+
     for (; n > 0; n--) {
 
         real Ex = eval<real, order>(x,y,&coeffs_Ex[(n)*stride_t],conf);
@@ -1160,15 +1162,15 @@ real eval_f_nufi_ham_lie_Hf_HB_HE_2x3v(size_t n, real x, real y, real u, real v,
         real Bz = eval<real, order>(x,y,&coeffs_Bz[(n-1)*stride_t],conf);
 
 
-        u -= conf.dt * conf.q * Ex;
-        v -= conf.dt * conf.q * Ey;
-        w -= conf.dt * conf.q * Ez;
+        u -= conf.dt * q_over_m * Ex;
+        v -= conf.dt * q_over_m * Ey;
+        w -= conf.dt * q_over_m * Ez;
 
         // exact rotation
         // scale with timestep and charge
-        real theta_x = -conf.dt * conf.q * Bx;
-        real theta_y = -conf.dt * conf.q * By;
-        real theta_z = -conf.dt * conf.q * Bz;
+        real theta_x = -conf.dt * q_over_m * Bx;
+        real theta_y = -conf.dt * q_over_m * By;
+        real theta_z = -conf.dt * q_over_m * Bz;
 
         // magnitude
         real theta = std::sqrt(theta_x*theta_x + theta_y*theta_y + theta_z*theta_z);

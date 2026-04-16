@@ -12,6 +12,7 @@
 #include <nufi/Maxwell.hpp>
 #include <nufi/poisson.hpp>
 #include <nufi/random.hpp>
+#include <nufi/restart.hpp>
 #include <nufi/rho.hpp>
 #include <nufi/stopwatch.hpp>
 
@@ -28,18 +29,28 @@ const double xmax = Lx;
 const double Ly = 1;
 const double ymin = 0;
 const double ymax = Ly;
-const double umin = -5;
-const double umax = 5;
-const double vmin = -5;
-const double vmax = 5;
-const double wmin = -5;
-const double wmax = 5;
+const double umin_e = -5;
+const double umax_e = 5;
+const double vmin_e = -5;
+const double vmax_e = 5;
+const double wmin_e = -5;
+const double wmax_e = 5;
+const double umin_i = -0.5;
+const double umax_i = 0.5;
+const double vmin_i = -0.5;
+const double vmax_i = 0.5;
+const double wmin_i = -0.5;
+const double wmax_i = 0.5;
 
+// Careful: Electrons and ions must have the same underlying spatial (x,y) grid!
 const size_t Nx = 32;
 const size_t Ny = 1;
-const size_t Nu = 32;
-const size_t Nv = 16;
-const size_t Nw = 16;
+const size_t Nu_e = 32;
+const size_t Nv_e = 16;
+const size_t Nw_e = 16;
+const size_t Nu_i = 1;
+const size_t Nv_i = 1;
+const size_t Nw_i = 1;
 const size_t steps_per_1 = 10;
 const double   dt = 1.0 / steps_per_1;
 const size_t Nt = 30/dt;
@@ -48,169 +59,29 @@ bool strang_split = false; // Not implemented yet!
 bool gauss_clean = false;
 bool with_filter = false;
 
-// size: (Nx_r+1)*(Ny_r+1) \times (Nu_r+1)*(Nv_r+1)*(Nw_r+1)
-arma::mat restart_matrix;
-
-size_t nt_restart = Nt + 1;
-//size_t nt_restart = 20;
+//size_t nt_restart = Nt + 1;
+size_t nt_restart = 20;
 
 const size_t nx_r = Nx;
 const size_t ny_r = Ny;
-const size_t nu_r = Nu;
-const size_t nv_r = Nv;
-const size_t nw_r = Nw;
+const size_t nu_e_r = Nu_e;
+const size_t nv_e_r = Nv_e;
+const size_t nw_e_r = Nw_e;
+const size_t nu_i_r = Nu_i;
+const size_t nv_i_r = Nv_i;
+const size_t nw_i_r = Nw_i;
 
-const double dx_r = Lx / nx_r;
-const double dy_r = Ly / ny_r;
+nufi::restart::cubic_interpolant_2x3v interpolant_electron;
+nufi::restart::cubic_interpolant_2x3v interpolant_ion;
 
-const double du_r = (umax - umin) / nu_r;
-const double dv_r = (vmax - vmin) / nv_r;
-const double dw_r = (wmax - wmin) / nw_r;
-
-inline size_t index_xy(size_t ix, size_t iy)
+double eval_f_electron_with_linear_interpolant(double x, double y, double u, double v, double w)
 {
-    return ix + (nx_r + 1) * iy;
+    return interpolant_electron.cubic_interpolation_5d_streaming(x,y,u,v,w);
 }
 
-inline size_t index_uvw(size_t iu, size_t iv, size_t iw)
+double eval_f_ion_with_linear_interpolant(double x, double y, double u, double v, double w)
 {
-    return iu + (nu_r + 1) * (iv + (nv_r + 1) * iw);
-}
-
-inline double restart_value_2x3v(
-    size_t ix, size_t iy,
-    size_t iu, size_t iv, size_t iw)
-{
-    return restart_matrix(
-        index_xy(ix, iy),
-        index_uvw(iu, iv, iw)
-    );
-}
-
-inline double cubic_interp(double p0, double p1, double p2, double p3, double t)
-{
-    // Catmull-Rom spline
-    double a0 = -0.5*p0 + 1.5*p1 - 1.5*p2 + 0.5*p3;
-    double a1 = p0 - 2.5*p1 + 2.0*p2 - 0.5*p3;
-    double a2 = -0.5*p0 + 0.5*p2;
-    double a3 = p1;
-
-    return ((a0*t + a1)*t + a2)*t + a3;
-}
-
-inline size_t clamp_index(int i, size_t N)
-{
-    if (i < 0) return 0;
-    if (i >= static_cast<int>(N)) return N - 1;
-    return static_cast<size_t>(i);
-}
-
-inline size_t periodic_index(int i, size_t N)
-{
-    int res = i % static_cast<int>(N);
-    if (res < 0) res += N;
-    return static_cast<size_t>(res);
-}
-
-double cubic_interpolation_5d(double x, double y, double u, double v, double w)
-{
-    if (u < umin || u > umax ||
-        v < vmin || v > vmax ||
-        w < wmin || w > wmax) {
-        return 0.0;
-    }
-
-    // periodic space
-    x = std::fmod(std::fmod(x, Lx) + Lx, Lx);
-    y = std::fmod(std::fmod(y, Ly) + Ly, Ly);
-
-    double gx = x / dx_r;
-    double gy = y / dy_r;
-    double gu = (u - umin) / du_r;
-    double gv = (v - vmin) / dv_r;
-    double gw = (w - wmin) / dw_r;
-
-    int ix = std::floor(gx);
-    int iy = std::floor(gy);
-    int iu = std::floor(gu);
-    int iv = std::floor(gv);
-    int iw = std::floor(gw);
-
-    double tx = gx - ix;
-    double ty = gy - iy;
-    double tu = gu - iu;
-    double tv = gv - iv;
-    double tw = gw - iw;
-
-    double tmp_x[4][4][4][4];
-
-    for (int kw = -1; kw <= 2; ++kw) {
-        size_t iwc = clamp_index(iw + kw, nw_r + 1);
-
-        for (int kv = -1; kv <= 2; ++kv) {
-            size_t ivc = clamp_index(iv + kv, nv_r + 1);
-
-            for (int ku = -1; ku <= 2; ++ku) {
-                size_t iuc = clamp_index(iu + ku, nu_r + 1);
-
-                for (int ky = -1; ky <= 2; ++ky) {
-                    size_t iyc = periodic_index(iy + ky, ny_r + 1);
-
-                    double px[4];
-
-                    for (int kx = -1; kx <= 2; ++kx) {
-                        size_t ixc = periodic_index(ix + kx, nx_r + 1);
-
-                        px[kx + 1] = restart_value_2x3v(
-                            ixc, iyc, iuc, ivc, iwc
-                        );
-                    }
-
-                    tmp_x[ky + 1][ku + 1][kv + 1][kw + 1] =
-                        cubic_interp(px[0], px[1], px[2], px[3], tx);
-                }
-            }
-        }
-    }
-
-    double tmp_y[4][4][4];
-    for (int kw = 0; kw < 4; ++kw)
-    for (int kv = 0; kv < 4; ++kv)
-    for (int ku = 0; ku < 4; ++ku)
-        tmp_y[ku][kv][kw] = cubic_interp(
-            tmp_x[0][ku][kv][kw],
-            tmp_x[1][ku][kv][kw],
-            tmp_x[2][ku][kv][kw],
-            tmp_x[3][ku][kv][kw],
-            ty
-        );
-
-    double tmp_u[4][4];
-    for (int kw = 0; kw < 4; ++kw)
-    for (int kv = 0; kv < 4; ++kv)
-        tmp_u[kv][kw] = cubic_interp(
-            tmp_y[0][kv][kw],
-            tmp_y[1][kv][kw],
-            tmp_y[2][kv][kw],
-            tmp_y[3][kv][kw],
-            tu
-        );
-
-    double tmp_v[4];
-    for (int kw = 0; kw < 4; ++kw)
-        tmp_v[kw] = cubic_interp(
-            tmp_u[0][kw],
-            tmp_u[1][kw],
-            tmp_u[2][kw],
-            tmp_u[3][kw],
-            tv
-        );
-
-    double result = cubic_interp(
-        tmp_v[0], tmp_v[1], tmp_v[2], tmp_v[3], tw
-    );
-
-    return result;
+    return interpolant_ion.cubic_interpolation_5d_streaming(x,y,u,v,w);
 }
 
 template <typename real>
@@ -221,7 +92,7 @@ real f0(real x, real y, real u, real v) noexcept
 }
 
 template <typename real>
-real f0_2x3v(real x, real y, real u, real v, real w) noexcept
+real f0_2x3v_electron(real x, real y, real u, real v, real w) noexcept
 {
     using std::sin;
     using std::cos;
@@ -231,6 +102,20 @@ real f0_2x3v(real x, real y, real u, real v, real w) noexcept
     real alpha = 0.01;
     real k = 0.5;
     return (1 + alpha * std::cos(k*x)) * maxwellian_1d(u,1.0) * maxwellian_1d(v,1.0) * maxwellian_1d(w,1.0);
+}
+
+template <typename real>
+real f0_2x3v_ion(real x, real y, real u, real v, real w) noexcept
+{
+    using std::sin;
+    using std::cos;
+    using std::exp;
+
+    // Constant background:
+    return 1;
+
+    // Maxwellian
+    //return maxwellian_1d(u,1.0) * maxwellian_1d(v,1.0) * maxwellian_1d(w,1.0);
 }
 
 template <typename real>
@@ -367,8 +252,10 @@ template<typename real, size_t order>
 void kinetic_energy_and_entropy_2x3v(size_t nt, std::ofstream& stat_file, 
     const std::vector<real>& coeffs_Ex, const std::vector<real>& coeffs_Ey, const std::vector<real>& coeffs_Ez, 
     const std::vector<real>& coeffs_Bx, const std::vector<real>& coeffs_By, const std::vector<real>& coeffs_Bz, 
-    const config_t<double>& conf, double& kin_energy, double& entropy, bool restarted = false, size_t n_full = 0, 
-    size_t nx_plot = 128, size_t ny_plot = 128, size_t nu_plot = 128, size_t nv_plot = 128, size_t nw_plot = 128, 
+    const config_t<double>& conf_electron, const config_t<double>& conf_ion, double& kin_energy, double& entropy, 
+    bool restarted = false, size_t n_full = 0, 
+    size_t nx_plot = 128, size_t ny_plot = 128, 
+    size_t nu_plot = 128, size_t nv_plot = 128, size_t nw_plot = 128,
     bool plot_f = false, std::string name_add = "")
 {
     double t = nt*dt;
@@ -378,21 +265,32 @@ void kinetic_energy_and_entropy_2x3v(size_t nt, std::ofstream& stat_file,
 
     double dx_plot = Lx/nx_plot;
     double dy_plot = Ly/ny_plot;
-    double du_plot = (umax - umin)/nu_plot;
-    double dv_plot = (vmax - vmin)/nv_plot;
-    double dw_plot = (wmax - wmin)/nw_plot;
 
-    arma::mat f_values;
+    double du_e_plot = (umax_e - umin_e)/nu_plot;
+    double dv_e_plot = (vmax_e - vmin_e)/nv_plot;
+    double dw_e_plot = (wmax_e - wmin_e)/nw_plot;
+
+    double du_i_plot = (umax_i - umin_i)/nu_plot;
+    double dv_i_plot = (vmax_i - vmin_i)/nv_plot;
+    double dw_i_plot = (wmax_i - wmin_i)/nw_plot;
+
+    arma::mat f_values_electron;
+    arma::mat f_values_ion;
     if(plot_f){
-        f_values.resize(nx_plot*ny_plot,nu_plot*nv_plot*nw_plot);
+        f_values_electron.resize(nx_plot*ny_plot,nu_plot*nv_plot*nw_plot);
+        f_values_ion.resize(nx_plot*ny_plot,nu_plot*nv_plot*nw_plot);
     }
 
-    kin_energy = 0;
-    entropy = 0;
-    double l1_norm = 0;
-    double l2_norm = 0;
+    double kin_energy_electron = 0;
+    double kin_energy_ion = 0;
+    double entropy_electron = 0;
+    double entropy_ion = 0;
+    double l1_norm_electron = 0;
+    double l1_norm_ion = 0;
+    double l2_norm_electron = 0;
+    double l2_norm_ion = 0;
 
-    #pragma omp parallel for collapse(5) reduction(+:kin_energy,entropy,l1_norm,l2_norm)
+    #pragma omp parallel for collapse(5) reduction(+:kin_energy_electron,kin_energy_ion,entropy_electron,entropy_ion,l1_norm_electron,l1_norm_ion,l2_norm_electron,l2_norm_ion)
     for(size_t ix = 0; ix < nx_plot; ix++)
     for(size_t iy = 0; iy < ny_plot; iy++)
     for(size_t iu = 0; iu < nu_plot; iu++)
@@ -400,49 +298,76 @@ void kinetic_energy_and_entropy_2x3v(size_t nt, std::ofstream& stat_file,
     for(size_t iw = 0; iw < nw_plot; iw++){
         double x = xmin + (ix + 0.5)*dx_plot;
         double y = ymin + (iy + 0.5)*dy_plot;
-        double u = umin + (iu + 0.5)*du_plot;
-        double v = vmin + (iv + 0.5)*dv_plot;
-        double w = wmin + (iw + 0.5)*dw_plot;
+        double u = umin_e + (iu + 0.5)*du_e_plot;
+        double v = vmin_e + (iv + 0.5)*dv_e_plot;
+        double w = wmin_e + (iw + 0.5)*dw_e_plot;
 
-        double f = 0;
+        double f_e = 0;
+        double f_i = 0;
         if(strang_split){
             // Not implemented yet!
             std::cout << "Error: Not Implemeted yet!" << std::endl;
         }else{
-            f = redux_2x3v::eval_f_nufi_ham_lie_Hf_HB_HE_2x3v<real,order>(nt, x, y, u, v, w, 
-                            coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz, conf );
+            f_e = redux_2x3v::eval_f_nufi_ham_lie_Hf_HB_HE_2x3v<real,order>(nt, x, y, u, v, w, 
+                            coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz, conf_electron );
+            f_i = redux_2x3v::eval_f_nufi_ham_lie_Hf_HB_HE_2x3v<real,order>(nt, x, y, u, v, w, 
+                            coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz, conf_ion );
         }
 
-        kin_energy += (u*u + v*v) * f;
-        if(f > 1e-16){
-            entropy += f * std::log(f);
+        kin_energy_electron += (u*u + v*v + w*w) * f_e;
+        kin_energy_ion += (u*u + v*v + w*w) * f_i;
+        if(f_e > 1e-16){
+            entropy_electron += f_e * std::log(f_e);
+        }
+        if(f_i > 1e-16){
+            entropy_ion += f_i * std::log(f_i);
         }
 
-        l1_norm += std::abs(f);
-        l2_norm += f*f;
+        l1_norm_electron += std::abs(f_e);
+        l1_norm_ion += std::abs(f_i);
+        l2_norm_electron += f_e*f_e;
+        l2_norm_ion += f_i*f_i;
 
         if(plot_f){
-            f_values(ix + nx_plot*iy, iu + nu_plot*(iv + nv_plot*iw)) = f;
+            f_values_electron(ix + nx_plot*iy, iu + nu_plot*(iv + nv_plot*iw)) = f_e;
+            f_values_ion(ix + nx_plot*iy, iu + nu_plot*(iv + nv_plot*iw)) = f_i;
         }
     }
 
-    double dplot = dx_plot*dy_plot*du_plot*dv_plot*dw_plot;
-    kin_energy *= 0.5*dplot;
-    entropy *= dplot;
-    l1_norm *= dplot;
-    l2_norm = std::sqrt(dplot*l2_norm);
+    double dplot_e = dx_plot*dy_plot*du_e_plot*dv_e_plot*dw_e_plot;
+    double dplot_i = dx_plot*dy_plot*du_i_plot*dv_i_plot*dw_i_plot;
+    kin_energy_electron *= 0.5*dplot_e;
+    kin_energy_ion *= 0.5*dplot_i;
+    entropy_electron *= dplot_e;
+    entropy_ion *= dplot_i;
+    l1_norm_electron *= dplot_e;
+    l1_norm_ion *= dplot_i;
+    l2_norm_electron = std::sqrt(dplot_e*l2_norm_electron);
+    l2_norm_ion = std::sqrt(dplot_i*l2_norm_ion);
 
-    stat_file << std::setprecision(15) << t << " " << kin_energy << " " << entropy << " " << l1_norm << " " << l2_norm << std::endl;
+    kin_energy = kin_energy_electron + kin_energy_ion;
+    entropy = entropy_electron + entropy_ion;
+
+    stat_file << std::setprecision(15) << t << " " << kin_energy << " " 
+                << kin_energy_electron << " " << kin_energy_ion << " " 
+                << entropy << " " << entropy_electron << " " << entropy_electron 
+                << " " << l1_norm_electron << " " << l1_norm_ion << " " 
+                << l2_norm_electron << " " << l2_norm_ion << std::endl;
 
     if(plot_f){
-        std::ofstream f_str("f_" + std::to_string(t) + name_add + ".txt");
-        f_str << f_values;
+        std::ofstream f_electron_str("f_electron_" + std::to_string(t) + name_add + ".txt");
+        f_electron_str << f_values_electron;
+
+        std::ofstream f_ion_str("f_ion_" + std::to_string(t) + name_add + ".txt");
+        f_ion_str << f_values_ion;
     }
 }
 
-config_t<double> conf(Nx, Ny, Nu, Nv, Nt, dt, xmin, xmax, ymin, ymax, 
-                        umin, umax, vmin, vmax, &f0);
-
+config_t<double> conf_electron(Nx, Ny, Nu_e, Nv_e, Nt, dt, xmin, xmax, ymin, ymax, 
+                        umin_e, umax_e, vmin_e, vmax_e, &f0);
+config_t<double> conf_ion(Nx, Ny, Nu_i, Nv_i, Nt, dt, xmin, xmax, ymin, ymax, 
+                        umin_i, umax_i, vmin_i, vmax_i, &f0);
+                       
 inline int fourier_mode_1d(size_t m, size_t N)
 {
     if (m <= N / 2) return static_cast<int>(m);
@@ -454,47 +379,48 @@ void periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned()
 {
     const size_t dim = 2;
     const size_t stride_x = 1;
-    const size_t stride_y = stride_x*(conf.Nx + order - 1);
-    const size_t stride_t = stride_y*(conf.Ny + order - 1);
+    const size_t stride_y = stride_x*(Nx + order - 1);
+    const size_t stride_t = stride_y*(Ny + order - 1);
 
     std::cout << "Start NuFI-Ham Vlasov-Maxwell-Solver with 1x2v redux." << std::endl;
     std::cout << "Init helper variables." << std::endl;
 
     // Flattened 1D coefficient storage
-    std::vector<double> coeffs_Ex((conf.Nt + 1) * stride_t, 0.0);
-    std::vector<double> coeffs_Ey((conf.Nt + 1) * stride_t, 0.0);
-    std::vector<double> coeffs_Ez((conf.Nt + 1) * stride_t, 0.0);
-    std::vector<double> coeffs_Bx((conf.Nt + 1) * stride_t, 0.0);
-    std::vector<double> coeffs_By((conf.Nt + 1) * stride_t, 0.0);
-    std::vector<double> coeffs_Bz((conf.Nt + 1) * stride_t, 0.0);
+    std::vector<double> coeffs_Ex((Nt + 1) * stride_t, 0.0);
+    std::vector<double> coeffs_Ey((Nt + 1) * stride_t, 0.0);
+    std::vector<double> coeffs_Ez((Nt + 1) * stride_t, 0.0);
+    std::vector<double> coeffs_Bx((Nt + 1) * stride_t, 0.0);
+    std::vector<double> coeffs_By((Nt + 1) * stride_t, 0.0);
+    std::vector<double> coeffs_Bz((Nt + 1) * stride_t, 0.0);
 
-    std::vector<double> Ex(conf.Nx*conf.Ny, 0.0);
-    std::vector<double> Ey(conf.Nx*conf.Ny, 0.0);
-    std::vector<double> Ez(conf.Nx*conf.Ny, 0.0);
-    std::vector<double> Bx(conf.Nx*conf.Ny, 0.0);
-    std::vector<double> By(conf.Nx*conf.Ny, 0.0);
-    std::vector<double> Bz(conf.Nx*conf.Ny, 0.0);
-    std::vector<double> jx_hat(conf.Nx*conf.Ny, 0.0);
-    std::vector<double> jy_hat(conf.Nx*conf.Ny, 0.0);
-    std::vector<double> jz_hat(conf.Nx*conf.Ny, 0.0);
+    std::vector<double> Ex(Nx*Ny, 0.0);
+    std::vector<double> Ey(Nx*Ny, 0.0);
+    std::vector<double> Ez(Nx*Ny, 0.0);
+    std::vector<double> Bx(Nx*Ny, 0.0);
+    std::vector<double> By(Nx*Ny, 0.0);
+    std::vector<double> Bz(Nx*Ny, 0.0);
+    std::vector<double> jx_hat(Nx*Ny, 0.0);
+    std::vector<double> jy_hat(Nx*Ny, 0.0);
+    std::vector<double> jz_hat(Nx*Ny, 0.0);
 
     std::vector<double> coeffs_phi(stride_t, 0.0);
     std::vector<double> rho(Nx*Ny, 0.0);
-    std::vector<double> rho_test(Nx*Ny, 0.0);
+    std::vector<double> rho_electron(Nx*Ny, 0.0);
+    std::vector<double> rho_ion(Nx*Ny, 0.0);
     std::vector<double> g(Nx*Ny, 0.0);
-    poisson<double> poiss(conf);
+    poisson<double> poiss(conf_electron);
 
     // FFTW work arrays and plans for field update.
-    fftw_complex* fft_in  = (fftw_complex*)fftw_malloc(sizeof(fftw_complex) * conf.Nx * conf.Ny);
-    fftw_complex* fft_out = (fftw_complex*)fftw_malloc(sizeof(fftw_complex) * conf.Nx * conf.Ny);
+    fftw_complex* fft_in  = (fftw_complex*)fftw_malloc(sizeof(fftw_complex) * Nx * Ny);
+    fftw_complex* fft_out = (fftw_complex*)fftw_malloc(sizeof(fftw_complex) * Nx * Ny);
     if (fft_in == nullptr || fft_out == nullptr) {
         if (fft_in  != nullptr) fftw_free(fft_in);
         if (fft_out != nullptr) fftw_free(fft_out);
         throw std::runtime_error("FFTW allocation failed in periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned.");
     }
 
-    fftw_plan plan_fwd = fftw_plan_dft_1d(static_cast<int>(conf.Nx*conf.Ny), fft_in, fft_out, FFTW_FORWARD, FFTW_MEASURE);
-    fftw_plan plan_bwd = fftw_plan_dft_1d(static_cast<int>(conf.Nx*conf.Ny), fft_out, fft_in, FFTW_BACKWARD, FFTW_MEASURE);
+    fftw_plan plan_fwd = fftw_plan_dft_1d(static_cast<int>(Nx*Ny), fft_in, fft_out, FFTW_FORWARD, FFTW_MEASURE);
+    fftw_plan plan_bwd = fftw_plan_dft_1d(static_cast<int>(Nx*Ny), fft_out, fft_in, FFTW_BACKWARD, FFTW_MEASURE);
     if (plan_fwd == nullptr || plan_bwd == nullptr) {
         if (plan_fwd != nullptr) fftw_destroy_plan(plan_fwd);
         if (plan_bwd != nullptr) fftw_destroy_plan(plan_bwd);
@@ -503,51 +429,61 @@ void periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned()
         throw std::runtime_error("FFTW plan creation failed in periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned.");
     }
 
-    std::vector<double> Ex_hat_re(conf.Nx*conf.Ny, 0.0), Ex_hat_im(conf.Nx*conf.Ny, 0.0);
-    std::vector<double> Ey_hat_re(conf.Nx*conf.Ny, 0.0), Ey_hat_im(conf.Nx*conf.Ny, 0.0);
-    std::vector<double> Ez_hat_re(conf.Nx*conf.Ny, 0.0), Ez_hat_im(conf.Nx*conf.Ny, 0.0);
-    std::vector<double> Bx_hat_re(conf.Nx*conf.Ny, 0.0), Bx_hat_im(conf.Nx*conf.Ny, 0.0);
-    std::vector<double> By_hat_re(conf.Nx*conf.Ny, 0.0), By_hat_im(conf.Nx*conf.Ny, 0.0);
-    std::vector<double> Bz_hat_re(conf.Nx*conf.Ny, 0.0), Bz_hat_im(conf.Nx*conf.Ny, 0.0);
-    std::vector<double> jx_hat_re(conf.Nx*conf.Ny, 0.0), jx_hat_im(conf.Nx*conf.Ny, 0.0);
-    std::vector<double> jy_hat_re(conf.Nx*conf.Ny, 0.0), jy_hat_im(conf.Nx*conf.Ny, 0.0);
-    std::vector<double> jz_hat_re(conf.Nx*conf.Ny, 0.0), jz_hat_im(conf.Nx*conf.Ny, 0.0);
+    std::vector<double> Ex_hat_re(Nx*Ny, 0.0), Ex_hat_im(Nx*Ny, 0.0);
+    std::vector<double> Ey_hat_re(Nx*Ny, 0.0), Ey_hat_im(Nx*Ny, 0.0);
+    std::vector<double> Ez_hat_re(Nx*Ny, 0.0), Ez_hat_im(Nx*Ny, 0.0);
+    std::vector<double> Bx_hat_re(Nx*Ny, 0.0), Bx_hat_im(Nx*Ny, 0.0);
+    std::vector<double> By_hat_re(Nx*Ny, 0.0), By_hat_im(Nx*Ny, 0.0);
+    std::vector<double> Bz_hat_re(Nx*Ny, 0.0), Bz_hat_im(Nx*Ny, 0.0);
+    
+    std::vector<double> jx_hat_re(Nx*Ny, 0.0), jx_hat_im(Nx*Ny, 0.0);
+    std::vector<double> jy_hat_re(Nx*Ny, 0.0), jy_hat_im(Nx*Ny, 0.0);
+    std::vector<double> jz_hat_re(Nx*Ny, 0.0), jz_hat_im(Nx*Ny, 0.0);
 
-    const double two_pi_over_Lx = 2.0 * M_PI / conf.Lx;
-    const double two_pi_over_Ly = 2.0 * M_PI / conf.Ly;
-    const double invNxNy = 1.0 / static_cast<double>(conf.Nx*conf.Ny);
+    std::vector<double> jx_hat_re_electron(Nx*Ny, 0.0), jx_hat_im_electron(Nx*Ny, 0.0);
+    std::vector<double> jy_hat_re_electron(Nx*Ny, 0.0), jy_hat_im_electron(Nx*Ny, 0.0);
+    std::vector<double> jz_hat_re_electron(Nx*Ny, 0.0), jz_hat_im_electron(Nx*Ny, 0.0);
+
+    std::vector<double> jx_hat_re_ion(Nx*Ny, 0.0), jx_hat_im_ion(Nx*Ny, 0.0);
+    std::vector<double> jy_hat_re_ion(Nx*Ny, 0.0), jy_hat_im_ion(Nx*Ny, 0.0);
+    std::vector<double> jz_hat_re_ion(Nx*Ny, 0.0), jz_hat_im_ion(Nx*Ny, 0.0);
+
+    const double two_pi_over_Lx = 2.0 * M_PI / Lx;
+    const double two_pi_over_Ly = 2.0 * M_PI / Ly;
+    const double invNxNy = 1.0 / static_cast<double>(Nx*Ny);
 
     // Init restart matrices.
     std::cout << "Initialize restart matrices." << std::endl;
-    const size_t size_x_r = (nx_r + 1)*(ny_r + 1);
-    const size_t size_v_r = (nu_r + 1)*(nv_r + 1)*(nw_r + 1);
-    restart_matrix = arma::mat(size_x_r, size_v_r, arma::fill::zeros);
-    arma::mat copy_mat(size_x_r, size_v_r, arma::fill::zeros);
+    interpolant_electron = restart::cubic_interpolant_2x3v(xmin,xmax,ymin,ymax,umin_e,umax_e,vmin_e,vmax_e,wmin_e,wmax_e,nx_r,ny_r,nu_e_r,nv_e_r,nw_e_r,true);
+    interpolant_ion = restart::cubic_interpolant_2x3v(xmin,xmax,ymin,ymax,umin_i,umax_i,vmin_i,vmax_i,wmin_i,wmax_i,nx_r,ny_r,nu_i_r,nv_i_r,nw_i_r,true);
 
     // Set up config.
-    conf = config_t<double>(Nx, Ny, Nu, Nv, Nt, dt, xmin, xmax, ymin, ymax, umin, umax, vmin, vmax, &f0);
-    conf.Nw = Nw;
-    conf.w_min = wmin;
-    conf.w_max = wmax;
-    conf.dw = (wmax - wmin) / Nw;
-    conf.f0_2x3v = f0_2x3v;
+    conf_electron = config_t<double>(Nx, Ny, Nu_e, Nv_e, Nt, dt, xmin, xmax, ymin, ymax, umin_e, umax_e, vmin_e, vmax_e, &f0);
+    conf_electron.Nw = Nw_e;
+    conf_electron.w_min = wmin_e;
+    conf_electron.w_max = wmax_e;
+    conf_electron.dw = (wmax_e - wmin_e) / Nw_e;
+    conf_electron.q = -1;
+    conf_electron.m = 1;
+    conf_electron.f0_2x3v = f0_2x3v_electron;
 
-    config_t<double> conf_test(Nx, Ny, 2 * Nu, 2 * Nv, Nt, dt, xmin, xmax, ymin, ymax, 
-                                    umin, umax, vmin, vmax, &f0);
-    conf_test.Nw = 2 * Nw;
-    conf_test.w_min = wmin;
-    conf_test.w_max = wmax;
-    conf_test.dw = (wmax - wmin) / conf_test.Nw;
-    conf_test.f0_2x3v = f0_2x3v;
+    conf_ion = config_t<double>(Nx, Ny, Nu_i, Nv_i, Nt, dt, xmin, xmax, ymin, ymax, umin_i, umax_i, vmin_i, vmax_i, &f0);
+    conf_ion.Nw = Nw_i;
+    conf_ion.w_min = wmin_i;
+    conf_ion.w_max = wmax_i;
+    conf_ion.dw = (wmax_i - wmin_i) / Nw_i;
+    conf_ion.q = 1;
+    conf_ion.m = 1836;
+    conf_ion.f0_2x3v = f0_2x3v_electron;
 
     // Compute E(0) and B(0).
     std::cout << "Compute E(0) and B(0)." << std::endl;
     #pragma omp parallel for
-    for (size_t l = 0; l < conf.Nx*conf.Ny; l++) {
-        size_t ix = l % conf.Nx;
-        size_t iy = l / conf.Nx;
-        const double x = conf.x_min + ix * conf.dx;
-        const double y = conf.y_min + iy * conf.dy;
+    for (size_t l = 0; l < Nx*Ny; l++) {
+        size_t ix = l % Nx;
+        size_t iy = l / Nx;
+        const double x = xmin + ix * conf_electron.dx;
+        const double y = ymin + iy * conf_electron.dy;
 
         arma::Col<double> E0_vec = E0(x, y, 0.0);
         arma::Col<double> B0_vec = B0(x, y, 0.0);
@@ -562,32 +498,51 @@ void periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned()
 
     // Interpolate E(0) and B(0).
     std::cout << "Interpolate Ex(0)." << std::endl;
-    interpolate<double, order>(coeffs_Ex.data(), Ex.data(), conf);
+    interpolate<double, order>(coeffs_Ex.data(), Ex.data(), conf_electron);
     std::cout << "Interpolate Ey(0)." << std::endl;
-    interpolate<double, order>(coeffs_Ey.data(), Ey.data(), conf);
+    interpolate<double, order>(coeffs_Ey.data(), Ey.data(), conf_electron);
     std::cout << "Interpolate Ez(0)." << std::endl;
-    interpolate<double, order>(coeffs_Ez.data(), Ez.data(), conf);
+    interpolate<double, order>(coeffs_Ez.data(), Ez.data(), conf_electron);
     std::cout << "Interpolate Bx(0)." << std::endl;
-    interpolate<double, order>(coeffs_Bx.data(), Bx.data(), conf);
+    interpolate<double, order>(coeffs_Bx.data(), Bx.data(), conf_electron);
     std::cout << "Interpolate By(0)." << std::endl;
-    interpolate<double, order>(coeffs_By.data(), By.data(), conf);
+    interpolate<double, order>(coeffs_By.data(), By.data(), conf_electron);
     std::cout << "Interpolate Bz(0)." << std::endl;
-    interpolate<double, order>(coeffs_Bz.data(), Bz.data(), conf);
+    interpolate<double, order>(coeffs_Bz.data(), Bz.data(), conf_electron);
 
     // Compute j_hat(0).
     std::cout << "Compute j_hat(0)." << std::endl;
     redux_2x3v::eval_j_time_integral_Hf_exact_2x3v_fourier<order>(
-                0, jx_hat_re, jx_hat_im, jy_hat_re, jy_hat_im, jz_hat_re, jz_hat_im,
+                0, jx_hat_re_electron, jx_hat_im_electron, jy_hat_re_electron, 
+                jy_hat_im_electron, jz_hat_re_electron, jz_hat_im_electron,
                 coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz, 
-                conf);
+                conf_electron);
+
+    redux_2x3v::eval_j_time_integral_Hf_exact_2x3v_fourier<order>(
+                0, jx_hat_re_ion, jx_hat_im_ion, jy_hat_re_ion, 
+                jy_hat_im_ion, jz_hat_re_ion, jz_hat_im_ion,
+                coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz, 
+                conf_ion);
+
+    #pragma omp parallel for
+    for(size_t l = 0; l < Nx*Ny; l++){
+        jx_hat_re[l] = jx_hat_re_electron[l] + jx_hat_re_ion[l];
+        jx_hat_im[l] = jx_hat_im_electron[l] + jx_hat_im_ion[l];
+
+        jy_hat_re[l] = jy_hat_re_electron[l] + jy_hat_re_ion[l];
+        jy_hat_im[l] = jy_hat_im_electron[l] + jy_hat_im_ion[l];
+
+        jz_hat_re[l] = jz_hat_re_electron[l] + jz_hat_re_ion[l];
+        jz_hat_im[l] = jz_hat_im_electron[l] + jz_hat_im_ion[l];
+    }
 
     std::cout << "First output." << std::endl;
     std::ofstream stat_file("stats.txt");
     std::ofstream kin_energy_entropy_file("kinetic_energy_and_entropy.txt");
     double kinetic_energy = 0.0;
     double entropy = 0.0;
-    kinetic_energy_and_entropy_2x3v<double,order>(0,kin_energy_entropy_file,coeffs_Ex,coeffs_Ey,coeffs_Ez,coeffs_Bx,coeffs_By,coeffs_Bz,conf, kinetic_energy, entropy,false,0,64,64,64);
-    do_stats_2x3v<double, order>(0, kinetic_energy, entropy, stat_file, coeffs_Ex,coeffs_Ey,coeffs_Ez,coeffs_Bx,coeffs_By,coeffs_Bz, conf, false, 0, 128, true);
+    kinetic_energy_and_entropy_2x3v<double,order>(0,kin_energy_entropy_file,coeffs_Ex,coeffs_Ey,coeffs_Ez,coeffs_Bx,coeffs_By,coeffs_Bz,conf_electron,conf_ion, kinetic_energy, entropy,false,0,32,32,32,8,8);
+    do_stats_2x3v<double, order>(0, kinetic_energy, entropy, stat_file, coeffs_Ex,coeffs_Ey,coeffs_Ez,coeffs_Bx,coeffs_By,coeffs_Bz, conf_electron, false, 0,64,64,false);
 
     std::ofstream gle_file("gle.txt");
     double rho_integration_error = 0.0;
@@ -597,88 +552,96 @@ void periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned()
     std::cout << " ---------------------------------- " << std::endl;
     double total_time = 0.0;
     size_t nt_r_curr = 1;
+    auto eval_f_t_electron = [&](double x, double y, double u, double v, double w) {
+        return redux_2x3v::eval_f_nufi_ham_lie_Hf_HB_HE_2x3v<double,order>(nt_r_curr, x, y, u, v, w, 
+                            coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz, conf_electron );
+    };
+    auto eval_f_t_ion = [&](double x, double y, double u, double v, double w) {
+        return redux_2x3v::eval_f_nufi_ham_lie_Hf_HB_HE_2x3v<double,order>(nt_r_curr, x, y, u, v, w, 
+                            coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz, conf_ion );
+    };
 
-    for (size_t n = 1; n <= conf.Nt; n++) {
+    for (size_t n = 1; n <= Nt; n++) {
         nufi::stopwatch<double> timer;
 
         // Read fields/current integrals at time level nt_r_curr-1 on the physical grid.
         #pragma omp parallel for
-        for (size_t l = 0; l < conf.Nx*conf.Ny; l++) {
-            size_t ix = l % conf.Nx;
-            size_t iy = l / conf.Nx;
-            double x = conf.x_min + ix * conf.dx;
-            double y = conf.y_min + iy * conf.dy;
+        for (size_t l = 0; l < Nx*Ny; l++) {
+            size_t ix = l % Nx;
+            size_t iy = l / Nx;
+            const double x = xmin + ix * conf_electron.dx;
+            const double y = ymin + iy * conf_electron.dy;
 
-            Ex[l] = eval<double, order>(x, y, coeffs_Ex.data() + (nt_r_curr - 1) * stride_t, conf);
-            Ey[l] = eval<double, order>(x, y, coeffs_Ey.data() + (nt_r_curr - 1) * stride_t, conf);
-            Ez[l] = eval<double, order>(x, y, coeffs_Ez.data() + (nt_r_curr - 1) * stride_t, conf);
-            Bx[l] = eval<double, order>(x, y, coeffs_Bx.data() + (nt_r_curr - 1) * stride_t, conf);
-            By[l] = eval<double, order>(x, y, coeffs_By.data() + (nt_r_curr - 1) * stride_t, conf);
-            Bz[l] = eval<double, order>(x, y, coeffs_Bz.data() + (nt_r_curr - 1) * stride_t, conf);
+            Ex[l] = eval<double, order>(x, y, coeffs_Ex.data() + (nt_r_curr - 1) * stride_t, conf_electron);
+            Ey[l] = eval<double, order>(x, y, coeffs_Ey.data() + (nt_r_curr - 1) * stride_t, conf_electron);
+            Ez[l] = eval<double, order>(x, y, coeffs_Ez.data() + (nt_r_curr - 1) * stride_t, conf_electron);
+            Bx[l] = eval<double, order>(x, y, coeffs_Bx.data() + (nt_r_curr - 1) * stride_t, conf_electron);
+            By[l] = eval<double, order>(x, y, coeffs_By.data() + (nt_r_curr - 1) * stride_t, conf_electron);
+            Bz[l] = eval<double, order>(x, y, coeffs_Bz.data() + (nt_r_curr - 1) * stride_t, conf_electron);
         }
 
         // FFT Ex
-        for (size_t l = 0; l < conf.Nx*conf.Ny; l++) {
+        for (size_t l = 0; l < Nx*Ny; l++) {
             fft_in[l][0] = Ex[l];
             fft_in[l][1] = 0.0;
         }
         fftw_execute(plan_fwd);
-        for (size_t l = 0; l < conf.Nx*conf.Ny; l++) {
+        for (size_t l = 0; l < Nx*Ny; l++) {
             Ex_hat_re[l] = fft_out[l][0];
             Ex_hat_im[l] = fft_out[l][1];
         }
 
         // FFT Ey
-        for (size_t l = 0; l < conf.Nx*conf.Ny; l++) {
+        for (size_t l = 0; l < Nx*Ny; l++) {
             fft_in[l][0] = Ey[l];
             fft_in[l][1] = 0.0;
         }
         fftw_execute(plan_fwd);
-        for (size_t l = 0; l < conf.Nx*conf.Ny; l++) {
+        for (size_t l = 0; l < Nx*Ny; l++) {
             Ey_hat_re[l] = fft_out[l][0];
             Ey_hat_im[l] = fft_out[l][1];
         }
 
         // FFT Ey
-        for (size_t l = 0; l < conf.Nx*conf.Ny; l++) {
+        for (size_t l = 0; l < Nx*Ny; l++) {
             fft_in[l][0] = Ez[l];
             fft_in[l][1] = 0.0;
         }
         fftw_execute(plan_fwd);
-        for (size_t l = 0; l < conf.Nx*conf.Ny; l++) {
+        for (size_t l = 0; l < Nx*Ny; l++) {
             Ez_hat_re[l] = fft_out[l][0];
             Ez_hat_im[l] = fft_out[l][1];
         }
 
         // FFT Bx
-        for (size_t l = 0; l < conf.Nx*conf.Ny; l++) {
+        for (size_t l = 0; l < Nx*Ny; l++) {
             fft_in[l][0] = Bx[l];
             fft_in[l][1] = 0.0;
         }
         fftw_execute(plan_fwd);
-        for (size_t l = 0; l < conf.Nx*conf.Ny; l++) {
+        for (size_t l = 0; l < Nx*Ny; l++) {
             Bx_hat_re[l] = fft_out[l][0];
             Bx_hat_im[l] = fft_out[l][1];
         }
 
         // FFT By
-        for (size_t l = 0; l < conf.Nx*conf.Ny; l++) {
+        for (size_t l = 0; l < Nx*Ny; l++) {
             fft_in[l][0] = By[l];
             fft_in[l][1] = 0.0;
         }
         fftw_execute(plan_fwd);
-        for (size_t l = 0; l < conf.Nx*conf.Ny; l++) {
+        for (size_t l = 0; l < Nx*Ny; l++) {
             By_hat_re[l] = fft_out[l][0];
             By_hat_im[l] = fft_out[l][1];
         }
 
         // FFT Bz
-        for (size_t l = 0; l < conf.Nx*conf.Ny; l++) {
+        for (size_t l = 0; l < Nx*Ny; l++) {
             fft_in[l][0] = Bz[l];
             fft_in[l][1] = 0.0;
         }
         fftw_execute(plan_fwd);
-        for (size_t l = 0; l < conf.Nx*conf.Ny; l++) {
+        for (size_t l = 0; l < Nx*Ny; l++) {
             Bz_hat_re[l] = fft_out[l][0];
             Bz_hat_im[l] = fft_out[l][1];
         }
@@ -689,7 +652,7 @@ void periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned()
         // 3) H_E: Bz_hat -= dt * (i k) * Ey_hat   (using updated Ey_hat from H_B)
         
         // 1) H_f.
-        for (size_t m = 0; m < conf.Nx*conf.Ny; m++) {
+        for (size_t m = 0; m < Nx*Ny; m++) {
             Ex_hat_re[m] -= jx_hat_re[m];
             Ex_hat_im[m] -= jx_hat_im[m];
 
@@ -727,19 +690,19 @@ void periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned()
                 double bz_im = Bz_hat_im[m];
 
                 // i ky Bz
-                Ex_hat_re[m] -= conf.dt * (-ky * bz_im);
-                Ex_hat_im[m] -= conf.dt * ( ky * bz_re);
+                Ex_hat_re[m] -= dt * (-ky * bz_im);
+                Ex_hat_im[m] -= dt * ( ky * bz_re);
 
                 // -i kx Bz
-                Ey_hat_re[m] -= conf.dt * ( kx * bz_im);
-                Ey_hat_im[m] -= conf.dt * (-kx * bz_re);
+                Ey_hat_re[m] -= dt * ( kx * bz_im);
+                Ey_hat_im[m] -= dt * (-kx * bz_re);
 
                 // i (kx By - ky Bx)
                 double tmp_re = kx * by_re - ky * bx_re;
                 double tmp_im = kx * by_im - ky * bx_im;
 
-                Ez_hat_re[m] -= conf.dt * (-tmp_im);
-                Ez_hat_im[m] -= conf.dt * ( tmp_re);
+                Ez_hat_re[m] -= dt * (-tmp_im);
+                Ez_hat_im[m] -= dt * ( tmp_re);
             }
         }
 
@@ -762,79 +725,79 @@ void periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned()
                 double ez_im = Ez_hat_im[m];
 
                 // -i ky Ez
-                Bx_hat_re[m] -= conf.dt * ( ky * ez_im);
-                Bx_hat_im[m] -= conf.dt * (-ky * ez_re);
+                Bx_hat_re[m] -= dt * ( ky * ez_im);
+                Bx_hat_im[m] -= dt * (-ky * ez_re);
 
                 // +i kx Ez
-                By_hat_re[m] -= conf.dt * (-kx * ez_im);
-                By_hat_im[m] -= conf.dt * ( kx * ez_re);
+                By_hat_re[m] -= dt * (-kx * ez_im);
+                By_hat_im[m] -= dt * ( kx * ez_re);
 
                 // -i (kx Ey - ky Ex)
                 double tmp_re = kx * ey_re - ky * ex_re;
                 double tmp_im = kx * ey_im - ky * ex_im;
 
-                Bz_hat_re[m] -= conf.dt * ( tmp_im);
-                Bz_hat_im[m] -= conf.dt * (-tmp_re);
+                Bz_hat_re[m] -= dt * ( tmp_im);
+                Bz_hat_im[m] -= dt * (-tmp_re);
             }
         }
 
         // IFFT Ex
-        for (size_t l = 0; l < conf.Nx*conf.Ny; l++) {
+        for (size_t l = 0; l < Nx*Ny; l++) {
             fft_out[l][0] = Ex_hat_re[l];
             fft_out[l][1] = Ex_hat_im[l];
         }
         fftw_execute(plan_bwd);
-        for (size_t l = 0; l < conf.Nx*conf.Ny; l++) {
+        for (size_t l = 0; l < Nx*Ny; l++) {
             Ex[l] = fft_in[l][0] * invNxNy;
         }
 
         // IFFT Ey
-        for (size_t l = 0; l < conf.Nx*conf.Ny; l++) {
+        for (size_t l = 0; l < Nx*Ny; l++) {
             fft_out[l][0] = Ey_hat_re[l];
             fft_out[l][1] = Ey_hat_im[l];
         }
         fftw_execute(plan_bwd);
-        for (size_t l = 0; l < conf.Nx*conf.Ny; l++) {
+        for (size_t l = 0; l < Nx*Ny; l++) {
             Ey[l] = fft_in[l][0] * invNxNy;
         }
 
         // IFFT Ez
-        for (size_t l = 0; l < conf.Nx*conf.Ny; l++) {
+        for (size_t l = 0; l < Nx*Ny; l++) {
             fft_out[l][0] = Ez_hat_re[l];
             fft_out[l][1] = Ez_hat_im[l];
         }
         fftw_execute(plan_bwd);
-        for (size_t l = 0; l < conf.Nx*conf.Ny; l++) {
+        for (size_t l = 0; l < Nx*Ny; l++) {
             Ez[l] = fft_in[l][0] * invNxNy;
         }
 
         // IFFT Bx
-        for (size_t l = 0; l < conf.Nx*conf.Ny; l++) {
+        for (size_t l = 0; l < Nx*Ny; l++) {
             fft_out[l][0] = Bx_hat_re[l];
             fft_out[l][1] = Bx_hat_im[l];
         }
         fftw_execute(plan_bwd);
-        for (size_t l = 0; l < conf.Nx*conf.Ny; l++) {
+        for (size_t l = 0; l < Nx*Ny; l++) {
             Bx[l] = fft_in[l][0] * invNxNy;
         }
 
         // IFFT By
-        for (size_t l = 0; l < conf.Nx*conf.Ny; l++) {
+        for (size_t l = 0; l < Nx*Ny; l++) {
             fft_out[l][0] = By_hat_re[l];
             fft_out[l][1] = By_hat_im[l];
         }
         fftw_execute(plan_bwd);
-        for (size_t l = 0; l < conf.Nx*conf.Ny; l++) {
+        for (size_t l = 0; l < Nx*Ny; l++) {
             By[l] = fft_in[l][0] * invNxNy;
         }
 
         // IFFT Bz
-        for (size_t l = 0; l < conf.Nx*conf.Ny; l++) {
+        for (size_t l = 0; l < Nx*Ny; l++) {
             fft_out[l][0] = Bz_hat_re[l];
             fft_out[l][1] = Bz_hat_im[l];
         }
         fftw_execute(plan_bwd);
-        for (size_t l = 0; l < conf.Nx*conf.Ny; l++) {
+        for (size_t l = 0; l < Nx*Ny; l++) {
             Bz[l] = fft_in[l][0] * invNxNy;
         }
 
@@ -843,12 +806,12 @@ void periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned()
         timer.reset();
 
         // Interpolate E(n) and B(n).
-        interpolate<double, order>(coeffs_Ex.data() + nt_r_curr * stride_t, Ex.data(), conf);
-        interpolate<double, order>(coeffs_Ey.data() + nt_r_curr * stride_t, Ey.data(), conf);
-        interpolate<double, order>(coeffs_Ez.data() + nt_r_curr * stride_t, Ez.data(), conf);
-        interpolate<double, order>(coeffs_Bx.data() + nt_r_curr * stride_t, Bx.data(), conf);
-        interpolate<double, order>(coeffs_By.data() + nt_r_curr * stride_t, By.data(), conf);
-        interpolate<double, order>(coeffs_Bz.data() + nt_r_curr * stride_t, Bz.data(), conf);
+        interpolate<double, order>(coeffs_Ex.data() + nt_r_curr * stride_t, Ex.data(), conf_electron);
+        interpolate<double, order>(coeffs_Ey.data() + nt_r_curr * stride_t, Ey.data(), conf_electron);
+        interpolate<double, order>(coeffs_Ez.data() + nt_r_curr * stride_t, Ez.data(), conf_electron);
+        interpolate<double, order>(coeffs_Bx.data() + nt_r_curr * stride_t, Bx.data(), conf_electron);
+        interpolate<double, order>(coeffs_By.data() + nt_r_curr * stride_t, By.data(), conf_electron);
+        interpolate<double, order>(coeffs_Bz.data() + nt_r_curr * stride_t, Bz.data(), conf_electron);
 
         double time_interpolate_EB = timer.elapsed();
         std::cout << "EB interpolation took " << time_interpolate_EB << " s." << std::endl;
@@ -856,15 +819,19 @@ void periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned()
 
         // Gauss clean 
         redux_2x3v::eval_rho_ham_lie_Hf_HB_HE_2x3v<double, order>(
-                                nt_r_curr, rho, coeffs_Ex, coeffs_Ey, coeffs_Ez, 
-                                coeffs_Bx, coeffs_By, coeffs_Bz, conf);
+                                nt_r_curr, rho_electron, coeffs_Ex, coeffs_Ey, coeffs_Ez, 
+                                coeffs_Bx, coeffs_By, coeffs_Bz, conf_electron);
+
+        redux_2x3v::eval_rho_ham_lie_Hf_HB_HE_2x3v<double, order>(
+                                nt_r_curr, rho_ion, coeffs_Ex, coeffs_Ey, coeffs_Ez, 
+                                coeffs_Bx, coeffs_By, coeffs_Bz, conf_ion);
         double rho_mean = 0.0;
         #pragma omp parallel for reduction(+:rho_mean)
         for (size_t i = 0; i < rho.size(); i++) {
-            rho[i] = 1 + rho[i]; // Careful: Right now electron only!
+            rho[i] = rho_electron[i] + rho_ion[i]; // Careful: Right now electron only!
             rho_mean += rho[i];
         }
-        rho_mean /= conf.Nx*conf.Ny;
+        rho_mean /= Nx*Ny;
         
         #pragma omp parallel for
         for (size_t i = 0; i < rho.size(); i++) {
@@ -872,24 +839,48 @@ void periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned()
         }
 
         double gle = maxwell::E_clean_gauss_law_2x3v<double, order>(
-            nt_r_curr, coeffs_Ex, coeffs_Ey, Ex, Ey, rho, g, coeffs_phi, conf, poiss, 
+            nt_r_curr, coeffs_Ex, coeffs_Ey, Ex, Ey, rho, g, coeffs_phi, conf_electron, poiss, 
             !gauss_clean, false
         );
 
         // Add integration error computation here if wanted.
         // ...
 
-        gle_file << n * conf.dt << " " << gle << " " << rho_integration_error << std::endl;
+        gle_file << n * dt << " " << gle << " " << rho_integration_error << std::endl;
         
         double time_gauss_clean = timer.elapsed();
         std::cout << "Gauss clean took " << time_gauss_clean << " s." << std::endl;
         timer.reset();
 
         redux_2x3v::eval_j_time_integral_Hf_exact_2x3v_fourier<order>(
-                                nt_r_curr,jx_hat_re,jx_hat_im,
-                                jy_hat_re,jy_hat_im,jz_hat_re,jz_hat_im,
+                                nt_r_curr,
+                                jx_hat_re_electron,jx_hat_im_electron,
+                                jy_hat_re_electron,jy_hat_im_electron,
+                                jz_hat_re_electron,jz_hat_im_electron,
                                 coeffs_Ex,coeffs_Ey,coeffs_Ez,
-                                coeffs_Bx,coeffs_By,coeffs_Bz, conf);
+                                coeffs_Bx,coeffs_By,coeffs_Bz, 
+                                conf_electron);
+
+        redux_2x3v::eval_j_time_integral_Hf_exact_2x3v_fourier<order>(
+                        nt_r_curr,
+                        jx_hat_re_ion,jx_hat_im_ion,
+                        jy_hat_re_ion,jy_hat_im_ion,
+                        jz_hat_re_ion,jz_hat_im_ion,
+                        coeffs_Ex,coeffs_Ey,coeffs_Ez,
+                        coeffs_Bx,coeffs_By,coeffs_Bz, 
+                        conf_ion);
+
+        #pragma omp parallel for
+        for(size_t l = 0; l < Nx*Ny; l++){
+            jx_hat_re[l] = jx_hat_re_electron[l] + jx_hat_re_ion[l];
+            jx_hat_im[l] = jx_hat_im_electron[l] + jx_hat_im_ion[l];
+
+            jy_hat_re[l] = jy_hat_re_electron[l] + jy_hat_re_ion[l];
+            jy_hat_im[l] = jy_hat_im_electron[l] + jy_hat_im_ion[l];
+
+            jz_hat_re[l] = jz_hat_re_electron[l] + jz_hat_re_ion[l];
+            jz_hat_im[l] = jz_hat_im_electron[l] + jz_hat_im_ion[l];
+        }
 
         double time_eval_j_hat = timer.elapsed();
         std::cout << "Eval j_hat took " << time_eval_j_hat << " s." << std::endl;
@@ -901,9 +892,9 @@ void periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned()
         
         // Statistics.
         if(n % (steps_per_1) == 0){
-            kinetic_energy_and_entropy_2x3v<double,order>(nt_r_curr, kin_energy_entropy_file, coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz, conf, kinetic_energy, entropy, true, n, 32,1,32,16,16,false);
+            kinetic_energy_and_entropy_2x3v<double,order>(nt_r_curr, kin_energy_entropy_file, coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz, conf_electron, conf_ion, kinetic_energy, entropy, true, n, 32,1,32,16,16,false);
         }
-        do_stats_2x3v<double,order>(nt_r_curr,kinetic_energy,entropy,stat_file,coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz,conf,true,n,32,8,false);
+        do_stats_2x3v<double,order>(nt_r_curr,kinetic_energy,entropy,stat_file,coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz,conf_electron,true,n,32,8,false);
 
         std::cout << "Do stats took: " << double(timer.elapsed()) << " s." << std::endl;
         std::cout << " ---------------------------------- " << std::endl;
@@ -911,46 +902,13 @@ void periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned()
         if (nt_r_curr == nt_restart) {
             timer.reset();
             std::cout << "Restart simulation. " << std::endl;
-            std::cout << "Min value restart_matrix " << restart_matrix.min() << std::endl;
-            std::cout << "Max value restart_matrix " << restart_matrix.max() << std::endl;
 
-            #pragma omp parallel for collapse(5)
-            for (size_t ix = 0; ix <= nx_r; ix++)
-            for (size_t iy = 0; iy <= ny_r; iy++)
-            for (size_t iu = 0; iu <= nu_r; iu++)
-            for (size_t iv = 0; iv <= nv_r; iv++)
-            for (size_t iw = 0; iw <= nw_r; iw++) {
-                const double x = conf.x_min + ix * dx_r;
-                const double y = conf.y_min + iy * dy_r;
-                const double u = conf.u_min + iu * du_r;
-                const double v = conf.v_min + iv * dv_r;
-                const double w = conf.w_min + iw * dw_r;
-
-                const size_t index_0 = ix + (nx_r + 1) * iy;
-                const size_t index_1 = iu + (nu_r + 1) * (iv + (nv_r + 1) * iw); 
-
-                
-                double f = redux_2x3v::eval_f_nufi_ham_lie_Hf_HB_HE_2x3v<double, order>(
-                                nt_r_curr, x, y, u, v, w,
-                                coeffs_Ex, coeffs_Ey, coeffs_Ez, 
-                                coeffs_Bx, coeffs_By, coeffs_Bz, 
-                                conf
-                );
-                copy_mat(index_0, index_1) = f;
-            }
+            interpolant_electron.restart_f(eval_f_t_electron);
+            interpolant_ion.restart_f(eval_f_t_ion);
 
             double timer_fill_restart_matrix = timer.elapsed();
             timer.reset();
-            std::cout << "Filling restart matrix took " << timer_fill_restart_matrix << " s." << std::endl;
-
-            restart_matrix = copy_mat;
-            double timer_copy_mat = timer.elapsed();
-            timer.reset();
-            std::cout << "Copying restart matrix took " << timer_copy_mat << " s." << std::endl;
-
-            std::cout << "After restart: " << std::endl;
-            std::cout << "Min value restart_matrix " << restart_matrix.min() << std::endl;
-            std::cout << "Max value restart_matrix " << restart_matrix.max() << std::endl;
+            std::cout << "Filling and copying restart matrix took " << timer_fill_restart_matrix << " s." << std::endl;
 
             #pragma omp parallel for
             for (size_t l = 0; l < stride_t; l++) {
@@ -963,12 +921,12 @@ void periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned()
                 coeffs_Bz[l] = coeffs_Bz[nt_r_curr * stride_t + l];
             }
 
-            conf.f0_2x3v = cubic_interpolation_5d;
-            conf_test.f0_2x3v = cubic_interpolation_5d;
+            conf_electron.f0_2x3v = eval_f_electron_with_linear_interpolant;
+            conf_ion.f0_2x3v = eval_f_ion_with_linear_interpolant;
 
             nt_r_curr = 1;
             double timer_copy_coeff = timer.elapsed();
-            double timer_restart = timer_fill_restart_matrix + timer_copy_mat + timer_copy_coeff;
+            double timer_restart = timer_fill_restart_matrix + timer_copy_coeff;
             std::cout << "Restart took: " << timer_restart << std::endl;
             total_time += timer_restart;
         } else {
