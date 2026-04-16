@@ -58,22 +58,28 @@ const double vmax_e = 1.2;
 const double wmin_e = -5;
 const double wmax_e = 5;
 const double vth_ion = 1e-8;
-const double umin_i = -5*vth_ion;
+/* const double umin_i = -5*vth_ion;
 const double umax_i = 5*vth_ion;
 const double vmin_i = -5*vth_ion;
 const double vmax_i = 5*vth_ion;
 const double wmin_i = -5*vth_ion;
-const double wmax_i = 5*vth_ion;
+const double wmax_i = 5*vth_ion; */
+const double umin_i = -0.5;
+const double umax_i = 0.5;
+const double vmin_i = -0.5;
+const double vmax_i = 0.5;
+const double wmin_i = -0.5;
+const double wmax_i = 0.5;
 
 // Careful: Electrons and ions must have the same underlying spatial (x,y) grid!
-const size_t Nx = 32;
+const size_t Nx = 16;
 const size_t Ny = 1;
 const size_t Nu_e = 32;
 const size_t Nv_e = 32;
 const size_t Nw_e = 16;
-const size_t Nu_i = 16;
-const size_t Nv_i = 16;
-const size_t Nw_i = 16;
+const size_t Nu_i = 1;
+const size_t Nv_i = 1;
+const size_t Nw_i = 1;
 const size_t steps_per_1 = 30;
 const double   dt = 1.0 / steps_per_1;
 const size_t Nt = 50/dt;
@@ -140,11 +146,11 @@ real f0_2x3v_ion(real x, real y, real u, real v, real w) noexcept
     using std::exp;
 
     // Constant background:
-    //return 1;
+    return 1;
 
     // Maxwellian
-    double vth = vth_ion;
-    return maxwellian_1d(u,vth) * maxwellian_1d(v,vth) * maxwellian_1d(w,vth);
+    /* double vth = vth_ion;
+    return maxwellian_1d(u,vth) * maxwellian_1d(v,vth) * maxwellian_1d(w,vth); */
 }
 
 template <typename real>
