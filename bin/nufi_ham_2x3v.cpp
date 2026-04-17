@@ -17,83 +17,145 @@
 #include <nufi/stopwatch.hpp>
 
 
+namespace nufi
+{
+
 namespace double_harris_magnetic_reconnection
 {
-// The following sets up the simulation in ion scale units:
-double mass_ratio = 25;
+// Ion-scale units
+double mass_ratio = 25.0;
 
 double me = 1.0;
 double mi = mass_ratio;
 
-double di = 1;
-double de = std::sqrt(1/mass_ratio)*di;
+double di = 1.0;
+double de = std::sqrt(me / mi) * di;
 
-double uth_elec_core = 1;
-double uth_ion_core = std::sqrt(0.2);
+// GEM-like parameters: Te/Ti = 0.2, mi/me = 25, lambda = 0.5 di
+double Ti = 5.0 / 12.0;   // ≈ 0.4166666667
+double Te = 1.0 / 12.0;   // ≈ 0.0833333333
 
-double k = 0.3;
-//double k = 0.5;
+// Thermal speeds, assuming Maxwellian ~ exp(-m v^2 / (2T))
+double uth_elec = std::sqrt(Te / me);
+double uth_ion  = std::sqrt(Ti / mi);
+
+// Constant drift speeds for the Harris populations
+double Ve = -1.0 / 3.0;
+double Vi =  5.0 / 3.0;
 
 double Lx = 25.6;
 double Ly = 12.8;
-double xmin = 0;
+double xmin = 0.0;
 double xmax = Lx;
-double ymin = 0; 
-double ymax = Ly; 
-double zmin = 0;
-double zmax = 1;
+double ymin = 0.0;
+double ymax = Ly;
+double zmin = 0.0;
+double zmax = 1.0;
 
 // Sheets
 double l0 = 0.5;
-double y1 = Ly/4.0;
-double y2 = 3 * Ly / 4.0;
+double y1 = Ly / 4.0;
+double y2 = 3.0 * Ly / 4.0;
 
-// Fields:
-double B0 = 1;
+// Fields
+double B0 = 1.0;
 
-// Density 
-double n0 = 1;
+// Density
+double n0 = 1.0;
 double nb = 0.2;
 
-double sech2(double x){
+double sech2(double x)
+{
     double y = 1.0 / std::cosh(x);
-    return y*y;
+    return y * y;
 }
 
-double init_density(double x, double y) {
-    return nb + n0 * (sech2( (y - y1)/l0 ) + sech2( (y-y2)/l0 ));
+double sheet1(double y)
+{
+    return sech2((y - y1) / l0);
 }
 
-double Bx(double x, double y) {
-    return B0 * (std::tanh( (y - y1)/l0 ) - tanh( (y-y2)/l0 ) - 1);
+double sheet2(double y)
+{
+    return sech2((y - y2) / l0);
 }
 
-arma::Col<double> delta_B(double x, double y){
-    double kx = 2.0*M_PI / Lx;
-    double ky = 2.0*M_PI / Ly;
+double init_density(double x, double y)
+{
+    (void)x;
+    return nb + n0 * (sheet1(y) + sheet2(y));
+}
+
+double Bx(double x, double y)
+{
+    (void)x;
+    return B0 * (std::tanh((y - y1) / l0) - std::tanh((y - y2) / l0) - 1.0);
+}
+
+arma::Col<double> delta_B(double x, double y)
+{
+    double kx = 2.0 * M_PI / Lx;
+    double ky = 2.0 * M_PI / Ly;
 
     double eps = 1e-2;
+    double Ap = eps * B0 * (std::min(Lx, Ly) / (2.0 * M_PI));
 
-    double Ap = eps * B0 * (std::min(Lx, Ly) / (2.0*M_PI)); // eps=1e-3..1e-2
     return arma::Col<double>({
-        -Ap * ky * std::cos(kx*x) * std::sin(ky*y),
-        Ap * kx * std::sin(kx*x) * std::cos(ky*y),
-        0});
+        -Ap * ky * std::cos(kx * x) * std::sin(ky * y),
+         Ap * kx * std::sin(kx * x) * std::cos(ky * y),
+         0.0
+    });
 }
 
-double Jz(double x, double y){
-    return -B0/l0 * ( sech2( (y - y1)/l0 ) - sech2( (y-y2)/l0 ) );
-}
-
-double uze(double x, double y){
-    return B0/l0/init_density(x,y) * ( sech2( (y - y1)/l0 ) - sech2( (y-y2)/l0 ) );
-}
-
-}
-
-
-namespace nufi
+double Jz(double x, double y)
 {
+    (void)x;
+    return -B0 / l0 * (sheet1(y) - sheet2(y));
+}
+
+template <typename real>
+real f0_2x3v_electron(real x, real y, real u, real v, real w) noexcept
+{
+    using namespace double_harris_magnetic_reconnection;
+
+    // Sheet densities
+    real s1 = sech2((y - y1)/l0);
+    real s2 = sech2((y - y2)/l0);
+    real sheet = n0 * (s1 + s2);
+
+    // Sheet electrons (drifting)
+    real f_sheet =
+        sheet * maxwellian<real>(u, v, w - Ve, uth_elec);
+
+    // Background electrons (no drift)
+    real f_bg =
+        nb * maxwellian<real>(u, v, w, uth_elec);
+
+    return f_sheet + f_bg;
+}
+
+template <typename real>
+real f0_2x3v_ion(real x, real y, real u, real v, real w) noexcept
+{
+    using namespace double_harris_magnetic_reconnection;
+
+    // Sheet densities
+    real s1 = sech2((y - y1)/l0);
+    real s2 = sech2((y - y2)/l0);
+    real sheet = n0 * (s1 + s2);
+
+    // Sheet ions (drifting)
+    real f_sheet =
+        sheet * maxwellian<real>(u, v, w - Vi, uth_ion);
+
+    // Background ions (no drift)
+    real f_bg =
+        nb * maxwellian<real>(u, v, w, uth_ion);
+
+    return f_sheet + f_bg;
+}
+
+}
 
 namespace dim2
 {
@@ -149,30 +211,30 @@ const double xmax = Lx;
 const double Ly = double_harris_magnetic_reconnection::Ly;
 const double ymin = 0;
 const double ymax = Ly;
-const double umin_e = -8*double_harris_magnetic_reconnection::uth_elec_core;
-const double umax_e = 8*double_harris_magnetic_reconnection::uth_elec_core;
-const double vmin_e = -8*double_harris_magnetic_reconnection::uth_elec_core;
-const double vmax_e = 8*double_harris_magnetic_reconnection::uth_elec_core;
-const double wmin_e = -5*double_harris_magnetic_reconnection::uth_elec_core;
-const double wmax_e = 5*double_harris_magnetic_reconnection::uth_elec_core;
-double umin_i = -5*double_harris_magnetic_reconnection::uth_ion_core;
-double umax_i = 5*double_harris_magnetic_reconnection::uth_ion_core;
-double vmin_i = -5*double_harris_magnetic_reconnection::uth_ion_core;
-double vmax_i = 5*double_harris_magnetic_reconnection::uth_ion_core;
-double wmin_i = -5*double_harris_magnetic_reconnection::uth_ion_core;
-double wmax_i = 5*double_harris_magnetic_reconnection::uth_ion_core;
+const double umin_e = -8*double_harris_magnetic_reconnection::uth_elec;
+const double umax_e = 8*double_harris_magnetic_reconnection::uth_elec;
+const double vmin_e = -8*double_harris_magnetic_reconnection::uth_elec;
+const double vmax_e = 8*double_harris_magnetic_reconnection::uth_elec;
+const double wmin_e = -5*double_harris_magnetic_reconnection::uth_elec;
+const double wmax_e = 5*double_harris_magnetic_reconnection::uth_elec;
+double umin_i = -5*double_harris_magnetic_reconnection::uth_ion;
+double umax_i = 5*double_harris_magnetic_reconnection::uth_ion;
+double vmin_i = -5*double_harris_magnetic_reconnection::uth_ion;
+double vmax_i = 5*double_harris_magnetic_reconnection::uth_ion;
+double wmin_i = -5*double_harris_magnetic_reconnection::uth_ion;
+double wmax_i = 5*double_harris_magnetic_reconnection::uth_ion;
 
 
 // Careful: Electrons and ions must have the same underlying spatial (x,y) grid!
-const size_t Nx = 256;
+const size_t Nx = 64;
 const size_t Ny = Nx/2;
-const size_t Nu_e = 32;
-const size_t Nv_e = 32;
-const size_t Nw_e = 32;
-const size_t Nu_i = 32;
-const size_t Nv_i = 32;
-const size_t Nw_i = 32;
-const size_t steps_per_1 = 100;
+const size_t Nu_e = 24;
+const size_t Nv_e = 24;
+const size_t Nw_e = 24;
+const size_t Nu_i = 24;
+const size_t Nv_i = 24;
+const size_t Nw_i = 24;
+const size_t steps_per_1 = 10;
 const double   dt = 1.0 / steps_per_1;
 const size_t Nt = 50/dt;
 
@@ -230,9 +292,7 @@ real f0_2x3v_electron(real x, real y, real u, real v, real w) noexcept
     return 0.5 * (maxwellian_2d<real>(u,v-v_beam,vth) + maxwellian_2d<real>(u,v+v_beam,vth)) * maxwellian_1d(w,1.0); */
 
     // Magnetic reconnection: Double Harris.
-    return double_harris_magnetic_reconnection::init_density(x,y) 
-            * maxwellian<double>(u,v,w - double_harris_magnetic_reconnection::uze(x,y),
-                    double_harris_magnetic_reconnection::uth_elec_core);
+    return double_harris_magnetic_reconnection::f0_2x3v_electron<real>(x,y,u,v,w);
 }
 
 template <typename real>
@@ -250,8 +310,7 @@ real f0_2x3v_ion(real x, real y, real u, real v, real w) noexcept
     return maxwellian_1d(u,vth) * maxwellian_1d(v,vth) * maxwellian_1d(w,vth); */
 
     // Magnetic Reconnection: Double Harris.
-    return double_harris_magnetic_reconnection::init_density(x,y)
-            * maxwellian<double>(u,v,w,double_harris_magnetic_reconnection::uth_ion_core);
+    return double_harris_magnetic_reconnection::f0_2x3v_ion<real>(x,y,u,v,w);
 }
 
 template <typename real>
