@@ -16,6 +16,80 @@
 #include <nufi/rho.hpp>
 #include <nufi/stopwatch.hpp>
 
+
+namespace double_harris_magnetic_reconnection
+{
+// The following sets up the simulation in ion scale units:
+double mass_ratio = 25;
+
+double me = 1.0;
+double mi = mass_ratio;
+
+double uth_elec_core = 1;
+
+double uth_ion_core = std::sqrt(0.2);
+
+double k = 0.3;
+//double k = 0.5;
+
+double Lx = 25.6;
+double Ly = 12.8;
+double xmin = 0;
+double xmax = Lx;
+double ymin = 0; 
+double ymax = Ly; 
+double zmin = 0;
+double zmax = 1;
+
+// Sheets
+double l0 = 0.5;
+double y1 = Ly/4.0;
+double y2 = 3 * Ly / 4.0;
+
+// Fields:
+double B0 = 1;
+
+// Density 
+double n0 = 1;
+double nb = 0.2;
+
+double sech2(double x){
+    double y = 1.0 / std::cosh(x);
+    return y*y;
+}
+
+double init_density(double x, double y) {
+    return nb + n0 * (sech2( (y - y1)/l0 ) + sech2( (y-y2)/l0 ));
+}
+
+double Bx(double x, double y) {
+    return B0 * (std::tanh( (y - y1)/l0 ) - tanh( (y-y2)/l0 ) - 1);
+}
+
+arma::Col<double> delta_B(double x, double y){
+    double kx = 2.0*M_PI / Lx;
+    double ky = 2.0*M_PI / Ly;
+
+    double eps = 1e-2;
+
+    double Ap = eps * B0 * (std::min(Lx, Ly) / (2.0*M_PI)); // eps=1e-3..1e-2
+    return arma::Col<double>({
+        -Ap * ky * std::cos(kx*x) * std::sin(ky*y),
+        Ap * kx * std::sin(kx*x) * std::cos(ky*y),
+        0});
+}
+
+double Jz(double x, double y){
+    return -B0/l0 * ( sech2( (y - y1)/l0 ) - sech2( (y-y2)/l0 ) );
+}
+
+double uze(double x, double y){
+    return B0/l0/init_density(x,y) * ( sech2( (y - y1)/l0 ) - sech2( (y-y2)/l0 ) );
+}
+
+}
+
+
 namespace nufi
 {
 
@@ -44,7 +118,7 @@ const double wmin_i = -5*vth_ion;
 const double wmax_i = 5*vth_ion; */
 
 // Paul & Fabio magnetic TSI (Filamentation instability) 
-const double trigger_k = 2;
+/* const double trigger_k = 2;
 const double Lx = 2*M_PI/trigger_k;
 const double xmin = 0;
 const double xmax = Lx;
@@ -58,29 +132,45 @@ const double vmax_e = 1.2;
 const double wmin_e = -5;
 const double wmax_e = 5;
 const double vth_ion = 1e-8;
-/* const double umin_i = -5*vth_ion;
+const double umin_i = -5*vth_ion;
 const double umax_i = 5*vth_ion;
 const double vmin_i = -5*vth_ion;
 const double vmax_i = 5*vth_ion;
 const double wmin_i = -5*vth_ion;
 const double wmax_i = 5*vth_ion; */
-const double umin_i = -0.5;
-const double umax_i = 0.5;
-const double vmin_i = -0.5;
-const double vmax_i = 0.5;
-const double wmin_i = -0.5;
-const double wmax_i = 0.5;
+
+
+// Magnetic reconnection: Double Harris.
+const double Lx = double_harris_magnetic_reconnection::Lx;
+const double xmin = 0;
+const double xmax = Lx;
+const double Ly = double_harris_magnetic_reconnection::Ly;
+const double ymin = 0;
+const double ymax = Ly;
+const double umin_e = -8*double_harris_magnetic_reconnection::uth_elec_core;
+const double umax_e = 8*double_harris_magnetic_reconnection::uth_elec_core;
+const double vmin_e = -8*double_harris_magnetic_reconnection::uth_elec_core;
+const double vmax_e = 8*double_harris_magnetic_reconnection::uth_elec_core;
+const double wmin_e = -5*double_harris_magnetic_reconnection::uth_elec_core;
+const double wmax_e = 5*double_harris_magnetic_reconnection::uth_elec_core;
+double umin_i = -5*double_harris_magnetic_reconnection::uth_ion_core;
+double umax_i = 5*double_harris_magnetic_reconnection::uth_ion_core;
+double vmin_i = -5*double_harris_magnetic_reconnection::uth_ion_core;
+double vmax_i = 5*double_harris_magnetic_reconnection::uth_ion_core;
+double wmin_i = -5*double_harris_magnetic_reconnection::uth_ion_core;
+double wmax_i = 5*double_harris_magnetic_reconnection::uth_ion_core;
+
 
 // Careful: Electrons and ions must have the same underlying spatial (x,y) grid!
-const size_t Nx = 16;
-const size_t Ny = 1;
+const size_t Nx = 64;
+const size_t Ny = Nx/2;
 const size_t Nu_e = 32;
 const size_t Nv_e = 32;
-const size_t Nw_e = 16;
-const size_t Nu_i = 1;
-const size_t Nv_i = 1;
-const size_t Nw_i = 1;
-const size_t steps_per_1 = 30;
+const size_t Nw_e = 32;
+const size_t Nu_i = 32;
+const size_t Nv_i = 32;
+const size_t Nw_i = 32;
+const size_t steps_per_1 = 50;
 const double   dt = 1.0 / steps_per_1;
 const size_t Nt = 50/dt;
 
@@ -89,7 +179,7 @@ bool gauss_clean = false;
 bool with_filter = false;
 
 //size_t nt_restart = Nt + 1;
-size_t nt_restart = 10;
+size_t nt_restart = 20;
 
 const size_t nx_r = Nx;
 const size_t ny_r = Ny;
@@ -133,9 +223,14 @@ real f0_2x3v_electron(real x, real y, real u, real v, real w) noexcept
     return (1 + alpha * std::cos(k*x)) * maxwellian_1d(u,1.0) * maxwellian_1d(v,1.0) * maxwellian_1d(w,1.0); */
 
     // Paul & Fabio magnetic TSI (Filamentation instability) 
-    real v_beam = 0.4;
+    /* real v_beam = 0.4;
     real vth = 0.1;
-    return 0.5 * (maxwellian_2d<real>(u,v-v_beam,vth) + maxwellian_2d<real>(u,v+v_beam,vth)) * maxwellian_1d(w,1.0);
+    return 0.5 * (maxwellian_2d<real>(u,v-v_beam,vth) + maxwellian_2d<real>(u,v+v_beam,vth)) * maxwellian_1d(w,1.0); */
+
+    // Magnetic reconnection: Double Harris.
+    return double_harris_magnetic_reconnection::init_density(x,y) 
+            * maxwellian<double>(u,v,w - double_harris_magnetic_reconnection::uze(x,y),
+                    double_harris_magnetic_reconnection::uth_elec_core);
 }
 
 template <typename real>
@@ -146,11 +241,15 @@ real f0_2x3v_ion(real x, real y, real u, real v, real w) noexcept
     using std::exp;
 
     // Constant background:
-    return 1;
+    //return 1;
 
     // Maxwellian
     /* double vth = vth_ion;
     return maxwellian_1d(u,vth) * maxwellian_1d(v,vth) * maxwellian_1d(w,vth); */
+
+    // Magnetic Reconnection: Double Harris.
+    return double_harris_magnetic_reconnection::init_density(x,y)
+            * maxwellian<double>(u,v,w,double_harris_magnetic_reconnection::uth_ion_core);
 }
 
 template <typename real>
@@ -162,6 +261,9 @@ arma::Col<real> E0(real x, real y, real z)
     return  arma::Col<real>({-alpha / k * std::sin(k*x), 0, 0}); */
 
     // Kormann Streaming & Filamentation instability
+    //return  arma::Col<real>({0, 0, 0});
+
+    // Magnetic Reconnection: Double Harris.
     return  arma::Col<real>({0, 0, 0});
 }
 
@@ -172,8 +274,16 @@ arma::Col<real> B0(real x, real y, real z)
     //return arma::Col<real>({0, 0, 0});
 
     // Filamentation instability
-    constexpr real beta = 1e-3;
-    return arma::Col<real>({0, 0, beta*std::sin(trigger_k*x)});
+    /* constexpr real beta = 1e-3;
+    return arma::Col<real>({0, 0, beta*std::sin(trigger_k*x)}); */
+
+    // Magnetic Reconnection: Double Harris.
+    arma::Col<real> B_init({
+        double_harris_magnetic_reconnection::Bx(x,y),
+        0, 
+        0
+    });
+    return B_init + double_harris_magnetic_reconnection::delta_B(x,y);
 }
 
 template<typename real, size_t order>
@@ -201,6 +311,8 @@ void do_stats_2x3v(size_t nt, double kinetic_energy, double entropy, std::ofstre
     double magnetic_x_energy = 0;
     double magnetic_y_energy = 0;
     double magnetic_z_energy = 0;
+
+    double magnetic_flux = 0;
 
     double current_time = 0;
     if(restarted){
@@ -255,6 +367,16 @@ void do_stats_2x3v(size_t nt, double kinetic_energy, double entropy, std::ofstre
         }
     }
 
+    #pragma omp parallel for reduction(+:magnetic_flux)
+    for(size_t ix = 0; ix < nx_plot; ix++){
+        double x = conf.x_min + (ix+0.5)*dx_plot;
+        double y = 0;
+
+        double By = eval<real,order>(x,y,coeffs_By.data() + nt*stride_t,conf);
+
+        magnetic_flux += By;
+    }
+
     electric_x_energy *= 0.5*dx_plot*dy_plot;
     electric_y_energy *= 0.5*dx_plot*dy_plot;
     electric_z_energy *= 0.5*dx_plot*dy_plot;
@@ -262,6 +384,8 @@ void do_stats_2x3v(size_t nt, double kinetic_energy, double entropy, std::ofstre
     magnetic_x_energy *= 0.5*dx_plot*dy_plot;
     magnetic_y_energy *= 0.5*dx_plot*dy_plot;
     magnetic_z_energy *= 0.5*dx_plot*dy_plot;
+
+    magnetic_flux *= dx_plot;
 
     electric_energy = electric_x_energy + electric_y_energy + electric_z_energy;
     magnetic_energy = magnetic_x_energy + magnetic_y_energy + magnetic_z_energy;
@@ -271,7 +395,7 @@ void do_stats_2x3v(size_t nt, double kinetic_energy, double entropy, std::ofstre
         << kinetic_energy << " " << total_energy << " " << entropy << " "
         << electric_x_energy << " " << electric_y_energy << " " << electric_z_energy << " "
         << magnetic_x_energy << " " << magnetic_y_energy << " " << magnetic_z_energy << " "
-        << std::endl;
+        << magnetic_flux << std::endl;
     std::cout << current_time << " " << electric_energy << " " << magnetic_energy << std::endl;
 
     if(with_plot){
@@ -583,8 +707,8 @@ void periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned()
     std::ofstream kin_energy_entropy_file("kinetic_energy_and_entropy.txt");
     double kinetic_energy = 0.0;
     double entropy = 0.0;
-    kinetic_energy_and_entropy_2x3v<double,order>(0,kin_energy_entropy_file,coeffs_Ex,coeffs_Ey,coeffs_Ez,coeffs_Bx,coeffs_By,coeffs_Bz,conf_electron,conf_ion, kinetic_energy, entropy,false,0,32,32,32,8,8);
-    do_stats_2x3v<double, order>(0, kinetic_energy, entropy, stat_file, coeffs_Ex,coeffs_Ey,coeffs_Ez,coeffs_Bx,coeffs_By,coeffs_Bz, conf_electron, false, 0,64,64,false);
+    kinetic_energy_and_entropy_2x3v<double,order>(0,kin_energy_entropy_file,coeffs_Ex,coeffs_Ey,coeffs_Ez,coeffs_Bx,coeffs_By,coeffs_Bz,conf_electron,conf_ion, kinetic_energy, entropy,false,0,32,32,32,16,16,true);
+    do_stats_2x3v<double, order>(0, kinetic_energy, entropy, stat_file, coeffs_Ex,coeffs_Ey,coeffs_Ez,coeffs_Bx,coeffs_By,coeffs_Bz, conf_electron, false, 0,64,64,true);
 
     std::ofstream gle_file("gle.txt");
     double rho_integration_error = 0.0;
@@ -934,9 +1058,15 @@ void periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned()
         
         // Statistics.
         if(n % (steps_per_1) == 0){
-            kinetic_energy_and_entropy_2x3v<double,order>(nt_r_curr, kin_energy_entropy_file, coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz, conf_electron, conf_ion, kinetic_energy, entropy, true, n, 32,1,32,16,16,false);
+            kinetic_energy_and_entropy_2x3v<double,order>(nt_r_curr, kin_energy_entropy_file, coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz, conf_electron, conf_ion, kinetic_energy, entropy, true, n, 32,32,32,32,32,true);
         }
-        do_stats_2x3v<double,order>(nt_r_curr,kinetic_energy,entropy,stat_file,coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz,conf_electron,true,n,32,8,false);
+        bool plot_EB = (n % (steps_per_1) == 0);
+        if(plot_EB){
+            do_stats_2x3v<double,order>(nt_r_curr,kinetic_energy,entropy,stat_file,coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz,conf_electron,true,n,128,128,true);
+        } else {
+            do_stats_2x3v<double,order>(nt_r_curr,kinetic_energy,entropy,stat_file,coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz,conf_electron,true,n,32,32,false);
+        }
+        
 
         std::cout << "Do stats took: " << double(timer.elapsed()) << " s." << std::endl;
         std::cout << " ---------------------------------- " << std::endl;
