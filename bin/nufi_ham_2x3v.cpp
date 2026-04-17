@@ -659,8 +659,8 @@ void periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned()
         Ex[l] = E0_vec(0);
         Ey[l] = E0_vec(1);
         Ez[l] = E0_vec(2);
-        Bz[l] = B0_vec(0);
-        Bz[l] = B0_vec(1);
+        Bx[l] = B0_vec(0);
+        By[l] = B0_vec(1);
         Bz[l] = B0_vec(2);
     }
 
@@ -709,8 +709,8 @@ void periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned()
     std::ofstream kin_energy_entropy_file("kinetic_energy_and_entropy.txt");
     double kinetic_energy = 0.0;
     double entropy = 0.0;
-    kinetic_energy_and_entropy_2x3v<double,order>(0,kin_energy_entropy_file,coeffs_Ex,coeffs_Ey,coeffs_Ez,coeffs_Bx,coeffs_By,coeffs_Bz,conf_electron,conf_ion, kinetic_energy, entropy,false,0,32,32,32,16,16,true);
-    do_stats_2x3v<double, order>(0, kinetic_energy, entropy, stat_file, coeffs_Ex,coeffs_Ey,coeffs_Ez,coeffs_Bx,coeffs_By,coeffs_Bz, conf_electron, false, 0,64,64,true);
+    kinetic_energy_and_entropy_2x3v<double,order>(0,kin_energy_entropy_file,coeffs_Ex,coeffs_Ey,coeffs_Ez,coeffs_Bx,coeffs_By,coeffs_Bz,conf_electron,conf_ion,kinetic_energy,entropy,false,0,32,32,32,16,16,true);
+    do_stats_2x3v<double, order>(0,kinetic_energy,entropy,stat_file,coeffs_Ex,coeffs_Ey,coeffs_Ez,coeffs_Bx,coeffs_By,coeffs_Bz,conf_electron,false,0,64,64,true);
 
     std::ofstream gle_file("gle.txt");
     double rho_integration_error = 0.0;
