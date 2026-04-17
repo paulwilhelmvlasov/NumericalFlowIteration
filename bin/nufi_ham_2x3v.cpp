@@ -164,15 +164,15 @@ double wmax_i = 5*double_harris_magnetic_reconnection::uth_ion_core;
 
 
 // Careful: Electrons and ions must have the same underlying spatial (x,y) grid!
-const size_t Nx = 64;
+const size_t Nx = 256;
 const size_t Ny = Nx/2;
-const size_t Nu_e = 24;
-const size_t Nv_e = 24;
-const size_t Nw_e = 24;
-const size_t Nu_i = 24;
-const size_t Nv_i = 24;
-const size_t Nw_i = 24;
-const size_t steps_per_1 = 20;
+const size_t Nu_e = 32;
+const size_t Nv_e = 32;
+const size_t Nw_e = 32;
+const size_t Nu_i = 32;
+const size_t Nv_i = 32;
+const size_t Nw_i = 32;
+const size_t steps_per_1 = 100;
 const double   dt = 1.0 / steps_per_1;
 const size_t Nt = 50/dt;
 
@@ -1063,17 +1063,17 @@ void periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned()
         bool plot_f = (n % (5*steps_per_1) == 0);
         if(comp_kin_energy){
             if(plot_f){
-                kinetic_energy_and_entropy_2x3v<double,order>(nt_r_curr, kin_energy_entropy_file, coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz, conf_electron, conf_ion, kinetic_energy, entropy, true, n, 128,128,1,1,1,true,"_xy");
-                kinetic_energy_and_entropy_2x3v<double,order>(nt_r_curr, kin_energy_entropy_file, coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz, conf_electron, conf_ion, kinetic_energy, entropy, true, n, 128,1,128,1,1,true,"_xu");
-                kinetic_energy_and_entropy_2x3v<double,order>(nt_r_curr, kin_energy_entropy_file, coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz, conf_electron, conf_ion, kinetic_energy, entropy, true, n, 1,1,128,128,1,true,"_uv");
+                kinetic_energy_and_entropy_2x3v<double,order>(nt_r_curr, kin_energy_entropy_file, coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz, conf_electron, conf_ion, kinetic_energy, entropy, true, n, 256,256,1,1,1,true,"_xy");
+                kinetic_energy_and_entropy_2x3v<double,order>(nt_r_curr, kin_energy_entropy_file, coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz, conf_electron, conf_ion, kinetic_energy, entropy, true, n, 256,1,256,1,1,true,"_xu");
+                kinetic_energy_and_entropy_2x3v<double,order>(nt_r_curr, kin_energy_entropy_file, coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz, conf_electron, conf_ion, kinetic_energy, entropy, true, n, 1,1,256,256,1,true,"_uv");
             }
             kinetic_energy_and_entropy_2x3v<double,order>(nt_r_curr, kin_energy_entropy_file, coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz, conf_electron, conf_ion, kinetic_energy, entropy,true,n,Nx,Ny,Nu_e,Nv_e,Nw_e,false);
         }
-        bool plot_EB = (n % (steps_per_1) == 0);
+        bool plot_EB = (n % (steps_per_1/2) == 0);
         if(plot_EB){
-            do_stats_2x3v<double,order>(nt_r_curr,kinetic_energy,entropy,stat_file,coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz,conf_electron,true,n,128,128,true);
+            do_stats_2x3v<double,order>(nt_r_curr,kinetic_energy,entropy,stat_file,coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz,conf_electron,true,n,512,512,true);
         } else {
-            do_stats_2x3v<double,order>(nt_r_curr,kinetic_energy,entropy,stat_file,coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz,conf_electron,true,n,32,32,false);
+            do_stats_2x3v<double,order>(nt_r_curr,kinetic_energy,entropy,stat_file,coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz,conf_electron,true,n,128,128,false);
         }
         
 
