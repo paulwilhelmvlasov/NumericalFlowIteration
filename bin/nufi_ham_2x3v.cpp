@@ -25,8 +25,10 @@ double mass_ratio = 25;
 double me = 1.0;
 double mi = mass_ratio;
 
-double uth_elec_core = 1;
+double di = 1;
+double de = std::sqrt(1/mass_ratio)*di;
 
+double uth_elec_core = 1;
 double uth_ion_core = std::sqrt(0.2);
 
 double k = 0.3;
@@ -170,7 +172,7 @@ const size_t Nw_e = 32;
 const size_t Nu_i = 32;
 const size_t Nv_i = 32;
 const size_t Nw_i = 32;
-const size_t steps_per_1 = 50;
+const size_t steps_per_1 = 20;
 const double   dt = 1.0 / steps_per_1;
 const size_t Nt = 50/dt;
 
@@ -630,7 +632,7 @@ void periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned()
     conf_electron.w_max = wmax_e;
     conf_electron.dw = (wmax_e - wmin_e) / Nw_e;
     conf_electron.q = -1;
-    conf_electron.m = 1;
+    conf_electron.m = double_harris_magnetic_reconnection::me;
     conf_electron.f0_2x3v = f0_2x3v_electron;
 
     conf_ion = config_t<double>(Nx, Ny, Nu_i, Nv_i, Nt, dt, xmin, xmax, ymin, ymax, umin_i, umax_i, vmin_i, vmax_i, &f0);
@@ -639,7 +641,7 @@ void periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned()
     conf_ion.w_max = wmax_i;
     conf_ion.dw = (wmax_i - wmin_i) / Nw_i;
     conf_ion.q = 1;
-    conf_ion.m = 1836;
+    conf_ion.m = double_harris_magnetic_reconnection::mi;
     conf_ion.f0_2x3v = f0_2x3v_electron;
 
     // Compute E(0) and B(0).
