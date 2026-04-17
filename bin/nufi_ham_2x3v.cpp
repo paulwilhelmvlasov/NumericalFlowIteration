@@ -1059,8 +1059,14 @@ void periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned()
         std::cout << "Time step " << n << " took a total of " << time_for_step << " s." << std::endl;
         
         // Statistics.
+        bool plot_f = (n % (5*steps_per_1) == 0);
         if(n % (steps_per_1) == 0){
-            kinetic_energy_and_entropy_2x3v<double,order>(nt_r_curr, kin_energy_entropy_file, coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz, conf_electron, conf_ion, kinetic_energy, entropy, true, n, 32,32,32,32,32,true);
+            if(plot_f){
+                kinetic_energy_and_entropy_2x3v<double,order>(nt_r_curr, kin_energy_entropy_file, coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz, conf_electron, conf_ion, kinetic_energy, entropy, true, n, 128,128,1,1,1,true,"_xy");
+                kinetic_energy_and_entropy_2x3v<double,order>(nt_r_curr, kin_energy_entropy_file, coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz, conf_electron, conf_ion, kinetic_energy, entropy, true, n, 128,1,128,1,1,true,"_xu");
+                kinetic_energy_and_entropy_2x3v<double,order>(nt_r_curr, kin_energy_entropy_file, coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz, conf_electron, conf_ion, kinetic_energy, entropy, true, n, 1,1,128,128,1,true,"_uv");
+            }
+            kinetic_energy_and_entropy_2x3v<double,order>(nt_r_curr, kin_energy_entropy_file, coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz, conf_electron, conf_ion, kinetic_energy, entropy, true, n, 32,32,32,32,32,false);
         }
         bool plot_EB = (n % (steps_per_1) == 0);
         if(plot_EB){
