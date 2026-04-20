@@ -234,7 +234,7 @@ double wmax_i = 5*ipic_double_harris::wth_ion;
 
 
 // Careful: Electrons and ions must have the same underlying spatial (x,y) grid!
-const size_t Nx = 64;
+const size_t Nx = 32;
 const size_t Ny = Nx;
 const size_t Nu_e = 16;
 const size_t Nv_e = Nu_e;
@@ -242,12 +242,12 @@ const size_t Nw_e = Nu_e;
 const size_t Nu_i = Nu_e;
 const size_t Nv_i = Nv_e;
 const size_t Nw_i = Nw_e;
-const size_t steps_per_1 = 20;
+const size_t steps_per_1 = 10;
 const double   dt = 1.0 / steps_per_1;
 const size_t Nt = 100/dt;
 
 bool strang_split = false; // Not implemented yet!
-bool gauss_clean = true;
+bool gauss_clean = false;
 bool with_filter = false;
 
 //size_t nt_restart = Nt + 1;
@@ -876,7 +876,7 @@ void periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned()
             Ey_hat_im[l] = fft_out[l][1];
         }
 
-        // FFT Ey
+        // FFT Ez
         for (size_t l = 0; l < Nx*Ny; l++) {
             fft_in[l][0] = Ez[l];
             fft_in[l][1] = 0.0;
@@ -1175,8 +1175,8 @@ void periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned()
             }
             kinetic_energy_and_entropy_2x3v<double,order>(nt_r_curr, kin_energy_entropy_file, coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz, conf_electron, conf_ion, kinetic_energy, entropy,true,n,Nx,Ny,Nu_e,Nv_e,Nw_e,false);
         }
-        //bool plot_EB = (n % (steps_per_1) == 0);
-        bool plot_EB = true;
+        bool plot_EB = (n % (steps_per_1) == 0);
+        //bool plot_EB = true;
         if(plot_EB){
             do_stats_2x3v<double,order>(nt_r_curr,kinetic_energy,entropy,stat_file,coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz,conf_electron,true,n,512,512,true);
         } else {
