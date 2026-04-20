@@ -234,7 +234,7 @@ double wmax_i = 5*ipic_double_harris::wth_ion;
 
 
 // Careful: Electrons and ions must have the same underlying spatial (x,y) grid!
-const size_t Nx = 128;
+const size_t Nx = 64;
 const size_t Ny = Nx;
 const size_t Nu_e = 16;
 const size_t Nv_e = Nu_e;
@@ -247,7 +247,7 @@ const double   dt = 1.0 / steps_per_1;
 const size_t Nt = 100/dt;
 
 bool strang_split = false; // Not implemented yet!
-bool gauss_clean = false;
+bool gauss_clean = true;
 bool with_filter = false;
 
 //size_t nt_restart = Nt + 1;
@@ -612,9 +612,28 @@ void periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned()
     const size_t stride_y = stride_x*(Nx + order - 1);
     const size_t stride_t = stride_y*(Ny + order - 1);
 
-    std::cout << "Start NuFI-Ham Vlasov-Maxwell-Solver with 1x2v redux." << std::endl;
-    std::cout << "Init helper variables." << std::endl;
+    std::cout << "Start NuFI-Ham Vlasov-Maxwell-Solver with 2x3v redux." << std::endl;
+    // Set up config.
+    conf_electron = config_t<double>(Nx, Ny, Nu_e, Nv_e, Nt, dt, xmin, xmax, ymin, ymax, umin_e, umax_e, vmin_e, vmax_e, &f0);
+    conf_electron.Nw = Nw_e;
+    conf_electron.w_min = wmin_e;
+    conf_electron.w_max = wmax_e;
+    conf_electron.dw = (wmax_e - wmin_e) / Nw_e;
+    conf_electron.q = -1;
+    conf_electron.m = ipic_double_harris::me;
+    conf_electron.f0_2x3v = f0_2x3v_electron;
 
+    conf_ion = config_t<double>(Nx, Ny, Nu_i, Nv_i, Nt, dt, xmin, xmax, ymin, ymax, umin_i, umax_i, vmin_i, vmax_i, &f0);
+    conf_ion.Nw = Nw_i;
+    conf_ion.w_min = wmin_i;
+    conf_ion.w_max = wmax_i;
+    conf_ion.dw = (wmax_i - wmin_i) / Nw_i;
+    conf_ion.q = 1;
+    conf_ion.m = ipic_double_harris::mi;
+    conf_ion.f0_2x3v = f0_2x3v_ion;
+
+
+    std::cout << "Init helper variables." << std::endl;
     // Flattened 1D coefficient storage
     std::vector<double> coeffs_Ex((Nt + 1) * stride_t, 0.0);
     std::vector<double> coeffs_Ey((Nt + 1) * stride_t, 0.0);
@@ -649,8 +668,9 @@ void periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned()
         throw std::runtime_error("FFTW allocation failed in periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned.");
     }
 
-    fftw_plan plan_fwd = fftw_plan_dft_1d(static_cast<int>(Nx*Ny), fft_in, fft_out, FFTW_FORWARD, FFTW_MEASURE);
-    fftw_plan plan_bwd = fftw_plan_dft_1d(static_cast<int>(Nx*Ny), fft_out, fft_in, FFTW_BACKWARD, FFTW_MEASURE);
+    // We use row-major so it has to be (Ny,Nx) in FFTW convention.
+    fftw_plan plan_fwd = fftw_plan_dft_2d(Ny,Nx, fft_in, fft_out, FFTW_FORWARD, FFTW_MEASURE);
+    fftw_plan plan_bwd = fftw_plan_dft_2d(Ny,Nx, fft_out, fft_in, FFTW_BACKWARD, FFTW_MEASURE);
     if (plan_fwd == nullptr || plan_bwd == nullptr) {
         if (plan_fwd != nullptr) fftw_destroy_plan(plan_fwd);
         if (plan_bwd != nullptr) fftw_destroy_plan(plan_bwd);
@@ -686,25 +706,6 @@ void periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned()
     std::cout << "Initialize restart matrices." << std::endl;
     interpolant_electron = restart::cubic_interpolant_2x3v(xmin,xmax,ymin,ymax,umin_e,umax_e,vmin_e,vmax_e,wmin_e,wmax_e,nx_r,ny_r,nu_e_r,nv_e_r,nw_e_r,true);
     interpolant_ion = restart::cubic_interpolant_2x3v(xmin,xmax,ymin,ymax,umin_i,umax_i,vmin_i,vmax_i,wmin_i,wmax_i,nx_r,ny_r,nu_i_r,nv_i_r,nw_i_r,true);
-
-    // Set up config.
-    conf_electron = config_t<double>(Nx, Ny, Nu_e, Nv_e, Nt, dt, xmin, xmax, ymin, ymax, umin_e, umax_e, vmin_e, vmax_e, &f0);
-    conf_electron.Nw = Nw_e;
-    conf_electron.w_min = wmin_e;
-    conf_electron.w_max = wmax_e;
-    conf_electron.dw = (wmax_e - wmin_e) / Nw_e;
-    conf_electron.q = -1;
-    conf_electron.m = ipic_double_harris::me;
-    conf_electron.f0_2x3v = f0_2x3v_electron;
-
-    conf_ion = config_t<double>(Nx, Ny, Nu_i, Nv_i, Nt, dt, xmin, xmax, ymin, ymax, umin_i, umax_i, vmin_i, vmax_i, &f0);
-    conf_ion.Nw = Nw_i;
-    conf_ion.w_min = wmin_i;
-    conf_ion.w_max = wmax_i;
-    conf_ion.dw = (wmax_i - wmin_i) / Nw_i;
-    conf_ion.q = 1;
-    conf_ion.m = ipic_double_harris::mi;
-    conf_ion.f0_2x3v = f0_2x3v_electron;
 
     // Compute E(0) and B(0).
     std::cout << "Compute E(0) and B(0)." << std::endl;
@@ -796,7 +797,7 @@ void periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned()
     double rho_mean = 0.0;
     #pragma omp parallel for reduction(+:rho_mean)
     for (size_t i = 0; i < rho.size(); i++) {
-        rho[i] = rho_electron[i] + rho_ion[i]; // Careful: Right now electron only!
+        rho[i] = rho_electron[i] + rho_ion[i]; 
         rho_mean += rho[i];
     }
     rho_mean /= Nx*Ny;
@@ -1174,8 +1175,8 @@ void periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned()
             }
             kinetic_energy_and_entropy_2x3v<double,order>(nt_r_curr, kin_energy_entropy_file, coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz, conf_electron, conf_ion, kinetic_energy, entropy,true,n,Nx,Ny,Nu_e,Nv_e,Nw_e,false);
         }
-        bool plot_EB = (n % (steps_per_1) == 0);
-        //bool plot_EB = true;
+        //bool plot_EB = (n % (steps_per_1) == 0);
+        bool plot_EB = true;
         if(plot_EB){
             do_stats_2x3v<double,order>(nt_r_curr,kinetic_energy,entropy,stat_file,coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz,conf_electron,true,n,512,512,true);
         } else {
