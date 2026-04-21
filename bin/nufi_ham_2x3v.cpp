@@ -674,20 +674,20 @@ void eval_rho_j_high_res(size_t nt,
             jz_i += w*f_i;
         }
 
-        rho_values_electron(ix,iy) = dx_plot * dy_plot * rho_e;
-        rho_values_ion(ix,iy) = dx_plot * dy_plot * rho_i;
+        rho_values_electron(ix,iy) = rho_e * du_e_plot * dv_e_plot * dw_e_plot;
+        rho_values_ion(ix,iy) = rho_i * du_i_plot * dv_i_plot * dw_i_plot;
         rho_values(ix,iy) = conf_electron.q * rho_values_electron(ix,iy) + conf_ion.q * rho_values_ion(ix,iy);
 
-        jx_values_electron(ix,iy) = dx_plot * dy_plot * jx_e;
-        jx_values_ion(ix,iy) = dx_plot * dy_plot * jx_i;
+        jx_values_electron(ix,iy) = jx_e * du_e_plot * dv_e_plot * dw_e_plot;
+        jx_values_ion(ix,iy) = jx_i * du_i_plot * dv_i_plot * dw_i_plot;
         jx_values(ix,iy) = conf_electron.q * jx_values_electron(ix,iy) + conf_ion.q * jx_values_ion(ix,iy);
 
-        jy_values_electron(ix,iy) = dx_plot * dy_plot * jy_e;
-        jy_values_ion(ix,iy) = dx_plot * dy_plot * jy_i;
+        jy_values_electron(ix,iy) = jy_e * du_e_plot * dv_e_plot * dw_e_plot;
+        jy_values_ion(ix,iy) = jy_i * du_i_plot * dv_i_plot * dw_i_plot;
         jy_values(ix,iy) = conf_electron.q * jy_values_electron(ix,iy) + conf_ion.q * jy_values_ion(ix,iy);
 
-        jz_values_electron(ix,iy) = dx_plot * dy_plot * jz_e;
-        jz_values_ion(ix,iy) = dx_plot * dy_plot * jz_i;
+        jz_values_electron(ix,iy) = jz_e * du_e_plot * dv_e_plot * dw_e_plot;
+        jz_values_ion(ix,iy) = jz_i * du_i_plot * dv_i_plot * dw_i_plot;
         jz_values(ix,iy) = conf_electron.q * jz_values_electron(ix,iy) + conf_ion.q * jz_values_ion(ix,iy);
     }
 
