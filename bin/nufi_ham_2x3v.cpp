@@ -95,7 +95,8 @@ arma::Col<real> B0(real x, real y, real z)
     xpert = x - 3*Lx/4;
     ypert = y - 3*Ly/4;
 
-    if (xpert > Lx/2.0 && ypert > Ly/2.0) 
+    //if (xpert > Lx/2.0 && ypert > Ly/2.0) 
+    if (xpert > -Lx/2.0 && ypert > -Ly/2.0)
     {
         B(0) += (B0x * perturbation) * (M_PI/(0.5*Ly))   * cos(2*M_PI*xpert/(0.5*Lx)) * sin(M_PI*ypert/(0.5*Ly));
         B(1) -= (B0x * perturbation) * (2*M_PI/(0.5*Lx)) * sin(2*M_PI*xpert/(0.5*Lx)) * cos(M_PI*ypert/(0.5*Ly));
@@ -234,11 +235,11 @@ double wmax_i = 5*ipic_double_harris::wth_ion;
 
 
 // Careful: Electrons and ions must have the same underlying spatial (x,y) grid!
-const size_t Nx = 128;
+const size_t Nx = 64;
 const size_t Ny = Nx;
-const size_t Nu_e = 24;
-const size_t Nv_e = Nu_e;
-const size_t Nw_e = Nu_e;
+const size_t Nu_e = 32;
+const size_t Nv_e = 16;
+const size_t Nw_e = 16;
 const size_t Nu_i = Nu_e;
 const size_t Nv_i = Nv_e;
 const size_t Nw_i = Nw_e;
@@ -593,23 +594,24 @@ void kinetic_energy_and_entropy_2x3v(size_t nt, std::ofstream& stat_file,
     }
 }
 
-template<typename real, size_t order>
+template<size_t order>
 void eval_rho_j_high_res(size_t nt, 
-    const std::vector<real>& coeffs_Ex, const std::vector<real>& coeffs_Ey, const std::vector<real>& coeffs_Ez, 
-    const std::vector<real>& coeffs_Bx, const std::vector<real>& coeffs_By, const std::vector<real>& coeffs_Bz, 
+    const std::vector<double>& coeffs_Ex, const std::vector<double>& coeffs_Ey, const std::vector<double>& coeffs_Ez, 
+    const std::vector<double>& coeffs_Bx, const std::vector<double>& coeffs_By, const std::vector<double>& coeffs_Bz, 
     const config_t<double>& conf_electron, const config_t<double>& conf_ion, 
     bool restarted = false, size_t n_full = 0, 
     size_t nx_plot = 128, size_t ny_plot = 128, 
     size_t nu_plot = 128, size_t nv_plot = 128, size_t nw_plot = 128,
-    std::string name_add = "")
+    std::string name_add = "",
+    double xmin_p = xmin, double xmax_p = xmax, double ymin_p = ymin, double ymax_p = ymax)
 {
     double t = nt*dt;
     if(restarted){
         t = n_full*dt;
     }
 
-    double dx_plot = Lx/nx_plot;
-    double dy_plot = Ly/ny_plot;
+    double dx_plot = (xmax_p - xmin_p)/nx_plot;
+    double dy_plot = (ymax_p - ymin_p)/ny_plot;
 
     double du_e_plot = (umax_e - umin_e)/nu_plot;
     double dv_e_plot = (vmax_e - vmin_e)/nv_plot;
@@ -643,8 +645,8 @@ void eval_rho_j_high_res(size_t nt,
         for(size_t iu = 0; iu < nu_plot; iu++)
         for(size_t iv = 0; iv < nv_plot; iv++)
         for(size_t iw = 0; iw < nw_plot; iw++){
-            double x = xmin + (ix + 0.5)*dx_plot;
-            double y = ymin + (iy + 0.5)*dy_plot;
+            double x = xmin_p + (ix + 0.5)*dx_plot;
+            double y = ymin_p + (iy + 0.5)*dy_plot;
             double u = umin_e + (iu + 0.5)*du_e_plot;
             double v = vmin_e + (iv + 0.5)*dv_e_plot;
             double w = wmin_e + (iw + 0.5)*dw_e_plot;
@@ -655,9 +657,9 @@ void eval_rho_j_high_res(size_t nt,
                 // Not implemented yet!
                 std::cout << "Error: Not Implemeted yet!" << std::endl;
             }else{
-                f_e = redux_2x3v::eval_f_nufi_ham_lie_Hf_HB_HE_2x3v<real,order>(nt, x, y, u, v, w, 
+                f_e = redux_2x3v::eval_f_nufi_ham_lie_Hf_HB_HE_2x3v<double,order>(nt, x, y, u, v, w, 
                                 coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz, conf_electron );
-                f_i = redux_2x3v::eval_f_nufi_ham_lie_Hf_HB_HE_2x3v<real,order>(nt, x, y, u, v, w, 
+                f_i = redux_2x3v::eval_f_nufi_ham_lie_Hf_HB_HE_2x3v<double,order>(nt, x, y, u, v, w, 
                                 coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz, conf_ion );
             }
 
@@ -906,7 +908,7 @@ void periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned()
         kinetic_energy_and_entropy_2x3v<double,order>(0, placeholder_file, coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz, conf_electron, conf_ion, kinetic_energy, entropy, true, 0, 256,256,1,1,1,true,"_xy");
         kinetic_energy_and_entropy_2x3v<double,order>(0, placeholder_file, coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz, conf_electron, conf_ion, kinetic_energy, entropy, true, 0, 256,1,256,1,1,true,"_xu");
         kinetic_energy_and_entropy_2x3v<double,order>(0, placeholder_file, coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz, conf_electron, conf_ion, kinetic_energy, entropy, true, 0, 1,1,256,256,1,true,"_uv");
-        eval_rho_j_high_res<double,order>(0, coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz, conf_electron, conf_ion,true,0,256,256,24,24,24);
+        eval_rho_j_high_res<order>(0, coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz, conf_electron, conf_ion,true,0,256,256,32,32,32,"_zoom",0,15,2,12);
     }
     kinetic_energy_and_entropy_2x3v<double,order>(0,kin_energy_entropy_file,coeffs_Ex,coeffs_Ey,coeffs_Ez,coeffs_Bx,coeffs_By,coeffs_Bz,conf_electron,conf_ion,kinetic_energy,entropy,false,0,Nx,Ny,Nu_e,Nv_e,Nw_e,false);
     do_stats_2x3v<double, order>(0,kinetic_energy,entropy,stat_file,coeffs_Ex,coeffs_Ey,coeffs_Ez,coeffs_Bx,coeffs_By,coeffs_Bz,conf_electron,false,0,64,64,true);
@@ -1301,7 +1303,7 @@ void periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned()
                 kinetic_energy_and_entropy_2x3v<double,order>(nt_r_curr, placeholder_file, coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz, conf_electron, conf_ion, kinetic_energy, entropy, true, n, 256,256,1,1,1,true,"_xy");
                 kinetic_energy_and_entropy_2x3v<double,order>(nt_r_curr, placeholder_file, coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz, conf_electron, conf_ion, kinetic_energy, entropy, true, n, 256,1,256,1,1,true,"_xu");
                 kinetic_energy_and_entropy_2x3v<double,order>(nt_r_curr, placeholder_file, coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz, conf_electron, conf_ion, kinetic_energy, entropy, true, n, 1,1,256,256,1,true,"_uv");
-                eval_rho_j_high_res<double,order>(nt_r_curr, coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz, conf_electron, conf_ion,true,n,256,256,24,24,24);
+                eval_rho_j_high_res<order>(nt_r_curr, coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz, conf_electron, conf_ion,true,n,256,256,32,32,32,"_zoom",0,15,2,12);
             }
             kinetic_energy_and_entropy_2x3v<double,order>(nt_r_curr, kin_energy_entropy_file, coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz, conf_electron, conf_ion, kinetic_energy, entropy,true,n,Nx,Ny,Nu_e,Nv_e,Nw_e,false);
         }
