@@ -435,7 +435,7 @@ void do_stats_2x3v(size_t nt, double kinetic_energy, double entropy, std::ofstre
     #pragma omp parallel for reduction(+:magnetic_flux)
     for(size_t ix = 0; ix < nx_plot; ix++){
         double x = conf.x_min + (ix+0.5)*dx_plot;
-        double y = 0;
+        double y = 0; // Probably wrong for double harris and should rather be the side of one of the sheets.
 
         double By = eval<real,order>(x,y,coeffs_By.data() + nt*stride_t,conf);
 
