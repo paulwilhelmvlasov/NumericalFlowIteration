@@ -734,6 +734,23 @@ inline int fourier_mode_1d(size_t m, size_t N)
     return static_cast<int>(m) - static_cast<int>(N);
 }
 
+template <size_t order>
+void write_coeffs_to_disk(size_t nt_r_curr, std::ofstream& coeff_str,     
+    const std::vector<double>& coeffs_Ex, const std::vector<double>& coeffs_Ey, const std::vector<double>& coeffs_Ez, 
+    const std::vector<double>& coeffs_Bx, const std::vector<double>& coeffs_By, const std::vector<double>& coeffs_Bz)
+{
+    const size_t dim = 2;
+    const size_t stride_x = 1;
+    const size_t stride_y = stride_x*(Nx + order - 1);
+    const size_t stride_t = stride_y*(Ny + order - 1);
+
+    for(size_t l = 0; l < stride_t; l++){
+        size_t i = nt_r_curr*stride_t + l;
+        coeff_str << coeffs_Ex[i] << " " << coeffs_Ey[i] << " " << coeffs_Ez[i] <<
+                     coeffs_Bx[i] << " " << coeffs_By[i] << " " << coeffs_Bz[i] << std::endl;
+    }
+}
+
 template<size_t order>
 void periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned()
 {
@@ -965,6 +982,9 @@ void periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned()
         return redux_2x3v::eval_f_nufi_ham_lie_Hf_HB_HE_2x3v<double,order>(nt_r_curr, x, y, u, v, w, 
                             coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz, conf_ion );
     };
+
+    std::ofstream coeff_str("coeff_str.txt");
+    write_coeffs_to_disk<order>(0,coeff_str,coeffs_Ex,coeffs_Ey,coeffs_Ez,coeffs_Bx,coeffs_By,coeffs_Bz);
 
     for (size_t n = 1; n <= Nt; n++) {
         nufi::stopwatch<double> timer;
@@ -1294,6 +1314,8 @@ void periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned()
         double time_for_step = time_compute_EB + time_gauss_clean + time_interpolate_EB + time_eval_j_hat;
         total_time += time_for_step;
         std::cout << "Time step " << n << " took a total of " << time_for_step << " s." << std::endl;
+
+        write_coeffs_to_disk<order>(nt_r_curr,coeff_str,coeffs_Ex,coeffs_Ey,coeffs_Ez,coeffs_Bx,coeffs_By,coeffs_Bz);
         
         // Statistics.
         bool comp_kin_energy = true;
