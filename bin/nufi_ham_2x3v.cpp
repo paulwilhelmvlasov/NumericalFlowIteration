@@ -234,9 +234,9 @@ double wmax_i = 5*ipic_double_harris::wth_ion;
 
 
 // Careful: Electrons and ions must have the same underlying spatial (x,y) grid!
-const size_t Nx = 32;
+const size_t Nx = 128;
 const size_t Ny = Nx;
-const size_t Nu_e = 16;
+const size_t Nu_e = 24;
 const size_t Nv_e = Nu_e;
 const size_t Nw_e = Nu_e;
 const size_t Nu_i = Nu_e;
@@ -593,6 +593,134 @@ void kinetic_energy_and_entropy_2x3v(size_t nt, std::ofstream& stat_file,
     }
 }
 
+template<typename real, size_t order>
+void eval_rho_j_high_res(size_t nt, 
+    const std::vector<real>& coeffs_Ex, const std::vector<real>& coeffs_Ey, const std::vector<real>& coeffs_Ez, 
+    const std::vector<real>& coeffs_Bx, const std::vector<real>& coeffs_By, const std::vector<real>& coeffs_Bz, 
+    const config_t<double>& conf_electron, const config_t<double>& conf_ion, 
+    bool restarted = false, size_t n_full = 0, 
+    size_t nx_plot = 128, size_t ny_plot = 128, 
+    size_t nu_plot = 128, size_t nv_plot = 128, size_t nw_plot = 128,
+    std::string name_add = "")
+{
+    double t = nt*dt;
+    if(restarted){
+        t = n_full*dt;
+    }
+
+    double dx_plot = Lx/nx_plot;
+    double dy_plot = Ly/ny_plot;
+
+    double du_e_plot = (umax_e - umin_e)/nu_plot;
+    double dv_e_plot = (vmax_e - vmin_e)/nv_plot;
+    double dw_e_plot = (wmax_e - wmin_e)/nw_plot;
+
+    double du_i_plot = (umax_i - umin_i)/nu_plot;
+    double dv_i_plot = (vmax_i - vmin_i)/nv_plot;
+    double dw_i_plot = (wmax_i - wmin_i)/nw_plot;
+
+    arma::mat rho_values_electron(nx_plot,ny_plot,arma::fill::zeros);
+    arma::mat rho_values_ion(nx_plot,ny_plot,arma::fill::zeros);
+    arma::mat rho_values(nx_plot,ny_plot,arma::fill::zeros);
+    arma::mat jx_values_electron(nx_plot,ny_plot,arma::fill::zeros);
+    arma::mat jx_values_ion(nx_plot,ny_plot,arma::fill::zeros);
+    arma::mat jx_values(nx_plot,ny_plot,arma::fill::zeros);
+    arma::mat jy_values_electron(nx_plot,ny_plot,arma::fill::zeros);
+    arma::mat jy_values_ion(nx_plot,ny_plot,arma::fill::zeros);
+    arma::mat jy_values(nx_plot,ny_plot,arma::fill::zeros);
+    arma::mat jz_values_electron(nx_plot,ny_plot,arma::fill::zeros);
+    arma::mat jz_values_ion(nx_plot,ny_plot,arma::fill::zeros);
+    arma::mat jz_values(nx_plot,ny_plot,arma::fill::zeros);
+
+    
+    for(size_t ix = 0; ix < nx_plot; ix++)
+    for(size_t iy = 0; iy < ny_plot; iy++){
+        double rho_e = 0, rho_i = 0;
+        double jx_e = 0, jx_i = 0;
+        double jy_e = 0, jy_i = 0;
+        double jz_e = 0, jz_i = 0;
+        #pragma omp parallel for collapse(3) reduction(+:rho_e,rho_i,jx_e,jx_i,jy_e,jy_i,jz_e,jz_i)
+        for(size_t iu = 0; iu < nu_plot; iu++)
+        for(size_t iv = 0; iv < nv_plot; iv++)
+        for(size_t iw = 0; iw < nw_plot; iw++){
+            double x = xmin + (ix + 0.5)*dx_plot;
+            double y = ymin + (iy + 0.5)*dy_plot;
+            double u = umin_e + (iu + 0.5)*du_e_plot;
+            double v = vmin_e + (iv + 0.5)*dv_e_plot;
+            double w = wmin_e + (iw + 0.5)*dw_e_plot;
+
+            double f_e = 0;
+            double f_i = 0;
+            if(strang_split){
+                // Not implemented yet!
+                std::cout << "Error: Not Implemeted yet!" << std::endl;
+            }else{
+                f_e = redux_2x3v::eval_f_nufi_ham_lie_Hf_HB_HE_2x3v<real,order>(nt, x, y, u, v, w, 
+                                coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz, conf_electron );
+                f_i = redux_2x3v::eval_f_nufi_ham_lie_Hf_HB_HE_2x3v<real,order>(nt, x, y, u, v, w, 
+                                coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz, conf_ion );
+            }
+
+            rho_e += f_e;
+            rho_i += f_i;
+
+            jx_e += u*f_e;
+            jx_i += u*f_i;
+
+            jy_e += v*f_e;
+            jy_i += v*f_i;
+
+            jz_e += w*f_e;
+            jz_i += w*f_i;
+        }
+
+        rho_values_electron(ix,iy) = dx_plot * dy_plot * rho_e;
+        rho_values_ion(ix,iy) = dx_plot * dy_plot * rho_i;
+        rho_values(ix,iy) = conf_electron.q * rho_values_electron(ix,iy) + conf_ion.q * rho_values_ion(ix,iy);
+
+        jx_values_electron(ix,iy) = dx_plot * dy_plot * jx_e;
+        jx_values_ion(ix,iy) = dx_plot * dy_plot * jx_i;
+        jx_values(ix,iy) = conf_electron.q * jx_values_electron(ix,iy) + conf_ion.q * jx_values_ion(ix,iy);
+
+        jy_values_electron(ix,iy) = dx_plot * dy_plot * jy_e;
+        jy_values_ion(ix,iy) = dx_plot * dy_plot * jy_i;
+        jy_values(ix,iy) = conf_electron.q * jy_values_electron(ix,iy) + conf_ion.q * jy_values_ion(ix,iy);
+
+        jz_values_electron(ix,iy) = dx_plot * dy_plot * jz_e;
+        jz_values_ion(ix,iy) = dx_plot * dy_plot * jz_i;
+        jz_values(ix,iy) = conf_electron.q * jz_values_electron(ix,iy) + conf_ion.q * jz_values_ion(ix,iy);
+    }
+
+    std::ofstream rho_electron_str("rho_electron_high_res_" + std::to_string(t) + name_add + ".txt");
+    rho_electron_str << rho_values_electron;
+    std::ofstream rho_ion_str("rho_ion_high_res_" + std::to_string(t) + name_add + ".txt");
+    rho_ion_str << rho_values_ion;
+    std::ofstream rho_str("rho_high_res_" + std::to_string(t) + name_add + ".txt");
+    rho_str << rho_values;
+
+    std::ofstream jx_electron_str("jx_electron_high_res_" + std::to_string(t) + name_add + ".txt");
+    jx_electron_str << jx_values_electron;
+    std::ofstream jx_ion_str("jx_ion_high_res_" + std::to_string(t) + name_add + ".txt");
+    jx_ion_str << jx_values_ion;
+    std::ofstream jx_str("jx_high_res_" + std::to_string(t) + name_add + ".txt");
+    jx_str << jx_values;
+
+    std::ofstream jy_electron_str("jy_electron_high_res_" + std::to_string(t) + name_add + ".txt");
+    jy_electron_str << jy_values_electron;
+    std::ofstream jy_ion_str("jy_ion_high_res_" + std::to_string(t) + name_add + ".txt");
+    jy_ion_str << jy_values_ion;
+    std::ofstream jy_str("jy_high_res_" + std::to_string(t) + name_add + ".txt");
+    jy_str << jy_values;
+
+    std::ofstream jz_electron_str("jz_electron_high_res_" + std::to_string(t) + name_add + ".txt");
+    jz_electron_str << jz_values_electron;
+    std::ofstream jz_ion_str("jz_ion_high_res_" + std::to_string(t) + name_add + ".txt");
+    jz_ion_str << jz_values_ion;
+    std::ofstream jz_str("jz_high_res_" + std::to_string(t) + name_add + ".txt");
+    jz_str << jz_values;
+}
+
+
 config_t<double> conf_electron(Nx, Ny, Nu_e, Nv_e, Nt, dt, xmin, xmax, ymin, ymax, 
                         umin_e, umax_e, vmin_e, vmax_e, &f0);
 config_t<double> conf_ion(Nx, Ny, Nu_i, Nv_i, Nt, dt, xmin, xmax, ymin, ymax, 
@@ -778,6 +906,7 @@ void periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned()
         kinetic_energy_and_entropy_2x3v<double,order>(0, placeholder_file, coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz, conf_electron, conf_ion, kinetic_energy, entropy, true, 0, 256,256,1,1,1,true,"_xy");
         kinetic_energy_and_entropy_2x3v<double,order>(0, placeholder_file, coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz, conf_electron, conf_ion, kinetic_energy, entropy, true, 0, 256,1,256,1,1,true,"_xu");
         kinetic_energy_and_entropy_2x3v<double,order>(0, placeholder_file, coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz, conf_electron, conf_ion, kinetic_energy, entropy, true, 0, 1,1,256,256,1,true,"_uv");
+        eval_rho_j_high_res<double,order>(0, coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz, conf_electron, conf_ion,true,0,256,256,24,24,24);
     }
     kinetic_energy_and_entropy_2x3v<double,order>(0,kin_energy_entropy_file,coeffs_Ex,coeffs_Ey,coeffs_Ez,coeffs_Bx,coeffs_By,coeffs_Bz,conf_electron,conf_ion,kinetic_energy,entropy,false,0,Nx,Ny,Nu_e,Nv_e,Nw_e,false);
     do_stats_2x3v<double, order>(0,kinetic_energy,entropy,stat_file,coeffs_Ex,coeffs_Ey,coeffs_Ez,coeffs_Bx,coeffs_By,coeffs_Bz,conf_electron,false,0,64,64,true);
@@ -1172,6 +1301,7 @@ void periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned()
                 kinetic_energy_and_entropy_2x3v<double,order>(nt_r_curr, placeholder_file, coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz, conf_electron, conf_ion, kinetic_energy, entropy, true, n, 256,256,1,1,1,true,"_xy");
                 kinetic_energy_and_entropy_2x3v<double,order>(nt_r_curr, placeholder_file, coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz, conf_electron, conf_ion, kinetic_energy, entropy, true, n, 256,1,256,1,1,true,"_xu");
                 kinetic_energy_and_entropy_2x3v<double,order>(nt_r_curr, placeholder_file, coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz, conf_electron, conf_ion, kinetic_energy, entropy, true, n, 1,1,256,256,1,true,"_uv");
+                eval_rho_j_high_res<double,order>(nt_r_curr, coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz, conf_electron, conf_ion,true,n,256,256,24,24,24);
             }
             kinetic_energy_and_entropy_2x3v<double,order>(nt_r_curr, kin_energy_entropy_file, coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz, conf_electron, conf_ion, kinetic_energy, entropy,true,n,Nx,Ny,Nu_e,Nv_e,Nw_e,false);
         }
