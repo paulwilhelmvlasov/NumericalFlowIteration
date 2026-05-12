@@ -166,6 +166,70 @@ double f0_ion(double x, double y, double u, double v, double w)
 
 }
 
+namespace electron_ion_shock
+{
+
+const double mi = 1;
+const double me = 1.0/100.;
+const double vth_e = 1e-1;
+const double vth_i = 1e-2;
+const double B0z = 2.8e-2;
+const double v_drift = 0.2;
+const double Lx = 30;
+const double xmin = 0;
+const double xmax = Lx;
+const double Ly = 1;
+const double ymin = 0;
+const double ymax = Ly;
+const double umin_e = -1.5;
+const double umax_e = 1.5;
+const double vmin_e = -1;
+const double vmax_e = 1;
+const double wmin_e = -0.5;
+const double wmax_e = 0.5;
+const double umin_i = -0.5;
+const double umax_i = 0.5;
+const double vmin_i = -0.2;
+const double vmax_i = 0.2;
+const double wmin_i = -0.5;
+const double wmax_i = 0.5;
+
+const double boundary_buffer = 5;
+const double buffer_strength = 0.5;
+
+double density_profile(double x)
+{
+    double A_left = 0.5 * (1.0 + std::tanh((x - boundary_buffer) / buffer_strength));
+    double A_right = 0.5 * (1.0 + std::tanh((Lx - boundary_buffer - x) / buffer_strength));
+    return A_left * A_right;
+}   
+
+double drift_velocity(double x)
+{
+    return -v_drift * std::tanh((x - 0.5 * Lx) / buffer_strength);
+}
+
+double E0_y(double x)
+{
+    double density = density_profile(x);
+    double ux = drift_velocity(x);
+    return density * ux * B0z;
+}  
+
+double f0_e_1x2v(double x, double u, double v)
+{
+    return density_profile(x) * maxwellian_1d(u-drift_velocity(x),vth_e) 
+                                * maxwellian_1d(v,vth_e); 
+}
+
+double f0_i_1x2v(double x, double u, double v)
+{
+    return density_profile(x) * maxwellian_1d(u-drift_velocity(x),vth_i) 
+                                * maxwellian_1d(v,vth_i); 
+}
+
+}
+
 namespace dim2
 {
 
@@ -212,9 +276,29 @@ const double vmax_i = 5*vth_ion;
 const double wmin_i = -5*vth_ion;
 const double wmax_i = 5*vth_ion; */
 
+// Fabio (non-relativistic) electron-ion shock
+const double Lx = electron_ion_shock::Lx;
+const double xmin = 0;
+const double xmax = Lx;
+const double Ly = 1;
+const double ymin = 0;
+const double ymax = Ly;
+const double umin_e = electron_ion_shock::umin_e;
+const double umax_e = electron_ion_shock::umax_e;
+const double vmin_e = electron_ion_shock::vmin_e;
+const double vmax_e = electron_ion_shock::vmax_e;
+const double wmin_e = electron_ion_shock::wmin_e;
+const double wmax_e = electron_ion_shock::wmax_e;
+const double umin_i = electron_ion_shock::umin_i;
+const double umax_i = electron_ion_shock::umax_i;
+const double vmin_i = electron_ion_shock::vmin_i;
+const double vmax_i = electron_ion_shock::vmax_i;
+const double wmin_i = electron_ion_shock::wmin_i;
+const double wmax_i = electron_ion_shock::wmax_i;
+
 
 // Magnetic reconnection: Double Harris.
-const double Lx = ipic_double_harris::Lx;
+/* const double Lx = ipic_double_harris::Lx;
 const double xmin = 0;
 const double xmax = Lx;
 const double Ly = ipic_double_harris::Ly;
@@ -231,18 +315,18 @@ double umax_i = 5*ipic_double_harris::uth_ion;
 double vmin_i = -5*ipic_double_harris::vth_ion;
 double vmax_i = 5*ipic_double_harris::vth_ion;
 double wmin_i = -5*ipic_double_harris::wth_ion;
-double wmax_i = 5*ipic_double_harris::wth_ion;
+double wmax_i = 5*ipic_double_harris::wth_ion; */
 
 
 // Careful: Electrons and ions must have the same underlying spatial (x,y) grid!
 const size_t Nx = 64;
-const size_t Ny = Nx;
-const size_t Nu_e = 32;
-const size_t Nv_e = 16;
-const size_t Nw_e = 16;
-const size_t Nu_i = Nu_e;
-const size_t Nv_i = Nv_e;
-const size_t Nw_i = Nw_e;
+const size_t Ny = 1;
+const size_t Nu_e = 64;
+const size_t Nv_e = 32;
+const size_t Nw_e = 1;
+const size_t Nu_i = 256;
+const size_t Nv_i = 32;
+const size_t Nw_i = 1;
 const size_t steps_per_1 = 10;
 const double   dt = 1.0 / steps_per_1;
 const size_t Nt = 100/dt;
@@ -252,7 +336,7 @@ bool gauss_clean = false;
 bool with_filter = false;
 
 //size_t nt_restart = Nt + 1;
-size_t nt_restart = 5;
+size_t nt_restart = 10;
 
 const size_t nx_r = Nx;
 const size_t ny_r = Ny;
@@ -300,8 +384,11 @@ real f0_2x3v_electron(real x, real y, real u, real v, real w) noexcept
     real vth = 0.1;
     return 0.5 * (maxwellian_2d<real>(u,v-v_beam,vth) + maxwellian_2d<real>(u,v+v_beam,vth)) * maxwellian_1d(w,1.0); */
 
+    // Fabio (non-relativistic) electron-ion shock
+    return electron_ion_shock::f0_e_1x2v(x,u,v);
+
     // Magnetic reconnection: Double Harris.
-    return ipic_double_harris::f0_electron(x,y,u,v,w);
+    //return ipic_double_harris::f0_electron(x,y,u,v,w);
 }
 
 template <typename real>
@@ -318,8 +405,11 @@ real f0_2x3v_ion(real x, real y, real u, real v, real w) noexcept
     /* double vth = vth_ion;
     return maxwellian_1d(u,vth) * maxwellian_1d(v,vth) * maxwellian_1d(w,vth); */
 
+    // Fabio (non-relativistic) electron-ion shock
+    return electron_ion_shock::f0_i_1x2v(x,u,v);
+
     // Magnetic Reconnection: Double Harris.
-    return ipic_double_harris::f0_ion(x,y,u,v,w);
+    //return ipic_double_harris::f0_ion(x,y,u,v,w);
 }
 
 template <typename real>
@@ -333,8 +423,11 @@ arma::Col<real> E0(real x, real y, real z)
     // Kormann Streaming & Filamentation instability
     //return  arma::Col<real>({0, 0, 0});
 
+    // Fabio (non-relativistic) electron-ion shock
+    return  arma::Col<real>({0, electron_ion_shock::E0_y(x), 0});
+
     // Magnetic Reconnection: Double Harris.
-    return  ipic_double_harris::E0(x,y,z);
+    //return  ipic_double_harris::E0(x,y,z);
 }
 
 template <typename real>
@@ -347,8 +440,11 @@ arma::Col<real> B0(real x, real y, real z)
     /* constexpr real beta = 1e-3;
     return arma::Col<real>({0, 0, beta*std::sin(trigger_k*x)}); */
 
+    // Electro-static: Landau Damping & TSI
+    return arma::Col<real>({0, 0, electron_ion_shock::B0z});
+
     // Magnetic Reconnection: Double Harris.
-    return ipic_double_harris::B0(x,y,z);
+    //return ipic_double_harris::B0(x,y,z);
 }
 
 template<typename real, size_t order>
@@ -925,7 +1021,7 @@ void periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned()
         kinetic_energy_and_entropy_2x3v<double,order>(0, placeholder_file, coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz, conf_electron, conf_ion, kinetic_energy, entropy, true, 0, 256,256,1,1,1,true,"_xy");
         kinetic_energy_and_entropy_2x3v<double,order>(0, placeholder_file, coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz, conf_electron, conf_ion, kinetic_energy, entropy, true, 0, 256,1,256,1,1,true,"_xu");
         kinetic_energy_and_entropy_2x3v<double,order>(0, placeholder_file, coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz, conf_electron, conf_ion, kinetic_energy, entropy, true, 0, 1,1,256,256,1,true,"_uv");
-        eval_rho_j_high_res<order>(0, coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz, conf_electron, conf_ion,true,0,256,256,32,32,32,"_zoom",0,15,2,12);
+        //eval_rho_j_high_res<order>(0, coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz, conf_electron, conf_ion,true,0,256,256,32,32,32,"_zoom",0,15,2,12);
     }
     kinetic_energy_and_entropy_2x3v<double,order>(0,kin_energy_entropy_file,coeffs_Ex,coeffs_Ey,coeffs_Ez,coeffs_Bx,coeffs_By,coeffs_Bz,conf_electron,conf_ion,kinetic_energy,entropy,false,0,Nx,Ny,Nu_e,Nv_e,Nw_e,false);
     do_stats_2x3v<double, order>(0,kinetic_energy,entropy,stat_file,coeffs_Ex,coeffs_Ey,coeffs_Ez,coeffs_Bx,coeffs_By,coeffs_Bz,conf_electron,false,0,64,64,true);
@@ -1319,22 +1415,23 @@ void periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned()
         
         // Statistics.
         bool comp_kin_energy = true;
-        bool plot_f = (n % (5*steps_per_1) == 0);
+        bool plot_f = (n % (2*steps_per_1) == 0);
         if(comp_kin_energy){
             if(plot_f){
-                kinetic_energy_and_entropy_2x3v<double,order>(nt_r_curr, placeholder_file, coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz, conf_electron, conf_ion, kinetic_energy, entropy, true, n, 256,256,1,1,1,true,"_xy");
-                kinetic_energy_and_entropy_2x3v<double,order>(nt_r_curr, placeholder_file, coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz, conf_electron, conf_ion, kinetic_energy, entropy, true, n, 256,1,256,1,1,true,"_xu");
-                kinetic_energy_and_entropy_2x3v<double,order>(nt_r_curr, placeholder_file, coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz, conf_electron, conf_ion, kinetic_energy, entropy, true, n, 1,1,256,256,1,true,"_uv");
-                eval_rho_j_high_res<order>(nt_r_curr, coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz, conf_electron, conf_ion,true,n,256,256,32,32,32,"_zoom",0,15,2,12);
+                kinetic_energy_and_entropy_2x3v<double,order>(nt_r_curr, placeholder_file, coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz, conf_electron, conf_ion, kinetic_energy, entropy, true, n, 1024,1024,1,1,1,true,"_xy");
+                kinetic_energy_and_entropy_2x3v<double,order>(nt_r_curr, placeholder_file, coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz, conf_electron, conf_ion, kinetic_energy, entropy, true, n, 1024,1,1024,1,1,true,"_xu");
+                kinetic_energy_and_entropy_2x3v<double,order>(nt_r_curr, placeholder_file, coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz, conf_electron, conf_ion, kinetic_energy, entropy, true, n, 1,1,1024,1024,1,true,"_uv");
+                //eval_rho_j_high_res<order>(nt_r_curr, coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz, conf_electron, conf_ion,true,n,256,256,32,32,32,"_zoom",0,15,2,12);
             }
-            kinetic_energy_and_entropy_2x3v<double,order>(nt_r_curr, kin_energy_entropy_file, coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz, conf_electron, conf_ion, kinetic_energy, entropy,true,n,Nx,Ny,Nu_e,Nv_e,Nw_e,false);
+            // Check resolution:
+            kinetic_energy_and_entropy_2x3v<double,order>(nt_r_curr, kin_energy_entropy_file, coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz, conf_electron, conf_ion, kinetic_energy, entropy,true,n,Nx,Ny,Nu_e,Nv_e,Nw_e,false); 
         }
         bool plot_EB = (n % (steps_per_1) == 0);
         //bool plot_EB = true;
         if(plot_EB){
-            do_stats_2x3v<double,order>(nt_r_curr,kinetic_energy,entropy,stat_file,coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz,conf_electron,true,n,512,512,true);
+            do_stats_2x3v<double,order>(nt_r_curr,kinetic_energy,entropy,stat_file,coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz,conf_electron,true,n,256,256,true);
         } else {
-            do_stats_2x3v<double,order>(nt_r_curr,kinetic_energy,entropy,stat_file,coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz,conf_electron,true,n,128,128,false);
+            do_stats_2x3v<double,order>(nt_r_curr,kinetic_energy,entropy,stat_file,coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz,conf_electron,true,n,64,64,false);
         }
         
         if(plot_EB){
