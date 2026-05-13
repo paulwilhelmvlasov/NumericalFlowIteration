@@ -171,26 +171,26 @@ namespace electron_ion_shock
 
 const double mi = 1;
 const double me = 1.0/100.;
-const double vth_e = 1e-1;
-const double vth_i = 1e-2;
+const double vth_e = 1e-2;
+const double vth_i = 1e-3;
 const double B0z = 2.8e-2;
-const double v_drift = 0.2;
+const double v_drift = 0.1;
 const double Lx = 30;
 const double xmin = 0;
 const double xmax = Lx;
 const double Ly = 1;
 const double ymin = 0;
 const double ymax = Ly;
-const double umin_e = -1.5;
-const double umax_e = 1.5;
-const double vmin_e = -1;
-const double vmax_e = 1;
+const double umin_e = -0.5;
+const double umax_e = 0.5;
+const double vmin_e = -0.5;
+const double vmax_e = 0.5;
 const double wmin_e = -0.5;
 const double wmax_e = 0.5;
 const double umin_i = -0.5;
 const double umax_i = 0.5;
-const double vmin_i = -0.2;
-const double vmax_i = 0.2;
+const double vmin_i = -0.25;
+const double vmax_i = 0.25;
 const double wmin_i = -0.5;
 const double wmax_i = 0.5;
 
@@ -319,17 +319,17 @@ double wmax_i = 5*ipic_double_harris::wth_ion; */
 
 
 // Careful: Electrons and ions must have the same underlying spatial (x,y) grid!
-const size_t Nx = 64;
+const size_t Nx = 256;
 const size_t Ny = 1;
-const size_t Nu_e = 64;
-const size_t Nv_e = 32;
+const size_t Nu_e = 128;
+const size_t Nv_e = 64;
 const size_t Nw_e = 1;
-const size_t Nu_i = 256;
-const size_t Nv_i = 32;
+const size_t Nu_i = 2048;
+const size_t Nv_i = 512;
 const size_t Nw_i = 1;
-const size_t steps_per_1 = 10;
+const size_t steps_per_1 = 40;
 const double   dt = 1.0 / steps_per_1;
-const size_t Nt = 100/dt;
+const size_t Nt = 30/dt;
 
 bool strang_split = false; // Not implemented yet!
 bool gauss_clean = false;
