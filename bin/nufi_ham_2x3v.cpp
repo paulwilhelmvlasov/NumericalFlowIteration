@@ -170,9 +170,10 @@ namespace electron_ion_shock
 {
 
 const double mi = 1;
-const double me = 1.0/100.;
+//const double me = 1.0/100.;
+const double me = 1.0/25.;
 const double vth_e = 1e-2;
-const double vth_i = 1e-3;
+const double vth_i = vth_e / 5 /* 1e-3 */;
 const double B0z = 2.8e-2;
 const double v_drift = 0.1;
 const double Lx = 30;
@@ -195,7 +196,7 @@ const double wmin_i = -0.5;
 const double wmax_i = 0.5;
 
 const double boundary_buffer = 5;
-const double buffer_strength = 0.5;
+const double buffer_strength = 0.05;
 
 double density_profile(double x)
 {
@@ -321,8 +322,8 @@ double wmax_i = 5*ipic_double_harris::wth_ion; */
 // Careful: Electrons and ions must have the same underlying spatial (x,y) grid!
 const size_t Nx = 128;
 const size_t Ny = 1;
-const size_t Nu_e = 64;
-const size_t Nv_e = 64;
+const size_t Nu_e = 128;
+const size_t Nv_e = 128;
 const size_t Nw_e = 1;
 const size_t Nu_i = 1024;
 const size_t Nv_i = 512;
@@ -336,7 +337,7 @@ bool gauss_clean = false;
 bool with_filter = false;
 
 //size_t nt_restart = Nt + 1;
-size_t nt_restart = 10;
+size_t nt_restart = 5;
 
 const size_t nx_r = Nx;
 const size_t ny_r = Ny;
