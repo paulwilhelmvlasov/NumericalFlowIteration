@@ -319,17 +319,17 @@ double wmax_i = 5*ipic_double_harris::wth_ion; */
 
 
 // Careful: Electrons and ions must have the same underlying spatial (x,y) grid!
-const size_t Nx = 256;
+const size_t Nx = 128;
 const size_t Ny = 1;
-const size_t Nu_e = 128;
+const size_t Nu_e = 64;
 const size_t Nv_e = 64;
 const size_t Nw_e = 1;
-const size_t Nu_i = 2048;
+const size_t Nu_i = 1024;
 const size_t Nv_i = 512;
 const size_t Nw_i = 1;
-const size_t steps_per_1 = 40;
+const size_t steps_per_1 = 20;
 const double   dt = 1.0 / steps_per_1;
-const size_t Nt = 30/dt;
+const size_t Nt = 100/dt;
 
 bool strang_split = false; // Not implemented yet!
 bool gauss_clean = false;
@@ -1018,9 +1018,9 @@ void periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned()
     double entropy = 0.0;
     {
         // Plotting:
-        kinetic_energy_and_entropy_2x3v<double,order>(0, placeholder_file, coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz, conf_electron, conf_ion, kinetic_energy, entropy, true, 0, 256,256,1,1,1,true,"_xy");
-        kinetic_energy_and_entropy_2x3v<double,order>(0, placeholder_file, coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz, conf_electron, conf_ion, kinetic_energy, entropy, true, 0, 256,1,256,1,1,true,"_xu");
-        kinetic_energy_and_entropy_2x3v<double,order>(0, placeholder_file, coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz, conf_electron, conf_ion, kinetic_energy, entropy, true, 0, 1,1,256,256,1,true,"_uv");
+        kinetic_energy_and_entropy_2x3v<double,order>(0, placeholder_file, coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz, conf_electron, conf_ion, kinetic_energy, entropy, true, 0, 1024,1024,1,1,1,true,"_xy");
+        kinetic_energy_and_entropy_2x3v<double,order>(0, placeholder_file, coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz, conf_electron, conf_ion, kinetic_energy, entropy, true, 0, 1024,1,1024,1,1,true,"_xu");
+        kinetic_energy_and_entropy_2x3v<double,order>(0, placeholder_file, coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz, conf_electron, conf_ion, kinetic_energy, entropy, true, 0, 1,1,1024,1024,1,true,"_uv");
         //eval_rho_j_high_res<order>(0, coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz, conf_electron, conf_ion,true,0,256,256,32,32,32,"_zoom",0,15,2,12);
     }
     kinetic_energy_and_entropy_2x3v<double,order>(0,kin_energy_entropy_file,coeffs_Ex,coeffs_Ey,coeffs_Ez,coeffs_Bx,coeffs_By,coeffs_Bz,conf_electron,conf_ion,kinetic_energy,entropy,false,0,Nx,Ny,Nu_e,Nv_e,Nw_e,false);
@@ -1415,7 +1415,7 @@ void periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned()
         
         // Statistics.
         bool comp_kin_energy = true;
-        bool plot_f = (n % (2*steps_per_1) == 0);
+        bool plot_f = (n % (1*steps_per_1) == 0);
         if(comp_kin_energy){
             if(plot_f){
                 kinetic_energy_and_entropy_2x3v<double,order>(nt_r_curr, placeholder_file, coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz, conf_electron, conf_ion, kinetic_energy, entropy, true, n, 1024,1024,1,1,1,true,"_xy");
