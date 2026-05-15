@@ -418,7 +418,7 @@ void cmm_nufi_spline()
     size_t Nu = 512;  // Number of quadrature points in velocity space.
     size_t nt_per_one = 20;
     double dt = 1.0/nt_per_one;  // Time-step size.
-    size_t Nt = 10000/dt;  // Number of time-steps.
+    size_t Nt = 50000/dt;  // Number of time-steps.
 
     double x_min = keen_waves::xmin;
     double x_max = keen_waves::xmax;
@@ -432,9 +432,9 @@ void cmm_nufi_spline()
     const size_t stride_t = conf.Nx + order - 1;
 
     // Set up CMM restart.
-    size_t nx_r = 64;
-	size_t nu_r = 256;
-    size_t nt_restart = 200;
+    size_t nx_r = Nx;
+	size_t nu_r = Nu;
+    size_t nt_restart = 2000;
     double dx_r = conf.Lx / nx_r;
     double du_r = (u_max - u_min)/ nu_r;
     
