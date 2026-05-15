@@ -414,9 +414,9 @@ void cmm_nufi_spline()
     */
 
     // Keen waves
-    size_t Nx = 1024;  // Number of grid points in physical space.
-    size_t Nu = 512;  // Number of quadrature points in velocity space.
-    size_t nt_per_one = 20;
+    size_t Nx = 512;  // Number of grid points in physical space.
+    size_t Nu = 256;  // Number of quadrature points in velocity space.
+    size_t nt_per_one = 10;
     double dt = 1.0/nt_per_one;  // Time-step size.
     size_t Nt = 50000/dt;  // Number of time-steps.
 
@@ -434,7 +434,7 @@ void cmm_nufi_spline()
     // Set up CMM restart.
     size_t nx_r = Nx;
 	size_t nu_r = Nu;
-    size_t nt_restart = 2000;
+    size_t nt_restart = 1000;
     double dx_r = conf.Lx / nx_r;
     double du_r = (u_max - u_min)/ nu_r;
     
