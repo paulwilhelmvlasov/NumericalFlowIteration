@@ -2002,8 +2002,8 @@ void periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned_mpi(
     conf_electron.w_max = wmax_e;
     conf_electron.dw = (wmax_e - wmin_e) / Nw_e;
     conf_electron.q = -1;
-    //conf_electron.m = ipic_double_harris::me;
-    conf_electron.m = 1;
+    conf_electron.m = ipic_double_harris::me;
+    //conf_electron.m = 1;
     conf_electron.f0_2x3v = f0_2x3v_electron;
 
     conf_ion = config_t<double>(Nx, Ny, Nu_i, Nv_i, Nt, dt, xmin, xmax, ymin, ymax, umin_i, umax_i, vmin_i, vmax_i, &f0);
@@ -2012,8 +2012,8 @@ void periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned_mpi(
     conf_ion.w_max = wmax_i;
     conf_ion.dw = (wmax_i - wmin_i) / Nw_i;
     conf_ion.q = 1;
-    //conf_ion.m = ipic_double_harris::mi;
-    conf_ion.m = 1.0/100;
+    conf_ion.m = ipic_double_harris::mi;
+    //conf_ion.m = 1.0/100;
     conf_ion.f0_2x3v = f0_2x3v_ion;
 
     if(mpi_rank == 0){
@@ -2717,11 +2717,11 @@ void periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned_mpi(
 int main(int argc, char** argv)
 {
  
-    nufi::dim2::periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned<4>();
+    //nufi::dim2::periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned<4>();
     
-    /* MPI_Init(&argc, &argv);
+    MPI_Init(&argc, &argv);
     nufi::dim2::periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned_mpi<4>();
-    MPI_Finalize(); */
+    MPI_Finalize();
 
     return 0;
 }
