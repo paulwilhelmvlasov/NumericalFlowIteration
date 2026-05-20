@@ -1248,6 +1248,120 @@ void eval_rho_ham_lie_Hf_HB_HE_2x3v(size_t n, std::vector<real>& rho,
     }
 }
 
+template <typename real, size_t order>
+void eval_rho_ham_lie_Hf_HB_HE_2x3v_mpi(
+    size_t n,
+    std::vector<real>& rho,
+    const std::vector<real>& coeffs_Ex,
+    const std::vector<real>& coeffs_Ey,
+    const std::vector<real>& coeffs_Ez,
+    const std::vector<real>& coeffs_Bx,
+    const std::vector<real>& coeffs_By,
+    const std::vector<real>& coeffs_Bz,
+    const config_t<real>& conf)
+{
+    int rank, size;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+
+    const size_t Ncells = conf.Nx * conf.Ny;
+
+    const size_t chunk_size = Ncells / static_cast<size_t>(size);
+    const size_t remainder  = Ncells % static_cast<size_t>(size);
+
+    const size_t start_idx =
+        static_cast<size_t>(rank) * chunk_size
+        + std::min(static_cast<size_t>(rank), remainder);
+
+    const size_t end_idx =
+        start_idx
+        + chunk_size
+        + (static_cast<size_t>(rank) < remainder ? 1 : 0);
+
+    const size_t local_N = end_idx - start_idx;
+
+    std::vector<real> rho_local(local_N, real(0));
+
+    #pragma omp parallel for
+    for (size_t k = 0; k < local_N; ++k) {
+        const size_t l = start_idx + k;
+
+        const size_t ix = l % conf.Nx;
+        const size_t iy = l / conf.Nx;
+
+        const real x = conf.x_min + static_cast<real>(ix) * conf.dx;
+        const real y = conf.y_min + static_cast<real>(iy) * conf.dy;
+
+        real sum0 = real(0);
+
+        #pragma omp parallel for collapse(3) reduction(+:sum0)
+        for (size_t iu = 0; iu < conf.Nu; ++iu) {
+            for (size_t iv = 0; iv < conf.Nv; ++iv) {
+                for (size_t iw = 0; iw < conf.Nw; ++iw) {
+                    const real u = conf.u_min + (static_cast<real>(iu) + real(0.5)) * conf.du;
+                    const real v = conf.v_min + (static_cast<real>(iv) + real(0.5)) * conf.dv;
+                    const real w = conf.w_min + (static_cast<real>(iw) + real(0.5)) * conf.dw;
+
+                    const real f =
+                        eval_f_nufi_ham_lie_Hf_HB_HE_2x3v<real, order>(
+                            n,x,y,u,v,w,
+                            coeffs_Ex,coeffs_Ey,coeffs_Ez,
+                            coeffs_Bx,coeffs_By,coeffs_Bz,
+                            conf
+                        );
+
+                    sum0 += f;
+                }
+            }
+        }
+
+        rho_local[k] = conf.q * sum0 * conf.du * conf.dv * conf.dw;
+    }
+
+    rho.assign(Ncells, real(0));
+
+    std::vector<int> recvcounts(size);
+    std::vector<int> displs(size);
+
+    for (int r = 0; r < size; ++r) {
+        const size_t r_start =
+            static_cast<size_t>(r) * chunk_size
+            + std::min(static_cast<size_t>(r), remainder);
+
+        const size_t r_N =
+            chunk_size
+            + (static_cast<size_t>(r) < remainder ? 1 : 0);
+
+        recvcounts[r] = static_cast<int>(r_N);
+        displs[r]     = static_cast<int>(r_start);
+    }
+    
+    // rho only in rank 0.
+    /* MPI_Gatherv( 
+        rho_local.data(),
+        static_cast<int>(local_N),
+        MPI_DOUBLE,
+        rho.data(),
+        recvcounts.data(),
+        displs.data(),
+        MPI_DOUBLE,
+        0,
+        MPI_COMM_WORLD
+    ); */
+
+    // rho at all ranks afterwards.
+    MPI_Allgatherv(
+    rho_local.data(),
+    static_cast<int>(local_N),
+    MPI_DOUBLE,
+    rho.data(),
+    recvcounts.data(),
+    displs.data(),
+    MPI_DOUBLE,
+    MPI_COMM_WORLD
+    );
+}
+
 inline int fourier_mode_1d(size_t m, size_t N)
 {
     if (m <= N / 2) return static_cast<int>(m);
@@ -1395,6 +1509,225 @@ void eval_j_time_integral_Hf_exact_2x3v_fourier(
 
     fftw_destroy_plan(plan_fwd);
     fftw_free(buf);
+}
+
+template <size_t order>
+void eval_j_time_integral_Hf_exact_2x3v_fourier_mpi(
+    size_t n_state,
+    std::vector<double>& jx_hat_re,
+    std::vector<double>& jx_hat_im,
+    std::vector<double>& jy_hat_re,
+    std::vector<double>& jy_hat_im,
+    std::vector<double>& jz_hat_re,
+    std::vector<double>& jz_hat_im,
+    const std::vector<double>& coeffs_Ex,
+    const std::vector<double>& coeffs_Ey,
+    const std::vector<double>& coeffs_Ez,
+    const std::vector<double>& coeffs_Bx,
+    const std::vector<double>& coeffs_By,
+    const std::vector<double>& coeffs_Bz,
+    const config_t<double>& conf)
+{
+    int rank, size;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+
+    const size_t Nx = conf.Nx;
+    const size_t Ny = conf.Ny;
+    const size_t Nxy = Nx * Ny;
+
+    const double dt = conf.dt;
+    const double Lx = conf.Lx;
+    const double Ly = conf.Ly;
+
+    const double weight_v = conf.q * conf.du * conf.dv * conf.dw;
+    const double two_pi_over_Lx = 2.0 * M_PI / Lx;
+    const double two_pi_over_Ly = 2.0 * M_PI / Ly;
+
+    /*
+        Packed local/global layout:
+
+        component 0: jx_hat_re
+        component 1: jx_hat_im
+        component 2: jy_hat_re
+        component 3: jy_hat_im
+        component 4: jz_hat_re
+        component 5: jz_hat_im
+    */
+    std::vector<double> j_hat_local(6 * Nxy, 0.0);
+    std::vector<double> j_hat_global(6 * Nxy, 0.0);
+
+    const size_t off_jx_re = 0 * Nxy;
+    const size_t off_jx_im = 1 * Nxy;
+    const size_t off_jy_re = 2 * Nxy;
+    const size_t off_jy_im = 3 * Nxy;
+    const size_t off_jz_re = 4 * Nxy;
+    const size_t off_jz_im = 5 * Nxy;
+
+    fftw_complex* buf =
+        reinterpret_cast<fftw_complex*>(
+            fftw_malloc(sizeof(fftw_complex) * Nxy)
+        );
+
+    if (!buf) {
+        throw std::runtime_error("FFTW allocation failed.");
+    }
+
+    fftw_plan plan_fwd = fftw_plan_dft_2d(
+        static_cast<int>(Ny),
+        static_cast<int>(Nx),
+        buf,
+        buf,
+        FFTW_FORWARD,
+        FFTW_MEASURE
+    );
+
+    if (!plan_fwd) {
+        fftw_free(buf);
+        throw std::runtime_error("FFTW plan creation failed.");
+    }
+
+    const double eps = 1e-14;
+
+    /*
+        MPI decomposition over the flattened velocity grid.
+
+        alpha = (iu * Nv + iv) * Nw + iw
+
+        Each rank owns a contiguous block of alpha values.
+        This mirrors the chunking style used in your existing MPI routine.
+    */
+    const size_t Nvel = conf.Nu * conf.Nv * conf.Nw;
+
+    const size_t chunk_size = Nvel / static_cast<size_t>(size);
+    const size_t remainder  = Nvel % static_cast<size_t>(size);
+
+    const size_t start_alpha =
+        static_cast<size_t>(rank) * chunk_size
+        + std::min(static_cast<size_t>(rank), remainder);
+
+    const size_t end_alpha =
+        start_alpha
+        + chunk_size
+        + (static_cast<size_t>(rank) < remainder ? 1 : 0);
+
+    for (size_t alpha = start_alpha; alpha < end_alpha; ++alpha) {
+        size_t tmp = alpha;
+
+        const size_t iw = tmp % conf.Nw;
+        tmp /= conf.Nw;
+
+        const size_t iv = tmp % conf.Nv;
+        tmp /= conf.Nv;
+
+        const size_t iu = tmp;
+
+        const double u = conf.u_min + (static_cast<double>(iu) + 0.5) * conf.du;
+        const double v = conf.v_min + (static_cast<double>(iv) + 0.5) * conf.dv;
+        const double w = conf.w_min + (static_cast<double>(iw) + 0.5) * conf.dw;
+
+        #pragma omp parallel for collapse(2)
+        for (size_t iy = 0; iy < Ny; ++iy) {
+            for (size_t ix = 0; ix < Nx; ++ix) {
+                const double xpos = conf.x_min + static_cast<double>(ix) * conf.dx;
+                const double ypos = conf.y_min + static_cast<double>(iy) * conf.dy;
+
+                const double f =
+                    eval_f_nufi_ham_lie_Hf_HB_HE_2x3v<double, order>( 
+                        n_state,
+                        xpos, ypos,
+                        u, v, w,
+                        coeffs_Ex, coeffs_Ey, coeffs_Ez,
+                        coeffs_Bx, coeffs_By, coeffs_Bz,
+                        conf
+                    );
+
+                const size_t idx = iy * Nx + ix;
+
+                buf[idx][0] = f;
+                buf[idx][1] = 0.0;
+            }
+        }
+
+        fftw_execute(plan_fwd);
+
+        for (size_t my = 0; my < Ny; ++my) {
+            const int ky_mode = fourier_mode_1d(my, Ny);
+            const double ky =
+                two_pi_over_Ly * static_cast<double>(ky_mode);
+
+            for (size_t mx = 0; mx < Nx; ++mx) {
+                const int kx_mode = fourier_mode_1d(mx, Nx);
+                const double kx =
+                    two_pi_over_Lx * static_cast<double>(kx_mode);
+
+                const size_t m = my * Nx + mx;
+
+                const double xi = u * kx + v * ky;
+                const double phase = xi * dt;
+
+                const double a = buf[m][0];
+                const double b = buf[m][1];
+
+                double G_re, G_im;
+
+                if (std::abs(xi) < eps) {
+                    G_re = dt;
+                    G_im = 0.0;
+                } else {
+                    G_re = std::sin(phase) / xi;
+                    G_im = -(1.0 - std::cos(phase)) / xi;
+                }
+
+                auto accumulate_component =
+                    [&](double vel_comp, size_t off_re, size_t off_im)
+                {
+                    const double K_re = vel_comp * G_re;
+                    const double K_im = vel_comp * G_im;
+
+                    const double real_part = a * K_re - b * K_im;
+                    const double imag_part = a * K_im + b * K_re;
+
+                    j_hat_local[off_re + m] += weight_v * real_part;
+                    j_hat_local[off_im + m] += weight_v * imag_part;
+                };
+
+                accumulate_component(u, off_jx_re, off_jx_im);
+                accumulate_component(v, off_jy_re, off_jy_im);
+                accumulate_component(w, off_jz_re, off_jz_im);
+            }
+        }
+    }
+
+    fftw_destroy_plan(plan_fwd);
+    fftw_free(buf);
+
+    MPI_Allreduce(
+        j_hat_local.data(),
+        j_hat_global.data(),
+        static_cast<int>(6 * Nxy),
+        MPI_DOUBLE,
+        MPI_SUM,
+        MPI_COMM_WORLD
+    );
+
+    jx_hat_re.assign(j_hat_global.begin() + off_jx_re,
+                     j_hat_global.begin() + off_jx_re + Nxy);
+
+    jx_hat_im.assign(j_hat_global.begin() + off_jx_im,
+                     j_hat_global.begin() + off_jx_im + Nxy);
+
+    jy_hat_re.assign(j_hat_global.begin() + off_jy_re,
+                     j_hat_global.begin() + off_jy_re + Nxy);
+
+    jy_hat_im.assign(j_hat_global.begin() + off_jy_im,
+                     j_hat_global.begin() + off_jy_im + Nxy);
+
+    jz_hat_re.assign(j_hat_global.begin() + off_jz_re,
+                     j_hat_global.begin() + off_jz_re + Nxy);
+
+    jz_hat_im.assign(j_hat_global.begin() + off_jz_im,
+                     j_hat_global.begin() + off_jz_im + Nxy);
 }
 
 namespace strang_2nd_order

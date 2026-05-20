@@ -51,9 +51,10 @@ real f0(real x, real u) noexcept
 {
 	real alpha = 1e-2; // Linear Landau Damping or Two Stream instability
 	//real alpha = 0.5; // Strong Landau Damping
-	real k = 0.5;
-    return 1.0 / std::sqrt(2.0 * M_PI) * u*u * std::exp(-0.5 * u*u) * (1 + alpha * std::cos(k*x)); // Two Stream Instability
-	//return 1.0 / std::sqrt(2.0 * M_PI) * exp(-0.5 * u*u) * (1 + alpha * cos(k*x)); // Landau Damping
+	//real k = 0.5;
+    real k = 0.35;
+    //return 1.0 / std::sqrt(2.0 * M_PI) * u*u * std::exp(-0.5 * u*u) * (1 + alpha * std::cos(k*x)); // Two Stream Instability
+	return 1.0 / std::sqrt(2.0 * M_PI) * exp(-0.5 * u*u) * (1 + alpha * cos(k*x)); // Landau Damping
 
     // Bump on tail Instability
     //return 1.0 / std::sqrt(2.0 * M_PI) * (1 + 0.04 * std::cos(0.3*x)) 
@@ -420,14 +421,16 @@ void run_simulation()
     using std::abs;
     using std::max;
 
-    size_t Nx = 32;  // Number of grid points in physical space.
-    size_t Nu = 64;  // Number of quadrature points in velocity space.
+    size_t Nx = 256;  // Number of grid points in physical space.
+    size_t Nu = 256;  // Number of quadrature points in velocity space.
     real   dt = 0.1;  // Time-step size.
-    size_t Nt = 100/dt;  // Number of time-steps.
+    size_t Nt = 50/dt;  // Number of time-steps.
 
     // Dimensions of physical domain.
     real x_min = 0;
-    real x_max = 4*M_PI;
+    //real x_max = 4*M_PI;
+    real k = 0.35;
+    real x_max = 2*M_PI/k;
 
     // Integration limits for velocity space.
     real u_min = -6;
@@ -442,7 +445,7 @@ void run_simulation()
 
     poisson<real> poiss( conf );
 
-    std::ofstream Emax_file( "Emax.txt" );
+    std::ofstream stats_file( "stats.txt" );
     std::ofstream coeffs_str( "coeffs_Nt_" + std::to_string(conf.Nt) + "_Nx_"
     						+ std::to_string(conf.Nx) + "_stride_t_" + std::to_string(stride_t) + ".txt" );
     double total_time = 0;
@@ -457,25 +460,23 @@ void run_simulation()
     		rho.get()[i] = periodic::eval_rho<real,order>(n, i, coeffs.get(), conf);
     	}
 
-        poiss.solve( rho.get() );
+        real elec_energy = poiss.solve( rho.get() );
         periodic::interpolate<real,order>( coeffs.get() + n*stride_t, rho.get(), conf );
 
         double timer_elapsed = timer.elapsed();
         total_time += timer_elapsed;
 
         real Emax = 0;
-	    real E_l2 = 0;
         for ( size_t i = 0; i < conf.Nx; ++i )
         {
             real x = conf.x_min + i*conf.dx;
             real E_abs = abs( periodic::eval<real,order,1>(x,coeffs.get()+n*stride_t,conf));
             Emax = max( Emax, E_abs );
-	        E_l2 += E_abs*E_abs;
         }
-	    E_l2 *=  conf.dx;
 
 	    double t = n*conf.dt;
-        Emax_file << std::setw(15) << t << std::setw(15) << std::setprecision(5) << std::scientific << Emax << std::endl;
+        stats_file << t << " " << std::setprecision(16) << std::scientific << Emax 
+                    << " " << elec_energy << std::endl;
         std::cout << std::setw(15) << t << std::setw(15) << std::setprecision(5) << std::scientific << Emax << " Comp-time: " << timer_elapsed << std::endl;
 
         for(size_t i = 0; i < stride_t; i++){
@@ -573,8 +574,8 @@ void test_interpolate()
 
 int main()
 {
-	//nufi::dim1::run_simulation<double,4>();
-	nufi::dim1::run_restarted_simulation<4>();
+	nufi::dim1::run_simulation<double,4>();
+	//nufi::dim1::run_restarted_simulation<4>();
 
     //nufi::dim1::read_in_coeff();
 
