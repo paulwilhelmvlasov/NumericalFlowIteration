@@ -235,7 +235,7 @@ namespace dim2
 {
 
 // Weak Landau
-const double Lx = 2*M_PI/0.5;
+/* const double Lx = 2*M_PI/0.5;
 const double xmin = 0;
 const double xmax = Lx;
 const double Ly = 1;
@@ -253,7 +253,7 @@ const double umax_i = 5*vth_ion;
 const double vmin_i = -5*vth_ion;
 const double vmax_i = 5*vth_ion;
 const double wmin_i = -5*vth_ion;
-const double wmax_i = 5*vth_ion;
+const double wmax_i = 5*vth_ion; */
 
 // Paul & Fabio magnetic TSI (Filamentation instability) 
 /* const double trigger_k = 2;
@@ -278,7 +278,7 @@ const double wmin_i = -5*vth_ion;
 const double wmax_i = 5*vth_ion; */
 
 // Fabio (non-relativistic) electron-ion shock
-/* const double Lx = electron_ion_shock::Lx;
+const double Lx = electron_ion_shock::Lx;
 const double xmin = 0;
 const double xmax = Lx;
 const double Ly = 1;
@@ -295,7 +295,7 @@ const double umax_i = electron_ion_shock::umax_i;
 const double vmin_i = electron_ion_shock::vmin_i;
 const double vmax_i = electron_ion_shock::vmax_i;
 const double wmin_i = electron_ion_shock::wmin_i;
-const double wmax_i = electron_ion_shock::wmax_i; */
+const double wmax_i = electron_ion_shock::wmax_i;
 
 // Magnetic reconnection: Double Harris.
 /* const double Lx = ipic_double_harris::Lx;
@@ -319,23 +319,23 @@ double wmax_i = 5*ipic_double_harris::wth_ion; */
 
 
 // Careful: Electrons and ions must have the same underlying spatial (x,y) grid!
-/* const size_t Nx = 128;
+const size_t Nx = 128;
 const size_t Ny = 1;
 const size_t Nu_e = 128;
 const size_t Nv_e = 128;
 const size_t Nw_e = 1;
-const size_t Nu_i = 1024;
-const size_t Nv_i = 512;
-const size_t Nw_i = 1; */
-const size_t Nx = 16;
+const size_t Nu_i = 2048;
+const size_t Nv_i = 1024;
+const size_t Nw_i = 1;
+/* const size_t Nx = 16;
 const size_t Ny = 1;
 const size_t Nu_e = 16;
 const size_t Nv_e = 16;
 const size_t Nw_e = 16;
 const size_t Nu_i = 16;
 const size_t Nv_i = 16;
-const size_t Nw_i = 16;
-const size_t steps_per_1 = 10;
+const size_t Nw_i = 16; */
+const size_t steps_per_1 = 20;
 const double   dt = 1.0 / steps_per_1;
 const size_t Nt = 100/dt;
 
@@ -344,7 +344,7 @@ bool gauss_clean = false;
 bool with_filter = false;
 
 //size_t nt_restart = Nt + 1;
-size_t nt_restart = 5;
+size_t nt_restart = 10;
 
 const size_t nx_r = Nx;
 const size_t ny_r = Ny;
@@ -383,9 +383,9 @@ real f0_2x3v_electron(real x, real y, real u, real v, real w) noexcept
     using std::exp;
 
     // Weak Landau Damping
-    real alpha = 0.01;
+    /* real alpha = 0.01;
     real k = 0.5;
-    return (1 + alpha * std::cos(k*x)) * maxwellian_1d(u,1.0) * maxwellian_1d(v,1.0) * maxwellian_1d(w,1.0);
+    return (1 + alpha * std::cos(k*x)) * maxwellian_1d(u,1.0) * maxwellian_1d(v,1.0) * maxwellian_1d(w,1.0); */
 
     // Paul & Fabio magnetic TSI (Filamentation instability) 
     /* real v_beam = 0.4;
@@ -393,7 +393,7 @@ real f0_2x3v_electron(real x, real y, real u, real v, real w) noexcept
     return 0.5 * (maxwellian_2d<real>(u,v-v_beam,vth) + maxwellian_2d<real>(u,v+v_beam,vth)) * maxwellian_1d(w,1.0); */
 
     // Fabio (non-relativistic) electron-ion shock
-    //return electron_ion_shock::f0_e_1x2v(x,u,v);
+    return electron_ion_shock::f0_e_1x2v(x,u,v);
 
     // Magnetic reconnection: Double Harris.
     //return ipic_double_harris::f0_electron(x,y,u,v,w);
@@ -410,11 +410,11 @@ real f0_2x3v_ion(real x, real y, real u, real v, real w) noexcept
     //return 1;
 
     // Maxwellian
-    double vth = vth_ion;
-    return maxwellian_1d(u,vth) * maxwellian_1d(v,vth) * maxwellian_1d(w,vth);
+    /* double vth = vth_ion;
+    return maxwellian_1d(u,vth) * maxwellian_1d(v,vth) * maxwellian_1d(w,vth); */
 
     // Fabio (non-relativistic) electron-ion shock
-    //return electron_ion_shock::f0_i_1x2v(x,u,v);
+    return electron_ion_shock::f0_i_1x2v(x,u,v);
 
     // Magnetic Reconnection: Double Harris.
     //return ipic_double_harris::f0_ion(x,y,u,v,w);
@@ -424,15 +424,15 @@ template <typename real>
 arma::Col<real> E0(real x, real y, real z)
 {
     // Weak Landau & TSI
-    constexpr real alpha = 1e-2;
+    /* constexpr real alpha = 1e-2;
     constexpr real k     = 0.5;
-    return  arma::Col<real>({-alpha / k * std::sin(k*x), 0, 0});
+    return  arma::Col<real>({-alpha / k * std::sin(k*x), 0, 0}); */
 
     // Kormann Streaming & Filamentation instability
     //return  arma::Col<real>({0, 0, 0});
 
     // Fabio (non-relativistic) electron-ion shock
-    //return  arma::Col<real>({0, electron_ion_shock::E0_y(x), 0});
+    return  arma::Col<real>({0, electron_ion_shock::E0_y(x), 0});
 
     // Magnetic Reconnection: Double Harris.
     //return  ipic_double_harris::E0(x,y,z);
@@ -442,14 +442,14 @@ template <typename real>
 arma::Col<real> B0(real x, real y, real z)
 {
     // Electro-static: Landau Damping & TSI
-    return arma::Col<real>({0, 0, 0});
+    //return arma::Col<real>({0, 0, 0});
 
     // Filamentation instability
     /* constexpr real beta = 1e-3;
     return arma::Col<real>({0, 0, beta*std::sin(trigger_k*x)}); */
 
     // Electro-static: Landau Damping & TSI
-    //return arma::Col<real>({0, 0, electron_ion_shock::B0z});
+    return arma::Col<real>({0, 0, electron_ion_shock::B0z});
 
     // Magnetic Reconnection: Double Harris.
     //return ipic_double_harris::B0(x,y,z);
@@ -1333,8 +1333,8 @@ void periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned()
     conf_electron.w_max = wmax_e;
     conf_electron.dw = (wmax_e - wmin_e) / Nw_e;
     conf_electron.q = -1;
-    //conf_electron.m = ipic_double_harris::me;
-    conf_electron.m = 1;
+    conf_electron.m = ipic_double_harris::me;
+    //conf_electron.m = 1;
     conf_electron.f0_2x3v = f0_2x3v_electron;
 
     conf_ion = config_t<double>(Nx, Ny, Nu_i, Nv_i, Nt, dt, xmin, xmax, ymin, ymax, umin_i, umax_i, vmin_i, vmax_i, &f0);
@@ -1343,8 +1343,8 @@ void periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned()
     conf_ion.w_max = wmax_i;
     conf_ion.dw = (wmax_i - wmin_i) / Nw_i;
     conf_ion.q = 1;
-    //conf_ion.m = ipic_double_harris::mi;
-    conf_ion.m = 1./100;
+    conf_ion.m = ipic_double_harris::mi;
+    //conf_ion.m = 1./100;
     conf_ion.f0_2x3v = f0_2x3v_ion;
 
 
@@ -2717,11 +2717,11 @@ void periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned_mpi(
 int main(int argc, char** argv)
 {
  
-    //nufi::dim2::periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned<4>();
+    nufi::dim2::periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned<4>();
     
-    MPI_Init(&argc, &argv);
+    /* MPI_Init(&argc, &argv);
     nufi::dim2::periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned_mpi<4>();
-    MPI_Finalize();
+    MPI_Finalize(); */
 
     return 0;
 }
