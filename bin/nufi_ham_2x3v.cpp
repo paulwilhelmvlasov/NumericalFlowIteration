@@ -319,10 +319,10 @@ double wmax_i = 5*ipic_double_harris::wth_ion; */
 
 
 // Careful: Electrons and ions must have the same underlying spatial (x,y) grid!
-const size_t Nx = 128;
+const size_t Nx = 256;
 const size_t Ny = 1;
-const size_t Nu_e = 128;
-const size_t Nv_e = 128;
+const size_t Nu_e = 256;
+const size_t Nv_e = 256;
 const size_t Nw_e = 1;
 const size_t Nu_i = 2048;
 const size_t Nv_i = 1024;
@@ -340,11 +340,11 @@ const double   dt = 1.0 / steps_per_1;
 const size_t Nt = 100/dt;
 
 bool strang_split = false; // Not implemented yet!
-bool gauss_clean = false;
+bool gauss_clean = true;
 bool with_filter = false;
 
 //size_t nt_restart = Nt + 1;
-size_t nt_restart = 10;
+size_t nt_restart = 20;
 
 const size_t nx_r = Nx;
 const size_t ny_r = Ny;
