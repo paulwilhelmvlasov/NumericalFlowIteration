@@ -147,7 +147,7 @@ namespace dim1
 size_t Nx = 128;  // Number of grid points in physical space.
 size_t Nu = 256;  // Number of quadrature points in velocity space.
 double   dt = 0.1;  // Time-step size.
-size_t Nt = 100/dt;  // Number of time-steps.
+size_t Nt = 5/dt;  // Number of time-steps.
 
 // Dimensions of physical domain.
 double x_min = 0;
@@ -744,6 +744,675 @@ void restart_with_conservative_rsvd_compression(
 }
 
 template <size_t order>
+void restart_with_conservative_rsvd_compression_5th_order(
+    size_t& nt_r_curr,
+    size_t n,
+    double* coeffs,
+    config_t<double>& conf,
+    double& total_time
+)
+{
+    const size_t stride_t = conf.Nx + order - 1;
+
+    std::cout << "Restart with conservative RSVD" << std::endl;
+    nufi::stopwatch<double> timer_restart;
+
+    double tol = 1e-8;
+    size_t max_rank = 30;
+
+    arma::vec u(nu_r + 1);
+    for(size_t j = 0; j <= nu_r; ++j)
+        u(j) = conf.u_min + j * du_r;
+
+    arma::vec one(nu_r + 1, arma::fill::ones);
+    arma::vec u2 = u % u;
+    arma::vec w = arma::exp(-0.5 * u2);
+    arma::vec sqrt_w = arma::sqrt(w);
+    arma::vec inv_sqrt_w = 1.0 / sqrt_w;
+
+    const double q0 = -std::sqrt(3.0 / 5.0);
+    const double q1 =  0.0;
+    const double q2 =  std::sqrt(3.0 / 5.0);
+
+    const double gw0 = 5.0 / 9.0;
+    const double gw1 = 8.0 / 9.0;
+    const double gw2 = 5.0 / 9.0;
+
+    auto weight_fun = [](double uu) {
+        return std::exp(-0.5 * uu * uu);
+    };
+
+    double n0 = 0.0;
+    double n1 = 0.0;
+    double m2w = 0.0;
+
+    for(size_t cell = 0; cell < nu_r; ++cell)
+    {
+        double a = conf.u_min + cell * du_r;
+        double mid = a + 0.5 * du_r;
+        double half = 0.5 * du_r;
+
+        double uq[3] = {
+            mid + half * q0,
+            mid + half * q1,
+            mid + half * q2
+        };
+
+        double wq[3] = {
+            half * gw0,
+            half * gw1,
+            half * gw2
+        };
+
+        for(int q = 0; q < 3; ++q)
+        {
+            double uu = uq[q];
+            double ww = weight_fun(uu);
+
+            n0  += wq[q] * ww;
+            n1  += wq[q] * uu * uu * ww;
+            m2w += wq[q] * uu * uu * ww;
+        }
+    }
+
+    double c = m2w / n0;
+
+    double n2 = 0.0;
+    for(size_t cell = 0; cell < nu_r; ++cell)
+    {
+        double a = conf.u_min + cell * du_r;
+        double mid = a + 0.5 * du_r;
+        double half = 0.5 * du_r;
+
+        double uq[3] = {
+            mid + half * q0,
+            mid + half * q1,
+            mid + half * q2
+        };
+
+        double wq[3] = {
+            half * gw0,
+            half * gw1,
+            half * gw2
+        };
+
+        for(int q = 0; q < 3; ++q)
+        {
+            double uu = uq[q];
+            double ww = weight_fun(uu);
+            double uu2c = uu * uu - c;
+
+            n2 += wq[q] * uu2c * uu2c * ww;
+        }
+    }
+
+    arma::vec u2c = u2 - c;
+
+    arma::vec psi0 = w;
+    arma::vec psi1 = w % u;
+    arma::vec psi2 = w % u2c;
+
+    arma::vec rho(nx_r + 1, arma::fill::zeros);
+    arma::vec J(nx_r + 1, arma::fill::zeros);
+    arma::vec kappa(nx_r + 1, arma::fill::zeros);
+
+    #pragma omp parallel for
+    for(size_t i = 0; i <= nx_r; ++i)
+    {
+        double x_coord = i * dx_r;
+
+        double rho_i = 0.0;
+        double J_i = 0.0;
+        double kappa_i = 0.0;
+
+        for(size_t cell = 0; cell < nu_r; ++cell)
+        {
+            double a = conf.u_min + cell * du_r;
+            double mid = a + 0.5 * du_r;
+            double half = 0.5 * du_r;
+
+            double uq[3] = {
+                mid + half * q0,
+                mid + half * q1,
+                mid + half * q2
+            };
+
+            double wq[3] = {
+                half * gw0,
+                half * gw1,
+                half * gw2
+            };
+
+            for(int q = 0; q < 3; ++q)
+            {
+                double u_coord = uq[q];
+
+                double f = periodic::eval_f<double, order>(
+                    nt_r_curr, x_coord, u_coord, coeffs, conf
+                );
+
+                rho_i   += wq[q] * f;
+                J_i     += wq[q] * u_coord * f;
+                kappa_i += 0.5 * wq[q] * u_coord * u_coord * f;
+            }
+        }
+
+        rho(i)   = rho_i;
+        J(i)     = J_i;
+        kappa(i) = kappa_i;
+    }
+
+    arma::vec a0 = rho / n0;
+    arma::vec a1 = J / n1;
+    arma::vec a2 = (2.0 * kappa - c * rho) / n2;
+
+    auto f1_mv = [&](const arma::vec& q) -> arma::vec {
+        return a0 * arma::dot(psi0, q)
+             + a1 * arma::dot(psi1, q)
+             + a2 * arma::dot(psi2, q);
+    };
+
+    auto f1_t_mv = [&](const arma::vec& p) -> arma::vec {
+        return psi0 * arma::dot(a0, p)
+             + psi1 * arma::dot(a1, p)
+             + psi2 * arma::dot(a2, p);
+    };
+
+    auto A_mv = [&](const arma::vec& x) -> arma::vec {
+        arma::vec x_scaled = x % inv_sqrt_w;
+        arma::vec y(nx_r + 1, arma::fill::zeros);
+
+        #pragma omp parallel for
+        for(size_t i = 0; i <= nx_r; ++i)
+        {
+            double x_coord = i * dx_r;
+            double acc = 0.0;
+
+            for(size_t j = 0; j <= nu_r; ++j)
+            {
+                double u_coord = conf.u_min + j * du_r;
+
+                double f = periodic::eval_f<double, order>(
+                    nt_r_curr, x_coord, u_coord, coeffs, conf
+                );
+
+                acc += f * x_scaled(j);
+            }
+
+            y(i) = acc;
+        }
+
+        return y - f1_mv(x_scaled);
+    };
+
+    auto At_mv = [&](const arma::vec& x) -> arma::vec {
+        arma::vec y(nu_r + 1, arma::fill::zeros);
+
+        #pragma omp parallel for
+        for(size_t j = 0; j <= nu_r; ++j)
+        {
+            double u_coord = conf.u_min + j * du_r;
+            double acc = 0.0;
+
+            for(size_t i = 0; i <= nx_r; ++i)
+            {
+                double x_coord = i * dx_r;
+
+                double f = periodic::eval_f<double, order>(
+                    nt_r_curr, x_coord, u_coord, coeffs, conf
+                );
+
+                acc += f * x(i);
+            }
+
+            y(j) = acc;
+        }
+
+        return (y - f1_t_mv(x)) % inv_sqrt_w;
+    };
+
+    arma::mat U_rem;
+    arma::vec s;
+    arma::mat V_rem;
+
+    std::cout << "Start conservative random SVD." << std::endl;
+
+    restart::randomized_svd_new(
+        A_mv,
+        At_mv,
+        nx_r + 1,
+        nu_r + 1,
+        max_rank,
+        U_rem,
+        s,
+        V_rem
+    );
+
+    std::cout << "RSVD finished." << std::endl;
+
+    arma::uword r = 0;
+    if(s.n_elem > 0 && s(0) > 0.0)
+    {
+        r = arma::sum(s > tol * s(0));
+        if(r > max_rank)
+            r = max_rank;
+    }
+
+    std::cout << "Remainder truncation rank = " << r << std::endl;
+    std::cout << "Stored total rank = " << r + 3 << std::endl;
+
+    U_s_r.set_size(nx_r + 1, r + 3);
+    V_r.set_size(nu_r + 1, r + 3);
+
+    U_s_r.col(0) = a0;
+    U_s_r.col(1) = a1;
+    U_s_r.col(2) = a2;
+
+    V_r.col(0) = psi0;
+    V_r.col(1) = psi1;
+    V_r.col(2) = psi2;
+
+    if(r > 0)
+    {
+        U_rem = U_rem.cols(0, r - 1);
+        s     = s.rows(0, r - 1);
+        V_rem = V_rem.cols(0, r - 1);
+
+        U_rem = U_rem * arma::diagmat(s);
+        V_rem.each_col() %= sqrt_w;
+
+        U_s_r.cols(3, r + 2) = U_rem;
+        V_r.cols(3, r + 2) = V_rem;
+    }
+
+    truncation_ranks_str << n * dt << " " << r + 3 << std::endl;
+
+    conf = config_t<double>(
+        Nx, Nu, Nt, dt,
+        x_min, x_max,
+        u_min, u_max,
+        &f_svd_t_cubic
+    );
+
+    #pragma omp parallel for
+    for(size_t i = 0; i < stride_t; ++i)
+        coeffs[i] = coeffs[nt_r_curr * stride_t + i];
+
+    std::cout << n << " " << nt_r_curr << " restart " << std::endl;
+
+    nt_r_curr = 1;
+
+    double restart_time = timer_restart.elapsed();
+    total_time += restart_time;
+
+    std::cout << "Restart took: " << restart_time
+              << ". Total comp time s.f.: " << total_time << std::endl;
+}
+
+
+std::vector<double> rho_restart;
+std::vector<double> J_restart;
+std::vector<double> kappa_restart;
+
+double cons_n0 = 1.0;
+double cons_n1 = 1.0;
+double cons_c  = 0.0;
+double cons_n2 = 1.0;
+
+inline double cubic_periodic_vector_interp(
+    const std::vector<double>& values,
+    double x
+)
+{
+    x = std::fmod(std::fmod(x, Lx) + Lx, Lx);
+
+    double gx = x / dx_r;
+    int ix = static_cast<int>(std::floor(gx));
+    double tx = gx - ix;
+
+    double p[4];
+
+    for(int k = -1; k <= 2; ++k)
+    {
+        size_t idx = periodic_index(ix + k, values.size());
+        p[k + 1] = values[idx];
+    }
+
+    return cubic_interp(p[0], p[1], p[2], p[3], tx);
+}
+
+inline double analytic_f1_from_moments(double x, double u)
+{
+    if(u > conf.u_max || u < conf.u_min)
+        return 0.0;
+
+    double rho_x   = cubic_periodic_vector_interp(rho_restart, x);
+    double J_x     = cubic_periodic_vector_interp(J_restart, x);
+    double kappa_x = cubic_periodic_vector_interp(kappa_restart, x);
+
+    double u2 = u * u;
+    double w  = std::exp(-0.5 * u2);
+
+    return w * (
+        rho_x / cons_n0
+        + (J_x / cons_n1) * u
+        + ((2.0 * kappa_x - cons_c * rho_x) / cons_n2) * (u2 - cons_c)
+    );
+}
+
+double f_svd_t_cubic_f2_plus_analytic_f1(double x, double u) noexcept
+{
+    return analytic_f1_from_moments(x, u) + cubic_interpolation_2d(x, u);
+}
+
+template <size_t order>
+void restart_with_conservative_rsvd_compression_analytic_f1(
+    size_t& nt_r_curr,
+    size_t n,
+    double* coeffs,
+    config_t<double>& conf,
+    double& total_time
+)
+{
+    const size_t stride_t = conf.Nx + order - 1;
+
+    std::cout << "Restart with conservative RSVD, storing f2 only" << std::endl;
+    nufi::stopwatch<double> timer_restart;
+
+    double tol = 1e-8;
+    size_t max_rank = 60;
+
+    arma::vec u(nu_r + 1);
+    for(size_t j = 0; j <= nu_r; ++j)
+        u(j) = conf.u_min + j * du_r;
+
+    arma::vec u2 = u % u;
+    arma::vec w = arma::exp(-0.5 * u2);
+    arma::vec sqrt_w = arma::sqrt(w);
+    arma::vec inv_sqrt_w = 1.0 / sqrt_w;
+
+    const double q0 = -std::sqrt(3.0 / 5.0);
+    const double q1 =  0.0;
+    const double q2 =  std::sqrt(3.0 / 5.0);
+
+    const double gw0 = 5.0 / 9.0;
+    const double gw1 = 8.0 / 9.0;
+    const double gw2 = 5.0 / 9.0;
+
+    auto weight_fun = [](double uu) {
+        return std::exp(-0.5 * uu * uu);
+    };
+
+    double n0 = 0.0;
+    double n1 = 0.0;
+
+    for(size_t cell = 0; cell < nu_r; ++cell)
+    {
+        double a = conf.u_min + cell * du_r;
+        double mid = a + 0.5 * du_r;
+        double half = 0.5 * du_r;
+
+        double uq[3] = {
+            mid + half * q0,
+            mid + half * q1,
+            mid + half * q2
+        };
+
+        double wq[3] = {
+            half * gw0,
+            half * gw1,
+            half * gw2
+        };
+
+        for(int q = 0; q < 3; ++q)
+        {
+            double uu = uq[q];
+            double ww = weight_fun(uu);
+
+            n0 += wq[q] * ww;
+            n1 += wq[q] * uu * uu * ww;
+        }
+    }
+
+    double c = n1 / n0;
+
+    double n2 = 0.0;
+
+    for(size_t cell = 0; cell < nu_r; ++cell)
+    {
+        double a = conf.u_min + cell * du_r;
+        double mid = a + 0.5 * du_r;
+        double half = 0.5 * du_r;
+
+        double uq[3] = {
+            mid + half * q0,
+            mid + half * q1,
+            mid + half * q2
+        };
+
+        double wq[3] = {
+            half * gw0,
+            half * gw1,
+            half * gw2
+        };
+
+        for(int q = 0; q < 3; ++q)
+        {
+            double uu = uq[q];
+            double ww = weight_fun(uu);
+            double u2c = uu * uu - c;
+
+            n2 += wq[q] * u2c * u2c * ww;
+        }
+    }
+
+    arma::vec u2c = u2 - c;
+
+    arma::vec psi0 = w;
+    arma::vec psi1 = w % u;
+    arma::vec psi2 = w % u2c;
+
+    arma::vec rho(nx_r + 1, arma::fill::zeros);
+    arma::vec J(nx_r + 1, arma::fill::zeros);
+    arma::vec kappa(nx_r + 1, arma::fill::zeros);
+
+    #pragma omp parallel for
+    for(size_t i = 0; i <= nx_r; ++i)
+    {
+        double x_coord = i * dx_r;
+
+        double rho_i = 0.0;
+        double J_i = 0.0;
+        double kappa_i = 0.0;
+
+        for(size_t cell = 0; cell < nu_r; ++cell)
+        {
+            double a = conf.u_min + cell * du_r;
+            double mid = a + 0.5 * du_r;
+            double half = 0.5 * du_r;
+
+            double uq[3] = {
+                mid + half * q0,
+                mid + half * q1,
+                mid + half * q2
+            };
+
+            double wq[3] = {
+                half * gw0,
+                half * gw1,
+                half * gw2
+            };
+
+            for(int q = 0; q < 3; ++q)
+            {
+                double u_coord = uq[q];
+
+                double f = periodic::eval_f<double, order>(
+                    nt_r_curr, x_coord, u_coord, coeffs, conf
+                );
+
+                rho_i   += wq[q] * f;
+                J_i     += wq[q] * u_coord * f;
+                kappa_i += 0.5 * wq[q] * u_coord * u_coord * f;
+            }
+        }
+
+        rho(i)   = rho_i;
+        J(i)     = J_i;
+        kappa(i) = kappa_i;
+    }
+
+    arma::vec a0 = rho / n0;
+    arma::vec a1 = J / n1;
+    arma::vec a2 = (2.0 * kappa - c * rho) / n2;
+
+    auto f1_mv = [&](const arma::vec& q) -> arma::vec {
+        return a0 * arma::dot(psi0, q)
+             + a1 * arma::dot(psi1, q)
+             + a2 * arma::dot(psi2, q);
+    };
+
+    auto f1_t_mv = [&](const arma::vec& p) -> arma::vec {
+        return psi0 * arma::dot(a0, p)
+             + psi1 * arma::dot(a1, p)
+             + psi2 * arma::dot(a2, p);
+    };
+
+    auto A_mv = [&](const arma::vec& x) -> arma::vec {
+        arma::vec x_scaled = x % inv_sqrt_w;
+        arma::vec y(nx_r + 1, arma::fill::zeros);
+
+        #pragma omp parallel for
+        for(size_t i = 0; i <= nx_r; ++i)
+        {
+            double x_coord = i * dx_r;
+            double acc = 0.0;
+
+            for(size_t j = 0; j <= nu_r; ++j)
+            {
+                double u_coord = conf.u_min + j * du_r;
+
+                double f = periodic::eval_f<double, order>(
+                    nt_r_curr, x_coord, u_coord, coeffs, conf
+                );
+
+                acc += f * x_scaled(j);
+            }
+
+            y(i) = acc;
+        }
+
+        return y - f1_mv(x_scaled);
+    };
+
+    auto At_mv = [&](const arma::vec& x) -> arma::vec {
+        arma::vec y(nu_r + 1, arma::fill::zeros);
+
+        #pragma omp parallel for
+        for(size_t j = 0; j <= nu_r; ++j)
+        {
+            double u_coord = conf.u_min + j * du_r;
+            double acc = 0.0;
+
+            for(size_t i = 0; i <= nx_r; ++i)
+            {
+                double x_coord = i * dx_r;
+
+                double f = periodic::eval_f<double, order>(
+                    nt_r_curr, x_coord, u_coord, coeffs, conf
+                );
+
+                acc += f * x(i);
+            }
+
+            y(j) = acc;
+        }
+
+        return (y - f1_t_mv(x)) % inv_sqrt_w;
+    };
+
+    arma::mat U_rem;
+    arma::vec s;
+    arma::mat V_rem;
+
+    std::cout << "Start conservative random SVD." << std::endl;
+
+    restart::randomized_svd_new(
+        A_mv,
+        At_mv,
+        nx_r + 1,
+        nu_r + 1,
+        max_rank,
+        U_rem,
+        s,
+        V_rem
+    );
+
+    std::cout << "RSVD finished." << std::endl;
+
+    arma::uword r = 0;
+
+    if(s.n_elem > 0 && s(0) > 0.0)
+    {
+        r = arma::sum(s > tol * s(0));
+        if(r > max_rank)
+            r = max_rank;
+    }
+
+    std::cout << "Stored f2 rank = " << r << std::endl;
+
+    if(r > 0)
+    {
+        U_rem = U_rem.cols(0, r - 1);
+        s     = s.rows(0, r - 1);
+        V_rem = V_rem.cols(0, r - 1);
+
+        U_rem = U_rem * arma::diagmat(s);
+        V_rem.each_col() %= sqrt_w;
+
+        U_s_r = U_rem;
+        V_r   = V_rem;
+    }
+    else
+    {
+        U_s_r.set_size(nx_r + 1, 0);
+        V_r.set_size(nu_r + 1, 0);
+    }
+
+    cons_n0 = n0;
+    cons_n1 = n1;
+    cons_c  = c;
+    cons_n2 = n2;
+
+    rho_restart.assign(rho.begin(), rho.end());
+    J_restart.assign(J.begin(), J.end());
+    kappa_restart.assign(kappa.begin(), kappa.end());
+
+    truncation_ranks_str << n * dt << " " << r << std::endl;
+
+    conf = config_t<double>(
+        Nx, Nu, Nt, dt,
+        x_min, x_max,
+        u_min, u_max,
+        &f_svd_t_cubic_f2_plus_analytic_f1
+    );
+
+    #pragma omp parallel for
+    for(size_t i = 0; i < stride_t; ++i)
+        coeffs[i] = coeffs[nt_r_curr * stride_t + i];
+
+    std::cout << n << " " << nt_r_curr << " restart " << std::endl;
+
+    nt_r_curr = 1;
+
+    double restart_time = timer_restart.elapsed();
+    total_time += restart_time;
+
+    std::cout << "Restart took: " << restart_time
+              << ". Total comp time s.f.: " << total_time << std::endl;
+}
+
+template <size_t order>
 void run_restarted_simulation(bool with_svd_compression = true)
 {
     truncation_ranks_str.open("truncation_ranks.txt");
@@ -888,7 +1557,9 @@ void run_restarted_simulation(bool with_svd_compression = true)
     	{
             if(with_svd_compression)
             {
-                restart_with_rsvd_compression<order>(nt_r_curr,n,coeffs_restart.get(),conf,total_time);
+                restart_with_conservative_rsvd_compression_analytic_f1<order>(nt_r_curr,n,coeffs_restart.get(),conf,total_time);
+                //restart_with_conservative_rsvd_compression_5th_order<order>(nt_r_curr,n,coeffs_restart.get(),conf,total_time);
+                //restart_with_rsvd_compression<order>(nt_r_curr,n,coeffs_restart.get(),conf,total_time);
                 //restart_with_conservative_rsvd_compression<order>(nt_r_curr,n,coeffs_restart.get(),conf,total_time);
             } else {
                 restart_with_full_matrix<order>(nt_r_curr,n,coeffs_restart.get(),conf,total_time);
