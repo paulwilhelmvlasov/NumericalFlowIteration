@@ -277,8 +277,35 @@ const double vmax_i = 5*vth_ion;
 const double wmin_i = -5*vth_ion;
 const double wmax_i = 5*vth_ion; */
 
+// Rotated Filamentation instability 
+const double Lx = std::sqrt(2)*M_PI;
+const double xmin = 0;
+const double xmax = Lx;
+const double Ly = std::sqrt(2)*M_PI;
+const double ymin = 0;
+const double ymax = Ly;
+const double umin_e = -1.5;
+const double umax_e = 1.5;
+const double vmin_e = -1.5;
+const double vmax_e = 1.5;
+const double wmin_e = -0.5;
+const double wmax_e = 0.5;
+/* const double vth_ion = 1e-8;
+const double umin_i = -5*vth_ion;
+const double umax_i = 5*vth_ion;
+const double vmin_i = -5*vth_ion;
+const double vmax_i = 5*vth_ion;
+const double wmin_i = -5*vth_ion;
+const double wmax_i = 5*vth_ion; */
+const double umin_i = -0.5;
+const double umax_i = 0.5;
+const double vmin_i = -0.5;
+const double vmax_i = 0.5;
+const double wmin_i = -0.5;
+const double wmax_i = 0.5;
+
 // Fabio (non-relativistic) electron-ion shock
-const double Lx = electron_ion_shock::Lx;
+/* const double Lx = electron_ion_shock::Lx;
 const double xmin = 0;
 const double xmax = Lx;
 const double Ly = 1;
@@ -295,7 +322,7 @@ const double umax_i = electron_ion_shock::umax_i;
 const double vmin_i = electron_ion_shock::vmin_i;
 const double vmax_i = electron_ion_shock::vmax_i;
 const double wmin_i = electron_ion_shock::wmin_i;
-const double wmax_i = electron_ion_shock::wmax_i;
+const double wmax_i = electron_ion_shock::wmax_i; */
 
 // Magnetic reconnection: Double Harris.
 /* const double Lx = ipic_double_harris::Lx;
@@ -319,13 +346,13 @@ double wmax_i = 5*ipic_double_harris::wth_ion; */
 
 
 // Careful: Electrons and ions must have the same underlying spatial (x,y) grid!
-const size_t Nx = 256;
-const size_t Ny = 1;
-const size_t Nu_e = 256;
-const size_t Nv_e = 128;
-const size_t Nw_e = 1;
-const size_t Nu_i = 4096;
-const size_t Nv_i = 2048;
+const size_t Nx = 32;
+const size_t Ny = 32;
+const size_t Nu_e = 64;
+const size_t Nv_e = 64;
+const size_t Nw_e = 32;
+const size_t Nu_i = 1;
+const size_t Nv_i = 1;
 const size_t Nw_i = 1;
 /* const size_t Nx = 16;
 const size_t Ny = 1;
@@ -340,11 +367,11 @@ const double   dt = 1.0 / steps_per_1;
 const size_t Nt = 100/dt;
 
 bool strang_split = false; // Not implemented yet!
-bool gauss_clean = true;
+bool gauss_clean = false;
 bool with_filter = false;
 
 //size_t nt_restart = Nt + 1;
-size_t nt_restart = 20;
+size_t nt_restart = 200;
 
 const size_t nx_r = Nx;
 const size_t ny_r = Ny;
@@ -358,12 +385,12 @@ const size_t nw_i_r = Nw_i;
 nufi::restart::cubic_interpolant_2x3v interpolant_electron;
 nufi::restart::cubic_interpolant_2x3v interpolant_ion;
 
-double eval_f_electron_with_linear_interpolant(double x, double y, double u, double v, double w)
+double eval_f_electron_with_interpolant(double x, double y, double u, double v, double w)
 {
     return interpolant_electron.cubic_interpolation_5d_streaming(x,y,u,v,w);
 }
 
-double eval_f_ion_with_linear_interpolant(double x, double y, double u, double v, double w)
+double eval_f_ion_with_interpolant(double x, double y, double u, double v, double w)
 {
     return interpolant_ion.cubic_interpolation_5d_streaming(x,y,u,v,w);
 }
@@ -392,8 +419,15 @@ real f0_2x3v_electron(real x, real y, real u, real v, real w) noexcept
     real vth = 0.1;
     return 0.5 * (maxwellian_2d<real>(u,v-v_beam,vth) + maxwellian_2d<real>(u,v+v_beam,vth)) * maxwellian_1d(w,1.0); */
 
+    // Rotated Filamentation instability
+    real v_beam = 0.4;
+    real vth = 0.1;
+    real vs = (u + v) / std::sqrt(2);
+    real vr = (u - v) / std::sqrt(2);
+    return 0.5 * maxwellian_1d<real>(vs,vth) * ( maxwellian_1d<real>(vr - v_beam,vth) + maxwellian_1d<real>(vr + v_beam,vth) ) * maxwellian_1d(w,vth);
+
     // Fabio (non-relativistic) electron-ion shock
-    return electron_ion_shock::f0_e_1x2v(x,u,v);
+    //return electron_ion_shock::f0_e_1x2v(x,u,v);
 
     // Magnetic reconnection: Double Harris.
     //return ipic_double_harris::f0_electron(x,y,u,v,w);
@@ -407,14 +441,14 @@ real f0_2x3v_ion(real x, real y, real u, real v, real w) noexcept
     using std::exp;
 
     // Constant background:
-    //return 1;
+    return 1;
 
     // Maxwellian
     /* double vth = vth_ion;
     return maxwellian_1d(u,vth) * maxwellian_1d(v,vth) * maxwellian_1d(w,vth); */
 
     // Fabio (non-relativistic) electron-ion shock
-    return electron_ion_shock::f0_i_1x2v(x,u,v);
+    //return electron_ion_shock::f0_i_1x2v(x,u,v);
 
     // Magnetic Reconnection: Double Harris.
     //return ipic_double_harris::f0_ion(x,y,u,v,w);
@@ -429,10 +463,10 @@ arma::Col<real> E0(real x, real y, real z)
     return  arma::Col<real>({-alpha / k * std::sin(k*x), 0, 0}); */
 
     // Kormann Streaming & Filamentation instability
-    //return  arma::Col<real>({0, 0, 0});
+    return  arma::Col<real>({0, 0, 0});
 
     // Fabio (non-relativistic) electron-ion shock
-    return  arma::Col<real>({0, electron_ion_shock::E0_y(x), 0});
+    //return  arma::Col<real>({0, electron_ion_shock::E0_y(x), 0});
 
     // Magnetic Reconnection: Double Harris.
     //return  ipic_double_harris::E0(x,y,z);
@@ -448,8 +482,14 @@ arma::Col<real> B0(real x, real y, real z)
     /* constexpr real beta = 1e-3;
     return arma::Col<real>({0, 0, beta*std::sin(trigger_k*x)}); */
 
+    // Rotated Filamentation instability
+    constexpr real beta = 1e-3;
+    constexpr real trigger_k = 2;
+    real s = (x+y)/std::sqrt(2);
+    return arma::Col<real>({0, 0, beta*std::sin(trigger_k*s)});
+
     // Electro-static: Landau Damping & TSI
-    return arma::Col<real>({0, 0, electron_ion_shock::B0z});
+    //return arma::Col<real>({0, 0, electron_ion_shock::B0z});
 
     // Magnetic Reconnection: Double Harris.
     //return ipic_double_harris::B0(x,y,z);
@@ -560,7 +600,8 @@ void do_stats_2x3v(size_t nt, double kinetic_energy, double entropy, std::ofstre
     magnetic_energy = magnetic_x_energy + magnetic_y_energy + magnetic_z_energy;
 
     double total_energy = electric_energy + magnetic_energy + kinetic_energy;
-    stat_file << std::fixed << std::setprecision(15) << current_time << " " << electric_energy << " " << magnetic_energy  << " " 
+    stat_file << std::fixed << std::setprecision(15) << current_time << " " 
+        << electric_energy << " " << magnetic_energy  << " " 
         << kinetic_energy << " " << total_energy << " " << entropy << " "
         << electric_x_energy << " " << electric_y_energy << " " << electric_z_energy << " "
         << magnetic_x_energy << " " << magnetic_y_energy << " " << magnetic_z_energy << " "
@@ -1318,7 +1359,7 @@ void write_coeffs_to_disk(size_t nt_r_curr, std::ofstream& coeff_str,
 }
 
 template<size_t order>
-void periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned()
+void periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned(size_t plotting_N = 256)
 {
     const size_t dim = 2;
     const size_t stride_x = 1;
@@ -1333,7 +1374,8 @@ void periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned()
     conf_electron.w_max = wmax_e;
     conf_electron.dw = (wmax_e - wmin_e) / Nw_e;
     conf_electron.q = -1;
-    conf_electron.m = ipic_double_harris::me;
+    //conf_electron.m = ipic_double_harris::me;
+    conf_electron.m = 1;
     //conf_electron.m = 1;
     conf_electron.f0_2x3v = f0_2x3v_electron;
 
@@ -1490,9 +1532,9 @@ void periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned()
     double entropy = 0.0;
     {
         // Plotting:
-        kinetic_energy_and_entropy_2x3v<double,order>(0, placeholder_file, coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz, conf_electron, conf_ion, kinetic_energy, entropy, true, 0, 1024,1024,1,1,1,1,1,1,true,"_xy");
-        kinetic_energy_and_entropy_2x3v<double,order>(0, placeholder_file, coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz, conf_electron, conf_ion, kinetic_energy, entropy, true, 0, 1024,1,1024,1,1,1024,1,1,true,"_xu");
-        kinetic_energy_and_entropy_2x3v<double,order>(0, placeholder_file, coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz, conf_electron, conf_ion, kinetic_energy, entropy, true, 0, 1,1,1024,1024,1,1024,1024,1,true,"_uv");
+        kinetic_energy_and_entropy_2x3v<double,order>(0, placeholder_file, coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz, conf_electron, conf_ion, kinetic_energy, entropy, true, 0, plotting_N,plotting_N,1,1,1,1,1,1,true,"_xy");
+        kinetic_energy_and_entropy_2x3v<double,order>(0, placeholder_file, coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz, conf_electron, conf_ion, kinetic_energy, entropy, true, 0, plotting_N,1,plotting_N,1,1,plotting_N,1,1,true,"_xu");
+        kinetic_energy_and_entropy_2x3v<double,order>(0, placeholder_file, coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz, conf_electron, conf_ion, kinetic_energy, entropy, true, 0, 1,1,plotting_N,plotting_N,1,plotting_N,plotting_N,1,true,"_uv");
         //eval_rho_j_high_res<order>(0, coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz, conf_electron, conf_ion,true,0,256,256,32,32,32,"_zoom",0,15,2,12);
     }
     kinetic_energy_and_entropy_2x3v<double,order>(0,kin_energy_entropy_file,coeffs_Ex,coeffs_Ey,coeffs_Ez,coeffs_Bx,coeffs_By,coeffs_Bz,conf_electron,conf_ion,kinetic_energy,entropy,false,0,Nx,Ny,Nu_e,Nv_e,Nw_e,Nu_i,Nv_i,Nw_i,false);
@@ -1890,9 +1932,9 @@ void periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned()
         bool plot_f = (n % (1*steps_per_1) == 0);
         if(comp_kin_energy){
             if(plot_f){
-                kinetic_energy_and_entropy_2x3v<double,order>(nt_r_curr, placeholder_file, coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz, conf_electron, conf_ion, kinetic_energy, entropy, true, n, 1024,1024,1,1,1,1,1,1,true,"_xy");
-                kinetic_energy_and_entropy_2x3v<double,order>(nt_r_curr, placeholder_file, coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz, conf_electron, conf_ion, kinetic_energy, entropy, true, n, 1024,1,1024,1,1,1024,1,1,true,"_xu");
-                kinetic_energy_and_entropy_2x3v<double,order>(nt_r_curr, placeholder_file, coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz, conf_electron, conf_ion, kinetic_energy, entropy, true, n, 1,1,1024,1024,1,1024,1024,1,true,"_uv");
+                kinetic_energy_and_entropy_2x3v<double,order>(nt_r_curr, placeholder_file, coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz, conf_electron, conf_ion, kinetic_energy, entropy, true, n, plotting_N,plotting_N,1,1,1,1,1,1,true,"_xy");
+                kinetic_energy_and_entropy_2x3v<double,order>(nt_r_curr, placeholder_file, coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz, conf_electron, conf_ion, kinetic_energy, entropy, true, n, plotting_N,1,plotting_N,1,1,plotting_N,1,1,true,"_xu");
+                kinetic_energy_and_entropy_2x3v<double,order>(nt_r_curr, placeholder_file, coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz, conf_electron, conf_ion, kinetic_energy, entropy, true, n, 1,1,plotting_N,plotting_N,1,plotting_N,plotting_N,1,true,"_uv");
                 //eval_rho_j_high_res<order>(nt_r_curr, coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz, conf_electron, conf_ion,true,n,256,256,32,32,32,"_zoom",0,15,2,12);
             }
             // Check resolution:
@@ -1954,8 +1996,8 @@ void periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned()
                 coeffs_Bz[l] = coeffs_Bz[nt_r_curr * stride_t + l];
             }
 
-            conf_electron.f0_2x3v = eval_f_electron_with_linear_interpolant;
-            conf_ion.f0_2x3v = eval_f_ion_with_linear_interpolant;
+            conf_electron.f0_2x3v = eval_f_electron_with_interpolant;
+            conf_ion.f0_2x3v = eval_f_ion_with_interpolant;
 
             nt_r_curr = 1;
             double timer_copy_coeff = timer.elapsed();
@@ -2684,8 +2726,8 @@ void periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned_mpi(
                 coeffs_Bz[l] = coeffs_Bz[nt_r_curr * stride_t + l];
             }
 
-            conf_electron.f0_2x3v = eval_f_electron_with_linear_interpolant;
-            conf_ion.f0_2x3v = eval_f_ion_with_linear_interpolant;
+            conf_electron.f0_2x3v = eval_f_electron_with_interpolant;
+            conf_ion.f0_2x3v = eval_f_ion_with_interpolant;
 
             nt_r_curr = 1;
             double timer_copy_coeff = timer.elapsed();
@@ -2717,11 +2759,11 @@ void periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned_mpi(
 int main(int argc, char** argv)
 {
  
-    //nufi::dim2::periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned<4>();
+    nufi::dim2::periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned<4>(1024);
     
-    MPI_Init(&argc, &argv);
+    /* MPI_Init(&argc, &argv);
     nufi::dim2::periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned_mpi<4>();
-    MPI_Finalize();
+    MPI_Finalize(); */
 
     return 0;
 }
