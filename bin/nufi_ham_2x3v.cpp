@@ -362,7 +362,7 @@ const size_t Nw_e = 16;
 const size_t Nu_i = 16;
 const size_t Nv_i = 16;
 const size_t Nw_i = 16; */
-const size_t steps_per_1 = 20;
+const size_t steps_per_1 = 50;
 const double   dt = 1.0 / steps_per_1;
 const size_t Nt = 100/dt;
 
@@ -371,7 +371,7 @@ bool gauss_clean = false;
 bool with_filter = false;
 
 //size_t nt_restart = Nt + 1;
-size_t nt_restart = 200;
+size_t nt_restart = 50;
 
 const size_t nx_r = Nx;
 const size_t ny_r = Ny;
