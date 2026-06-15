@@ -351,9 +351,9 @@ const size_t Ny = 32;
 const size_t Nu_e = 32;
 const size_t Nv_e = 32;
 const size_t Nw_e = 16;
-const size_t Nu_i = 16;
-const size_t Nv_i = 16;
-const size_t Nw_i = 16;
+const size_t Nu_i = 1;
+const size_t Nv_i = 1;
+const size_t Nw_i = 1;
 /* const size_t Nx = 16;
 const size_t Ny = 1;
 const size_t Nu_e = 16;
@@ -1386,7 +1386,6 @@ void periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned(size
     conf_ion.dw = (wmax_i - wmin_i) / Nw_i;
     conf_ion.q = 1;
     conf_ion.m = ipic_double_harris::mi;
-    //conf_ion.m = 1./100;
     conf_ion.f0_2x3v = f0_2x3v_ion;
 
 
