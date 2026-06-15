@@ -355,6 +355,7 @@ real eval_f_nufi_ham_lie_fBE_1x2v(size_t n, real x, real u, real v,
     const size_t stride_comp = dim * stride_spatial;
     const size_t stride_t = stride_comp * Nspace;
 
+    real q_over_m = conf.q / conf.m;
 
     for (; n > 0; n--) {
 
@@ -371,11 +372,11 @@ real eval_f_nufi_ham_lie_fBE_1x2v(size_t n, real x, real u, real v,
         // Add the curl(B) term for E2
         Ey -= conf.dt * eval<real,order,1>(x,&coeffs_Bz[(n-1)*stride_t],conf);
 
-        u -= conf.dt * conf.q * Ex;
-        v -= conf.dt * conf.q * Ey;
+        u -= conf.dt * q_over_m * Ex;
+        v -= conf.dt * q_over_m * Ey;
 
         // exact rotation
-        Bz *= -conf.dt*conf.q;
+        Bz *= -conf.dt*q_over_m;
         if(std::abs(Bz) > 1e-12){
             // Else the exp(J_B) = Identity.
             real alpha = std::sin(std::abs(Bz))/std::abs(Bz);
@@ -389,9 +390,9 @@ real eval_f_nufi_ham_lie_fBE_1x2v(size_t n, real x, real u, real v,
         }
 
         // Strang Split magnetic rotation.
-        /* v -= 0.5 * conf.dt * conf.q * u * Bz;
-        u += conf.dt * conf.q * v * Bz;
-        v -= 0.5 * conf.dt * conf.q * u * Bz; */
+        /* v -= 0.5 * conf.dt * q_over_m * u * Bz;
+        u += conf.dt * q_over_m * v * Bz;
+        v -= 0.5 * conf.dt * q_over_m * u * Bz; */
 
         // Update x.
         x -= conf.dt * u;
@@ -467,6 +468,7 @@ real eval_f_nufi_ham_lie_Hf_HB_HE_1x2v(size_t n, real x, real u, real v,
     const size_t stride_comp = dim * stride_spatial;
     const size_t stride_t = stride_comp * Nspace;
 
+    real q_over_m = conf.q / conf.m;
 
     for (; n > 0; n--) {
 
@@ -475,11 +477,11 @@ real eval_f_nufi_ham_lie_Hf_HB_HE_1x2v(size_t n, real x, real u, real v,
         real Bz = eval<real, order>(x,&coeffs_Bz[(n-1)*stride_t],conf);
 
 
-        u -= conf.dt * conf.q * Ex;
-        v -= conf.dt * conf.q * Ey;
+        u -= conf.dt * q_over_m * Ex;
+        v -= conf.dt * q_over_m * Ey;
 
         // exact rotation
-        Bz *= -conf.dt*conf.q;
+        Bz *= -conf.dt*q_over_m;
         if(std::abs(Bz) > 1e-12){
             // Else the exp(J_B) = Identity.
             real u_old = u;
@@ -668,6 +670,8 @@ real eval_f_nufi_ham_strang_HE_HB_Hf_HB_HE_1x2v(
     const size_t Nx_ext = conf.Nx + order - 1;
     const size_t stride_t = Nx_ext;
 
+    real q_over_m = conf.q / conf.m;
+
     for (; n > 0; --n) {
 
         // 1) Undo final H_E(dt/2)
@@ -675,8 +679,8 @@ real eval_f_nufi_ham_strang_HE_HB_Hf_HB_HE_1x2v(
             const real Ex = eval<real, order>(x, &coeffs_Ex[n * stride_t], conf);
             const real Ey = eval<real, order>(x, &coeffs_Ey[n * stride_t], conf);
 
-            u -= real(0.5) * conf.dt * conf.q * Ex;
-            v -= real(0.5) * conf.dt * conf.q * Ey;
+            u -= real(0.5) * conf.dt * q_over_m * Ex;
+            v -= real(0.5) * conf.dt * q_over_m * Ey;
         }
 
         // 2) Undo second H_B(dt/2)
@@ -685,7 +689,7 @@ real eval_f_nufi_ham_strang_HE_HB_Hf_HB_HE_1x2v(
             const real dEy_dx = eval<real, order, 1>(x, &coeffs_Ey[n * stride_t], conf);
             const real Bz_star = Bz - real(0.5) * conf.dt * dEy_dx;
 
-            const real theta = -real(0.5) * conf.dt * conf.q * Bz_star;
+            const real theta = -real(0.5) * conf.dt * q_over_m * Bz_star;
 
             if (std::abs(theta) > real(1e-12)) {
                 const real u_old = u;
@@ -709,7 +713,7 @@ real eval_f_nufi_ham_strang_HE_HB_Hf_HB_HE_1x2v(
             const real dEy_dx = eval<real, order, 1>(x, &coeffs_Ey[n * stride_t], conf);
             const real Bz_star = Bz - real(0.5) * conf.dt * dEy_dx;
 
-            const real theta = -real(0.5) * conf.dt * conf.q * Bz_star;
+            const real theta = -real(0.5) * conf.dt * q_over_m * Bz_star;
 
             if (std::abs(theta) > real(1e-12)) {
                 const real u_old = u;
@@ -729,8 +733,8 @@ real eval_f_nufi_ham_strang_HE_HB_Hf_HB_HE_1x2v(
             const real Ex = eval<real, order>(x, &coeffs_Ex[n * stride_t], conf);
             const real Ey = eval<real, order>(x, &coeffs_Ey[n * stride_t], conf);
 
-            u -= real(0.5) * conf.dt * conf.q * Ex;
-            v -= real(0.5) * conf.dt * conf.q * Ey;
+            u -= real(0.5) * conf.dt * q_over_m * Ex;
+            v -= real(0.5) * conf.dt * q_over_m * Ey;
         }
     }
 
@@ -763,13 +767,15 @@ real eval_f_tilde_strang_1x2v(
     const size_t Nx_ext = conf.Nx + order - 1;
     const size_t stride_t = Nx_ext;
 
+    real q_over_m = conf.q / conf.m;
+
     // 1) Undo H_B(dt/2) using fields at level n-1
     {
         const real Bz     = eval<real, order>(x, &coeffs_Bz[(n - 1) * stride_t], conf);
         const real dEy_dx = eval<real, order, 1>(x, &coeffs_Ey[(n - 1) * stride_t], conf);
         const real Bz_star = Bz - real(0.5) * conf.dt * dEy_dx;
 
-        const real theta = -real(0.5) * conf.dt * conf.q * Bz_star;
+        const real theta = -real(0.5) * conf.dt * q_over_m * Bz_star;
 
         if (std::abs(theta) > real(1e-12)) {
             const real u_old = u;
@@ -789,8 +795,8 @@ real eval_f_tilde_strang_1x2v(
         const real Ex = eval<real, order>(x, &coeffs_Ex[(n - 1) * stride_t], conf);
         const real Ey = eval<real, order>(x, &coeffs_Ey[(n - 1) * stride_t], conf);
 
-        u -= real(0.5) * conf.dt * conf.q * Ex;
-        v -= real(0.5) * conf.dt * conf.q * Ey;
+        u -= real(0.5) * conf.dt * q_over_m * Ex;
+        v -= real(0.5) * conf.dt * q_over_m * Ey;
     }
 
     // 3) Evaluate f^{n-1} at the resulting footpoint

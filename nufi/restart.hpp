@@ -622,6 +622,178 @@ class flow_map_linear_interpolant_2x3v
 
 };
 
+class cubic_interpolant_1x2v
+{
+    public:
+        double xmin = 0;
+        double xmax = 1;
+
+        double Lx = 1;
+        
+        double umin = -1;
+        double umax = 1;
+        double vmin = -1;
+        double vmax = 1;
+
+        size_t nx_r = 8;
+        size_t ny_r = 8;
+        size_t nu_r = 8;
+        size_t nv_r = 8;
+        size_t nw_r = 8;
+
+        size_t size_x_r = 1;
+        size_t size_v_r = 1;
+
+        double dx_r = 1;
+        double dy_r = 1;
+        double du_r = 1;
+        double dv_r = 1;
+        double dw_r = 1;
+
+        bool non_negative_enforce = true;
+
+        arma::mat restart_matrix; // size: (Nx_r+1)*(Ny_r+1) \times (Nu_r+1)*(Nv_r+1)*(Nw_r+1)
+        arma::mat copy_mat;
+
+        cubic_interpolant_1x2v() { }
+
+        cubic_interpolant_1x2v(double xmin, double xmax, 
+            double umin, double umax, double vmin, double vmax,
+            size_t Nx, size_t Nu, size_t Nv, bool non_negative = true) 
+            : xmin(xmin), xmax(xmax), umin(umin), umax(umax), vmin(vmin), vmax(vmax),
+            nx_r(Nx), nu_r(Nu), nv_r(Nv), non_negative_enforce(non_negative)
+        {
+            size_x_r = (nx_r+1);
+            size_v_r = (nu_r+1)*(nv_r+1);
+
+            dx_r = (xmax - xmin) / nx_r;
+
+            du_r = (umax - umin) / nu_r;
+            dv_r = (vmax - vmin) / nv_r;
+
+            Lx = (xmax - xmin);
+
+            restart_matrix = arma::mat(size_x_r, size_v_r, arma::fill::zeros);
+            copy_mat = arma::mat(size_x_r, size_v_r, arma::fill::zeros);
+        }
+
+        void restart_f(const std::function<double(double,double,double)>& eval_f)
+        {
+            #pragma omp parallel for collapse(3)
+            for(size_t ix = 0; ix <= nx_r; ix++)
+            for(size_t iu = 0; iu <= nu_r; iu++)
+            for(size_t iv = 0; iv <= nv_r; iv++){
+                double x = xmin + ix*dx_r;
+
+                double u = umin + iu*du_r;
+                double v = vmin + iv*dv_r;
+
+                size_t index_0 = ix;
+                size_t index_1 = iu + (nu_r+1)*iv;
+
+                copy_mat(index_0,index_1) = eval_f(x, u, v);
+            }
+
+            restart_matrix = copy_mat;
+        }
+
+        inline double cubic_interp(double p0, double p1, double p2, double p3, double t)
+        {
+            // Catmull-Rom spline
+            double a0 = -0.5*p0 + 1.5*p1 - 1.5*p2 + 0.5*p3;
+            double a1 = p0 - 2.5*p1 + 2.0*p2 - 0.5*p3;
+            double a2 = -0.5*p0 + 0.5*p2;
+            double a3 = p1;
+
+            return ((a0*t + a1)*t + a2)*t + a3;
+        }
+
+        inline size_t clamp_index(int i, size_t N)
+        {
+            if (i < 0) return 0;
+            if (i >= static_cast<int>(N)) return N - 1;
+            return static_cast<size_t>(i);
+        }
+
+        inline size_t periodic_index(int i, size_t N)
+        {
+            int res = i % static_cast<int>(N);
+            if (res < 0) res += N;
+            return static_cast<size_t>(res);
+        }
+
+        double cubic_interpolation_3d(double x, double u, double v)
+        {
+            if (u > umax || u < umin || v > vmax || v < vmin) {
+                return 0.0;
+            }
+
+            // periodic x
+            x = std::fmod(std::fmod(x, Lx) + Lx, Lx);
+
+            double gx = x / dx_r;
+            double gu = (u - umin) / du_r;
+            double gv = (v - vmin) / dv_r;
+
+            int ix = static_cast<int>(std::floor(gx));
+            int iu = static_cast<int>(std::floor(gu));
+            int iv = static_cast<int>(std::floor(gv));
+
+            double tx = gx - ix;
+            double tu = gu - iu;
+            double tv = gv - iv;
+
+            double val_u_v[4][4];
+
+            // Loop over stencil in v and u
+            for (int kv = -1; kv <= 2; kv++) {
+                int iv_idx = iv + kv;
+                size_t ivc = clamp_index(iv_idx, nv_r + 1);
+
+                for (int ku = -1; ku <= 2; ku++) {
+                    int iu_idx = iu + ku;
+                    size_t iuc = clamp_index(iu_idx, nu_r + 1);
+
+                    double px[4];
+
+                    // interpolate along x first
+                    for (int kx = -1; kx <= 2; kx++) {
+                        int ix_idx = ix + kx;
+                        size_t ixc = periodic_index(ix_idx, nx_r + 1);
+
+                        size_t index_0 = ixc;
+                        size_t index_1 = iuc + (nu_r + 1) * ivc;
+
+                        px[kx + 1] = restart_matrix(index_0, index_1);
+                    }
+
+                    val_u_v[ku + 1][kv + 1] = cubic_interp(px[0], px[1], px[2], px[3], tx);
+                }
+            }
+
+            double val_v[4];
+
+            // interpolate along u
+            for (int kv = 0; kv < 4; kv++) {
+                val_v[kv] = cubic_interp(
+                    val_u_v[0][kv],
+                    val_u_v[1][kv],
+                    val_u_v[2][kv],
+                    val_u_v[3][kv],
+                    tu
+                );
+            }
+
+            // interpolate along v
+            double result = cubic_interp(val_v[0], val_v[1], val_v[2], val_v[3], tv);
+
+            if(non_negative_enforce){
+                return std::max(0.0,result);
+            }
+            return result;
+        }
+
+};
 
 class cubic_interpolant_2x3v
 {
