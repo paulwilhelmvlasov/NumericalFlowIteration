@@ -297,12 +297,12 @@ const double vmin_i = -5*vth_ion;
 const double vmax_i = 5*vth_ion;
 const double wmin_i = -5*vth_ion;
 const double wmax_i = 5*vth_ion; */
-const double umin_i = -0.5;
-const double umax_i = 0.5;
-const double vmin_i = -0.5;
-const double vmax_i = 0.5;
-const double wmin_i = -0.5;
-const double wmax_i = 0.5;
+const double umin_i = -0.1;
+const double umax_i = 0.1;
+const double vmin_i = -0.1;
+const double vmax_i = 0.1;
+const double wmin_i = -0.1;
+const double wmax_i = 0.1;
 
 // Fabio (non-relativistic) electron-ion shock
 /* const double Lx = electron_ion_shock::Lx;
@@ -351,9 +351,9 @@ const size_t Ny = 32;
 const size_t Nu_e = 32;
 const size_t Nv_e = 32;
 const size_t Nw_e = 16;
-const size_t Nu_i = 1;
-const size_t Nv_i = 1;
-const size_t Nw_i = 1;
+const size_t Nu_i = 16;
+const size_t Nv_i = 16;
+const size_t Nw_i = 16;
 /* const size_t Nx = 16;
 const size_t Ny = 1;
 const size_t Nu_e = 16;
@@ -441,11 +441,12 @@ real f0_2x3v_ion(real x, real y, real u, real v, real w) noexcept
     using std::exp;
 
     // Constant background:
-    return 1;
+    //return 1;
 
     // Maxwellian
-    /* double vth = vth_ion;
-    return maxwellian_1d(u,vth) * maxwellian_1d(v,vth) * maxwellian_1d(w,vth); */
+    //double vth = vth_ion;
+    double vth = 0.02; // Assuming mass ratio 25.
+    return maxwellian_1d(u,vth) * maxwellian_1d(v,vth) * maxwellian_1d(w,vth);
 
     // Fabio (non-relativistic) electron-ion shock
     //return electron_ion_shock::f0_i_1x2v(x,u,v);
@@ -1385,7 +1386,8 @@ void periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned(size
     conf_ion.w_max = wmax_i;
     conf_ion.dw = (wmax_i - wmin_i) / Nw_i;
     conf_ion.q = 1;
-    conf_ion.m = ipic_double_harris::mi;
+    //conf_ion.m = ipic_double_harris::mi;
+    conf_ion.m = 25 * conf_electron.m;
     conf_ion.f0_2x3v = f0_2x3v_ion;
 
 
