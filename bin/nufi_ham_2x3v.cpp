@@ -346,14 +346,14 @@ double wmax_i = 5*ipic_double_harris::wth_ion; */
 
 
 // Careful: Electrons and ions must have the same underlying spatial (x,y) grid!
-const size_t Nx = 32;
-const size_t Ny = 32;
-const size_t Nu_e = 32;
-const size_t Nv_e = 32;
-const size_t Nw_e = 16;
-const size_t Nu_i = 16;
-const size_t Nv_i = 16;
-const size_t Nw_i = 16;
+const size_t Nx = 64;
+const size_t Ny = 64;
+const size_t Nu_e = 64;
+const size_t Nv_e = 64;
+const size_t Nw_e = 64;
+const size_t Nu_i = 64;
+const size_t Nv_i = 64;
+const size_t Nw_i = 64;
 /* const size_t Nx = 16;
 const size_t Ny = 1;
 const size_t Nu_e = 16;
@@ -738,8 +738,8 @@ void kinetic_energy_and_entropy_2x3v(size_t nt, std::ofstream& stat_file,
 
     double dplot_e = dx_plot*dy_plot*du_e_plot*dv_e_plot*dw_e_plot;
     double dplot_i = dx_plot*dy_plot*du_i_plot*dv_i_plot*dw_i_plot;
-    kin_energy_electron *= 0.5*dplot_e;
-    kin_energy_ion *= 0.5*dplot_i;
+    kin_energy_electron *= 0.5*conf_electron.m*dplot_e;
+    kin_energy_ion *= 0.5*conf_ion.m*dplot_i;
     entropy_electron *= dplot_e;
     entropy_ion *= dplot_i;
     l1_norm_electron *= dplot_e;
@@ -1087,8 +1087,8 @@ void kinetic_energy_and_entropy_2x3v_mpi(
     const double dplot_i =
         dx_plot * dy_plot * du_i_plot * dv_i_plot * dw_i_plot;
 
-    const double kin_energy_electron = 0.5 * dplot_e * kin_energy_electron_sum;
-    const double kin_energy_ion      = 0.5 * dplot_i * kin_energy_ion_sum;
+    const double kin_energy_electron = 0.5 * dplot_e * conf_electron.m * kin_energy_electron_sum;
+    const double kin_energy_ion      = 0.5 * dplot_i * conf_ion.m * kin_energy_ion_sum;
 
     const double entropy_electron = dplot_e * entropy_electron_sum;
     const double entropy_ion      = dplot_i * entropy_ion_sum;
@@ -2045,8 +2045,8 @@ void periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned_mpi(
     conf_electron.w_max = wmax_e;
     conf_electron.dw = (wmax_e - wmin_e) / Nw_e;
     conf_electron.q = -1;
-    conf_electron.m = ipic_double_harris::me;
-    //conf_electron.m = 1;
+    //conf_electron.m = ipic_double_harris::me;
+    conf_electron.m = 1;
     conf_electron.f0_2x3v = f0_2x3v_electron;
 
     conf_ion = config_t<double>(Nx, Ny, Nu_i, Nv_i, Nt, dt, xmin, xmax, ymin, ymax, umin_i, umax_i, vmin_i, vmax_i, &f0);
@@ -2055,8 +2055,8 @@ void periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned_mpi(
     conf_ion.w_max = wmax_i;
     conf_ion.dw = (wmax_i - wmin_i) / Nw_i;
     conf_ion.q = 1;
-    conf_ion.m = ipic_double_harris::mi;
-    //conf_ion.m = 1.0/100;
+    //conf_ion.m = ipic_double_harris::mi;
+    conf_ion.m = 25 * conf_electron.m;
     conf_ion.f0_2x3v = f0_2x3v_ion;
 
     if(mpi_rank == 0){
@@ -2652,7 +2652,7 @@ void periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned_mpi(
         
         // Statistics.
         bool comp_kin_energy = true;
-        bool plot_f = (n % (1*steps_per_1) == 0);
+        bool plot_f = (n % (10*steps_per_1) == 0);
         if(comp_kin_energy){
             if(plot_f){
                 kinetic_energy_and_entropy_2x3v_mpi<order>(nt_r_curr, placeholder_file, coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz, conf_electron, conf_ion, kinetic_energy, entropy, true, n, 1024,1024,1,1,1,1,1,1,true,"_xy");
@@ -2663,8 +2663,8 @@ void periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned_mpi(
             // Check resolution:
             kinetic_energy_and_entropy_2x3v_mpi<order>(nt_r_curr, kin_energy_entropy_file, coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz, conf_electron, conf_ion, kinetic_energy, entropy,true,n,Nx,Ny,Nu_e,Nv_e,Nw_e,Nu_i,Nv_i,Nw_i,false); 
         }
-        bool plot_EB = (n % (steps_per_1) == 0);
-        //bool plot_EB = true;
+        //bool plot_EB = (n % (steps_per_1) == 0);
+        bool plot_EB = false;
         if(mpi_rank==0){
             if(plot_EB){
                 do_stats_2x3v<double,order>(nt_r_curr,kinetic_energy,entropy,stat_file,coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz,conf_electron,true,n,256,256,true);
@@ -2760,11 +2760,11 @@ void periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned_mpi(
 int main(int argc, char** argv)
 {
  
-    nufi::dim2::periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned<4>(1024);
+    //nufi::dim2::periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned<4>(1024);
     
-    /* MPI_Init(&argc, &argv);
+    MPI_Init(&argc, &argv);
     nufi::dim2::periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned_mpi<4>();
-    MPI_Finalize(); */
+    MPI_Finalize();
 
     return 0;
 }
