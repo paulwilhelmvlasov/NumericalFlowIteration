@@ -125,6 +125,8 @@ const double vmin_i = electron_ion_shock::vmin_i;
 const double vmax_i = electron_ion_shock::vmax_i;
 
 const size_t Nx = 128;
+
+// Single species
 const size_t Nu = 64;
 const size_t Nv = 64;
 
@@ -2058,14 +2060,14 @@ void periodically_restarted_nufi_maxwell_strang_exact_fourier_integral_aligned_m
     conf_electron.v_min = vmin_e;
     conf_electron.v_max = vmax_e;
     conf_electron.dv = (vmax_e - vmin_e) / Nv_e;
-    conf.f0_1x2v = f0_electron_1x2v;
+    conf_electron.f0_1x2v = f0_electron_1x2v;
 
     config_t<double> conf_ion(Nx, Nu_i, Nt, dt, 0, Lx, umin_i, umax_i, &f0);
     conf_ion.Nv = Nv_i;
     conf_ion.v_min = vmin_i;
     conf_ion.v_max = vmax_i;
     conf_ion.dv = (vmax_i - vmin_i) / Nv_i;
-    conf.f0_1x2v = f0_ion_1x2v;
+    conf_ion.f0_1x2v = f0_ion_1x2v;
 
     // Compute E(0) and B(0).
     std::cout << "Compute E(0) and B(0)." << std::endl;
@@ -2102,6 +2104,7 @@ void periodically_restarted_nufi_maxwell_strang_exact_fourier_integral_aligned_m
     kinetic_energy_and_entropy_1x2v_multispecies_with_plotting<double,order>(0,kin_energy_entropy_file,coeffs_Ex,coeffs_Ey,coeffs_Bz,conf_electron,conf_ion,kinetic_energy_electron,entropy_electron,kinetic_energy_ion,entropy_ion,false,0,Nx,Nu_e,Nv_e,Nu_i,Nv_i,false);
     kinetic_energy = kinetic_energy_electron + kinetic_energy_ion;
     entropy = entropy_electron + entropy_ion;
+    std::cout << "Finished kin energy" << std::endl;
     do_stats_1x2v<double, order>(0, kinetic_energy, entropy, stat_file, coeffs_Ex, coeffs_Ey, coeffs_Bz, conf, false, 0, 128, true);
 
     std::ofstream gle_file("gle.txt");
