@@ -2060,6 +2060,8 @@ void periodically_restarted_nufi_maxwell_strang_exact_fourier_integral_aligned_m
     conf_electron.v_min = vmin_e;
     conf_electron.v_max = vmax_e;
     conf_electron.dv = (vmax_e - vmin_e) / Nv_e;
+    conf_electron.m = electron_ion_shock::me;
+    conf_electron.q = -1;
     conf_electron.f0_1x2v = f0_electron_1x2v;
 
     config_t<double> conf_ion(Nx, Nu_i, Nt, dt, 0, Lx, umin_i, umax_i, &f0);
@@ -2067,6 +2069,8 @@ void periodically_restarted_nufi_maxwell_strang_exact_fourier_integral_aligned_m
     conf_ion.v_min = vmin_i;
     conf_ion.v_max = vmax_i;
     conf_ion.dv = (vmax_i - vmin_i) / Nv_i;
+    conf_ion.m = electron_ion_shock::mi;
+    conf_ion.q = 1;
     conf_ion.f0_1x2v = f0_ion_1x2v;
 
     // Compute E(0) and B(0).
