@@ -37,7 +37,7 @@ namespace keen_waves
 {
 
 // Canonical drive:
-/* double a_dr = 0.2;
+double a_dr = 0.2;
 double k_dr = 0.26;
 double w_dr = 0.37;
 double t0 = 0;
@@ -45,10 +45,10 @@ double tL = 69;
 double twL = 20;
 double twR = 20;
 double T_DR = 100;
-double tR = 207 + T_DR; */
+double tR = 207 + T_DR;
 
 // Weak drive:
-double a_dr = 0.00625;
+/* double a_dr = 0.00625;
 double k_dr = 0.26;
 double w_dr = 0.37;
 double t0 = 0;
@@ -56,7 +56,7 @@ double tL = 69;
 double twL = 20;
 double twR = 20;
 double T_DR = 200;
-double tR = 207 + T_DR;
+double tR = 207 + T_DR; */
 
 double gt(double t){
     return 0.5 * ( std::tanh((t - tL) / twL) - std::tanh((t-tR)/twR) );
@@ -75,7 +75,7 @@ double xmax = 2*M_PI/k_dr;
 double umin = -6;
 double umax = 6;
 
-double dt = 1.0/16.0;
+double dt = 1.0/20.0;
 double T_final = 1000;
 
 
@@ -414,11 +414,11 @@ void cmm_nufi_spline()
     */
 
     // Keen waves
-    size_t Nx = 512;  // Number of grid points in physical space.
-    size_t Nu = 256;  // Number of quadrature points in velocity space.
-    size_t nt_per_one = 10;
+    size_t Nx = 1024;  // Number of grid points in physical space.
+    size_t Nu = 512;  // Number of quadrature points in velocity space.
+    size_t nt_per_one = 20;
     double dt = 1.0/nt_per_one;  // Time-step size.
-    size_t Nt = 50000/dt;  // Number of time-steps.
+    size_t Nt = 1000/dt;  // Number of time-steps.
 
     double x_min = keen_waves::xmin;
     double x_max = keen_waves::xmax;
@@ -432,9 +432,9 @@ void cmm_nufi_spline()
     const size_t stride_t = conf.Nx + order - 1;
 
     // Set up CMM restart.
-    size_t nx_r = Nx;
-	size_t nu_r = Nu;
-    size_t nt_restart = 1000;
+    size_t nx_r = 64;
+	size_t nu_r = 256;
+    size_t nt_restart = 200;
     double dx_r = conf.Lx / nx_r;
     double du_r = (u_max - u_min)/ nu_r;
     
@@ -512,7 +512,7 @@ void cmm_nufi_spline()
         //#pragma omp parallel for
         for(size_t i = 0; i < stride_t; i++){
             double c = coeffs_restart.get()[nt_r_curr*stride_t + i];
-            coeff_str << c << std::endl;
+            coeff_str << std::setprecision(15) << c << std::endl;
             coeffs.get()[n*stride_t + i ] = c;
         }
 
@@ -547,7 +547,8 @@ void cmm_nufi_spline()
         std::cout << std::setw(15) << t << std::setw(15) << std::setprecision(5) << std::scientific << Emax << " Comp-time: " << timer_elapsed;
         std::cout << " Total comp time s.f.: " << total_time << std::endl; 
 
-        bool with_f_plot = (n % (25*nt_per_one) == 0);
+        bool with_f_plot = (n % (10*nt_per_one) == 0);
+        bool with_char_map_plot = with_f_plot;
         if(n % (nt_per_one) == 0){
             if(with_f_plot){
                 plot_n_x = 1024;
@@ -563,19 +564,33 @@ void cmm_nufi_spline()
             double max_norm = 0;
 
             std::vector<double> f_values;
+            std::vector<double> char_map_x_values;
+            std::vector<double> char_map_u_values;
             if(with_f_plot){
                 f_values = std::vector<double>(plot_n_x*plot_n_u);
+            }
+            if(with_char_map_plot){
+                char_map_x_values = std::vector<double>(plot_n_x*plot_n_u);
+                char_map_u_values = std::vector<double>(plot_n_x*plot_n_u);
             }
             #pragma omp parallel for reduction(+:kinetic_energy,entropy,l1_norm,l2_norm)
             for(size_t i = 0; i < plot_n_x; i++){
                 for(size_t j = 0; j < plot_n_u; j++){
                     size_t l = i + plot_n_x*j;
                     double x = conf.x_min + i*dx_plot;
+                    double x_origin = x;
                     double u = conf.u_min + j*du_plot;
-                    double f = periodic::eval_f<double,order>(nt_r_curr, x, u, coeffs_restart.get(), conf);
+                    double u_origin = u;
+                    periodic::eval_char_map<double,order>(nt_r_curr, x_origin, u_origin, coeffs_restart.get(), conf);
+                    //double f = periodic::eval_f<double,order>(nt_r_curr, x, u, coeffs_restart.get(), conf);
+                    double f = conf.f0(x_origin,u_origin);
 
                     if(with_f_plot){
                         f_values[l] = f;
+                    }
+                    if(with_char_map_plot){
+                        char_map_x_values[l] = x_origin;
+                        char_map_u_values[l] = u_origin;
                     }
 
                     kinetic_energy += u*u*f;
@@ -614,6 +629,20 @@ void cmm_nufi_spline()
                         f_zoomed_str << x << " " << u << " " << f << std::endl;
                     }
                     f_zoomed_str << std::endl;
+                }
+            }
+            if(with_char_map_plot){
+                std::ofstream char_map_str("char_map_" + std::to_string(t) + ".txt");
+                for(size_t i = 0; i < plot_n_x; i++){
+                    for(size_t j = 0; j < plot_n_u; j++){
+                        size_t l = i + plot_n_x*j;
+                        double x = conf.x_min + i*dx_plot;
+                        double u = conf.u_min + j*du_plot;
+                        double char_map_x = char_map_x_values[l];
+                        double char_map_u = char_map_u_values[l];
+                        char_map_str << x << " " << u << " " << char_map_x << " " << char_map_u << std::endl;
+                    }
+                    char_map_str << std::endl;
                 }
             }
 
@@ -691,6 +720,119 @@ void cmm_nufi_spline()
 
 }
 
+template <size_t order, size_t order_x_map_spline=3, size_t order_u_map_spline=3>
+void read_in_and_plot_cmm_nufi_spline(size_t time_step = 200)
+{
+    // Keen waves
+    size_t Nx = 1024;  // Number of grid points in physical space.
+    size_t Nu = 512;  // Number of quadrature points in velocity space.
+    size_t nt_per_one = 20;
+    double dt = 1.0/nt_per_one;  // Time-step size.
+    size_t Nt = 1000/dt;  // Number of time-steps.
+
+    double x_min = keen_waves::xmin;
+    double x_max = keen_waves::xmax;
+    double u_min = keen_waves::umin;
+    double u_max = keen_waves::umax; 
+
+    conf = config_t<double>(Nx, Nu, Nt, dt, x_min, x_max, u_min, u_max, &f0);
+    conf.max_depth_integration = 5;
+    conf.tol_QS_QT_rel_diff = 1e-5;
+    conf.tol_QS_0 = 1e-8;
+    const size_t stride_t = conf.Nx + order - 1;
+
+    // Set up CMM restart.
+    //size_t ntr = 200;
+    size_t ntr = time_step;
+
+    size_t nx_r = 1024;
+	size_t nu_r = 1024;
+    double dx_r = conf.Lx / nx_r;
+    double du_r = (u_max - u_min)/ nu_r;
+    
+    arma::mat map_values_x(nx_r,nu_r,arma::fill::zeros);
+    arma::mat map_values_u(nx_r,nu_r,arma::fill::zeros);
+
+    std::unique_ptr<double[]> coeffs { new double[ (conf.Nt+1)*stride_t ] {} };
+    std::ifstream coeff_str("coeff_restart.txt");
+
+    for(size_t n = 0; n <= time_step; n++){
+        for(size_t i = 0; i < stride_t; i++){
+            size_t curr_index = n + i;
+            double c = 0;
+            coeff_str >> c;
+            coeffs.get()[curr_index] = c*1e-1;
+        }
+    }
+
+    std::unique_ptr<double[]> sub_coeffs { new double[ (ntr+1)*stride_t ] {} };
+    size_t nt_r_curr = 0;
+    for(size_t n = time_step - ntr; n <= time_step; n++) {
+        for(size_t i = 0; i < stride_t; i++){
+            size_t global_index = n + i;
+            size_t local_index = nt_r_curr + i;
+            sub_coeffs.get()[local_index] = coeffs.get()[global_index];
+        }
+        nt_r_curr++;
+    }
+
+    std::ofstream char_map_str("char_map_last_local_" + std::to_string(time_step * conf.dt) + ".txt");
+
+    #pragma omp parallel for collapse(2)
+    for(size_t i = 0; i < nx_r; i++){
+        for(size_t j = 0; j < nu_r; j++){
+            double x_origin = i * dx_r;
+            double x = x_origin;
+            double u_origin = u_min + j * du_r;
+            double u = u_origin;
+
+            periodic::eval_char_map<double,order>(nt_r_curr,x,u,sub_coeffs.get(),conf);
+
+            //x -= conf.Lx * std::floor( x*conf.Lx_inv );             
+            /* map_values_x(i,j) = x - x_origin;
+            map_values_u(i,j) = u - u_origin; */
+
+            map_values_x(i,j) = x;
+            map_values_u(i,j) = u;
+        }
+    }
+    for(size_t i = 0; i < nx_r; i++){
+        for(size_t j = 0; j < nu_r; j++){
+            double x_origin = i * dx_r;
+            double u_origin = u_min + j * du_r;
+
+            char_map_str << std::setprecision(15) << x_origin << " " << u_origin << " " << map_values_x(i,j) << " " << map_values_u(i,j) << std::endl;
+        }
+        char_map_str << std::endl;
+    }
+
+    arma::mat f_values(nx_r,nu_r,arma::fill::zeros);
+    #pragma omp parallel for collapse(2)
+    for(size_t i = 0; i < nx_r; i++){
+        for(size_t j = 0; j < nu_r; j++){
+            double x_origin = i * dx_r;
+            double u_origin = u_min + j * du_r;
+
+            f_values(i,j) = periodic::eval_f<double,order>(time_step,x_origin,u_origin,coeffs.get(),conf);
+        }
+    }
+
+    std::ofstream f_str("f_through_char" + std::to_string(time_step * conf.dt) + ".txt");
+    for(size_t i = 0; i < nx_r; i++){
+        for(size_t j = 0; j < nu_r; j++){
+            double x_origin = i * dx_r;
+            double u_origin = u_min + j * du_r;
+
+            double f = conf.f0(map_values_x(i,j),map_values_u(i,j));
+            double f_exact = f_values(i,j);
+
+            f_str << x_origin << " " << u_origin << " " << f << " " << f_exact << std::endl;
+        }
+        f_str << std::endl;
+    }
+
+}
+
 }
 }
 
@@ -699,6 +841,8 @@ int main()
 {
 	//nufi::dim1::cmm_nufi_linear<4>();
     nufi::dim1::cmm_nufi_spline<4>();
+
+    //nufi::dim1::read_in_and_plot_cmm_nufi_spline<4>(25*20);
 
     return 0;
 }
