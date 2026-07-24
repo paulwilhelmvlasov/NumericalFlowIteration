@@ -108,7 +108,8 @@ void randomized_svd_new(
     // Step 5: SVD of the small matrix B^T
     arma::mat V_temp, U_tilde;
     arma::vec S_temp;
-    arma::svd(V_temp, S_temp, U_tilde, Bt);  // Bt = V * S * U_tilde^T
+    //arma::svd(V_temp, S_temp, U_tilde, Bt);  // Bt = V * S * U_tilde^T
+    arma::svd_econ(V_temp, S_temp, U_tilde, Bt);  // Bt = V * S * U_tilde^T
 
     // Step 6: Recover U = Q * U_tilde
     U = Q * U_tilde.cols(0, k - 1);

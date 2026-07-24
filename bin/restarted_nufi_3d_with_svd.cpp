@@ -42,7 +42,8 @@ namespace nufi
 namespace dim3
 {
 
-const double Lx = 10*M_PI;//4*M_PI;
+//const double Lx = 10*M_PI;
+const double Lx = 4*M_PI;
 const double Ly = Lx;
 const double Lz = Lx;
 
@@ -84,7 +85,7 @@ const size_t Nu = nu_r;  // Number of quadrature points in velocity space.
 const size_t Nv = nv_r;  // Number of quadrature points in velocity space.
 const size_t Nw = nw_r;  // Number of quadrature points in velocity space.
 const double   dt = 0.1;  // Time-step size.
-const size_t Nt = 100/dt;  // Number of time-steps.
+const size_t Nt = 30/dt;  // Number of time-steps.
 
 size_t nt_restart = 10;
 
@@ -99,9 +100,9 @@ real f0(real x, real y, real z, real u, real v, real w) noexcept
     real k     = 0.5;
 
     // Weak Landau Damping:
-    /* constexpr real c  = 0.06349363593424096978576330493464; // Weak Landau damping
+    constexpr real c  = 0.06349363593424096978576330493464; // Weak Landau damping
     return c * ( 1. + alpha*cos(k*x) + alpha*cos(k*y) + alpha*cos(k*z)) 
-             * exp( -(u*u+v*v+w*w)/2 ); */
+             * exp( -(u*u+v*v+w*w)/2 );
 
     // 1d Two Stream Instability:
     //return 1.0 / std::sqrt(2.0 * M_PI) * u*u * std::exp(-0.5 * u*u) * (1 + alpha * std::cos(k*x)); 
@@ -115,13 +116,13 @@ real f0(real x, real y, real z, real u, real v, real w) noexcept
              * u*u * exp( -(u*u+v*v+w*w)/2 ); */
 
     // 2d Two Stream Instability (Einkemmer (Ensign) paper):
-    alpha = 0.001;
+    /* alpha = 0.001;
     k     = 0.2;
     constexpr real speed = 2.5;
     return 1.0/std::pow(8.0*M_PI,3.0/2.0) * ( 1. + alpha*cos(k*x) + alpha*cos(k*y) + alpha*cos(k*z)) 
             * ( exp( -(u-speed)*(u-speed)/2 ) + exp( -(u+speed)*(u+speed)/2 ) )
             * ( exp( -(v-speed)*(v-speed)/2 ) + exp( -(v+speed)*(v+speed)/2 ) )
-            * ( exp( -(w-speed)*(w-speed)/2 ) + exp( -(w+speed)*(w+speed)/2 ) );
+            * ( exp( -(w-speed)*(w-speed)/2 ) + exp( -(w+speed)*(w+speed)/2 ) ); */
 }
 
 // flattening helpers
@@ -602,9 +603,9 @@ void restart_with_rsvd_compression_new(size_t& nt_r_curr, size_t n, double* coef
         y_v.zeros();
         #pragma omp parallel for
         for (size_t idx = 0; idx < size_v_r; ++idx) {
-            size_t iw = idx % (nw_r + 1);
-            size_t iv = (idx / (nw_r + 1)) % (nv_r + 1);
-            size_t iu = idx / ((nv_r + 1) * (nw_r + 1));
+            size_t iu = idx % (nu_r + 1);
+            size_t iv = (idx / (nu_r + 1)) % (nv_r + 1);
+            size_t iw = idx / ((nu_r + 1) * (nv_r + 1));
 
             const double U = conf.u_min + iu * du_r;
             const double V = conf.v_min + iv * dv_r;
