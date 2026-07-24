@@ -42,8 +42,8 @@ namespace nufi
 namespace dim3
 {
 
-//const double Lx = 10*M_PI;
-const double Lx = 4*M_PI;
+const double Lx = 10*M_PI;
+//const double Lx = 4*M_PI;
 const double Ly = Lx;
 const double Lz = Lx;
 
@@ -54,14 +54,14 @@ const double y_max = Ly;
 const double z_min = 0;
 const double z_max = Lz;
 
-const double u_min = -6;
-const double u_max = 6;
-const double v_min = -6;
-const double v_max = 6;
-const double w_min = -6;
-const double w_max = 6;
+const double u_min = -8;
+const double u_max = 8;
+const double v_min = -8;
+const double v_max = 8;
+const double w_min = -8;
+const double w_max = 8;
 
-const size_t nx_r = 16;
+const size_t nx_r = 64;
 const size_t ny_r = nx_r;
 const size_t nz_r = nx_r;
 
@@ -77,15 +77,15 @@ const double du_r = (u_max - u_min)/nu_r;
 const double dv_r = (v_max - v_min)/nv_r;
 const double dw_r = (w_max - w_min)/nw_r;
 
-const size_t order = 2;
+const size_t order = 4;
 const size_t Nx = nx_r;  // Number of grid points in physical space.
 const size_t Ny = ny_r;  // Number of grid points in physical space.
 const size_t Nz = nz_r;  // Number of grid points in physical space.
 const size_t Nu = nu_r;  // Number of quadrature points in velocity space.
 const size_t Nv = nv_r;  // Number of quadrature points in velocity space.
 const size_t Nw = nw_r;  // Number of quadrature points in velocity space.
-const double   dt = 0.1;  // Time-step size.
-const size_t Nt = 30/dt;  // Number of time-steps.
+const double   dt = 0.25;  // Time-step size.
+const size_t Nt = 50/dt;  // Number of time-steps.
 
 size_t nt_restart = 10;
 
@@ -100,9 +100,9 @@ real f0(real x, real y, real z, real u, real v, real w) noexcept
     real k     = 0.5;
 
     // Weak Landau Damping:
-    constexpr real c  = 0.06349363593424096978576330493464; // Weak Landau damping
+    /* constexpr real c  = 0.06349363593424096978576330493464; // Weak Landau damping
     return c * ( 1. + alpha*cos(k*x) + alpha*cos(k*y) + alpha*cos(k*z)) 
-             * exp( -(u*u+v*v+w*w)/2 );
+             * exp( -(u*u+v*v+w*w)/2 ); */
 
     // 1d Two Stream Instability:
     //return 1.0 / std::sqrt(2.0 * M_PI) * u*u * std::exp(-0.5 * u*u) * (1 + alpha * std::cos(k*x)); 
@@ -116,13 +116,13 @@ real f0(real x, real y, real z, real u, real v, real w) noexcept
              * u*u * exp( -(u*u+v*v+w*w)/2 ); */
 
     // 2d Two Stream Instability (Einkemmer (Ensign) paper):
-    /* alpha = 0.001;
+    alpha = 0.001;
     k     = 0.2;
     constexpr real speed = 2.5;
     return 1.0/std::pow(8.0*M_PI,3.0/2.0) * ( 1. + alpha*cos(k*x) + alpha*cos(k*y) + alpha*cos(k*z)) 
             * ( exp( -(u-speed)*(u-speed)/2 ) + exp( -(u+speed)*(u+speed)/2 ) )
             * ( exp( -(v-speed)*(v-speed)/2 ) + exp( -(v+speed)*(v+speed)/2 ) )
-            * ( exp( -(w-speed)*(w-speed)/2 ) + exp( -(w+speed)*(w+speed)/2 ) ); */
+            * ( exp( -(w-speed)*(w-speed)/2 ) + exp( -(w+speed)*(w+speed)/2 ) );
 }
 
 // flattening helpers
@@ -742,11 +742,110 @@ void run_restarted_simulation(bool svd_compressed = false, double tolerance = 1e
     }
 }
 
+restart::cubic_rsvd_interpolant_3x3v cubic_interpolant_f;
+
+double eval_f_with_cubic_rsvd_interpolant(double x, double y, double z, double u, double v, double w){
+    return cubic_interpolant_f.cubic_interpolation_6d(x,y,z,u,v,w);
+}
+
+template <size_t order>
+void run_restarted_simulation_rsvd_cubic(double tolerance = 1e-8, size_t max_rank = 30, size_t oversampling = 10)
+{
+    config_t<double> conf(Nx, Ny, Nz, Nu, Nv, Nw, Nt, dt, x_min, x_max, y_min, y_max,
+        z_min, z_max, u_min, u_max, v_min, v_max, w_min, w_max, &f0);
+
+    size_t stride_t = (conf.Nx + order - 1) *
+                    (conf.Ny + order - 1) *
+                    (conf.Nz + order - 1);
+
+    std::unique_ptr<double[]> coeffs_restart { new double[ (nt_restart+1)*stride_t ] {} };
+    std::unique_ptr<double,decltype(std::free)*> rho { reinterpret_cast<double*>(std::aligned_alloc(64,
+                                        sizeof(double)*conf.Nx*conf.Ny*conf.Nz)), std::free };
+
+    poisson<double> poiss( conf );
+
+    cubic_interpolant_f = restart::cubic_rsvd_interpolant_3x3v(x_min, x_max, y_min, y_max, z_min, z_max,
+        u_min, u_max, v_min, v_max, w_min, w_max, nx_r, ny_r, nz_r, nu_r, nv_r, nw_r, false);
+
+    size_t nt_r_curr = 0;
+        
+    auto eval_f_t_restart = [&](double x, double y, double z, double u, double v, double w) {
+        return eval_f<double,order>(
+                nt_r_curr, x, y, z, u, v, w, coeffs_restart.get(), conf
+            );
+    }; 
+    
+    std::ofstream stat_file( "stats.txt" );
+    std::ofstream coeff_file( "coeffs.txt" );
+    double total_time = 0;
+
+    for ( size_t n = 0; n <= Nt; ++n )
+    {
+      	nufi::stopwatch<double> timer;
+
+        std::cout << " start of time step "<< n << " " << nt_r_curr  << std::endl; 
+		nufi::stopwatch<double> rho_timer;
+        #pragma omp parallel for
+    	for(size_t l = 0; l<conf.Nx*conf.Ny*conf.Nz; l++)
+    	{
+    		rho.get()[l] = eval_rho<double,order>(nt_r_curr, l, coeffs_restart.get(), conf);
+    	}
+        double rho_comp_time = rho_timer.elapsed();
+        std::cout << "rho comp time = " << rho_comp_time << " per dof = " <<  rho_comp_time/(conf.Nx*conf.Ny*conf.Nz) << std::endl;
+
+        double E_energy = poiss.solve( rho.get() );
+        interpolate<double,order>( coeffs_restart.get() + nt_r_curr*stride_t, rho.get(), conf );
+
+
+        double timer_elapsed = timer.elapsed();
+        total_time += timer_elapsed;
+
+        double t = n*conf.dt;
+        stat_file << std::setw(15) << t << std::setw(15) << std::setprecision(5) << std::scientific << " " << E_energy << std::endl;
+        std::cout << std::setw(15) << t << std::setw(15) << std::setprecision(5) << std::scientific << E_energy << " Comp-time: " << timer_elapsed;
+        std::cout << " Total comp time s.f.: " << total_time << std::endl; 
+
+        // Print coefficients to file.
+        coeff_file << n << std::endl;
+        for(size_t i = 0; i < stride_t; i++){
+            coeff_file << i << " " << coeffs_restart.get()[nt_r_curr*stride_t + i ] << std::endl;
+        }
+
+        if(nt_r_curr == nt_restart)
+    	{
+            std::cout << "Restart" << std::endl;
+            nufi::stopwatch<double> timer_restart;
+            cubic_interpolant_f.restart_f(eval_f_t_restart, max_rank, tolerance, oversampling);
+
+            conf.f0 = eval_f_with_cubic_rsvd_interpolant;
+
+            // Copy last coefficient slice
+            #pragma omp parallel for
+            for (size_t i = 0; i < stride_t; ++i) {
+                coeffs_restart.get()[i] = coeffs_restart.get()[nt_r_curr * stride_t + i];
+            }
+
+            nt_r_curr = 1;
+            double restart_time = timer_restart.elapsed();
+            total_time += restart_time;
+
+            std::cout << n << " " << nt_r_curr << " restart completed. "
+                    << "Restart took: " << restart_time
+                    << " s. Total comp time s.f.: " << total_time << std::endl;
+        } else {
+            nt_r_curr++;
+        }
+    }
+}
+
+
 }
 
 }
 
 int main()
 {
-    nufi::dim3::run_restarted_simulation<2>(true,1e-16,10,3);
+    //nufi::dim3::run_restarted_simulation<2>(true,1e-16,10,3);
+
+    nufi::dim3::run_restarted_simulation_rsvd_cubic<4>(1e-16,10,3);
 }
