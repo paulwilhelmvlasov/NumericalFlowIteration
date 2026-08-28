@@ -2301,6 +2301,7 @@ void periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned_mpi(
         write_coeffs_to_disk<order>(0,coeff_str,coeffs_Ex,coeffs_Ey,coeffs_Ez,coeffs_Bx,coeffs_By,coeffs_Bz);
     }    
 
+    // Time loop
     for (size_t n = 1; n <= Nt; n++) {
         nufi::stopwatch<double> timer;
 

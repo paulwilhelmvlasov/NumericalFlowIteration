@@ -144,10 +144,10 @@ void test_rsvd()
 namespace dim1
 {
 
-size_t Nx = 128;  // Number of grid points in physical space.
+size_t Nx = 256;  // Number of grid points in physical space.
 size_t Nu = 256;  // Number of quadrature points in velocity space.
-double   dt = 0.1;  // Time-step size.
-size_t Nt = 5/dt;  // Number of time-steps.
+double   dt = 1.0/10.0;  // Time-step size.
+size_t Nt = 100/dt;  // Number of time-steps.
 
 // Dimensions of physical domain.
 double x_min = 0;
@@ -155,14 +155,18 @@ double x_max = 4*M_PI;
 double Lx = x_max - x_min;
 
 // Integration limits for velocity space.
-double u_min = -8;
-double u_max = 8;
+double u_min = -10;
+double u_max = 10;
 
 size_t nx_r = Nx;
 size_t nu_r = Nu;
 size_t nt_restart = 10;
+//size_t nt_restart = Nt + 2;
 double dx_r = (x_max - x_min) / nx_r;
 double du_r = (u_max - u_min) / nu_r;
+
+size_t max_rank = 50;
+double tol_rank = 1e-2;
 
 std::ofstream truncation_ranks_str;
 
@@ -437,7 +441,7 @@ void restart_with_full_matrix(size_t& nt_r_curr, size_t n, double* coeffs, confi
 }
 
 template <size_t order>
-void restart_with_rsvd_compression(size_t& nt_r_curr, size_t n, double* coeffs, config_t<double>& conf, double& total_time)
+void restart_with_rsvd_compression(size_t& nt_r_curr, size_t n, double* coeffs, config_t<double>& conf, double& total_time, double tol = 1e-2, size_t max_rank = 30)
 {
     const size_t stride_t = conf.Nx + order - 1;
     std::cout << "Restart" << std::endl;
@@ -446,10 +450,6 @@ void restart_with_rsvd_compression(size_t& nt_r_curr, size_t n, double* coeffs, 
 //    arma::mat U;
     arma::vec s;
 //    arma::mat V;
-
-    // Threshold and max rank
-    double tol = 1e-8;
-    size_t max_rank = 30;
 
     // Define lazy matrix-vector product A * x
     auto A_mv = [&](const arma::vec& x) -> arma::vec {
@@ -524,6 +524,43 @@ void restart_with_rsvd_compression(size_t& nt_r_curr, size_t n, double* coeffs, 
     total_time += restart_time;
     std::cout << "Restart took: " << restart_time
               << ". Total comp time s.f.: " << total_time << std::endl;
+}
+
+
+void project_remainder_velocity_moments(
+    arma::mat& V_rem,
+    const arma::vec& u,
+    const arma::vec& w,
+    double du
+)
+{
+    if(V_rem.n_cols == 0)
+        return;
+
+    arma::vec one(u.n_elem, arma::fill::ones);
+    arma::vec u2 = u % u;
+
+    double n0 = du * arma::dot(w, one);
+    double n1 = du * arma::dot(w, u2);
+    double c  = n1 / n0;
+
+    arma::vec u2c = u2 - c;
+    double n2 = du * arma::dot(w, u2c % u2c);
+
+    arma::mat Psi(u.n_elem, 3);
+    Psi.col(0) = w;
+    Psi.col(1) = w % u;
+    Psi.col(2) = w % u2c;
+
+    arma::mat PhiW(u.n_elem, 3);
+    PhiW.col(0) = du * one;
+    PhiW.col(1) = du * u;
+    PhiW.col(2) = du * u2;
+
+    arma::mat G = PhiW.t() * Psi;
+    arma::mat C = arma::solve(G, PhiW.t() * V_rem);
+
+    V_rem -= Psi * C;
 }
 
 template <size_t order>
@@ -1111,16 +1148,15 @@ void restart_with_conservative_rsvd_compression_analytic_f1(
     size_t n,
     double* coeffs,
     config_t<double>& conf,
-    double& total_time
+    double& total_time,
+    size_t max_rank,
+    double tol
 )
 {
     const size_t stride_t = conf.Nx + order - 1;
 
     std::cout << "Restart with conservative RSVD, storing f2 only" << std::endl;
     nufi::stopwatch<double> timer_restart;
-
-    double tol = 1e-8;
-    size_t max_rank = 60;
 
     arma::vec u(nu_r + 1);
     for(size_t j = 0; j <= nu_r; ++j)
@@ -1354,7 +1390,7 @@ void restart_with_conservative_rsvd_compression_analytic_f1(
 
     if(s.n_elem > 0 && s(0) > 0.0)
     {
-        r = arma::sum(s > tol * s(0));
+        r = arma::sum(s > tol * s(0)); // Relative tolerance
         if(r > max_rank)
             r = max_rank;
     }
@@ -1369,6 +1405,8 @@ void restart_with_conservative_rsvd_compression_analytic_f1(
 
         U_rem = U_rem * arma::diagmat(s);
         V_rem.each_col() %= sqrt_w;
+
+        //project_remainder_velocity_moments(V_rem, u, w, du_r);
 
         U_s_r = U_rem;
         V_r   = V_rem;
@@ -1463,7 +1501,7 @@ void run_restarted_simulation(bool with_svd_compression = true)
         total_time += timer_elapsed;
 
         double Emax = 0;
-        size_t plot_n_x = 256;
+        size_t plot_n_x = 512;
         double dx_plot = conf.Lx / plot_n_x;
         for ( size_t i = 0; i <= plot_n_x; ++i )
         {
@@ -1510,7 +1548,7 @@ void run_restarted_simulation(bool with_svd_compression = true)
             }
         }
 
-        if(n % (5) == 0 && true){
+        if(n % (10) == 0 && true){
             size_t plot_n_u = plot_n_x;
             double du_plot = (conf.u_max - conf.u_min) / plot_n_u;
 
@@ -1520,13 +1558,17 @@ void run_restarted_simulation(bool with_svd_compression = true)
             double l2_norm = 0;
             double max_norm = 0;
 
-            std::ofstream f_str("f_" + std::to_string(t) + ".txt");
+            bool plot_f_now = (n % (10*10) == 0);
+            arma::mat f_values;
+            if(plot_f_now){
+                f_values = arma::mat(plot_n_x,plot_n_u,arma::fill::zeros);
+            }
+
             for(size_t i = 0; i < plot_n_x; i++){
                 for(size_t j = 0; j < plot_n_u; j++){
                     double x = conf.x_min + i*dx_plot;
                     double u = conf.u_min + j*du_plot;
                     double f = periodic::eval_f<double,order>(nt_r_curr, x, u, coeffs_restart.get(), conf);
-                    f_str << x << " " << u << " " << f << std::endl;
                     kinetic_energy += u*u*f;
                     if(f > 0){
                         entropy -= f*std::log(f);
@@ -1534,9 +1576,26 @@ void run_restarted_simulation(bool with_svd_compression = true)
                     l1_norm += f;
                     l2_norm += f*f;
                     max_norm = std::max(f, max_norm);
+
+                    if(plot_f_now){
+                        f_values(i,j) = f;
+                    }
                 }
-                f_str << std::endl;
             }
+
+            if(plot_f_now){
+                std::ofstream f_str("f_" + std::to_string(t) + ".txt");
+                for(size_t i = 0; i < plot_n_x; i++){
+                    for(size_t j = 0; j < plot_n_u; j++){
+                        double x = conf.x_min + i*dx_plot;
+                        double u = conf.u_min + j*du_plot;
+                        double f = f_values(i,j);
+                        f_str << x << " " << u << " " << f << std::endl;
+                    }
+                    f_str << std::endl;
+                }
+            }
+            
 
             double weight = dx_plot*du_plot;
             kinetic_energy *= weight;
@@ -1547,7 +1606,7 @@ void run_restarted_simulation(bool with_svd_compression = true)
             stat_full_file << std::setprecision(16) << t << "; "
                             << l1_norm              << "; "
                             << l2_norm              << "; "
-                            << elec_energy                 << "; "
+                            << elec_energy          << "; "
                             << kinetic_energy       << "; "
                             << total_energy         << "; "
                             << entropy              << ";" << std::endl;
@@ -1557,9 +1616,9 @@ void run_restarted_simulation(bool with_svd_compression = true)
     	{
             if(with_svd_compression)
             {
-                restart_with_conservative_rsvd_compression_analytic_f1<order>(nt_r_curr,n,coeffs_restart.get(),conf,total_time);
+                restart_with_conservative_rsvd_compression_analytic_f1<order>(nt_r_curr,n,coeffs_restart.get(),conf,total_time,max_rank,tol_rank);
                 //restart_with_conservative_rsvd_compression_5th_order<order>(nt_r_curr,n,coeffs_restart.get(),conf,total_time);
-                //restart_with_rsvd_compression<order>(nt_r_curr,n,coeffs_restart.get(),conf,total_time);
+                //restart_with_rsvd_compression<order>(nt_r_curr,n,coeffs_restart.get(),conf,total_time, tol_rank, max_rank);
                 //restart_with_conservative_rsvd_compression<order>(nt_r_curr,n,coeffs_restart.get(),conf,total_time);
             } else {
                 restart_with_full_matrix<order>(nt_r_curr,n,coeffs_restart.get(),conf,total_time);

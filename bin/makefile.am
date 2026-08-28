@@ -2,7 +2,7 @@ noinst_PROGRAMS = test_nufi_cpu nufi_1d_multi_species_periodic test_nufi_cpu_2d 
 test_nufi_cpu_3d nufi_3d_maxwell_lie_splitting_fBE nufi_3d_maxwell_lie_EBf_predictor_corrector \
 nufi_3d_maxwell_multi_species  nufi_pc_3d_multi_species \
 restarted_nufi_1d_with_svd restarted_nufi_2d_with_svd restarted_nufi_3d_with_svd nufi_cmm_1d \
-nufi_ham_1x2v nufi_ham_2x3v wendland_test nufi_cmm_kernel_1d
+nufi_ham_1x2v nufi_ham_2x3v wendland_test nufi_cmm_kernel_1d conservative_sat_lowrank_nufi
 #test_lsmr restarted_nufi_1d_with_htensor restarted_nufi_2d_with_htensor restarted_nufi_3d_with_htensor 
 
 test_nufi_cpu_SOURCES = test_nufi_cpu.cpp
@@ -68,6 +68,10 @@ wendland_test_LDADD  += $(BLAS_LIBS) -larmadillo -lgfortran -lfftw3 -lfftw3f
 nufi_cmm_kernel_1d_SOURCES = nufi_cmm_kernel_1d.cpp
 nufi_cmm_kernel_1d_LDADD   = $(top_builddir)/nufi/libnufi.a 
 nufi_cmm_kernel_1d_LDADD  += $(BLAS_LIBS) -larmadillo -lgfortran -lfftw3 -lfftw3f
+
+conservative_sat_lowrank_nufi_SOURCES = conservative_sat_lowrank_nufi.cpp
+conservative_sat_lowrank_nufi_LDADD   = $(top_builddir)/nufi/libnufi.a 
+conservative_sat_lowrank_nufi_LDADD  += $(BLAS_LIBS) -larmadillo -lgfortran -lfftw3 -lfftw3f
 
 #test_lsmr_SOURCES = test_lsmr.cpp
 #test_lsmr_LDADD   = $(top_builddir)/nufi/libnufi.a

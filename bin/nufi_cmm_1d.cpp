@@ -115,6 +115,27 @@ real f0(real x, real u) noexcept
     return keen_waves::f0(x,u);
 }
 
+const double m_e = 1;
+const double m_i = 1836;
+// We assume the same temperature for electrons and ions, 
+// i.e., we are starting from thermal equilibrium.
+const double vth_e = 1;
+const double vth_i = vth_e / std::sqrt(m_i/m_e); 
+
+template <typename real>
+real f0_e(real x, real u) noexcept
+{
+    // Keen waves
+    return maxwellian_1d<real>(u, vth_e);
+}
+
+template <typename real>
+real f0_i(real x, real u) noexcept
+{
+    // Keen waves
+    return maxwellian_1d<real>(u, vth_i);
+}
+
 template <typename real>
 real lin_interpol(real x , real y, real x1, real x2, real y1, real y2, real f_11,
 		real f_12, real f_21, real f_22) noexcept
@@ -359,18 +380,19 @@ std::vector<BSpline::TensorSpline2D> char_map_x_splines;
 std::vector<BSpline::TensorSpline2D> char_map_v_splines;
 
 double eval_BSpline_char_map_interpolant(double x, double u, 
-                        const BSpline::TensorSpline2D& spline)
+                        const BSpline::TensorSpline2D& spline, 
+                        const config_t<double>& config = conf)
 {
     // Map x back to its (periodic) counterpart within [xmin, xmax).
-    x = x - conf.Lx * std::floor( (x - conf.x_min)*conf.Lx_inv ); 
+    x = x - config.Lx * std::floor( (x - config.x_min)*config.Lx_inv ); 
 
     // Velocity boundary treatment: If u gets close to a boundary, 
     // then f(u) ~ 0 anyway, so we can safely assume u = umin or 
     // u = umax respectively.
-    if(u < (conf.u_min)){
-        u = conf.u_min;
-    } else if(u > (conf.u_max)){
-        u = conf.u_max;
+    if(u < (config.u_min)){
+        u = config.u_min;
+    } else if(u > (config.u_max)){
+        u = config.u_max;
     }
 
     return spline.eval(x,u);
@@ -547,6 +569,7 @@ void cmm_nufi_spline()
         std::cout << std::setw(15) << t << std::setw(15) << std::setprecision(5) << std::scientific << Emax << " Comp-time: " << timer_elapsed;
         std::cout << " Total comp time s.f.: " << total_time << std::endl; 
 
+        // Plotting
         bool with_f_plot = (n % (10*nt_per_one) == 0);
         bool with_char_map_plot = with_f_plot;
         if(n % (nt_per_one) == 0){
@@ -833,6 +856,470 @@ void read_in_and_plot_cmm_nufi_spline(size_t time_step = 200)
 
 }
 
+
+std::vector<BSpline::TensorSpline2D> char_map_x_splines_electron;
+std::vector<BSpline::TensorSpline2D> char_map_v_splines_electron;
+std::vector<BSpline::TensorSpline2D> char_map_x_splines_ion;
+std::vector<BSpline::TensorSpline2D> char_map_v_splines_ion;
+
+config_t<double> conf_electron(64, 128, 500, 0.1, 0, 4*M_PI, -10, 10, &f0);
+config_t<double> conf_ion(64, 128, 500, 0.1, 0, 4*M_PI, -10, 10, &f0);
+
+double eval_f_electron_cmm_spline(double x, double v)
+{
+    for(size_t i = restart_counter; i > 0; i--){
+        double x0 = x, v0 = v;
+        x = eval_BSpline_char_map_interpolant(x0, v0, char_map_x_splines_electron[i], conf_electron);
+        v = eval_BSpline_char_map_interpolant(x0, v0, char_map_v_splines_electron[i], conf_electron);
+    }
+
+    return f0_e(x,v);
+}
+
+double eval_f_ion_cmm_spline(double x, double v)
+{
+    for(size_t i = restart_counter; i > 0; i--){
+        double x0 = x, v0 = v;
+        x = eval_BSpline_char_map_interpolant(x0, v0, char_map_x_splines_ion[i], conf_ion);
+        v = eval_BSpline_char_map_interpolant(x0, v0, char_map_v_splines_ion[i], conf_ion);
+    }
+
+    return f0_i(x,v);
+}
+
+template <size_t order, size_t order_x_map_spline=3, size_t order_u_map_spline=3>
+void cmm_nufi_spline_multispecies()
+{
+	using std::exp;
+	using std::sin;
+	using std::cos;
+    using std::abs;
+    using std::max;
+
+    // Keen waves
+    size_t Nx = 128;  // Number of grid points in physical space.
+    size_t Nu_e = 128;  // Number of quadrature points in electron velocity space.
+    size_t Nu_i = 64;  // Number of quadrature points in ion velocity space.
+    size_t nt_per_one = 5;
+    double dt = 1.0/nt_per_one;  // Time-step size.
+    size_t Nt = 1000/dt;  // Number of time-steps.
+
+    double x_min = keen_waves::xmin;
+    double x_max = keen_waves::xmax;
+    double u_min_e = keen_waves::umin;
+    double u_max_e = keen_waves::umax; 
+    double u_min_i = -6*vth_i;
+    double u_max_i = 6*vth_i; 
+
+
+    conf_electron = config_t<double> (Nx, Nu_e, Nt, dt, x_min, x_max, u_min_e, u_max_e, &f0_e);
+    conf_electron.max_depth_integration = 5;
+    conf_electron.tol_QS_QT_rel_diff = 1e-5;
+    conf_electron.tol_QS_0 = 1e-8;
+    conf_electron.q = -1;
+    conf_electron.m = m_e;
+
+    conf_ion = config_t<double>(Nx, Nu_i, Nt, dt, x_min, x_max, u_min_i, u_max_i, &f0_i);
+    conf_ion.max_depth_integration = 5;
+    conf_ion.tol_QS_QT_rel_diff = 1e-5;
+    conf_ion.tol_QS_0 = 1e-8;
+    conf_ion.q = 1;
+    conf_ion.m = m_i;
+    
+    const size_t stride_t = conf_electron.Nx + order - 1;
+
+    // Set up CMM restart.
+    size_t nx_r = 64;
+	size_t nu_e_r = 256;
+    size_t nu_i_r = 256;
+    size_t nt_restart = 200;
+    double dx_r = conf_electron.Lx / nx_r;
+    double du_e_r = (u_max_e - u_min_e)/ nu_e_r;
+    double du_i_r = (u_max_i - u_min_i)/ nu_i_r;
+    
+    // Build splines just to get knots + Greville points
+    BSpline::BSpline1D sx(order_x_map_spline, BSpline::makeOpenUniformKnots(nx_r, order_x_map_spline, x_min, x_max));
+    BSpline::BSpline1D su_e(order_u_map_spline, BSpline::makeOpenUniformKnots(nu_e_r, order_u_map_spline, u_min_e, u_max_e));
+    BSpline::BSpline1D su_i(order_u_map_spline, BSpline::makeOpenUniformKnots(nu_i_r, order_u_map_spline, u_min_i, u_max_i));
+
+    arma::vec xx = grevillePoints(sx);
+    arma::vec uu_e = grevillePoints(su_e);
+    arma::vec uu_i = grevillePoints(su_i);
+
+    char_map_x_splines_electron.resize(Nt/nt_restart + 1);
+    char_map_v_splines_electron.resize(Nt/nt_restart + 1);
+    char_map_x_splines_ion.resize(Nt/nt_restart + 1);
+    char_map_v_splines_ion.resize(Nt/nt_restart + 1);
+    arma::mat map_values_x_electron(nx_r,nu_e_r,arma::fill::zeros);
+    arma::mat map_values_u_electron(nx_r,nu_e_r,arma::fill::zeros);
+
+    arma::mat map_values_x_ion(nx_r,nu_i_r,arma::fill::zeros);
+    arma::mat map_values_u_ion(nx_r,nu_i_r,arma::fill::zeros);
+    restart_counter = 0;
+
+    std::unique_ptr<double[]> coeffs { new double[ (conf_electron.Nt+1)*stride_t ] {} };
+    std::unique_ptr<double[]> coeffs_restart { new double[ (nt_restart+1)*stride_t ] {} };
+    std::unique_ptr<double,decltype(std::free)*> rho { reinterpret_cast<double*>(std::aligned_alloc(64,sizeof(double)*conf_electron.Nx)), std::free };
+    if ( rho == nullptr ) throw std::bad_alloc {};
+
+    poisson<double> poiss( conf_electron );
+
+    std::cout << nx_r << " " << nu_e_r << " " << nu_i_r << std::endl;
+
+    // For keen waves diagnostics:
+    std::vector<double> rho_fft_in(conf_electron.Nx);
+    std::vector<std::complex<double>> rho_fft_out(conf_electron.Nx/2 + 1);
+
+    fftw_plan rho_plan = fftw_plan_dft_r2c_1d(conf_electron.Nx,
+                         rho_fft_in.data(),
+                         reinterpret_cast<fftw_complex*>(rho_fft_out.data()),
+                         FFTW_MEASURE);
+    
+    std::ofstream stat_file( "stats.txt" );
+    std::ofstream rho_harmonics_file( "rho_harmonics.txt" );
+    std::ofstream stat_full_file( "stats_full.txt" );
+    std::ofstream coeff_str("coeff_restart.txt");
+    double total_time = 0;
+    size_t nt_r_curr = 0;
+    for ( size_t n = 0; n <= Nt; ++n )
+    {
+    	nufi::stopwatch<double> timer;
+        double t = n*dt;
+
+        std::cout << " start of time step "<< n << " " << nt_r_curr  << std::endl; 
+    	// Compute rho:
+		#pragma omp parallel for
+    	for(size_t i = 0; i<conf_electron.Nx; i++)
+    	{
+    		//rho.get()[i] = periodic::eval_rho<double,order>(nt_r_curr, i, coeffs_restart.get(), conf);
+            double rho_i = periodic::adaptive::eval_rho_adaptive_trapezoidal_simpson_rule<double,order>
+                                    (nt_r_curr,i*conf_ion.dx, coeffs_restart.get(), conf_ion, u_min_i, u_max_i);
+            double rho_e = periodic::adaptive::eval_rho_adaptive_trapezoidal_simpson_rule<double,order>
+                                    (nt_r_curr,i*conf_electron.dx, coeffs_restart.get(), conf_electron, u_min_e, u_max_e);
+            rho.get()[i] = rho_i - rho_e;
+            rho_fft_in[i] = rho_e; // This is for the rho-harmomnics diagnostics. I think it should stay rho_e.
+    	}
+
+        double elec_energy = poiss.solve( rho.get() );
+
+        // External force.
+        #pragma omp parallel for
+        for(size_t i = 0; i< Nx; i++)
+    	{
+            double x = i*conf_electron.dx;
+    		rho.get()[i] = keen_waves::phi_pond(t,x) + rho.get()[i]; // Note rho is here already phi.
+    	}
+
+        // Interpolation of Poisson solution.
+        periodic::interpolate<double,order>( coeffs_restart.get() + nt_r_curr*stride_t, rho.get(), conf_electron );
+
+        double timer_elapsed = timer.elapsed();
+        total_time += timer_elapsed;
+
+        // Copy solution also into global coeffs-vector.
+        //#pragma omp parallel for
+        for(size_t i = 0; i < stride_t; i++){
+            double c = coeffs_restart.get()[nt_r_curr*stride_t + i];
+            coeff_str << std::setprecision(15) << c << std::endl;
+            coeffs.get()[n*stride_t + i ] = c;
+        }
+
+        // Keen wave diagnostics
+        fftw_execute(rho_plan);
+        std::array<double,5> rho_harmonics;
+        for(int m=1; m<=5; ++m)
+        {
+            double re = rho_fft_out[m].real();
+            double im = rho_fft_out[m].imag();
+            rho_harmonics[m-1] = std::sqrt(re*re + im*im) / Nx;   // normalization optional
+        }
+        rho_harmonics_file << t << " " << rho_harmonics[0] 
+                                << " " << rho_harmonics[1] 
+                                << " " << rho_harmonics[2] 
+                                << " " << rho_harmonics[3] 
+                                << " " << rho_harmonics[4] 
+                                << std::endl; 
+
+        double Emax = 0;
+        size_t plot_n_x = 256;
+        double dx_plot = conf_electron.Lx / plot_n_x;
+        for ( size_t i = 0; i <= plot_n_x; ++i )
+        {
+            double x = conf_electron.x_min + i*dx_plot;
+            double E = -periodic::eval<double,order,1>(x,coeffs_restart.get()+nt_r_curr*stride_t,conf_electron);
+            Emax = max( Emax, std::abs(E) );
+        }
+
+        stat_file << std::setw(15) << t << std::setw(15) << std::setprecision(5) << std::scientific << Emax  << " " << elec_energy << std::endl;
+        std::cout << std::setw(15) << t << std::setw(15) << std::setprecision(5) << std::scientific << Emax << " Comp-time: " << timer_elapsed;
+        std::cout << " Total comp time s.f.: " << total_time << std::endl; 
+
+        // Plotting
+        bool with_f_plot = (n % (10*nt_per_one) == 0);
+        bool with_char_map_plot = with_f_plot;
+        if(n % (nt_per_one) == 0){
+            if(with_f_plot){
+                plot_n_x = 1024;
+                dx_plot = conf_electron.Lx / plot_n_x;
+            }
+            size_t plot_n_u = plot_n_x;
+            double du_e_plot = (conf_electron.u_max - conf_electron.u_min) / plot_n_u;
+            double du_i_plot = (conf_ion.u_max - conf_ion.u_min) / plot_n_u;
+
+            double kinetic_energy_electron = 0;
+            double kinetic_energy_ion = 0;
+            double entropy_electron = 0;
+            double entropy_ion = 0;
+            double l1_norm_electron = 0;
+            double l1_norm_ion = 0;
+            double l2_norm_electron = 0;
+            double l2_norm_ion = 0;
+
+            std::vector<double> f_e_values;
+            std::vector<double> f_i_values;
+            std::vector<double> char_map_x_values_electron;
+            std::vector<double> char_map_u_values_electron;
+            std::vector<double> char_map_x_values_ion;
+            std::vector<double> char_map_u_values_ion;
+            if(with_f_plot){
+                f_e_values = std::vector<double>(plot_n_x*plot_n_u);
+                f_i_values = std::vector<double>(plot_n_x*plot_n_u);
+            }
+            if(with_char_map_plot){
+                char_map_x_values_electron = std::vector<double>(plot_n_x*plot_n_u);
+                char_map_u_values_electron = std::vector<double>(plot_n_x*plot_n_u);
+                char_map_x_values_ion = std::vector<double>(plot_n_x*plot_n_u);
+                char_map_u_values_ion = std::vector<double>(plot_n_x*plot_n_u);
+            }
+            #pragma omp parallel for reduction(+:kinetic_energy_electron,entropy_electron,l1_norm_electron,l2_norm_electron)
+            for(size_t i = 0; i < plot_n_x; i++){
+                for(size_t j = 0; j < plot_n_u; j++){
+                    size_t l = i + plot_n_x*j;
+                    double x = conf_electron.x_min + i*dx_plot;
+                    double x_origin = x;
+                    double u = conf_electron.u_min + j*du_e_plot;
+                    double u_origin = u;
+                    periodic::eval_char_map<double,order>(nt_r_curr, x_origin, u_origin, coeffs_restart.get(), conf_electron);
+                    double f = conf_electron.f0(x_origin,u_origin);
+
+                    if(with_f_plot){
+                        f_e_values[l] = f;
+                    }
+                    if(with_char_map_plot){
+                        char_map_x_values_electron[l] = x_origin;
+                        char_map_u_values_electron[l] = u_origin;
+                    }
+
+                    kinetic_energy_electron += u*u*f;
+                    if(f > 0){
+                        entropy_electron -= f*std::log(f);
+                    } 
+                    l1_norm_electron += f;
+                    l2_norm_electron += f*f;
+                }
+            }
+
+            #pragma omp parallel for reduction(+:kinetic_energy_ion,entropy_ion,l1_norm_ion,l2_norm_ion)
+            for(size_t i = 0; i < plot_n_x; i++){
+                for(size_t j = 0; j < plot_n_u; j++){
+                    size_t l = i + plot_n_x*j;
+                    double x = conf_ion.x_min + i*dx_plot;
+                    double x_origin = x;
+                    double u = conf_ion.u_min + j*du_i_plot;
+                    double u_origin = u;
+                    periodic::eval_char_map<double,order>(nt_r_curr, x_origin, u_origin, coeffs_restart.get(), conf_ion);
+                    double f = conf_ion.f0(x_origin,u_origin);
+
+                    if(with_f_plot){
+                        f_i_values[l] = f;
+                    }
+                    if(with_char_map_plot){
+                        char_map_x_values_ion[l] = x_origin;
+                        char_map_u_values_ion[l] = u_origin;
+                    }
+
+                    kinetic_energy_ion += u*u*f;
+                    if(f > 0){
+                        entropy_ion -= f*std::log(f);
+                    } 
+                    l1_norm_ion += f;
+                    l2_norm_ion += f*f;
+                }
+            }
+
+            if(with_f_plot){
+                std::ofstream f_e_str("f_e_" + std::to_string(t) + ".txt");
+                std::ofstream f_i_str("f_i_" + std::to_string(t) + ".txt");
+                for(size_t i = 0; i < plot_n_x; i++){
+                    for(size_t j = 0; j < plot_n_u; j++){
+                        size_t l = i + plot_n_x*j;
+                        double x = conf_electron.x_min + i*dx_plot;
+                        double u_e = conf_electron.u_min + j*du_e_plot;
+                        double u_i = conf_ion.u_min + j*du_i_plot;
+                        double f_e = f_e_values[l];
+                        double f_i = f_i_values[l];
+                        f_e_str << x << " " << u_e << " " << f_e << std::endl;
+                        f_i_str << x << " " << u_i << " " << f_i << std::endl;
+                    }
+                    f_e_str << std::endl;
+                    f_i_str << std::endl;
+                }
+
+                std::ofstream f_zoomed_str("f_zoomed_" + std::to_string(t) + ".txt");
+                double umin_fine = 1.2;
+                double umax_fine = 1.6;
+                double du_plot_fine = (umax_fine - umin_fine) / plot_n_u;
+                for(size_t i = 0; i < plot_n_x; i++){
+                    for(size_t j = 0; j < plot_n_u; j++){
+                        size_t l = i + plot_n_x*j;
+                        double x = conf_electron.x_min + i*dx_plot;
+                        double u = umin_fine + j*du_plot_fine;
+                        double f = periodic::eval_f<double,order>(nt_r_curr, x, u, coeffs_restart.get(), conf_electron);
+                        f_zoomed_str << x << " " << u << " " << f << std::endl;
+                    }
+                    f_zoomed_str << std::endl;
+                }
+            }
+            if(with_char_map_plot){
+                std::ofstream char_map_electron_str("char_map_e_" + std::to_string(t) + ".txt");
+                std::ofstream char_map_ion_str("char_map_i_" + std::to_string(t) + ".txt");
+                for(size_t i = 0; i < plot_n_x; i++){
+                    for(size_t j = 0; j < plot_n_u; j++){
+                        size_t l = i + plot_n_x*j;
+                        double x = conf_electron.x_min + i*dx_plot;
+                        double u_e = conf_electron.u_min + j*du_e_plot;
+                        double u_i = conf_ion.u_min + j*du_i_plot;
+                        double char_map_x_e = char_map_x_values_electron[l];
+                        double char_map_u_e = char_map_u_values_electron[l];
+                        double char_map_x_i = char_map_x_values_ion[l];
+                        double char_map_u_i = char_map_u_values_ion[l];
+                        char_map_electron_str << x << " " << u_e << " " << char_map_x_e << " " << char_map_u_e << std::endl;
+                        char_map_ion_str << x << " " << u_i << " " << char_map_x_i << " " << char_map_u_i << std::endl;
+                    }
+                    char_map_electron_str << std::endl;
+                    char_map_ion_str << std::endl;
+                }
+            }
+
+            double weight_e = dx_plot*du_e_plot;
+            double weight_i = dx_plot*du_i_plot;
+            kinetic_energy_electron *= 0.5*m_e*weight_e;
+            kinetic_energy_ion *= 0.5*m_i*weight_i;
+            entropy_electron *= weight_e;
+            entropy_ion *= weight_i;
+            l1_norm_electron *= weight_e;
+            l1_norm_ion *= weight_i;
+            l2_norm_electron *= weight_e;
+            l2_norm_ion *= weight_i;
+            double total_kinetic_energy = kinetic_energy_electron + kinetic_energy_ion;
+            double total_energy = total_kinetic_energy + elec_energy;
+            stat_full_file << std::setprecision(16) << t << "; "
+                            << l1_norm_electron     << "; "
+                            << l1_norm_ion     << "; "
+                            << l2_norm_electron              << "; "
+                            << l2_norm_ion              << "; "
+                            << elec_energy                 << "; "
+                            << total_kinetic_energy       << "; "
+                            << kinetic_energy_electron       << "; "
+                            << kinetic_energy_ion       << "; "
+                            << total_energy         << "; "
+                            << entropy_electron              << ";"
+                            << entropy_ion              << ";" << std::endl;
+        }
+
+        if(nt_r_curr == nt_restart)
+    	{
+            std::cout << "Restart" << std::endl;
+            nufi::stopwatch<double> timer_restart;
+
+            #pragma omp parallel for collapse(2)
+    		for(size_t i = 0; i < nx_r; i++ ){
+    			for(size_t j = 0; j < nu_e_r; j++){
+    				double x = xx(i);
+    				double u = uu_e(j);
+
+                    periodic::eval_char_map<double,order>(nt_r_curr,x,u,coeffs_restart.get(),conf_electron);
+
+                    map_values_x_electron(i,j) = x;
+                    map_values_u_electron(i,j) = u;
+    			}
+    		}
+
+            #pragma omp parallel for collapse(2)
+    		for(size_t i = 0; i < nx_r; i++ ){
+    			for(size_t j = 0; j < nu_i_r; j++){
+    				double x = xx(i);
+    				double u = uu_i(j);
+
+                    periodic::eval_char_map<double,order>(nt_r_curr,x,u,coeffs_restart.get(),conf_ion);
+
+                    map_values_x_ion(i,j) = x;
+                    map_values_u_ion(i,j) = u;
+    			}
+    		}
+
+            nufi::stopwatch<double> timer_restart_interpol;
+            char_map_x_splines_electron[restart_counter + 1] = BSpline::TensorSpline2D::interpolate(
+                                                        xx, uu_e, map_values_x_electron, 
+                                                        order_x_map_spline, 
+                                                        order_u_map_spline,
+                                                        x_min, x_max,
+                                                        u_min_e, u_max_e);
+            double time_interpol = timer_restart_interpol.elapsed();
+            std::cout << "First electron interpol took = " << time_interpol << std::endl;
+            timer_restart_interpol.reset();
+            char_map_v_splines_electron[restart_counter + 1]= BSpline::TensorSpline2D::interpolate(
+                                                        xx, uu_e, map_values_u_electron, 
+                                                        order_x_map_spline, 
+                                                        order_u_map_spline,
+                                                        x_min, x_max,
+                                                        u_min_e, u_max_e);
+            time_interpol = timer_restart_interpol.elapsed();
+            std::cout << "Second electron interpol took = " << time_interpol << std::endl;
+
+            conf_electron.f0 = eval_f_electron_cmm_spline;
+            timer_restart_interpol.reset();
+
+            char_map_x_splines_ion[restart_counter + 1] = BSpline::TensorSpline2D::interpolate(
+                                                        xx, uu_i, map_values_x_ion, 
+                                                        order_x_map_spline, 
+                                                        order_u_map_spline,
+                                                        x_min, x_max,
+                                                        u_min_i, u_max_i);
+            time_interpol = timer_restart_interpol.elapsed();
+            std::cout << "First ion interpol took = " << time_interpol << std::endl;
+            timer_restart_interpol.reset();
+            char_map_v_splines_ion[restart_counter + 1]= BSpline::TensorSpline2D::interpolate(
+                                                        xx, uu_i, map_values_u_ion, 
+                                                        order_x_map_spline, 
+                                                        order_u_map_spline,
+                                                        x_min, x_max,
+                                                        u_min_i, u_max_i);
+            time_interpol = timer_restart_interpol.elapsed();
+            std::cout << "Second ion interpol took = " << time_interpol << std::endl;
+
+            conf_ion.f0 = eval_f_ion_cmm_spline;
+
+            // Copy last entry of coeff vector into restarted coeff vector.
+            #pragma omp parallel for
+            for(size_t i = 0; i < stride_t; i++){
+                coeffs_restart.get()[i] = coeffs_restart.get()[nt_r_curr*stride_t + i];
+            }
+
+            std::cout << n << " " << nt_r_curr << " restart " << std::endl;
+            nt_r_curr = 1;
+            restart_counter++;
+            double restart_time = timer_restart.elapsed();
+            total_time += restart_time;
+            std::cout << "Restart took: " << restart_time << ". Total comp time s.f.: " << total_time << std::endl;
+    	} else {
+            nt_r_curr++;
+        }
+    }
+    std::cout << "Total time: " << total_time << std::endl;
+
+}
+
 }
 }
 
@@ -840,9 +1327,11 @@ void read_in_and_plot_cmm_nufi_spline(size_t time_step = 200)
 int main()
 {
 	//nufi::dim1::cmm_nufi_linear<4>();
-    nufi::dim1::cmm_nufi_spline<4>();
+    //nufi::dim1::cmm_nufi_spline<4>();
 
     //nufi::dim1::read_in_and_plot_cmm_nufi_spline<4>(25*20);
+
+    nufi::dim1::cmm_nufi_spline_multispecies<4>();
 
     return 0;
 }
