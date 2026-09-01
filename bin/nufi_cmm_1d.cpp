@@ -768,8 +768,8 @@ void read_in_and_plot_cmm_nufi_spline(size_t time_step = 200)
     //size_t ntr = 200;
     size_t ntr = time_step;
 
-    size_t nx_r = 1024;
-	size_t nu_r = 1024;
+    size_t nx_r = 128;
+	size_t nu_r = nx_r;
     double dx_r = conf.Lx / nx_r;
     double du_r = (u_max - u_min)/ nu_r;
     
@@ -777,15 +777,36 @@ void read_in_and_plot_cmm_nufi_spline(size_t time_step = 200)
     arma::mat map_values_u(nx_r,nu_r,arma::fill::zeros);
 
     std::unique_ptr<double[]> coeffs { new double[ (conf.Nt+1)*stride_t ] {} };
-    std::ifstream coeff_str("coeff_restart.txt");
+    std::ifstream coeff_str("../coeff_restart.txt");
 
     for(size_t n = 0; n <= time_step; n++){
         for(size_t i = 0; i < stride_t; i++){
-            size_t curr_index = n + i;
+            size_t curr_index = n*stride_t + i;
             double c = 0;
             coeff_str >> c;
-            coeffs.get()[curr_index] = c*1e-1;
+            coeffs.get()[curr_index] = c;
+            //std::cout << c <<  " " << coeffs.get()[curr_index] << std::endl;
         }
+    }
+
+    std::cout << " ========================" << std::endl;
+
+    std::ofstream test_field_str("test_field.txt");
+    for(size_t n = 0; n <= time_step; n++){
+        std::cout << "Plotting " <<  n*dt << std::endl;
+        double e_max = 0;
+        double e_l2 = 0;
+        for(size_t i = 0; i < nx_r; i++){
+            double x = (i+0.5)*dx_r;
+            double E = -periodic::eval<double,order,1>(x,coeffs.get()+n*stride_t,conf);
+
+            //std::cout << n*dt << " " << x << " " << E << std::endl;
+
+            e_max = std::max(e_max, std::abs(E));
+            e_l2 += 0.5*E*E;
+        }
+        e_l2 *= dx_r;
+        test_field_str << n*dt << " " << e_max << " " << e_l2 << std::endl;
     }
 
     std::unique_ptr<double[]> sub_coeffs { new double[ (ntr+1)*stride_t ] {} };
@@ -798,8 +819,8 @@ void read_in_and_plot_cmm_nufi_spline(size_t time_step = 200)
         }
         nt_r_curr++;
     }
-
-    std::ofstream char_map_str("char_map_last_local_" + std::to_string(time_step * conf.dt) + ".txt");
+    
+    /* std::ofstream char_map_str("char_map_last_local_" + std::to_string(time_step * conf.dt) + ".txt");
 
     #pragma omp parallel for collapse(2)
     for(size_t i = 0; i < nx_r; i++){
@@ -812,8 +833,8 @@ void read_in_and_plot_cmm_nufi_spline(size_t time_step = 200)
             periodic::eval_char_map<double,order>(nt_r_curr,x,u,sub_coeffs.get(),conf);
 
             //x -= conf.Lx * std::floor( x*conf.Lx_inv );             
-            /* map_values_x(i,j) = x - x_origin;
-            map_values_u(i,j) = u - u_origin; */
+            //map_values_x(i,j) = x - x_origin;
+            //map_values_u(i,j) = u - u_origin;
 
             map_values_x(i,j) = x;
             map_values_u(i,j) = u;
@@ -853,7 +874,7 @@ void read_in_and_plot_cmm_nufi_spline(size_t time_step = 200)
         }
         f_str << std::endl;
     }
-
+ */
 }
 
 
@@ -1212,7 +1233,9 @@ void cmm_nufi_spline_multispecies()
             l2_norm_electron *= weight_e;
             l2_norm_ion *= weight_i;
             double total_kinetic_energy = kinetic_energy_electron + kinetic_energy_ion;
-            double total_energy = total_kinetic_energy + elec_energy;
+            // Here we actually add only the electric energy from the self-induced field...
+            // ...the external force is neglected, which technically is wrong
+            double total_energy = total_kinetic_energy + elec_energy;  
             stat_full_file << std::setprecision(16) << t << "; "
                             << l1_norm_electron     << "; "
                             << l1_norm_ion     << "; "
@@ -1329,9 +1352,9 @@ int main()
 	//nufi::dim1::cmm_nufi_linear<4>();
     //nufi::dim1::cmm_nufi_spline<4>();
 
-    //nufi::dim1::read_in_and_plot_cmm_nufi_spline<4>(25*20);
+    nufi::dim1::read_in_and_plot_cmm_nufi_spline<4>(1000*20);
 
-    nufi::dim1::cmm_nufi_spline_multispecies<4>();
+    //nufi::dim1::cmm_nufi_spline_multispecies<4>();
 
     return 0;
 }
