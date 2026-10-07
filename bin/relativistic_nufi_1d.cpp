@@ -94,6 +94,8 @@ const double qi = 1;
 const double theta_e = 1e-1;
 const double theta_i = 1e-5;
 
+const double p0 = std::sqrt(3.0);
+
 // Dimensions of physical domain.
 const double x_min = 0;
 const double x_max = 8*M_PI;
@@ -109,7 +111,6 @@ real f0_e(real x, real p) noexcept
 
     real alpha = 1e-4;
     real k = 0.25;
-    real p0 = std::sqrt(3.0);
 
     return (1 + alpha*cos(k*x)) * 0.5*(maxwell_juttner_1d<real>(p-p0,me,light_speed,theta_e)
               + maxwell_juttner_1d<real>(p+p0,me,light_speed,theta_e));
@@ -135,7 +136,7 @@ void run_simulation()
     size_t Nu_e = 128;  // Number of quadrature points in velocity space.
     size_t Nu_i = 64;  // Number of quadrature points in velocity space.
     real   dt = 0.1;  // Time-step size.
-    size_t Nt = 200/dt;  // Number of time-steps.
+    size_t Nt = 100/dt;  // Number of time-steps.
 
     // Integration limits for velocity space.
     /* real p_min_e = -5*me*vth_e;
@@ -144,7 +145,7 @@ void run_simulation()
     real p_min_i = -5*mi*vth_i;
     real p_max_i =  5*mi*vth_i; */
 
-    real p_max_e = p_max_juttner(me,light_speed,theta_e);
+    real p_max_e = p0 + p_max_juttner(me,light_speed,theta_e);
     real p_min_e = -p_max_e;
 
     real p_max_i = p_max_juttner(mi,light_speed,theta_i);
