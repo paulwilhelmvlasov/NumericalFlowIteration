@@ -768,7 +768,7 @@ void read_in_and_plot_cmm_nufi_spline(size_t time_step = 200)
     //size_t ntr = 200;
     size_t ntr = time_step;
 
-    size_t nx_r = 128;
+    size_t nx_r = 1024;
 	size_t nu_r = nx_r;
     double dx_r = conf.Lx / nx_r;
     double du_r = (u_max - u_min)/ nu_r;
@@ -809,6 +809,46 @@ void read_in_and_plot_cmm_nufi_spline(size_t time_step = 200)
         test_field_str << n*dt << " " << e_max << " " << e_l2 << std::endl;
     }
 
+    // f plot
+    std::cout << "Plot f" << std::endl;
+    double xmin_fine = 0;
+    double xmax_fine = conf.x_max;
+    double dx_fine = (xmax_fine - xmin_fine) / nx_r;
+    double umin_fine = 0;
+    double umax_fine = 2.5;
+    /* double umin_fine = u_min;
+    double umax_fine = u_max; */
+    double du_fine = (umax_fine - umin_fine) / nu_r; 
+    arma::mat f_values(nx_r,nu_r,arma::fill::zeros);
+    #pragma omp parallel for collapse(2)
+    for(size_t i = 0; i < nx_r; i++){
+        for(size_t j = 0; j < nu_r; j++){
+            double x = xmin_fine + i * dx_fine;
+            double u = umin_fine + j * du_fine;
+
+            f_values(i,j) = periodic::eval_f<double,order>(time_step,x,u,coeffs.get(),conf);
+        }
+    }
+
+    std::ofstream f_str("f_" + std::to_string(time_step * dt) + ".txt");
+    for(size_t i = 0; i < nx_r; i++){
+        for(size_t j = 0; j < nu_r; j++){
+            double x = xmin_fine + i * dx_fine;
+            double u = umin_fine + j * du_fine;
+
+            f_str << x << " " << u << " " << f_values(i,j) <<  std::endl;
+        }
+        f_str << std::endl;
+    }
+
+    /* std::ofstream rho_str("rho_" + std::to_string(time_step * dt) + ".txt");
+    for(size_t i = 0; i < nx_r; i++){
+        double rho = du_fine * arma::sum(f_values.row(i));
+        rho_str << i*dx_fine << " " << rho << std::endl;
+    } */
+
+    // Char map plots
+    /*
     std::unique_ptr<double[]> sub_coeffs { new double[ (ntr+1)*stride_t ] {} };
     size_t nt_r_curr = 0;
     for(size_t n = time_step - ntr; n <= time_step; n++) {
@@ -820,7 +860,8 @@ void read_in_and_plot_cmm_nufi_spline(size_t time_step = 200)
         nt_r_curr++;
     }
     
-    /* std::ofstream char_map_str("char_map_last_local_" + std::to_string(time_step * conf.dt) + ".txt");
+    
+    std::ofstream char_map_str("char_map_last_local_" + std::to_string(time_step * conf.dt) + ".txt");
 
     #pragma omp parallel for collapse(2)
     for(size_t i = 0; i < nx_r; i++){
@@ -1352,7 +1393,7 @@ int main()
 	//nufi::dim1::cmm_nufi_linear<4>();
     //nufi::dim1::cmm_nufi_spline<4>();
 
-    nufi::dim1::read_in_and_plot_cmm_nufi_spline<4>(1000*20);
+    nufi::dim1::read_in_and_plot_cmm_nufi_spline<4>(300*20);
 
     //nufi::dim1::cmm_nufi_spline_multispecies<4>();
 

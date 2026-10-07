@@ -118,6 +118,263 @@ void randomized_svd_new(
 }
 
 
+class cubic_rsvd_interpolant_2x2v
+{
+public:
+    double xmin = 0, xmax = 1, ymin = 0, ymax = 1;
+    double umin = -1, umax = 1, vmin = -1, vmax = 1;
+
+    double Lx = 1, Ly = 1;
+
+    size_t nx_r = 8, ny_r = 8;
+    size_t nu_r = 8, nv_r = 8;
+
+    size_t size_x_r = 1, size_v_r = 1;
+
+    double dx_r = 1, dy_r = 1;
+    double du_r = 1, dv_r = 1;
+
+    bool non_negative_enforce = true;
+
+    // Active low-rank representation F ~= U_s V^T
+    arma::mat U_s, V;
+
+    cubic_rsvd_interpolant_2x2v() {}
+
+    cubic_rsvd_interpolant_2x2v(
+        double xmin, double xmax, double ymin, double ymax,
+        double umin, double umax, double vmin, double vmax,
+        size_t Nx, size_t Ny, size_t Nu, size_t Nv,
+        bool non_negative = true)
+        : xmin(xmin), xmax(xmax), ymin(ymin), ymax(ymax),
+          umin(umin), umax(umax), vmin(vmin), vmax(vmax),
+          nx_r(Nx), ny_r(Ny), nu_r(Nu), nv_r(Nv),
+          non_negative_enforce(non_negative)
+    {
+        Lx = xmax - xmin;
+        Ly = ymax - ymin;
+
+        dx_r = Lx/nx_r;
+        dy_r = Ly/ny_r;
+
+        du_r = (umax - umin)/nu_r;
+        dv_r = (vmax - vmin)/nv_r;
+
+        size_x_r = (nx_r+1)*(ny_r+1);
+        size_v_r = (nu_r+1)*(nv_r+1);
+    }
+
+    inline size_t index_xy(size_t ix, size_t iy) const
+    {
+        return ix + (nx_r+1)*iy;
+    }
+
+    inline size_t index_uv(size_t iu, size_t iv) const
+    {
+        return iu + (nu_r+1)*iv;
+    }
+
+    inline size_t clamp_index(int i, size_t N) const
+    {
+        if (i < 0) return 0;
+        if (i >= static_cast<int>(N)) return N-1;
+        return static_cast<size_t>(i);
+    }
+
+    inline size_t periodic_index(int i, size_t N) const
+    {
+        int res = i % static_cast<int>(N);
+        if (res < 0) res += N;
+        return static_cast<size_t>(res);
+    }
+
+    inline std::array<double,4> cubic_weights(double t) const
+    {
+        double t2 = t*t, t3 = t2*t;
+        return {
+            -0.5*t + t2 - 0.5*t3,
+             1.0 - 2.5*t2 + 1.5*t3,
+             0.5*t + 2.0*t2 - 1.5*t3,
+            -0.5*t2 + 0.5*t3
+        };
+    }
+
+    void restart_f(
+        const std::function<double(double,double,double,double)>& eval_f,
+        size_t max_rank, double tol = 1e-8, size_t oversampling = 10)
+    {
+        arma::uword m = size_x_r;
+        arma::uword n = size_v_r;
+        arma::uword k = std::min<arma::uword>(max_rank, std::min(m,n));
+        arma::uword l = std::min<arma::uword>(k + oversampling, std::min(m,n));
+
+        // Omega^T is stored so each random vector block is contiguous.
+        arma::mat OmegaT = arma::randn(l,n);
+        arma::mat YT(l,m,arma::fill::zeros);
+
+        // Y = A Omega. Each value of f is evaluated only once.
+        #pragma omp parallel for
+        for (size_t i = 0; i < size_x_r; ++i) {
+            size_t ix = i % (nx_r+1);
+            size_t iy = i / (nx_r+1);
+
+            double x = xmin + ix*dx_r;
+            double y = ymin + iy*dy_r;
+            double* yi = YT.colptr(i);
+
+            for (size_t j = 0; j < size_v_r; ++j) {
+                size_t iu = j % (nu_r+1);
+                size_t iv = j / (nu_r+1);
+
+                double u = umin + iu*du_r;
+                double v = vmin + iv*dv_r;
+                double f = eval_f(x,y,u,v);
+
+                const double* omega = OmegaT.colptr(j);
+                for (arma::uword a = 0; a < l; ++a)
+                    yi[a] += f*omega[a];
+            }
+        }
+
+        OmegaT.reset();
+
+        arma::mat Y = YT.t();
+        YT.reset();
+
+        arma::mat Q, R;
+        if (!arma::qr_econ(Q,R,Y))
+            throw std::runtime_error("QR decomposition failed in RSVD.");
+        Y.reset();
+        R.reset();
+
+        // B = Q^T A. Again each value of f is evaluated only once.
+        arma::mat B(l,n,arma::fill::zeros);
+
+        #pragma omp parallel for
+        for (size_t j = 0; j < size_v_r; ++j) {
+            size_t iu = j % (nu_r+1);
+            size_t iv = j / (nu_r+1);
+
+            double u = umin + iu*du_r;
+            double v = vmin + iv*dv_r;
+            double* bj = B.colptr(j);
+
+            for (size_t i = 0; i < size_x_r; ++i) {
+                size_t ix = i % (nx_r+1);
+                size_t iy = i / (nx_r+1);
+
+                double x = xmin + ix*dx_r;
+                double y = ymin + iy*dy_r;
+                double f = eval_f(x,y,u,v);
+
+                for (arma::uword a = 0; a < l; ++a)
+                    bj[a] += f*Q(i,a);
+            }
+        }
+
+        arma::mat U_tilde, V_temp;
+        arma::vec s;
+        if (!arma::svd_econ(U_tilde,s,V_temp,B))
+            throw std::runtime_error("SVD failed in RSVD.");
+        B.reset();
+
+        s = s.head(k);
+        arma::uword r = 0;
+        if (!s.empty() && s(0) > 0)
+            r = arma::sum(s > tol*s(0));
+
+        if (r == 0) {
+            // Keep old factors if the new decomposition is empty.
+            return;
+        }
+
+        r = std::min(r,k);
+
+        // Construct new factors locally. Active U_s/V remain untouched.
+        arma::mat new_V = V_temp.cols(0,r-1);
+        arma::mat new_U_s = Q * U_tilde.cols(0,r-1);
+        new_U_s.each_row() %= s.head(r).t();
+
+        // Only now replace the previous restart representation.
+        U_s = std::move(new_U_s);
+        V   = std::move(new_V);
+    }
+
+    double cubic_interpolation_4d(
+        double x, double y, double u, double v) const
+    {
+        if (u < umin || u > umax ||
+            v < vmin || v > vmax)
+            return 0.0;
+
+        if (U_s.n_cols == 0)
+            return 0.0;
+
+        x = xmin + std::fmod(std::fmod(x-xmin,Lx)+Lx,Lx);
+        y = ymin + std::fmod(std::fmod(y-ymin,Ly)+Ly,Ly);
+
+        double gx = (x-xmin)/dx_r;
+        double gy = (y-ymin)/dy_r;
+        double gu = (u-umin)/du_r;
+        double gv = (v-vmin)/dv_r;
+
+        int ix = static_cast<int>(std::floor(gx));
+        int iy = static_cast<int>(std::floor(gy));
+        int iu = static_cast<int>(std::floor(gu));
+        int iv = static_cast<int>(std::floor(gv));
+
+        auto wx = cubic_weights(gx-ix);
+        auto wy = cubic_weights(gy-iy);
+        auto wu = cubic_weights(gu-iu);
+        auto wv = cubic_weights(gv-iv);
+
+        size_t idx_x[16], idx_v[16];
+        double weight_x[16], weight_v[16];
+
+        size_t q = 0;
+        for (int ky = 0; ky < 4; ++ky)
+        for (int kx = 0; kx < 4; ++kx) {
+            size_t ixc = periodic_index(ix+kx-1,nx_r);
+            size_t iyc = periodic_index(iy+ky-1,ny_r);
+            idx_x[q] = index_xy(ixc,iyc);
+            weight_x[q++] = wx[kx]*wy[ky];
+        }
+
+        q = 0;
+        for (int kv = 0; kv < 4; ++kv)
+        for (int ku = 0; ku < 4; ++ku) {
+            size_t iuc = clamp_index(iu+ku-1,nu_r+1);
+            size_t ivc = clamp_index(iv+kv-1,nv_r+1);
+            idx_v[q] = index_uv(iuc,ivc);
+            weight_v[q++] = wu[ku]*wv[kv];
+        }
+
+        double value = 0.0;
+
+        for (arma::uword a = 0; a < U_s.n_cols; ++a) {
+            const double* uc = U_s.colptr(a);
+            const double* vc = V.colptr(a);
+
+            double u_interp = 0.0;
+            double v_interp = 0.0;
+
+            for (size_t i = 0; i < 16; ++i) {
+                u_interp += weight_x[i]*uc[idx_x[i]];
+                v_interp += weight_v[i]*vc[idx_v[i]];
+            }
+
+            value += u_interp*v_interp;
+        }
+
+        return non_negative_enforce ? std::max(0.0,value) : value;
+    }
+
+    size_t rank() const
+    {
+        return U_s.n_cols;
+    }
+};
+
 class cubic_rsvd_interpolant_3x3v
 {
 public:

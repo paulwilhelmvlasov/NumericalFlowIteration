@@ -35,6 +35,7 @@ namespace dim1
 {
 namespace periodic
 {
+
 template <typename real, size_t order>
 real eval_ftilda( size_t n, real x, real u,
                   const real *coeffs, const config_t<real> &conf/* , 
@@ -959,6 +960,140 @@ void eval_rho_ham_strang_HE_HB_Hf_HB_HE_1x2v(
 }
 
 } // namespace strang_2nd_order
+
+}
+
+namespace relativistic
+{
+
+template <typename real>
+real gamma(real p, real m, real c)
+{
+    return std::sqrt(1 + p*p/(m*m*c*c));
+}
+
+template <typename real, size_t order>
+real eval_ftilda(size_t n, real x, real p,
+                 const real *coeffs, const config_t<real> &conf)
+{
+    if (n == 0) return conf.f0(x,p);
+
+    const size_t stride_x = 1;
+    const size_t stride_t = stride_x*(conf.Nx + order - 1);
+
+    real Ex;
+    const real *c;
+
+    // We omit the initial half-step.
+
+    while (--n)
+    {
+        x -= conf.dt*p/(conf.m*gamma(p,conf.m,conf.light_speed));
+
+        c  = coeffs + n*stride_t;
+        Ex = eval<real,order,1>(x,c,conf);
+
+        p += conf.dt*conf.q*Ex;
+    }
+
+    // The final half-step.
+    x -= conf.dt*p/(conf.m*gamma(p,conf.m,conf.light_speed));
+
+    c  = coeffs + n*stride_t;
+    Ex = eval<real,order,1>(x,c,conf);
+
+    p += 0.5*conf.dt*conf.q*Ex;
+
+    return conf.f0(x,p);
+}
+
+template <typename real, size_t order>
+real eval_f(size_t n, real x, real p, 
+            const real *coeffs, const config_t<real> &conf)
+{
+    if (n == 0) return conf.f0(x,p);
+
+    const size_t stride_x = 1;
+    const size_t stride_t = stride_x*(conf.Nx + order - 1);
+
+    real Ex;
+    const real *c;
+
+    // Initial half-step.
+    c  = coeffs + n*stride_t;
+    Ex = conf.q*eval<real,order,1>(x,c,conf);  // Careful: eval uses phi, for which we have E(x) = -d/dx phi(x)
+    p += 0.5*conf.dt*Ex;
+
+    while (--n)
+    {
+        x -= conf.dt*p/(conf.m*gamma(p,conf.m,conf.light_speed));
+        c  = coeffs + n*stride_t;
+        Ex = conf.q*eval<real,order,1>(x,c,conf);
+        p += conf.dt*Ex;
+    }
+
+    // Final half-step.
+    x -= conf.dt*p/(conf.m*gamma(p,conf.m,conf.light_speed));
+    c  = coeffs + n*stride_t;
+    Ex = conf.q*eval<real,order,1>(x,c,conf);
+    p += 0.5*conf.dt*Ex;
+
+    return conf.f0(x,p);
+}
+
+template <typename real, size_t order>
+void eval_char_map(size_t n, real& x, real& p, 
+                   const real *coeffs, const config_t<real> &conf)
+{
+    if (n > 0) {
+        const size_t stride_x = 1;
+        const size_t stride_t = stride_x*(conf.Nx + order - 1);
+
+        real Ex;
+        const real *c;
+
+        // Initial half-step.
+        c  = coeffs + n*stride_t;
+        Ex = conf.q*eval<real,order,1>(x,c,conf);
+        p += 0.5*conf.dt*Ex;
+
+        while (--n)
+        {
+            x -= conf.dt*p/(conf.m*gamma(p,conf.m,conf.light_speed));
+            c  = coeffs + n*stride_t;
+            Ex = conf.q*eval<real,order,1>(x,c,conf);
+            p += conf.dt*Ex;
+        }
+
+        // Final half-step.
+        x -= conf.dt*p/(conf.m*gamma(p,conf.m,conf.light_speed));
+        c  = coeffs + n*stride_t;
+        Ex = conf.q*eval<real,order,1>(x,c,conf);
+        p += 0.5*conf.dt*Ex;
+    }
+}
+
+
+template <typename real, size_t order>
+real eval_rho( size_t n, real x, const real *coeffs, const config_t<real> &conf )
+{
+    const real dp = (conf.u_max-conf.u_min) / conf.Nu;
+    const real p_min = conf.u_min + 0.5*dp;
+
+    real rho = 0;
+    for ( size_t ii = 0; ii < conf.Nu; ++ii ){
+        rho += eval_ftilda<real,order>( n, x, p_min + ii*dp, coeffs, conf );
+    }
+
+    return dp*rho;
+}
+
+template <typename real, size_t order>
+real eval_rho_on_grid( size_t n, size_t i, const real *coeffs, const config_t<real> &conf )
+{
+    return eval_rho<real,order>(n,conf.x_min + i*conf.dx,coeffs,conf);
+}
+
 
 }
 

@@ -48,10 +48,10 @@ const double x_max = Lx;
 const double y_min = 0;
 const double y_max = Ly;
 
-const double u_min = -6;
-const double u_max = 6;
-const double v_min = -6;
-const double v_max = 6;
+const double u_min = -8;
+const double u_max = 8;
+const double v_min = -8;
+const double v_max = 8;
 
 const size_t nx_r = 64;
 const size_t ny_r = nx_r;
@@ -70,10 +70,10 @@ const size_t Nx = nx_r;  // Number of grid points in physical space.
 const size_t Ny = ny_r;  // Number of grid points in physical space.
 const size_t Nu = nu_r;  // Number of quadrature points in velocity space.
 const size_t Nv = nv_r;  // Number of quadrature points in velocity space.
-const double   dt = 0.1;  // Time-step size.
+const double   dt = 1.0/8.0;  // Time-step size.
 const size_t Nt = 100/dt;  // Number of time-steps.
 
-size_t nt_restart = 10;
+size_t nt_restart = 20;
 
 template <typename real>
 real f0(real x, real y, real u, real v) noexcept
@@ -308,11 +308,152 @@ void run_restarted_simulation(bool svd_compressed = false, double tolerance = 1e
     }
 }
 
+restart::cubic_rsvd_interpolant_2x2v cubic_interpolant_f;
+
+double eval_f_with_cubic_rsvd_interpolant(double x, double y, double u, double v)
+{
+    return cubic_interpolant_f.cubic_interpolation_4d(x,y,u,v);
+}
+
+template <size_t order>
+void run_restarted_simulation_rsvd_cubic(
+    double tolerance = 1e-4, size_t max_rank = 10, size_t oversampling = 5)
+{
+    config_t<double> conf(Nx, Ny, Nu, Nv, Nt, dt, x_min, x_max, y_min, y_max,
+                         u_min, u_max, v_min, v_max, &f0);
+
+    size_t stride_t = (conf.Nx + order - 1) *
+                      (conf.Ny + order - 1);
+
+    std::unique_ptr<double[]> coeffs_restart {
+        new double[(nt_restart+1)*stride_t] {}
+    };
+
+    std::unique_ptr<double,decltype(std::free)*> rho {
+        reinterpret_cast<double*>(std::aligned_alloc(
+            64,sizeof(double)*conf.Nx*conf.Ny)), std::free
+    };
+
+    poisson<double> poiss(conf);
+
+    cubic_interpolant_f = restart::cubic_rsvd_interpolant_2x2v(
+        x_min, x_max, y_min, y_max,
+        u_min, u_max, v_min, v_max,
+        nx_r, ny_r, nu_r, nv_r, false);
+
+    size_t nt_r_curr = 0;
+
+    auto eval_f_t_restart = [&](double x, double y, double u, double v) {
+        return eval_f<double,order>(
+            nt_r_curr, x, y, u, v, coeffs_restart.get(), conf
+        );
+    };
+
+    std::ofstream stat_file("stats.txt");
+    std::ofstream coeff_file("coeffs.txt");
+    double total_time = 0;
+
+    for (size_t n = 0; n <= Nt; ++n)
+    {
+        nufi::stopwatch<double> timer;
+
+        std::cout << " start of time step " << n << " "
+                  << nt_r_curr << std::endl;
+
+        nufi::stopwatch<double> rho_timer;
+
+        #pragma omp parallel for
+        for (size_t l = 0; l < conf.Nx*conf.Ny; ++l) {
+            rho.get()[l] = eval_rho<double,order>(
+                nt_r_curr, l, coeffs_restart.get(), conf
+            );
+        }
+
+        double rho_comp_time = rho_timer.elapsed();
+
+        std::cout << "rho comp time = " << rho_comp_time
+                  << " per dof = "
+                  << rho_comp_time/(conf.Nx*conf.Ny)
+                  << std::endl;
+
+        double E_energy = poiss.solve(rho.get());
+
+        interpolate<double,order>(
+            coeffs_restart.get() + nt_r_curr*stride_t,
+            rho.get(), conf
+        );
+
+        double timer_elapsed = timer.elapsed();
+        total_time += timer_elapsed;
+
+        double t = n*conf.dt;
+
+        stat_file << std::setw(15) << t
+                  << std::setw(15)
+                  << std::setprecision(5)
+                  << std::scientific
+                  << " " << E_energy
+                  << std::endl;
+
+        std::cout << std::setw(15) << t
+                  << std::setw(15)
+                  << std::setprecision(5)
+                  << std::scientific
+                  << E_energy
+                  << " Comp-time: " << timer_elapsed
+                  << " Total comp time s.f.: " << total_time
+                  << std::endl;
+
+        // Print coefficients to file.
+        coeff_file << n << std::endl;
+        for (size_t i = 0; i < stride_t; ++i) {
+            coeff_file << i << " "
+                       << coeffs_restart.get()[nt_r_curr*stride_t + i]
+                       << std::endl;
+        }
+
+        if (nt_r_curr == nt_restart)
+        {
+            std::cout << "Restart" << std::endl;
+            nufi::stopwatch<double> timer_restart;
+
+            cubic_interpolant_f.restart_f(
+                eval_f_t_restart, max_rank, tolerance, oversampling
+            );
+
+            conf.f0 = eval_f_with_cubic_rsvd_interpolant;
+
+            // Copy last coefficient slice.
+            #pragma omp parallel for
+            for (size_t i = 0; i < stride_t; ++i) {
+                coeffs_restart.get()[i] =
+                    coeffs_restart.get()[nt_r_curr*stride_t + i];
+            }
+
+            nt_r_curr = 1;
+
+            double restart_time = timer_restart.elapsed();
+            total_time += restart_time;
+
+            std::cout << n << " " << nt_r_curr
+                      << " restart completed. "
+                      << "Restart took: " << restart_time
+                      << " s. Total comp time s.f.: "
+                      << total_time << std::endl;
+        }
+        else {
+            nt_r_curr++;
+        }
+    }
+}
+
 }
 }
 
 
 int main()
 {
-    nufi::dim2::run_restarted_simulation<2>(false,1e-16,10,5);
+    //nufi::dim2::run_restarted_simulation<2>(false,1e-16,10,5);
+
+    nufi::dim2::run_restarted_simulation_rsvd_cubic<4>(1e-4,20,5);
 }

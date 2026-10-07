@@ -56,6 +56,8 @@ struct config_t
     real q = -1;
     real m = 1;
 
+    real light_speed = 1;
+
     // Adaptive integration parameters. 
     real tol_cut_off_velocity_supp = 1e-8;
     real tol_QS_0 = 1e-7;
