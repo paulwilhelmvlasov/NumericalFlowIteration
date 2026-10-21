@@ -49,8 +49,8 @@ real maxwellian_1d(real u, real vth) noexcept
 template <typename real>
 real f0(real x, real u) noexcept
 {
-	real alpha = 1e-2; // Linear Landau Damping or Two Stream instability
-	//real alpha = 0.5; // Strong Landau Damping
+	//real alpha = 1e-2; // Linear Landau Damping or Two Stream instability
+	real alpha = 0.5; // Strong Landau Damping
 	real k = 0.5;
     //real k = 0.35;
     //return 1.0 / std::sqrt(2.0 * M_PI) * u*u * std::exp(-0.5 * u*u) * (1 + alpha * std::cos(k*x)); // Two Stream Instability
@@ -59,6 +59,13 @@ real f0(real x, real u) noexcept
     // Bump on tail Instability
     //return 1.0 / std::sqrt(2.0 * M_PI) * (1 + 0.04 * std::cos(0.3*x)) 
 //            *  ( 0.9 * std::exp(-0.5 * u*u)  + 0.2 * std::exp(-0.5/(0.5*0.5) * (u-4.5)*(u-4.5)) ); 
+
+    /* real eps = 0.05;
+    real kx = 0.2;
+    real v0 = 3;
+    return 1.0 / (2 * std::sqrt(2.0 * M_PI)) 
+                * (1 + eps * cos(kx*x))
+                * ( exp(-0.5 * (u-v0)*(u-v0)) + exp(-0.5 * (u+v0)*(u+v0))) ; // Philipp TSI */
 }
 
 template <typename real>
@@ -421,16 +428,16 @@ void run_simulation()
     using std::abs;
     using std::max;
 
-    size_t Nx = 64;  // Number of grid points in physical space.
-    size_t Nu = 64;  // Number of quadrature points in velocity space.
-    real   dt = 0.1;  // Time-step size.
+    size_t Nx = 1024;  // Number of grid points in physical space.
+    size_t Nu = 24;  // Number of quadrature points in velocity space.
+    real   dt = 1.0/20.0;  // Time-step size.
     size_t Nt = 50/dt;  // Number of time-steps.
 
     // Dimensions of physical domain.
     real x_min = 0;
-    real x_max = 4*M_PI;
-    //real k = 0.35;
-    //real x_max = 2*M_PI/k;
+    real k = 0.5;
+    //real k = 0.2;
+    real x_max = 2*M_PI/k;
 
     // Integration limits for velocity space.
     real u_min = -8;

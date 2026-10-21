@@ -58,6 +58,30 @@ real p_max_juttner(real m, real c, real theta, real eps = 1e-15)
     return m*c*std::sqrt(gamma_max*gamma_max - 1);
 }
 
+template <typename real>
+real boosted_maxwell_juttner_1d(real p, real p0, real m, real c, real theta) noexcept
+{
+    real u = p/(m*c);
+    real u0 = p0/(m*c);
+    real gamma0 = std::sqrt(1 + u0*u0);
+    real gamma = std::sqrt(1 + u*u);
+
+    // Momentum in the beam rest frame
+    real ur = gamma0*u - u0*gamma;
+    real gamma_r = std::sqrt(1 + ur*ur);
+    real gamma_r_m1 = ur*ur/(gamma_r + 1);
+
+    // Exponentially scaled Bessel function
+    real K1_scaled;
+    if (theta < 0.01)
+        K1_scaled = std::sqrt(M_PI*theta/2)
+                  * (1 + 3*theta/8 - 15*theta*theta/128);
+    else
+        K1_scaled = std::exp(1/theta)*std::cyl_bessel_k(1,1/theta);
+
+    return std::exp(-gamma_r_m1/theta)/(2*m*c*gamma0*K1_scaled);
+}
+
 const double light_speed = 1;
 const double me = 1;
 const double mi = 1836;
@@ -72,23 +96,77 @@ const double p0_i = mi*light_speed*std::sqrt(gamma_i0*gamma_i0 - 1);
 const double theta_e = 1e-1;
 const double theta_i = theta_e*me/mi;
 const double alpha = 1e-4;
-const double kmax = 0.25;
+
+const double k0 = 0.05;
 const double x_min = 0;
-const double x_max = 2*M_PI/kmax;
+const double x_max = 2*M_PI/k0;
+
+const size_t n_modes = 16;
+const size_t n_profile = 4096;
+
+// Construct a random Fourier perturbation once, with a prescribed seed.
+// The 1/sqrt(M) scaling gives spatial RMS amplitude alpha (up to roundoff).
+std::vector<double> make_random_profile(unsigned int seed)
+{
+    std::mt19937_64 rng(seed);
+    std::uniform_real_distribution<double> phase(0,2*M_PI);
+    std::vector<double> phases(n_modes), values(n_profile);
+    for (double &p : phases) p = phase(rng);
+
+    double amplitude = alpha*std::sqrt(2.0/n_modes);
+    for (size_t i = 0; i < n_profile; ++i){
+        double angle = 2*M_PI*i/n_profile;
+        double value = 0;
+        for (size_t j = 0; j < n_modes; ++j)
+            value += std::cos((j+1)*angle + phases[j]);
+        values[i] = amplitude*value;
+    }
+    return values;
+}
+
+// Immutable tables, evaluated only once at program startup.
+const std::vector<double> perturb_e = make_random_profile(12345);
+const std::vector<double> perturb_i = make_random_profile(67890);
+
+// Periodic cubic interpolation: O(1) work on every f0 evaluation.
+double eval_random_profile(double x, const std::vector<double> &values) noexcept
+{
+    double y = (x-x_min)/(x_max-x_min);
+    y -= std::floor(y);
+    double pos = y*n_profile;
+    size_t i = static_cast<size_t>(pos);
+    double t = pos-i;
+
+    size_t im1 = (i+n_profile-1)%n_profile;
+    size_t ip1 = (i+1)%n_profile;
+    size_t ip2 = (i+2)%n_profile;
+    double a = values[im1], b = values[i], c = values[ip1], d = values[ip2];
+    return 0.5*(2*b + (-a+c)*t + (2*a-5*b+4*c-d)*t*t
+               + (-a+3*b-3*c+d)*t*t*t);
+}
 
 template <typename real>
 real f0_e(real x, real p) noexcept
 {
-    return (1 + alpha*std::cos(kmax*x))
+/*     return (1 + eval_random_profile(x,perturb_e))
          * 0.5*(maxwell_juttner_1d<real>(p-p0_e,me,light_speed,theta_e)
-              + maxwell_juttner_1d<real>(p+p0_e,me,light_speed,theta_e));
+              + maxwell_juttner_1d<real>(p+p0_e,me,light_speed,theta_e)); */
+
+    return (1 + eval_random_profile(x,perturb_e))
+         * 0.5*(boosted_maxwell_juttner_1d<real>(p, p0_e,me,light_speed,theta_e)
+              + boosted_maxwell_juttner_1d<real>(p,-p0_e,me,light_speed,theta_e));
 }
 
 template <typename real>
 real f0_i(real x, real p) noexcept
 {
-    return 0.5*(maxwell_juttner_1d<real>(p-p0_i,mi,light_speed,theta_i)
-              + maxwell_juttner_1d<real>(p+p0_i,mi,light_speed,theta_i));
+    /* return (1 + eval_random_profile(x,perturb_i))
+         * 0.5*(maxwell_juttner_1d<real>(p-p0_i,mi,light_speed,theta_i)
+              + maxwell_juttner_1d<real>(p+p0_i,mi,light_speed,theta_i)); */
+
+    return (1 + eval_random_profile(x,perturb_i))
+         * 0.5*(boosted_maxwell_juttner_1d<real>(p, p0_i,mi,light_speed,theta_i)
+              + boosted_maxwell_juttner_1d<real>(p,-p0_i,mi,light_speed,theta_i));
 }
 
 // One stored backward map per species and per completed restart window.
@@ -162,18 +240,55 @@ double plot_f_cmm(size_t local_n, size_t global_n, size_t nx, size_t np,
     return kinetic_energy*dx_plot*dp_plot;
 }
 
+template<size_t order>
+void plot_fields(size_t n, size_t nx, const double *coeffs,
+                 const config_t<double> &conf_e,
+                 const config_t<double> &conf_i, double t)
+{
+    double dx_plot = conf_e.Lx / nx;
+    size_t stride_t = conf_e.Nx + order - 1;
+
+    arma::mat values(nx,6);
+
+    #pragma omp parallel for
+    for(size_t ix = 0; ix < nx; ix++){
+        double x = conf_e.x_min + ix*dx_plot;
+
+        double phi = periodic::eval<double,order,0>(
+            x,coeffs+n*stride_t,conf_e);
+
+        double E = -periodic::eval<double,order,1>(
+            x,coeffs+n*stride_t,conf_e);
+
+        double rho_e = eval_rho<double,order>(n,x,coeffs,conf_e);
+        double rho_i = eval_rho<double,order>(n,x,coeffs,conf_i);
+        double rho = conf_e.q*rho_e + conf_i.q*rho_i;
+
+        values(ix,0) = x;
+        values(ix,1) = E;
+        values(ix,2) = phi;
+        values(ix,3) = rho;
+        values(ix,4) = rho_e;
+        values(ix,5) = rho_i;
+    }
+
+    /* std::ofstream f_str("fields_" + std::to_string(t) + ".txt");
+    f_str << std::setprecision(17) << values; */
+    values.save("fields_" + std::to_string(t) + ".txt", arma::raw_ascii);
+}
+
 template <size_t order, size_t order_x_map_spline=3, size_t order_p_map_spline=3>
 void cmm_nufi_spline_multispecies()
 {
-    size_t Nx = 128;
-    size_t Nu_e = 512;
-    size_t Nu_i = 512;
+    size_t Nx = 1024;
+    size_t Nu_e = 1024;
+    size_t Nu_i = Nu_e;
     size_t steps_per_1 = 20;
     double dt = 1.0/steps_per_1;
     size_t Nt = static_cast<size_t>(1000/dt);
 
     //double p_max_e = p0_e + p_max_juttner(me,light_speed,theta_e);
-    double p_max_e = 10;
+    double p_max_e = 20;
     double p_min_e = -p_max_e;
     //double p_max_i = p0_i + p_max_juttner(mi,light_speed,theta_i);
     double p_max_i = 200;
@@ -196,6 +311,8 @@ void cmm_nufi_spline_multispecies()
     size_t np_e_r = 256;
     size_t np_i_r = 256;
     size_t nt_restart = 200;
+
+    size_t plot_n = 1024;
 
     if (nt_restart == 0) throw std::runtime_error("nt_restart must be positive");
 
@@ -271,12 +388,14 @@ void cmm_nufi_spline_multispecies()
             Emax = std::max(Emax,std::abs(Ex));
         }
 
-        if (n % (10*steps_per_1) == 0){
+        if (n % (20*steps_per_1) == 0){
             kinetic_energy_electron = plot_f_cmm<order>(
-                nt_r_curr,n,256,256,coeffs_restart.get(),conf_electron,true);
+                nt_r_curr,n,plot_n,plot_n,coeffs_restart.get(),conf_electron,true);
             kinetic_energy_ion = plot_f_cmm<order>(
-                nt_r_curr,n,256,256,coeffs_restart.get(),conf_ion,false);
+                nt_r_curr,n,plot_n,plot_n,coeffs_restart.get(),conf_ion,false);
             total_energy = elec_energy + kinetic_energy_electron + kinetic_energy_ion;
+
+            plot_fields<order>(nt_r_curr,plot_n,coeffs_restart.get(),conf_electron,conf_ion,t);
         }
 
         stats_file << std::setprecision(17) << t << " " << Emax << " " << elec_energy

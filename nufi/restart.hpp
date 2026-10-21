@@ -23,6 +23,7 @@
 #include <iomanip>
 #include <fstream>
 #include <functional>
+#include <mpi.h>
 #include <omp.h>
 #include <sstream>
 
@@ -1163,6 +1164,133 @@ class flow_map_linear_interpolant_2x3v
         return 0;
     }
 
+};
+
+class cubic_interpolant_1x1v
+{
+    public:
+        double xmin = 0;
+        double xmax = 1;
+        double Lx = 1;
+
+        double umin = -1;
+        double umax = 1;
+
+        size_t nx_r = 8;
+        size_t nu_r = 8;
+
+        size_t size_x_r = 1;
+        size_t size_v_r = 1;
+
+        double dx_r = 1;
+        double du_r = 1;
+
+        bool non_negative_enforce = true;
+
+        arma::mat restart_matrix;
+        arma::mat copy_mat;
+
+        cubic_interpolant_1x1v() { }
+
+        cubic_interpolant_1x1v(double xmin, double xmax,
+            double umin, double umax,
+            size_t Nx, size_t Nu, bool non_negative = true)
+            : xmin(xmin), xmax(xmax), umin(umin), umax(umax),
+            nx_r(Nx), nu_r(Nu), non_negative_enforce(non_negative)
+        {
+            size_x_r = nx_r + 1;
+            size_v_r = nu_r + 1;
+
+            dx_r = (xmax - xmin) / nx_r;
+            du_r = (umax - umin) / nu_r;
+
+            Lx = xmax - xmin;
+
+            restart_matrix = arma::mat(size_x_r, size_v_r, arma::fill::zeros);
+            copy_mat = arma::mat(size_x_r, size_v_r, arma::fill::zeros);
+        }
+
+        void restart_f(const std::function<double(double,double)>& eval_f)
+        {
+            #pragma omp parallel for collapse(2)
+            for(size_t ix = 0; ix <= nx_r; ix++)
+            for(size_t iu = 0; iu <= nu_r; iu++){
+                double x = xmin + ix*dx_r;
+                double u = umin + iu*du_r;
+
+                copy_mat(ix,iu) = eval_f(x,u);
+            }
+
+            restart_matrix = copy_mat;
+        }
+
+        inline double cubic_interp(double p0, double p1, double p2, double p3, double t)
+        {
+            // Catmull-Rom spline
+            double a0 = -0.5*p0 + 1.5*p1 - 1.5*p2 + 0.5*p3;
+            double a1 = p0 - 2.5*p1 + 2.0*p2 - 0.5*p3;
+            double a2 = -0.5*p0 + 0.5*p2;
+            double a3 = p1;
+
+            return ((a0*t + a1)*t + a2)*t + a3;
+        }
+
+        inline size_t clamp_index(int i, size_t N)
+        {
+            if (i < 0) return 0;
+            if (i >= static_cast<int>(N)) return N - 1;
+            return static_cast<size_t>(i);
+        }
+
+        inline size_t periodic_index(int i, size_t N)
+        {
+            int res = i % static_cast<int>(N);
+            if (res < 0) res += N;
+            return static_cast<size_t>(res);
+        }
+
+        double cubic_interpolation_2d(double x, double u)
+        {
+            if (u > umax || u < umin) {
+                return 0.0;
+            }
+
+            // periodic x
+            x = std::fmod(std::fmod(x - xmin, Lx) + Lx, Lx);
+
+            double gx = x / dx_r;
+            double gu = (u - umin) / du_r;
+
+            int ix = static_cast<int>(std::floor(gx));
+            int iu = static_cast<int>(std::floor(gu));
+
+            double tx = gx - ix;
+            double tu = gu - iu;
+
+            double val_u[4];
+
+            // interpolate along x first
+            for (int ku = -1; ku <= 2; ku++) {
+                size_t iuc = clamp_index(iu + ku, nu_r + 1);
+
+                double px[4];
+
+                for (int kx = -1; kx <= 2; kx++) {
+                    size_t ixc = periodic_index(ix + kx, nx_r);
+                    px[kx + 1] = restart_matrix(ixc, iuc);
+                }
+
+                val_u[ku + 1] = cubic_interp(px[0], px[1], px[2], px[3], tx);
+            }
+
+            // interpolate along u
+            double result = cubic_interp(val_u[0], val_u[1], val_u[2], val_u[3], tu);
+
+            if(non_negative_enforce){
+                return std::max(0.0,result);
+            }
+            return result;
+        }
 };
 
 class cubic_interpolant_1x2v

@@ -144,8 +144,8 @@ void test_rsvd()
 namespace dim1
 {
 
-size_t Nx = 256;  // Number of grid points in physical space.
-size_t Nu = 256;  // Number of quadrature points in velocity space.
+size_t Nx = 32;  // Number of grid points in physical space.
+size_t Nu = 64;  // Number of quadrature points in velocity space.
 double   dt = 1.0/10.0;  // Time-step size.
 size_t Nt = 100/dt;  // Number of time-steps.
 
@@ -160,7 +160,7 @@ double u_max = 10;
 
 size_t nx_r = Nx;
 size_t nu_r = Nu;
-size_t nt_restart = 10;
+size_t nt_restart = 1;
 //size_t nt_restart = Nt + 2;
 double dx_r = (x_max - x_min) / nx_r;
 double du_r = (u_max - u_min) / nu_r;
@@ -1638,7 +1638,7 @@ void run_restarted_simulation(bool with_svd_compression = true)
 
 int main()
 {
-	nufi::dim1::run_restarted_simulation<4>(true);
+	nufi::dim1::run_restarted_simulation<4>(false);
 
     //nufi::svd_magic::test_rsvd();
 }
