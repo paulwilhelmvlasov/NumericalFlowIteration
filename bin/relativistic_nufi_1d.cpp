@@ -83,7 +83,8 @@ const double qe = -1;
 const double qi = 1;
 
 const double gamma_e0 = 2;
-const double gamma_i0 = 1 + (me/mi)*(gamma_e0 - 1);
+const double gamma_i0 = 1 + (me/mi)*(gamma_e0 - 1); // Equal kinetic energy case
+//const double gamma_i0 = gamma_e0; // Equal drift speed case
 const double p0_e = me*light_speed*std::sqrt(gamma_e0*gamma_e0 - 1);
 const double p0_i = mi*light_speed*std::sqrt(gamma_i0*gamma_i0 - 1);
 
@@ -264,24 +265,27 @@ void run_simulation()
     using std::abs;
     using std::max;
 
-    size_t Nx = 256;  // Number of grid points in physical space.
+    size_t Nx = 128;  // Number of grid points in physical space.
     size_t Nu_e = 4096;  // Number of quadrature points in velocity space.
-    size_t Nu_i = 1024;  // Number of quadrature points in velocity space.
-    size_t steps_per_1 = 20;
+    size_t Nu_i = 4096;  // Number of quadrature points in velocity space.
+    size_t steps_per_1 = 10;
     real   dt = 1.0/steps_per_1;  // Time-step size.
     size_t Nt = 1000/dt;  // Number of time-steps.
     size_t nt_restart = 50; // Number of steps until restart.
 
-    size_t nx_plot = 1024;
+    size_t nx_plot = 512;
     size_t np_plot = nx_plot;
 
     // Integration limits for velocity/momentum space.
-    //real p_max_e = p0_e + p_max_juttner(me,light_speed,theta_e);
+    // Equal kinetic energy case:
+    /* real p_max_e = 10;
+    real p_min_e = -p_max_e;
+    real p_max_i = 250;
+    real p_min_i = -p_max_i; */
+    // Equal drift speed case:
     real p_max_e = 10;
     real p_min_e = -p_max_e;
-
-    //real p_max_i = p0_i + p_max_juttner(mi,light_speed,theta_i);
-    real p_max_i = 250;
+    real p_max_i = 3500;
     real p_min_i = -p_max_i;
 
     std::cout << "velocity limits " << p_max_e << " " << p_max_i << std::endl;
@@ -430,13 +434,12 @@ std::vector<double> read_coeffs(size_t n, const std::string &filename,
 template<size_t order>
 void reconstruct_f(size_t n, size_t nx_plot, size_t np_plot)
 {
-    const size_t Nx = 128;
-    const size_t Nu_e = 1024;
-    const size_t Nu_i = Nu_e;
-
-    const size_t steps_per_1 = 10;
-    const double dt = 1.0/steps_per_1;
-    const size_t Nt = static_cast<size_t>(1000/dt);
+    size_t Nx = 256;  // Number of grid points in physical space.
+    size_t Nu_e = 4096;  // Number of quadrature points in velocity space.
+    size_t Nu_i = 1024;  // Number of quadrature points in velocity space.
+    size_t steps_per_1 = 20;
+    double   dt = 1.0/steps_per_1;  // Time-step size.
+    size_t Nt = 1000 * steps_per_1;  // Number of time-steps.
 
     double p_max_e = 10;
     double p_min_e = -p_max_e;
@@ -479,6 +482,94 @@ void reconstruct_f(size_t n, size_t nx_plot, size_t np_plot)
 }
 
 
+template<size_t order>
+void reconstruct_gamma_distribution(size_t n, size_t nx_plot, size_t np_quad = 2,
+                                    double gamma_max_e = 30.0, double dgamma_e = 0.002,
+                                    double gamma_max_i = 1.02, double dgamma_i = 1e-5)
+{
+    size_t Nx = 256;
+    size_t Nu_e = 4096;
+    size_t Nu_i = 1024;
+    size_t steps_per_1 = 20;
+    double dt = 1.0/steps_per_1;
+    size_t Nt = 1000*steps_per_1;
+
+    double p_max_e = 10;
+    //double p_max_i = 250;
+    double p_max_i = 3500;
+
+    config_t<double> conf_e(Nx,Nu_e,Nt,dt,x_min,x_max,-p_max_e,p_max_e,&f0_e<double>);
+    conf_e.q = qe;
+    conf_e.m = me;
+    conf_e.light_speed = light_speed;
+
+    config_t<double> conf_i(Nx,Nu_i,Nt,dt,x_min,x_max,-p_max_i,p_max_i,&f0_i<double>);
+    conf_i.q = qi;
+    conf_i.m = mi;
+    conf_i.light_speed = light_speed;
+
+    const size_t stride_t = Nx + order - 1;
+    std::string filename = "../coeffs_Nt_" + std::to_string(Nt)
+                         + "_Nx_" + std::to_string(Nx)
+                         + "_stride_t_" + std::to_string(stride_t) + ".txt";
+    std::vector<double> coeffs = read_coeffs(n,filename,stride_t);
+
+    const double t = n*dt;
+    const double dx = (x_max-x_min)/nx_plot;
+    std::cout << "Computing gamma spectra at t = " << t << std::endl;
+
+    auto compute = [&](const config_t<double>& conf, const std::string& species,
+                       double gamma_max, double dgamma) {
+        const double kmax = gamma_max-1.0;
+        const size_t nbins = static_cast<size_t>(std::ceil(kmax/dgamma - 1e-10));
+        const double mc = conf.m*conf.light_speed;
+        std::vector<double> number(nbins);
+
+        #pragma omp parallel for schedule(dynamic)
+        for (std::ptrdiff_t j = 0; j < static_cast<std::ptrdiff_t>(nbins); ++j) {
+            const double k0 = j*dgamma;
+            const double k1 = std::min((j+1)*dgamma,kmax);
+            const double p0 = mc*std::sqrt(k0*(k0+2.0));
+            const double p1 = mc*std::sqrt(k1*(k1+2.0));
+            const double dp = (p1-p0)/np_quad;
+
+            double sum = 0.0;
+            for (size_t ip = 0; ip < np_quad; ++ip) {
+                const double p = p0+(ip+0.5)*dp;
+                for (size_t ix = 0; ix < nx_plot; ++ix) {
+                    const double x = x_min+(ix+0.5)*dx;
+                    sum += eval_f<double,order>(n,x, p,coeffs.data(),conf);
+                    sum += eval_f<double,order>(n,x,-p,coeffs.data(),conf);
+                }
+            }
+            number[j] = sum*dx*dp;
+        }
+
+        std::ofstream out("gamma_"+species+"_"+std::to_string(t)+".txt");
+        out << "# gamma_minus_1 f_gamma gamma_minus_1_times_f_gamma number_in_bin\n";
+        out << std::scientific << std::setprecision(16);
+
+        double kinetic_energy = 0.0;
+        for (size_t j = 0; j < nbins; ++j) {
+            const double k0 = j*dgamma;
+            const double k1 = std::min((j+1)*dgamma,kmax);
+            const double k = 0.5*(k0+k1);
+            const double f_gamma = number[j]/(k1-k0);
+
+            out << k << ' ' << f_gamma << ' '
+                << k*f_gamma << ' ' << number[j] << '\n';
+
+            kinetic_energy += conf.m*conf.light_speed*conf.light_speed*k*number[j];
+        }
+
+        std::cout << species << " kinetic energy (within sampled range): "
+                  << std::setprecision(16) << kinetic_energy << std::endl;
+    };
+
+    compute(conf_e,"e",gamma_max_e,dgamma_e);
+    //compute(conf_i,"i",gamma_max_i,dgamma_i);
+}
+
 }
 }
 }
@@ -486,8 +577,10 @@ void reconstruct_f(size_t n, size_t nx_plot, size_t np_plot)
 
 int main()
 {
-	nufi::dim1::periodic::relativistic::run_simulation<double,4>();
+	//nufi::dim1::periodic::relativistic::run_simulation<double,4>();
 
-    //nufi::dim1::periodic::relativistic::reconstruct_f<4>(2000,2048,2048);
+    //nufi::dim1::periodic::relativistic::reconstruct_f<4>(20*1000,256,2048);
+
+    nufi::dim1::periodic::relativistic::reconstruct_gamma_distribution<4>(20000,128,2);
 }
 

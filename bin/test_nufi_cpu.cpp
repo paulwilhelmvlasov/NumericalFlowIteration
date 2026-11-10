@@ -429,8 +429,8 @@ void run_simulation()
     using std::max;
 
     size_t Nx = 1024;  // Number of grid points in physical space.
-    size_t Nu = 24;  // Number of quadrature points in velocity space.
-    real   dt = 1.0/20.0;  // Time-step size.
+    size_t Nu = 1024;  // Number of quadrature points in velocity space.
+    real   dt = 1.0/10.0;  // Time-step size.
     size_t Nt = 50/dt;  // Number of time-steps.
 
     // Dimensions of physical domain.

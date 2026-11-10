@@ -3,12 +3,18 @@
  * Reconstructs characteristics through the full field history without CMM maps.
  *
  * Usage:
- *   ./quadrature <time_step> <Nx> <Nu_e> <Nu_i> <rule> [nx_test] [coeffs_file]
+ *   ./quadrature <time_step> <Nx> <Nu_e> <Nu_i> <rule> [nx_test] [coeffs_file] [np_plot]
+ *   ./quadrature <time_step> <Nx> <Nu_e> <Nu_i> mc [nx_test] [coeffs_file] [trials] [reference_Nv]
  *
- * Rules: midpoint, simpson, boole, gauss4, gauss8
+ * Rules: midpoint, simpson, boole, gauss4, gauss8, mc (Monte Carlo vs midpoint)
+ * The mc mode writes errors against a common high-resolution midpoint reference and a gnuplot script.
  */
 
 #include <cmath>
+#include <array>
+#include <random>
+#include <cstdint>
+#include <cstdlib>
 #include <memory>
 #include <vector>
 #include <algorithm>
@@ -402,6 +408,199 @@ void quadrature_error_from_coeffs(size_t n, size_t Nx, size_t Nu_e, size_t Nu_i,
               << " saved to " << output_name << "\n";
 }
 
+
+// Independent uniform Monte Carlo: exactly nv evaluations of f per density estimate.
+template <size_t order>
+double density_monte_carlo(size_t n, double x, size_t nv, const double *coeffs,
+                           const config_t<double> &conf, std::mt19937_64 &rng)
+{
+    std::uniform_real_distribution<double> uniform(0,1);
+    double width = conf.u_max-conf.u_min;
+    long double sum = 0;
+    for (size_t j = 0; j < nv; ++j){
+        double p = conf.u_min+width*uniform(rng);
+        sum += eval_f<double,order>(n,x,p,coeffs,conf);
+    }
+    return static_cast<double>(sum*width/nv);
+}
+
+uint64_t mc_seed(size_t n, size_t nv, size_t ix, size_t trial, size_t species)
+{
+    // SplitMix64 mixing makes independent, reproducible streams for each test.
+    auto mix = [](uint64_t v){
+        v += 0x9e3779b97f4a7c15ULL;
+        v = (v^(v>>30))*0xbf58476d1ce4e5b9ULL;
+        v = (v^(v>>27))*0x94d049bb133111ebULL;
+        return v^(v>>31);
+    };
+    return mix(0x53e20fa1ULL ^ mix(n) ^ mix(nv) ^ mix(ix) ^ mix(trial) ^ mix(species));
+}
+
+struct DensityErrors
+{
+    double e = 0, i = 0, charge = 0;
+};
+
+DensityErrors max_density_errors(const std::vector<double> &ne,
+                                 const std::vector<double> &ni,
+                                 const std::vector<double> &ref_e,
+                                 const std::vector<double> &ref_i,
+                                 const DensityErrors &scales)
+{
+    DensityErrors err;
+    for (size_t ix = 0; ix < ne.size(); ++ix){
+        double de = ne[ix]-ref_e[ix], di = ni[ix]-ref_i[ix];
+        err.e = std::max(err.e,std::abs(de));
+        err.i = std::max(err.i,std::abs(di));
+        err.charge = std::max(err.charge,std::abs(qe*de+qi*di));
+    }
+    err.e /= scales.e;
+    err.i /= scales.i;
+    err.charge /= scales.charge;
+    return err;
+}
+
+// The MC curve is the RMS over trials of each trial's maximum spatial error.
+// Each individual MC trial (and each midpoint estimate) uses exactly nv evaluations
+// per species and spatial point. Multiple trials quantify sampling variability;
+// they are NOT combined into a more expensive single estimate.
+template <size_t order>
+void compare_mc_midpoint_from_coeffs(size_t n, size_t Nx, size_t Nu_e, size_t Nu_i,
+                                     size_t nx_test = 32,
+                                     const std::string &filename = "coeffs_cmm.txt",
+                                     size_t trials = 4, size_t reference_nv = 32768)
+{
+    const double dt = 0.1;
+    const size_t Nt = static_cast<size_t>(1000/dt);
+    if (n > Nt || !Nx || !Nu_e || !Nu_i || !nx_test || !trials || !reference_nv)
+        throw std::runtime_error("Invalid simulation parameters");
+
+    double p_max_e = p0_e+p_max_juttner(me,light_speed,theta_e);
+    double p_max_i = p0_i+p_max_juttner(mi,light_speed,theta_i);
+    config_t<double> conf_e(Nx,Nu_e,Nt,dt,x_min,x_max,-p_max_e,p_max_e,&f0_e<double>);
+    config_t<double> conf_i(Nx,Nu_i,Nt,dt,x_min,x_max,-p_max_i,p_max_i,&f0_i<double>);
+    conf_e.q = qe;
+    conf_e.m = me;
+    conf_e.light_speed = light_speed;
+    conf_i.q = qi;
+    conf_i.m = mi;
+    conf_i.light_speed = light_speed;
+
+    const size_t stride_t = Nx+order-1;
+    std::vector<double> coeffs = read_coeffs(n,stride_t,filename);
+    const std::vector<size_t> candidates = {64,256,512,2048,8192,32768,131072,524288};
+    std::vector<size_t> nv_values;
+    for (size_t nv : candidates) if (nv < reference_nv) nv_values.push_back(nv);
+    if (nv_values.empty()) throw std::invalid_argument("Reference Nv must exceed 64");
+
+    std::vector<double> ref_e(nx_test), ref_i(nx_test);
+    std::cout << "Computing midpoint reference with Nv=" << reference_nv << "...\n";
+    #pragma omp parallel for
+    for (size_t ix = 0; ix < nx_test; ++ix){
+        double x = x_min+(ix+0.5)*(x_max-x_min)/nx_test;
+        ref_e[ix] = density_quadrature<order>(n,x,reference_nv,coeffs.data(),conf_e,QuadratureRule::midpoint);
+        ref_i[ix] = density_quadrature<order>(n,x,reference_nv,coeffs.data(),conf_i,QuadratureRule::midpoint);
+    }
+
+    // Charge is normalised by the total reference charge-carrier density, not by
+    // net charge (which can be close to zero). This is an absolute charge error
+    // expressed relative to the characteristic density scale.
+    DensityErrors scales;
+    for (size_t ix = 0; ix < nx_test; ++ix){
+        scales.e = std::max(scales.e,std::abs(ref_e[ix]));
+        scales.i = std::max(scales.i,std::abs(ref_i[ix]));
+        scales.charge = std::max(scales.charge,std::abs(qe)*std::abs(ref_e[ix])
+                                                   +std::abs(qi)*std::abs(ref_i[ix]));
+    }
+    if (scales.e == 0 || scales.i == 0 || scales.charge == 0)
+        throw std::runtime_error("Zero reference density scale");
+
+    std::string suffix = "_n"+std::to_string(n);
+    std::string data_name = "mc_vs_midpoint"+suffix+".txt";
+    std::string gp_name = "mc_vs_midpoint"+suffix+".gp";
+    std::string png_name = "mc_vs_midpoint"+suffix+".png";
+    std::ofstream out(data_name);
+    if (!out) throw std::runtime_error("Cannot write " + data_name);
+    out << std::setprecision(17);
+    out << "# Each MC trial uses Nv calls per species and spatial point, independent of the other trials.\n";
+    out << "# Reference: midpoint with Nv=" << reference_nv << ", not independently certified.\n";
+    out << "# Normalisation: peak electron/ion reference density; charge uses peak total |q|n.\n";
+    out << "# Nv mid_e mid_i mid_charge mc_rms_e mc_rms_i mc_rms_charge"
+           " mc_min_e mc_min_i mc_min_charge mc_max_e mc_max_i mc_max_charge\n";
+
+    for (size_t nv : nv_values){
+        std::vector<double> ne(nx_test), ni(nx_test);
+        #pragma omp parallel for
+        for (size_t ix = 0; ix < nx_test; ++ix){
+            double x = x_min+(ix+0.5)*(x_max-x_min)/nx_test;
+            ne[ix] = density_quadrature<order>(n,x,nv,coeffs.data(),conf_e,QuadratureRule::midpoint);
+            ni[ix] = density_quadrature<order>(n,x,nv,coeffs.data(),conf_i,QuadratureRule::midpoint);
+        }
+        DensityErrors mid = max_density_errors(ne,ni,ref_e,ref_i,scales);
+        DensityErrors mc_sum_sq, mc_min = {1e300,1e300,1e300}, mc_max;
+        for (size_t trial = 0; trial < trials; ++trial){
+            #pragma omp parallel for
+            for (size_t ix = 0; ix < nx_test; ++ix){
+                double x = x_min+(ix+0.5)*(x_max-x_min)/nx_test;
+                std::mt19937_64 rng_e(mc_seed(n,nv,ix,trial,0));
+                std::mt19937_64 rng_i(mc_seed(n,nv,ix,trial,1));
+                ne[ix] = density_monte_carlo<order>(n,x,nv,coeffs.data(),conf_e,rng_e);
+                ni[ix] = density_monte_carlo<order>(n,x,nv,coeffs.data(),conf_i,rng_i);
+            }
+            DensityErrors err = max_density_errors(ne,ni,ref_e,ref_i,scales);
+            mc_sum_sq.e += err.e*err.e;
+            mc_sum_sq.i += err.i*err.i;
+            mc_sum_sq.charge += err.charge*err.charge;
+            mc_min.e = std::min(mc_min.e,err.e);
+            mc_min.i = std::min(mc_min.i,err.i);
+            mc_min.charge = std::min(mc_min.charge,err.charge);
+            mc_max.e = std::max(mc_max.e,err.e);
+            mc_max.i = std::max(mc_max.i,err.i);
+            mc_max.charge = std::max(mc_max.charge,err.charge);
+        }
+        DensityErrors mc_rms = {std::sqrt(mc_sum_sq.e/trials), std::sqrt(mc_sum_sq.i/trials),
+                                std::sqrt(mc_sum_sq.charge/trials)};
+        out << nv << ' ' << mid.e << ' ' << mid.i << ' ' << mid.charge
+            << ' ' << mc_rms.e << ' ' << mc_rms.i << ' ' << mc_rms.charge
+            << ' ' << mc_min.e << ' ' << mc_min.i << ' ' << mc_min.charge
+            << ' ' << mc_max.e << ' ' << mc_max.i << ' ' << mc_max.charge << '\n';
+        out.flush();
+        std::cout << "Nv=" << nv << "  midpoint(e,i,charge)=" << mid.e << ", " << mid.i
+                  << ", " << mid.charge << "  MC RMS=" << mc_rms.e << ", "
+                  << mc_rms.i << ", " << mc_rms.charge << '\n';
+    }
+    out.close();
+
+    std::ofstream gp(gp_name);
+    if (!gp) throw std::runtime_error("Cannot write " + gp_name);
+    gp << "set terminal pngcairo size 1600,540 enhanced\n";
+    gp << "set output '" << png_name << "'\n";
+    gp << "set multiplot layout 1,3 title 'Uniform Monte Carlo vs midpoint; t=" << n*dt
+       << ", trials=" << trials << ", reference Nv=" << reference_nv << "'\n";
+    gp << "set logscale xy\nset grid\nset format y '10^{%L}'\n";
+    gp << "set xlabel 'Nv (eval_f calls per estimate)'\n";
+    gp << "set ylabel 'Relative max spatial error'\nset key left bottom\n";
+    for (size_t j = 0; j < 3; ++j){
+        gp << "set title '" << (j == 0 ? "Electron density" : j == 1 ? "Ion density" : "Charge / total density") << "'\n";
+        gp << "plot '" << data_name << "' using 1:" << j+2
+           << " with linespoints linewidth 2 pointtype 7 title 'Midpoint', \\\n";
+        gp << "     '" << data_name << "' using 1:" << j+5
+           << " with linespoints linewidth 2 pointtype 5 title 'MC RMS', \\\n";
+        gp << "     1e-3 with lines dashtype 2 linecolor rgb 'gray' title '0.1% target'\n";
+    }
+    gp << "unset multiplot\n";
+    gp.close();
+
+    std::cout << "Saved " << data_name << " and " << gp_name << '\n';
+    // Gnuplot is optional. The script can always be run manually if unavailable.
+    if (std::system(("gnuplot '"+gp_name+"'").c_str()) == 0)
+        std::cout << "Saved " << png_name << '\n';
+    else
+        std::cout << "Run 'gnuplot " << gp_name << "' to generate the PNG.\n";
+    std::cout << "Warning: accuracy is measured against a midpoint reference; "
+                 "increase reference_Nv and verify convergence before interpreting 0.1% as absolute accuracy.\n";
+}
+
 } // namespace relativistic
 } // namespace periodic
 } // namespace dim1
@@ -409,24 +608,34 @@ void quadrature_error_from_coeffs(size_t n, size_t Nx, size_t Nu_e, size_t Nu_i,
 
 int main(int argc, char **argv)
 {
-    if (argc < 6 || argc > 9){
+    if (argc < 6 || argc > 10){
         std::cerr << "Usage: " << argv[0]
                   << " <time_step> <Nx> <Nu_e> <Nu_i> <rule> [nx_test] [coeffs_file] [np_plot]\n"
-                  << "Rules: midpoint, simpson, boole, gauss4, gauss8\n";
+                  << "       " << argv[0]
+                  << " <time_step> <Nx> <Nu_e> <Nu_i> mc [nx_test] [coeffs_file] [trials] [reference_Nv]\n"
+                  << "Rules: midpoint, simpson, boole, gauss4, gauss8, mc\n";
         return 1;
     }
     try {
+        size_t n = std::stoul(argv[1]), Nx = std::stoul(argv[2]);
+        size_t Nu_e = std::stoul(argv[3]), Nu_i = std::stoul(argv[4]);
         size_t nx_test = argc > 6 ? std::stoul(argv[6]) : 32;
         std::string filename = argc > 7 ? argv[7] : "coeffs_cmm.txt";
-        size_t np_plot = argc > 8 ? std::stoul(argv[8]) : 4096;
-        auto rule = nufi::dim1::periodic::relativistic::parse_rule(argv[5]);
-        nufi::dim1::periodic::relativistic::quadrature_error_from_coeffs<4>(
-            std::stoul(argv[1]),std::stoul(argv[2]),std::stoul(argv[3]),
-            std::stoul(argv[4]),rule,nx_test,filename,np_plot);
+        if (std::string(argv[5]) == "mc"){
+            size_t trials = argc > 8 ? std::stoul(argv[8]) : 4;
+            size_t reference_nv = argc > 9 ? std::stoul(argv[9]) : 32768;
+            nufi::dim1::periodic::relativistic::compare_mc_midpoint_from_coeffs<4>(
+                n,Nx,Nu_e,Nu_i,nx_test,filename,trials,reference_nv);
+        } else {
+            if (argc > 9) throw std::invalid_argument("Too many arguments for this rule");
+            size_t np_plot = argc > 8 ? std::stoul(argv[8]) : 4096;
+            auto rule = nufi::dim1::periodic::relativistic::parse_rule(argv[5]);
+            nufi::dim1::periodic::relativistic::quadrature_error_from_coeffs<4>(
+                n,Nx,Nu_e,Nu_i,rule,nx_test,filename,np_plot);
+        }
     } catch (const std::exception &e){
         std::cerr << "Error: " << e.what() << "\n";
         return 1;
     }
     return 0;
 }
-

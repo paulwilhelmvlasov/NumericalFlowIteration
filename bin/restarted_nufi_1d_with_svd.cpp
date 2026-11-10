@@ -144,8 +144,8 @@ void test_rsvd()
 namespace dim1
 {
 
-size_t Nx = 32;  // Number of grid points in physical space.
-size_t Nu = 64;  // Number of quadrature points in velocity space.
+size_t Nx = 256;  // Number of grid points in physical space.
+size_t Nu = 256;  // Number of quadrature points in velocity space.
 double   dt = 1.0/10.0;  // Time-step size.
 size_t Nt = 100/dt;  // Number of time-steps.
 
@@ -160,13 +160,13 @@ double u_max = 10;
 
 size_t nx_r = Nx;
 size_t nu_r = Nu;
-size_t nt_restart = 1;
+size_t nt_restart = 20;
 //size_t nt_restart = Nt + 2;
 double dx_r = (x_max - x_min) / nx_r;
 double du_r = (u_max - u_min) / nu_r;
 
-size_t max_rank = 50;
-double tol_rank = 1e-2;
+size_t max_rank = 8;
+double tol_rank = 1e-16;
 
 std::ofstream truncation_ranks_str;
 
@@ -1616,9 +1616,9 @@ void run_restarted_simulation(bool with_svd_compression = true)
     	{
             if(with_svd_compression)
             {
-                restart_with_conservative_rsvd_compression_analytic_f1<order>(nt_r_curr,n,coeffs_restart.get(),conf,total_time,max_rank,tol_rank);
+                //restart_with_conservative_rsvd_compression_analytic_f1<order>(nt_r_curr,n,coeffs_restart.get(),conf,total_time,max_rank,tol_rank);
                 //restart_with_conservative_rsvd_compression_5th_order<order>(nt_r_curr,n,coeffs_restart.get(),conf,total_time);
-                //restart_with_rsvd_compression<order>(nt_r_curr,n,coeffs_restart.get(),conf,total_time, tol_rank, max_rank);
+                restart_with_rsvd_compression<order>(nt_r_curr,n,coeffs_restart.get(),conf,total_time, tol_rank, max_rank);
                 //restart_with_conservative_rsvd_compression<order>(nt_r_curr,n,coeffs_restart.get(),conf,total_time);
             } else {
                 restart_with_full_matrix<order>(nt_r_curr,n,coeffs_restart.get(),conf,total_time);
