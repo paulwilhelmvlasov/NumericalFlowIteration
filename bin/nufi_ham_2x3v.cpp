@@ -166,6 +166,70 @@ double f0_ion(double x, double y, double u, double v, double w)
 
 }
 
+// Non-relativistic electron-positron double Harris sheet in NuFI units.
+namespace pair_double_harris
+{
+
+const double Lx = 16;
+const double Ly = 24;
+const double a = 1;
+const double n0 = 1;        // Harris peak number density per species, per sheet
+const double nb = 0.2;      // Stationary background number density per species
+const double vth = 0.1;     // Standard deviation of each velocity component
+const double T = vth*vth;  // m = 1
+const double Bpeak = std::sqrt(4*n0*T); // mu0 = 1; total Harris pressure = 2*n0*T
+const double drift = Bpeak/(2*n0*a);    // |jz| = 2*n0*drift = |d_y Bx|
+//const double perturbation = 0;       // Set to zero for the equilibrium test
+const double perturbation = 0.02;       // Set to zero for the equilibrium test
+
+inline double sheet(double y, double centre) noexcept
+{
+    const double c = std::cosh((y-centre)/a);
+    return 1/(c*c);
+}
+
+inline double maxwellian(double v, double mean = 0) noexcept
+{
+    const double z = (v-mean)/vth;
+    return std::exp(-0.5*z*z)/(std::sqrt(2*M_PI)*vth);
+}
+
+double f0_electron(double x, double y, double u, double v, double w) noexcept
+{
+    const double h1 = sheet(y,0.25*Ly);
+    const double h2 = sheet(y,0.75*Ly);
+    return maxwellian(u)*maxwellian(v) *
+        (nb*maxwellian(w) + n0*h1*maxwellian(w,+drift) + n0*h2*maxwellian(w,-drift));
+}
+
+double f0_positron(double x, double y, double u, double v, double w) noexcept
+{
+    const double h1 = sheet(y,0.25*Ly);
+    const double h2 = sheet(y,0.75*Ly);
+    return maxwellian(u)*maxwellian(v) *
+        (nb*maxwellian(w) + n0*h1*maxwellian(w,-drift) + n0*h2*maxwellian(w,+drift));
+}
+
+template<typename real>
+arma::Col<real> E0(real x, real y, real z)
+{
+    return arma::Col<real>({0,0,0});
+}
+
+template<typename real>
+arma::Col<real> B0(real x, real y, real z)
+{
+    const real kx = 2*M_PI/Lx;
+    const real ky = 2*M_PI/Ly;
+    const real bx = Bpeak*(std::tanh((y-0.25*Ly)/a) - std::tanh((y-0.75*Ly)/a) - 1)
+                  + perturbation*Bpeak*(ky/kx)*std::cos(kx*x)*std::cos(ky*y);
+    const real by = perturbation*Bpeak*std::sin(kx*x)*std::sin(ky*y);
+    return arma::Col<real>({bx,by,0});
+}
+
+} // namespace pair_double_harris
+
+
 namespace electron_ion_shock
 {
 
@@ -278,7 +342,7 @@ const double wmin_i = -5*vth_ion;
 const double wmax_i = 5*vth_ion; */
 
 // Rotated Filamentation instability 
-const double Lx = std::sqrt(2)*M_PI;
+/* const double Lx = std::sqrt(2)*M_PI;
 const double xmin = 0;
 const double xmax = Lx;
 const double Ly = std::sqrt(2)*M_PI;
@@ -290,19 +354,12 @@ const double vmin_e = -1.5;
 const double vmax_e = 1.5;
 const double wmin_e = -0.5;
 const double wmax_e = 0.5;
-/* const double vth_ion = 1e-8;
-const double umin_i = -5*vth_ion;
-const double umax_i = 5*vth_ion;
-const double vmin_i = -5*vth_ion;
-const double vmax_i = 5*vth_ion;
-const double wmin_i = -5*vth_ion;
-const double wmax_i = 5*vth_ion; */
 const double umin_i = -0.1;
 const double umax_i = 0.1;
 const double vmin_i = -0.1;
 const double vmax_i = 0.1;
 const double wmin_i = -0.1;
-const double wmax_i = 0.1;
+const double wmax_i = 0.1; */
 
 // Fabio (non-relativistic) electron-ion shock
 /* const double Lx = electron_ion_shock::Lx;
@@ -344,16 +401,32 @@ double vmax_i = 5*ipic_double_harris::vth_ion;
 double wmin_i = -5*ipic_double_harris::wth_ion;
 double wmax_i = 5*ipic_double_harris::wth_ion; */
 
+// ** New ** Electron-Positron Magnetic reconnection.
+const double Lx = pair_double_harris::Lx;
+const double xmin = 0;
+const double xmax = Lx;
+const double Ly = pair_double_harris::Ly;
+const double ymin = 0;
+const double ymax = Ly;
+
+const double umin_e = -0.6, umax_e = 0.6;
+const double vmin_e = -0.6, vmax_e = 0.6;
+const double wmin_e = -0.6, wmax_e = 0.6;
+
+const double umin_i = -0.6, umax_i = 0.6;
+const double vmin_i = -0.6, vmax_i = 0.6;
+const double wmin_i = -0.6, wmax_i = 0.6;
+
 
 // Careful: Electrons and ions must have the same underlying spatial (x,y) grid!
-const size_t Nx = 64;
-const size_t Ny = 64;
-const size_t Nu_e = 64;
-const size_t Nv_e = 64;
-const size_t Nw_e = 64;
-const size_t Nu_i = 64;
-const size_t Nv_i = 64;
-const size_t Nw_i = 64;
+const size_t Nx = 16;
+const size_t Ny = 32;
+const size_t Nu_e = 16;
+const size_t Nv_e = 16;
+const size_t Nw_e = 16;
+const size_t Nu_i = 16;
+const size_t Nv_i = 16;
+const size_t Nw_i = 16;
 /* const size_t Nx = 16;
 const size_t Ny = 1;
 const size_t Nu_e = 16;
@@ -362,7 +435,7 @@ const size_t Nw_e = 16;
 const size_t Nu_i = 16;
 const size_t Nv_i = 16;
 const size_t Nw_i = 16; */
-const size_t steps_per_1 = 50;
+const size_t steps_per_1 = 10;
 const double   dt = 1.0 / steps_per_1;
 const size_t Nt = 100/dt;
 
@@ -371,7 +444,7 @@ bool gauss_clean = false;
 bool with_filter = false;
 
 //size_t nt_restart = Nt + 1;
-size_t nt_restart = 50;
+size_t nt_restart = 5;
 
 const size_t nx_r = Nx;
 const size_t ny_r = Ny;
@@ -420,17 +493,20 @@ real f0_2x3v_electron(real x, real y, real u, real v, real w) noexcept
     return 0.5 * (maxwellian_2d<real>(u,v-v_beam,vth) + maxwellian_2d<real>(u,v+v_beam,vth)) * maxwellian_1d(w,1.0); */
 
     // Rotated Filamentation instability
-    real v_beam = 0.4;
+    /* real v_beam = 0.4;
     real vth = 0.1;
     real vs = (u + v) / std::sqrt(2);
     real vr = (u - v) / std::sqrt(2);
-    return 0.5 * maxwellian_1d<real>(vs,vth) * ( maxwellian_1d<real>(vr - v_beam,vth) + maxwellian_1d<real>(vr + v_beam,vth) ) * maxwellian_1d(w,vth);
+    return 0.5 * maxwellian_1d<real>(vs,vth) * ( maxwellian_1d<real>(vr - v_beam,vth) + maxwellian_1d<real>(vr + v_beam,vth) ) * maxwellian_1d(w,vth); */
 
     // Fabio (non-relativistic) electron-ion shock
     //return electron_ion_shock::f0_e_1x2v(x,u,v);
 
     // Magnetic reconnection: Double Harris.
     //return ipic_double_harris::f0_electron(x,y,u,v,w);
+
+    // **New** Electron-Positron Magnetic Reconnection
+    return pair_double_harris::f0_electron(x,y,u,v,w);
 }
 
 template <typename real>
@@ -445,14 +521,17 @@ real f0_2x3v_ion(real x, real y, real u, real v, real w) noexcept
 
     // Maxwellian
     //double vth = vth_ion;
-    double vth = 0.02; // Assuming mass ratio 25.
-    return maxwellian_1d(u,vth) * maxwellian_1d(v,vth) * maxwellian_1d(w,vth);
+    /* double vth = 0.02; // Assuming mass ratio 25.
+    return maxwellian_1d(u,vth) * maxwellian_1d(v,vth) * maxwellian_1d(w,vth); */
 
     // Fabio (non-relativistic) electron-ion shock
     //return electron_ion_shock::f0_i_1x2v(x,u,v);
 
     // Magnetic Reconnection: Double Harris.
     //return ipic_double_harris::f0_ion(x,y,u,v,w);
+
+    // **New** Electron-Positron Magnetic Reconnection
+    return pair_double_harris::f0_positron(x,y,u,v,w);
 }
 
 template <typename real>
@@ -484,16 +563,19 @@ arma::Col<real> B0(real x, real y, real z)
     return arma::Col<real>({0, 0, beta*std::sin(trigger_k*x)}); */
 
     // Rotated Filamentation instability
-    constexpr real beta = 1e-3;
+    /* constexpr real beta = 1e-3;
     constexpr real trigger_k = 2;
     real s = (x+y)/std::sqrt(2);
-    return arma::Col<real>({0, 0, beta*std::sin(trigger_k*s)});
+    return arma::Col<real>({0, 0, beta*std::sin(trigger_k*s)}); */
 
     // Electro-static: Landau Damping & TSI
     //return arma::Col<real>({0, 0, electron_ion_shock::B0z});
 
     // Magnetic Reconnection: Double Harris.
     //return ipic_double_harris::B0(x,y,z);
+
+    // **New** Electron-Positron Magnetic Reconnection
+    return pair_double_harris::B0(x,y,z);
 }
 
 template<typename real, size_t order>
@@ -578,9 +660,10 @@ void do_stats_2x3v(size_t nt, double kinetic_energy, double entropy, std::ofstre
     }
 
     #pragma omp parallel for reduction(+:magnetic_flux)
-    for(size_t ix = 0; ix < nx_plot; ix++){
+    //for(size_t ix = 0; ix < nx_plot; ix++){
+    for(size_t ix = 0; ix < nx_plot/2; ix++){
         double x = conf.x_min + (ix+0.5)*dx_plot;
-        double y = 0; // Probably wrong for double harris and should rather be the side of one of the sheets.
+        double y = 0.25*Ly; 
 
         double By = eval<real,order>(x,y,coeffs_By.data() + nt*stride_t,conf);
 
@@ -1387,7 +1470,7 @@ void periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned(size
     conf_ion.dw = (wmax_i - wmin_i) / Nw_i;
     conf_ion.q = 1;
     //conf_ion.m = ipic_double_harris::mi;
-    conf_ion.m = 25 * conf_electron.m;
+    conf_ion.m = conf_electron.m;
     conf_ion.f0_2x3v = f0_2x3v_ion;
 
 
@@ -1708,7 +1791,7 @@ void periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned(size
         Ez_hat_im[0] = 0.0;
 
         // 2) H_B.
-        for (size_t my = 0; my < Ny; my++) {
+/*         for (size_t my = 0; my < Ny; my++) {
             int ky_mode = fourier_mode_1d(my, Ny);
             double ky = two_pi_over_Ly * ky_mode;
 
@@ -1776,7 +1859,63 @@ void periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned(size
                 Bz_hat_im[m] -= dt * (-tmp_re);
             }
         }
+ */
 
+        // 2) H_B.
+        for (size_t my = 0; my < Ny; my++) {
+            int ky_mode = fourier_mode_1d(my, Ny);
+            double ky = two_pi_over_Ly * ky_mode;
+
+            for (size_t mx = 0; mx < Nx; mx++) {
+                int kx_mode = fourier_mode_1d(mx, Nx);
+                double kx = two_pi_over_Lx * kx_mode;
+                size_t m = my * Nx + mx;
+
+                double bx_re = Bx_hat_re[m], bx_im = Bx_hat_im[m];
+                double by_re = By_hat_re[m], by_im = By_hat_im[m];
+                double bz_re = Bz_hat_re[m], bz_im = Bz_hat_im[m];
+
+                Ex_hat_re[m] += dt * (-ky * bz_im);
+                Ex_hat_im[m] += dt * ( ky * bz_re);
+
+                Ey_hat_re[m] += dt * ( kx * bz_im);
+                Ey_hat_im[m] += dt * (-kx * bz_re);
+
+                double tmp_re = kx * by_re - ky * bx_re;
+                double tmp_im = kx * by_im - ky * bx_im;
+
+                Ez_hat_re[m] += dt * (-tmp_im);
+                Ez_hat_im[m] += dt * ( tmp_re);
+            }
+        }
+
+        // 3) H_E.
+        for (size_t my = 0; my < Ny; my++) {
+            int ky_mode = fourier_mode_1d(my, Ny);
+            double ky = two_pi_over_Ly * ky_mode;
+
+            for (size_t mx = 0; mx < Nx; mx++) {
+                int kx_mode = fourier_mode_1d(mx, Nx);
+                double kx = two_pi_over_Lx * kx_mode;
+                size_t m = my * Nx + mx;
+
+                double ex_re = Ex_hat_re[m], ex_im = Ex_hat_im[m];
+                double ey_re = Ey_hat_re[m], ey_im = Ey_hat_im[m];
+                double ez_re = Ez_hat_re[m], ez_im = Ez_hat_im[m];
+
+                Bx_hat_re[m] += dt * ( ky * ez_im);
+                Bx_hat_im[m] += dt * (-ky * ez_re);
+
+                By_hat_re[m] += dt * (-kx * ez_im);
+                By_hat_im[m] += dt * ( kx * ez_re);
+
+                double tmp_re = kx * ey_re - ky * ex_re;
+                double tmp_im = kx * ey_im - ky * ex_im;
+
+                Bz_hat_re[m] += dt * ( tmp_im);
+                Bz_hat_im[m] += dt * (-tmp_re);
+            }
+        }
         // IFFT Ex
         for (size_t l = 0; l < Nx*Ny; l++) {
             fft_out[l][0] = Ex_hat_re[l];
@@ -1929,8 +2068,8 @@ void periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned(size
         write_coeffs_to_disk<order>(nt_r_curr,coeff_str,coeffs_Ex,coeffs_Ey,coeffs_Ez,coeffs_Bx,coeffs_By,coeffs_Bz);
         
         // Statistics.
-        bool comp_kin_energy = true;
-        bool plot_f = (n % (1*steps_per_1) == 0);
+        bool comp_kin_energy = (n % steps_per_1 == 0);
+        bool plot_f = (n % (2*steps_per_1) == 0);
         if(comp_kin_energy){
             if(plot_f){
                 kinetic_energy_and_entropy_2x3v<double,order>(nt_r_curr, placeholder_file, coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz, conf_electron, conf_ion, kinetic_energy, entropy, true, n, plotting_N,plotting_N,1,1,1,1,1,1,true,"_xy");
@@ -2056,7 +2195,7 @@ void periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned_mpi(
     conf_ion.dw = (wmax_i - wmin_i) / Nw_i;
     conf_ion.q = 1;
     //conf_ion.m = ipic_double_harris::mi;
-    conf_ion.m = 25 * conf_electron.m;
+    conf_ion.m = conf_electron.m;
     conf_ion.f0_2x3v = f0_2x3v_ion;
 
     if(mpi_rank == 0){
@@ -2413,7 +2552,7 @@ void periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned_mpi(
         Ez_hat_im[0] = 0.0;
 
         // 2) H_B.
-        for (size_t my = 0; my < Ny; my++) {
+        /* for (size_t my = 0; my < Ny; my++) {
             int ky_mode = fourier_mode_1d(my, Ny);
             double ky = two_pi_over_Ly * ky_mode;
 
@@ -2479,6 +2618,62 @@ void periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned_mpi(
 
                 Bz_hat_re[m] -= dt * ( tmp_im);
                 Bz_hat_im[m] -= dt * (-tmp_re);
+            }
+        } */
+
+        // 2) H_B.
+        for (size_t my = 0; my < Ny; my++) {
+            int ky_mode = fourier_mode_1d(my, Ny);
+            double ky = two_pi_over_Ly * ky_mode;
+
+            for (size_t mx = 0; mx < Nx; mx++) {
+                int kx_mode = fourier_mode_1d(mx, Nx);
+                double kx = two_pi_over_Lx * kx_mode;
+                size_t m = my * Nx + mx;
+
+                double bx_re = Bx_hat_re[m], bx_im = Bx_hat_im[m];
+                double by_re = By_hat_re[m], by_im = By_hat_im[m];
+                double bz_re = Bz_hat_re[m], bz_im = Bz_hat_im[m];
+
+                Ex_hat_re[m] += dt * (-ky * bz_im);
+                Ex_hat_im[m] += dt * ( ky * bz_re);
+
+                Ey_hat_re[m] += dt * ( kx * bz_im);
+                Ey_hat_im[m] += dt * (-kx * bz_re);
+
+                double tmp_re = kx * by_re - ky * bx_re;
+                double tmp_im = kx * by_im - ky * bx_im;
+
+                Ez_hat_re[m] += dt * (-tmp_im);
+                Ez_hat_im[m] += dt * ( tmp_re);
+            }
+        }
+
+        // 3) H_E.
+        for (size_t my = 0; my < Ny; my++) {
+            int ky_mode = fourier_mode_1d(my, Ny);
+            double ky = two_pi_over_Ly * ky_mode;
+
+            for (size_t mx = 0; mx < Nx; mx++) {
+                int kx_mode = fourier_mode_1d(mx, Nx);
+                double kx = two_pi_over_Lx * kx_mode;
+                size_t m = my * Nx + mx;
+
+                double ex_re = Ex_hat_re[m], ex_im = Ex_hat_im[m];
+                double ey_re = Ey_hat_re[m], ey_im = Ey_hat_im[m];
+                double ez_re = Ez_hat_re[m], ez_im = Ez_hat_im[m];
+
+                Bx_hat_re[m] += dt * ( ky * ez_im);
+                Bx_hat_im[m] += dt * (-ky * ez_re);
+
+                By_hat_re[m] += dt * (-kx * ez_im);
+                By_hat_im[m] += dt * ( kx * ez_re);
+
+                double tmp_re = kx * ey_re - ky * ex_re;
+                double tmp_im = kx * ey_im - ky * ex_im;
+
+                Bz_hat_re[m] += dt * ( tmp_im);
+                Bz_hat_im[m] += dt * (-tmp_re);
             }
         }
 
@@ -2652,7 +2847,7 @@ void periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned_mpi(
         }
         
         // Statistics.
-        bool comp_kin_energy = true;
+        bool comp_kin_energy = (n % steps_per_1 == 0);
         bool plot_f = (n % (10*steps_per_1) == 0);
         if(comp_kin_energy){
             if(plot_f){
@@ -2761,11 +2956,11 @@ void periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned_mpi(
 int main(int argc, char** argv)
 {
  
-    //nufi::dim2::periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned<4>(1024);
+    nufi::dim2::periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned<4>(64);
     
-    MPI_Init(&argc, &argv);
+    /* MPI_Init(&argc, &argv);
     nufi::dim2::periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned_mpi<4>();
-    MPI_Finalize();
+    MPI_Finalize(); */
 
     return 0;
 }

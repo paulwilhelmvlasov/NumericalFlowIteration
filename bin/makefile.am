@@ -4,7 +4,7 @@ nufi_3d_maxwell_multi_species  nufi_pc_3d_multi_species \
 restarted_nufi_1d_with_svd restarted_nufi_2d_with_svd restarted_nufi_3d_with_svd nufi_cmm_1d \
 nufi_ham_1x2v nufi_ham_2x3v wendland_test nufi_cmm_kernel_1d conservative_sat_lowrank_nufi relativistic_nufi_1d \
 relativistic_cmm_nufi_multispecies relativistic_quadrature_test restarted_nufi_1d_exactly_conserving_mass_momentum \
-restarted_nufi_1d_cubic_bspline_fe_lr nufi_ham_1x2v_fe_lr restarted_nufi_1d_constrained_f1_fe_lr
+restarted_nufi_1d_cubic_bspline_fe_lr nufi_ham_1x2v_conservative_fe_lr restarted_nufi_1d_constrained_f1_fe_lr
 #test_lsmr restarted_nufi_1d_with_htensor restarted_nufi_2d_with_htensor restarted_nufi_3d_with_htensor 
 
 test_nufi_cpu_SOURCES = test_nufi_cpu.cpp
@@ -95,9 +95,9 @@ restarted_nufi_1d_cubic_bspline_fe_lr_SOURCES = restarted_nufi_1d_cubic_bspline_
 restarted_nufi_1d_cubic_bspline_fe_lr_LDADD   = $(top_builddir)/nufi/libnufi.a 
 restarted_nufi_1d_cubic_bspline_fe_lr_LDADD  += $(BLAS_LIBS) -larmadillo -lgfortran -lfftw3 -lfftw3f
 
-nufi_ham_1x2v_fe_lr_SOURCES = nufi_ham_1x2v_fe_lr.cpp
-nufi_ham_1x2v_fe_lr_LDADD   = $(top_builddir)/nufi/libnufi.a 
-nufi_ham_1x2v_fe_lr_LDADD  += $(BLAS_LIBS) -larmadillo -lgfortran -lfftw3 -lfftw3f
+nufi_ham_1x2v_conservative_fe_lr_SOURCES = nufi_ham_1x2v_conservative_fe_lr.cpp
+nufi_ham_1x2v_conservative_fe_lr_LDADD   = $(top_builddir)/nufi/libnufi.a 
+nufi_ham_1x2v_conservative_fe_lr_LDADD  += $(BLAS_LIBS) -larmadillo -lgfortran -lfftw3 -lfftw3f
 
 restarted_nufi_1d_constrained_f1_fe_lr_SOURCES = restarted_nufi_1d_constrained_f1_fe_lr.cpp
 restarted_nufi_1d_constrained_f1_fe_lr_LDADD   = $(top_builddir)/nufi/libnufi.a 

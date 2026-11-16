@@ -83,8 +83,8 @@ const double qe = -1;
 const double qi = 1;
 
 const double gamma_e0 = 2;
-const double gamma_i0 = 1 + (me/mi)*(gamma_e0 - 1); // Equal kinetic energy case
-//const double gamma_i0 = gamma_e0; // Equal drift speed case
+//const double gamma_i0 = 1 + (me/mi)*(gamma_e0 - 1); // Equal kinetic energy case
+const double gamma_i0 = gamma_e0; // Equal drift speed case
 const double p0_e = me*light_speed*std::sqrt(gamma_e0*gamma_e0 - 1);
 const double p0_i = mi*light_speed*std::sqrt(gamma_i0*gamma_i0 - 1);
 
@@ -484,13 +484,13 @@ void reconstruct_f(size_t n, size_t nx_plot, size_t np_plot)
 
 template<size_t order>
 void reconstruct_gamma_distribution(size_t n, size_t nx_plot, size_t np_quad = 2,
-                                    double gamma_max_e = 30.0, double dgamma_e = 0.002,
-                                    double gamma_max_i = 1.02, double dgamma_i = 1e-5)
+                                    double gamma_max_e = 30.0, double dgamma_e = 0.01,
+                                    double gamma_max_i = 2.15, double dgamma_i = 1e-3)
 {
-    size_t Nx = 256;
+    size_t Nx = 128;
     size_t Nu_e = 4096;
     size_t Nu_i = 1024;
-    size_t steps_per_1 = 20;
+    size_t steps_per_1 = 10;
     double dt = 1.0/steps_per_1;
     size_t Nt = 1000*steps_per_1;
 
@@ -566,8 +566,8 @@ void reconstruct_gamma_distribution(size_t n, size_t nx_plot, size_t np_quad = 2
                   << std::setprecision(16) << kinetic_energy << std::endl;
     };
 
-    compute(conf_e,"e",gamma_max_e,dgamma_e);
-    //compute(conf_i,"i",gamma_max_i,dgamma_i);
+    //compute(conf_e,"e",gamma_max_e,dgamma_e);
+    compute(conf_i,"i",gamma_max_i,dgamma_i);
 }
 
 }
@@ -581,6 +581,6 @@ int main()
 
     //nufi::dim1::periodic::relativistic::reconstruct_f<4>(20*1000,256,2048);
 
-    nufi::dim1::periodic::relativistic::reconstruct_gamma_distribution<4>(20000,128,2);
+    nufi::dim1::periodic::relativistic::reconstruct_gamma_distribution<4>(10000,128,2);
 }
 
