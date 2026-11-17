@@ -1309,9 +1309,12 @@ real eval_f_nufi_ham_lie_Hf_HB_HE_2x3v(size_t n, real x, real y, real u, real v,
 
         // exact rotation
         // scale with timestep and charge
-        real theta_x = -conf.dt * q_over_m * Bx;
+        /* real theta_x = -conf.dt * q_over_m * Bx;
         real theta_y = -conf.dt * q_over_m * By;
-        real theta_z = -conf.dt * q_over_m * Bz;
+        real theta_z = -conf.dt * q_over_m * Bz; */
+        real theta_x = conf.dt * q_over_m * Bx;
+        real theta_y = conf.dt * q_over_m * By;
+        real theta_z = conf.dt * q_over_m * Bz;
 
         // magnitude
         real theta = std::sqrt(theta_x*theta_x + theta_y*theta_y + theta_z*theta_z);

@@ -170,17 +170,17 @@ double f0_ion(double x, double y, double u, double v, double w)
 namespace pair_double_harris
 {
 
-const double Lx = 16;
-const double Ly = 24;
+const double Lx = 20.5;
+const double Ly = 41.0;
 const double a = 1;
-const double n0 = 1;        // Harris peak number density per species, per sheet
-const double nb = 0.2;      // Stationary background number density per species
-const double vth = 0.1;     // Standard deviation of each velocity component
+const double n0 = 3.125;        // Harris peak number density per species, per sheet
+const double nb = 0.0;      // Stationary background number density per species
+const double vth = std::sqrt(0.02);    // Standard deviation of each velocity component
 const double T = vth*vth;  // m = 1
 const double Bpeak = std::sqrt(4*n0*T); // mu0 = 1; total Harris pressure = 2*n0*T
 const double drift = Bpeak/(2*n0*a);    // |jz| = 2*n0*drift = |d_y Bx|
-const double perturbation = 0;       // Set to zero for the equilibrium test
-//const double perturbation = 0.02;       // Set to zero for the equilibrium test
+//const double perturbation = 0;       // Set to zero for the equilibrium test
+const double perturbation = 0.01;       // Set to zero for the equilibrium test
 
 inline double sheet(double y, double centre) noexcept
 {
@@ -219,7 +219,7 @@ arma::Col<real> E0(real x, real y, real z)
 template<typename real>
 arma::Col<real> B0(real x, real y, real z)
 {
-    const real kx = 2*M_PI/Lx;
+    const real kx = 4*M_PI/Lx;
     const real ky = 2*M_PI/Ly;
     const real bx = Bpeak*(std::tanh((y-0.25*Ly)/a) - std::tanh((y-0.75*Ly)/a) - 1)
                   + perturbation*Bpeak*(ky/kx)*std::cos(kx*x)*std::cos(ky*y);
@@ -409,13 +409,13 @@ const double Ly = pair_double_harris::Ly;
 const double ymin = 0;
 const double ymax = Ly;
 
-const double umin_e = -0.6, umax_e = 0.6;
-const double vmin_e = -0.6, vmax_e = 0.6;
-const double wmin_e = -0.6, wmax_e = 0.6;
+const double umin_e = -6*pair_double_harris::vth, umax_e = 6*pair_double_harris::vth;
+const double vmin_e = -6*pair_double_harris::vth, vmax_e = 6*pair_double_harris::vth;
+const double wmin_e = -6*pair_double_harris::vth, wmax_e = 6*pair_double_harris::vth;
 
-const double umin_i = -0.6, umax_i = 0.6;
-const double vmin_i = -0.6, vmax_i = 0.6;
-const double wmin_i = -0.6, wmax_i = 0.6;
+const double umin_i = -6*pair_double_harris::vth, umax_i = 6*pair_double_harris::vth;
+const double vmin_i = -6*pair_double_harris::vth, vmax_i = 6*pair_double_harris::vth;
+const double wmin_i = -6*pair_double_harris::vth, wmax_i = 6*pair_double_harris::vth;
 
 
 // Careful: Electrons and ions must have the same underlying spatial (x,y) grid!
@@ -424,9 +424,9 @@ const size_t Ny = 128;
 const size_t Nu_e = 16;
 const size_t Nv_e = 16;
 const size_t Nw_e = 16;
-const size_t Nu_i = 16;
-const size_t Nv_i = 16;
-const size_t Nw_i = 16;
+const size_t Nu_i = Nu_e;
+const size_t Nv_i = Nv_e;
+const size_t Nw_i = Nw_e;
 /* const size_t Nx = 16;
 const size_t Ny = 1;
 const size_t Nu_e = 16;
@@ -435,16 +435,16 @@ const size_t Nw_e = 16;
 const size_t Nu_i = 16;
 const size_t Nv_i = 16;
 const size_t Nw_i = 16; */
-const size_t steps_per_1 = 10;
+const size_t steps_per_1 = 20;
 const double   dt = 1.0 / steps_per_1;
-const size_t Nt = 100/dt;
+const size_t Nt = 1000/dt;
 
 bool strang_split = false; // Not implemented yet!
 bool gauss_clean = false;
 bool with_filter = false;
 
 //size_t nt_restart = Nt + 1;
-size_t nt_restart = 5;
+size_t nt_restart = 10;
 
 const size_t nx_r = Nx;
 const size_t ny_r = Ny;
@@ -1442,6 +1442,93 @@ void write_coeffs_to_disk(size_t nt_r_curr, std::ofstream& coeff_str,
     }
 }
 
+void write_ampere_residual(
+    size_t n,
+    const std::vector<double>& bx_re, const std::vector<double>& bx_im,
+    const std::vector<double>& by_re, const std::vector<double>& by_im,
+    const std::vector<double>& jz_re, const std::vector<double>& jz_im,
+    fftw_complex* fft_in, fftw_complex* fft_out, fftw_plan plan_bwd)
+{
+    const size_t N = Nx*Ny;
+    const double invN = 1.0/N;
+    std::vector<double> curlB(N);
+
+    // Spectral curl(B)_z = i*(kx*By - ky*Bx).
+    for(size_t iy = 0; iy < Ny; iy++){
+        const double ky = 2*M_PI/Ly*fourier_mode_1d(iy,Ny);
+        for(size_t ix = 0; ix < Nx; ix++){
+            const double kx = 2*M_PI/Lx*fourier_mode_1d(ix,Nx);
+            const size_t k = iy*Nx + ix;
+            fft_out[k][0] = ky*bx_im[k] - kx*by_im[k];
+            fft_out[k][1] = kx*by_re[k] - ky*bx_re[k];
+        }
+    }
+    fftw_execute(plan_bwd);
+    for(size_t k = 0; k < N; k++) curlB[k] = fft_in[k][0]*invN;
+
+    // Numerically integrated current divided by dt.
+    for(size_t k = 0; k < N; k++){
+        fft_out[k][0] = jz_re[k]/dt;
+        fft_out[k][1] = jz_im[k]/dt;
+    }
+    fftw_execute(plan_bwd);
+
+    std::ofstream out("ampere_" + std::to_string(n) + ".txt");
+    out << std::setprecision(17);
+    double rms = 0, max_error = 0;
+
+    for(size_t iy = 0; iy < Ny; iy++)
+    for(size_t ix = 0; ix < Nx; ix++){
+        const size_t k = iy*Nx + ix;
+        const double x = xmin + ix*Lx/Nx;
+        const double y = ymin + iy*Ly/Ny;
+        const double jz = fft_in[k][0]*invN;
+        const double residual = curlB[k] - jz;
+
+        out << x << " " << y << " " << curlB[k] << " "
+            << jz << " " << residual << "\n";
+
+        rms += residual*residual;
+        if(std::abs(residual) > max_error) max_error = std::abs(residual);
+    }
+
+    std::cout << "Ampere residual: RMS = " << std::sqrt(rms/N)
+              << ", Linf = " << max_error << std::endl;
+}
+
+template<size_t order>
+void check_frozen_equilibrium(
+    size_t nt,
+    const std::vector<double>& Ex, const std::vector<double>& Ey, const std::vector<double>& Ez,
+    const std::vector<double>& Bx, const std::vector<double>& By, const std::vector<double>& Bz)
+{
+    const double x = 0.5*Lx;
+    const double u = 0.05, v = 0.12, w = 0.08;
+    const double ys[] = {
+        0.25*Ly-0.7, 0.25*Ly, 0.25*Ly+0.7,
+        0.75*Ly-0.7, 0.75*Ly, 0.75*Ly+0.7
+    };
+
+    std::ofstream out("frozen_equilibrium.txt",
+                      nt == 0 ? std::ios::trunc : std::ios::app);
+    out << std::setprecision(17);
+
+    for(double y : ys){
+        const double fe = redux_2x3v::eval_f_nufi_ham_lie_Hf_HB_HE_2x3v<double,order>(
+            nt,x,y,u,v,w,Ex,Ey,Ez,Bx,By,Bz,conf_electron);
+
+        const double fp = redux_2x3v::eval_f_nufi_ham_lie_Hf_HB_HE_2x3v<double,order>(
+            nt,x,y,u,v,w,Ex,Ey,Ez,Bx,By,Bz,conf_ion);
+
+        const double fe0 = pair_double_harris::f0_electron(x,y,u,v,w);
+        const double fp0 = pair_double_harris::f0_positron(x,y,u,v,w);
+
+        out << nt*dt << " " << y << " "
+            << fe << " " << fe0 << " " << (fe-fe0)/fe0 << " "
+            << fp << " " << fp0 << " " << (fp-fp0)/fp0 << "\n";
+    }
+}
+
 template<size_t order>
 void periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned(size_t plotting_N = 256)
 {
@@ -1680,6 +1767,8 @@ void periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned(size
     std::ofstream coeff_str("coeff_str.txt");
     write_coeffs_to_disk<order>(0,coeff_str,coeffs_Ex,coeffs_Ey,coeffs_Ez,coeffs_Bx,coeffs_By,coeffs_Bz);
 
+    //check_frozen_equilibrium<order>(0,coeffs_Ex,coeffs_Ey,coeffs_Ez,coeffs_Bx,coeffs_By,coeffs_Bz);
+
     for (size_t n = 1; n <= Nt; n++) {
         nufi::stopwatch<double> timer;
 
@@ -1765,11 +1854,12 @@ void periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned(size
             Bz_hat_im[l] = fft_out[l][1];
         }
 
+
         // Fourier field update analogous to the Matlab code:
         // 1) H_f: Ex_hat -= Jx_int_hat, Ey_hat -= Jy_int_hat
         // 2) H_B: Ey_hat -= dt * (i k) * Bz_hat
         // 3) H_E: Bz_hat -= dt * (i k) * Ey_hat   (using updated Ey_hat from H_B)
-        
+
         // 1) H_f.
         for (size_t m = 0; m < Nx*Ny; m++) {
             Ex_hat_re[m] -= jx_hat_re[m];
@@ -1992,8 +2082,10 @@ void periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned(size
         std::cout << "EB interpolation took " << time_interpolate_EB << " s." << std::endl;
         timer.reset();
 
+        //check_frozen_equilibrium<order>(nt_r_curr,coeffs_Ex,coeffs_Ey,coeffs_Ez,coeffs_Bx,coeffs_By,coeffs_Bz);
+
         // Gauss clean 
-        redux_2x3v::eval_rho_ham_lie_Hf_HB_HE_2x3v<double, order>(
+        /* redux_2x3v::eval_rho_ham_lie_Hf_HB_HE_2x3v<double, order>(
                                 nt_r_curr, rho_electron, coeffs_Ex, coeffs_Ey, coeffs_Ez, 
                                 coeffs_Bx, coeffs_By, coeffs_Bz, conf_electron);
 
@@ -2016,12 +2108,12 @@ void periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned(size
         double gle = maxwell::E_clean_gauss_law_2x3v<double, order>(
             nt_r_curr, coeffs_Ex, coeffs_Ey, Ex, Ey, rho, g, coeffs_phi, conf_electron, poiss, 
             !gauss_clean, false
-        );
+        ); 
 
         // Add integration error computation here if wanted.
         // ...
 
-        gle_file << n * dt << " " << gle << " " << rho_integration_error << std::endl;
+        gle_file << n * dt << " " << gle << " " << rho_integration_error << std::endl; */
         
         double time_gauss_clean = timer.elapsed();
         std::cout << "Gauss clean took " << time_gauss_clean << " s." << std::endl;
@@ -2068,8 +2160,8 @@ void periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned(size
         write_coeffs_to_disk<order>(nt_r_curr,coeff_str,coeffs_Ex,coeffs_Ey,coeffs_Ez,coeffs_Bx,coeffs_By,coeffs_Bz);
         
         // Statistics.
-        bool comp_kin_energy = (n % steps_per_1 == 0);
-        bool plot_f = (n % (2*steps_per_1) == 0);
+        bool comp_kin_energy = true; //(n % steps_per_1 == 0);
+        bool plot_f = false; //(n % (2*steps_per_1) == 0);
         if(comp_kin_energy){
             if(plot_f){
                 kinetic_energy_and_entropy_2x3v<double,order>(nt_r_curr, placeholder_file, coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz, conf_electron, conf_ion, kinetic_energy, entropy, true, n, plotting_N,plotting_N,1,1,1,1,1,1,true,"_xy");
@@ -2085,7 +2177,7 @@ void periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned(size
         if(plot_EB){
             do_stats_2x3v<double,order>(nt_r_curr,kinetic_energy,entropy,stat_file,coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz,conf_electron,true,n,256,256,true);
         } else {
-            do_stats_2x3v<double,order>(nt_r_curr,kinetic_energy,entropy,stat_file,coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz,conf_electron,true,n,64,64,false);
+            do_stats_2x3v<double,order>(nt_r_curr,kinetic_energy,entropy,stat_file,coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz,conf_electron,true,n,256,256,false);
         }
         
         if(plot_EB){
