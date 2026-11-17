@@ -1563,12 +1563,18 @@ void periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned(size
 
     std::cout << "Init helper variables." << std::endl;
     // Flattened 1D coefficient storage
-    std::vector<double> coeffs_Ex((Nt + 1) * stride_t, 0.0);
+    /* std::vector<double> coeffs_Ex((nt + 1) * stride_t, 0.0);
     std::vector<double> coeffs_Ey((Nt + 1) * stride_t, 0.0);
     std::vector<double> coeffs_Ez((Nt + 1) * stride_t, 0.0);
     std::vector<double> coeffs_Bx((Nt + 1) * stride_t, 0.0);
     std::vector<double> coeffs_By((Nt + 1) * stride_t, 0.0);
-    std::vector<double> coeffs_Bz((Nt + 1) * stride_t, 0.0);
+    std::vector<double> coeffs_Bz((Nt + 1) * stride_t, 0.0); */
+    std::vector<double> coeffs_Ex((nt_restart + 1) * stride_t, 0.0);
+    std::vector<double> coeffs_Ey((nt_restart + 1) * stride_t, 0.0);
+    std::vector<double> coeffs_Ez((nt_restart + 1) * stride_t, 0.0);
+    std::vector<double> coeffs_Bx((nt_restart + 1) * stride_t, 0.0);
+    std::vector<double> coeffs_By((nt_restart + 1) * stride_t, 0.0);
+    std::vector<double> coeffs_Bz((nt_restart + 1) * stride_t, 0.0);
 
     std::vector<double> Ex(Nx*Ny, 0.0);
     std::vector<double> Ey(Nx*Ny, 0.0);
