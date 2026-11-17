@@ -179,8 +179,8 @@ const double vth = 0.1;     // Standard deviation of each velocity component
 const double T = vth*vth;  // m = 1
 const double Bpeak = std::sqrt(4*n0*T); // mu0 = 1; total Harris pressure = 2*n0*T
 const double drift = Bpeak/(2*n0*a);    // |jz| = 2*n0*drift = |d_y Bx|
-//const double perturbation = 0;       // Set to zero for the equilibrium test
-const double perturbation = 0.02;       // Set to zero for the equilibrium test
+const double perturbation = 0;       // Set to zero for the equilibrium test
+//const double perturbation = 0.02;       // Set to zero for the equilibrium test
 
 inline double sheet(double y, double centre) noexcept
 {
@@ -419,8 +419,8 @@ const double wmin_i = -0.6, wmax_i = 0.6;
 
 
 // Careful: Electrons and ions must have the same underlying spatial (x,y) grid!
-const size_t Nx = 16;
-const size_t Ny = 32;
+const size_t Nx = 64;
+const size_t Ny = 128;
 const size_t Nu_e = 16;
 const size_t Nv_e = 16;
 const size_t Nw_e = 16;
@@ -1437,8 +1437,8 @@ void write_coeffs_to_disk(size_t nt_r_curr, std::ofstream& coeff_str,
 
     for(size_t l = 0; l < stride_t; l++){
         size_t i = nt_r_curr*stride_t + l;
-        coeff_str << coeffs_Ex[i] << " " << coeffs_Ey[i] << " " << coeffs_Ez[i] <<
-                     coeffs_Bx[i] << " " << coeffs_By[i] << " " << coeffs_Bz[i] << std::endl;
+        coeff_str << std::setprecision(17) << coeffs_Ex[i] << " " << coeffs_Ey[i] << " " << coeffs_Ez[i] << " "
+                  << coeffs_Bx[i] << " " << coeffs_By[i] << " " << coeffs_Bz[i] << std::endl;
     }
 }
 
