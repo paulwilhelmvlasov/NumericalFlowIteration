@@ -179,8 +179,8 @@ const double vth = std::sqrt(0.02);    // Standard deviation of each velocity co
 const double T = vth*vth;  // m = 1
 const double Bpeak = std::sqrt(4*n0*T); // mu0 = 1; total Harris pressure = 2*n0*T
 const double drift = Bpeak/(2*n0*a);    // |jz| = 2*n0*drift = |d_y Bx|
-//const double perturbation = 0;       // Set to zero for the equilibrium test
-const double perturbation = 0.01;       // Set to zero for the equilibrium test
+const double perturbation = 0;       // Set to zero for the equilibrium test
+//const double perturbation = 0.01;       // Set to zero for the equilibrium test
 
 inline double sheet(double y, double centre) noexcept
 {
@@ -419,22 +419,14 @@ const double wmin_i = -6*pair_double_harris::vth, wmax_i = 6*pair_double_harris:
 
 
 // Careful: Electrons and ions must have the same underlying spatial (x,y) grid!
-const size_t Nx = 64;
-const size_t Ny = 128;
+const size_t Nx = 32;
+const size_t Ny = 64;
 const size_t Nu_e = 16;
 const size_t Nv_e = 16;
 const size_t Nw_e = 16;
 const size_t Nu_i = Nu_e;
 const size_t Nv_i = Nv_e;
 const size_t Nw_i = Nw_e;
-/* const size_t Nx = 16;
-const size_t Ny = 1;
-const size_t Nu_e = 16;
-const size_t Nv_e = 16;
-const size_t Nw_e = 16;
-const size_t Nu_i = 16;
-const size_t Nv_i = 16;
-const size_t Nw_i = 16; */
 const size_t steps_per_1 = 20;
 const double   dt = 1.0 / steps_per_1;
 const size_t Nt = 1000/dt;
@@ -443,8 +435,8 @@ bool strang_split = false; // Not implemented yet!
 bool gauss_clean = false;
 bool with_filter = false;
 
-//size_t nt_restart = Nt + 1;
-size_t nt_restart = 10;
+size_t nt_restart = Nt + 1;
+//size_t nt_restart = 10;
 
 const size_t nx_r = Nx;
 const size_t ny_r = Ny;
@@ -1715,7 +1707,7 @@ void periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned(size
         //eval_rho_j_high_res<order>(0, coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz, conf_electron, conf_ion,true,0,256,256,32,32,32,"_zoom",0,15,2,12);
     }
     kinetic_energy_and_entropy_2x3v<double,order>(0,kin_energy_entropy_file,coeffs_Ex,coeffs_Ey,coeffs_Ez,coeffs_Bx,coeffs_By,coeffs_Bz,conf_electron,conf_ion,kinetic_energy,entropy,false,0,Nx,Ny,Nu_e,Nv_e,Nw_e,Nu_i,Nv_i,Nw_i,false);
-    do_stats_2x3v<double, order>(0,kinetic_energy,entropy,stat_file,coeffs_Ex,coeffs_Ey,coeffs_Ez,coeffs_Bx,coeffs_By,coeffs_Bz,conf_electron,false,0,64,64,true);
+    do_stats_2x3v<double, order>(0,kinetic_energy,entropy,stat_file,coeffs_Ex,coeffs_Ey,coeffs_Ez,coeffs_Bx,coeffs_By,coeffs_Bz,conf_electron,false,0,plotting_N,plotting_N,true);
 
     std::ofstream gle_file("gle.txt");
     double rho_integration_error = 0.0;
@@ -2180,11 +2172,7 @@ void periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned(size
         }
         bool plot_EB = (n % (5*steps_per_1) == 0);
         //bool plot_EB = true;
-        if(plot_EB){
-            do_stats_2x3v<double,order>(nt_r_curr,kinetic_energy,entropy,stat_file,coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz,conf_electron,true,n,256,256,true);
-        } else {
-            do_stats_2x3v<double,order>(nt_r_curr,kinetic_energy,entropy,stat_file,coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz,conf_electron,true,n,256,256,false);
-        }
+        do_stats_2x3v<double,order>(nt_r_curr,kinetic_energy,entropy,stat_file,coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz,conf_electron,true,n,plotting_N,plotting_N,plot_EB);
         
         if(plot_EB){
             std::ofstream rho_str("rho_" + std::to_string(n*dt) + ".txt");

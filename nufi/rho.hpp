@@ -1281,6 +1281,92 @@ namespace redux_2x3v
 {
 
 template <typename real, size_t order>
+void eval_char_map_nufi_ham_lie_Hf_HB_HE_2x3v(size_t n, real& x, real& y, real& u, real& v, real& w,
+    const std::vector<real>& coeffs_Ex, const std::vector<real>& coeffs_Ey, const std::vector<real>& coeffs_Ez, 
+    const std::vector<real>& coeffs_Bx, const std::vector<real>& coeffs_By, const std::vector<real>& coeffs_Bz, 
+    const config_t<real>& conf)
+{
+    const size_t dim = 2;
+    const size_t stride_x = 1;
+    const size_t stride_y = stride_x*(conf.Nx + order - 1);
+    const size_t stride_t = stride_y*(conf.Ny + order - 1);
+
+    real q_over_m = conf.q / conf.m;
+
+    for (; n > 0; n--) {
+
+        real Ex = eval<real, order>(x,y,&coeffs_Ex[(n)*stride_t],conf);
+        real Ey = eval<real, order>(x,y,&coeffs_Ey[(n)*stride_t],conf);
+        real Ez = eval<real, order>(x,y,&coeffs_Ez[(n)*stride_t],conf);
+        real Bx = eval<real, order>(x,y,&coeffs_Bx[(n-1)*stride_t],conf);
+        real By = eval<real, order>(x,y,&coeffs_By[(n-1)*stride_t],conf);
+        real Bz = eval<real, order>(x,y,&coeffs_Bz[(n-1)*stride_t],conf);
+
+
+        u -= conf.dt * q_over_m * Ex;
+        v -= conf.dt * q_over_m * Ey;
+        w -= conf.dt * q_over_m * Ez;
+
+        // exact rotation
+        // scale with timestep and charge
+        real theta_x = conf.dt * q_over_m * Bx;
+        real theta_y = conf.dt * q_over_m * By;
+        real theta_z = conf.dt * q_over_m * Bz;
+
+        // magnitude
+        real theta = std::sqrt(theta_x*theta_x + theta_y*theta_y + theta_z*theta_z);
+
+        if (theta > 1e-12) {
+            // normalized rotation axis
+            real bx = theta_x / theta;
+            real by = theta_y / theta;
+            real bz = theta_z / theta;
+
+            // trig coefficients
+            real s = std::sin(theta);
+            real c = std::cos(theta);
+
+            // original velocity
+            real u_old = u;
+            real v_old = v;
+            real w_old = w;
+
+            // cross product b × v
+            real cx = by * w_old - bz * v_old;
+            real cy = bz * u_old - bx * w_old;
+            real cz = bx * v_old - by * u_old;
+
+            // double cross b × (b × v)
+            real dx = by * cz - bz * cy;
+            real dy = bz * cx - bx * cz;
+            real dz = bx * cy - by * cx;
+
+            // Rodrigues update
+            u = u_old + s * cx + (1 - c) * dx;
+            v = v_old + s * cy + (1 - c) * dy;
+            w = w_old + s * cz + (1 - c) * dz;
+        }
+
+        // Update x.
+        x -= conf.dt * u;
+        y -= conf.dt * v;
+    }
+
+
+}
+
+template <typename real, size_t order>
+real eval_f_nufi_cmm_ham_lie_Hf_HB_HE_2x3v(size_t n, real x, real y, real u, real v, real w,
+    const std::vector<real>& coeffs_Ex, const std::vector<real>& coeffs_Ey, const std::vector<real>& coeffs_Ez,
+    const std::vector<real>& coeffs_Bx, const std::vector<real>& coeffs_By, const std::vector<real>& coeffs_Bz,
+    const config_t<real>& conf)
+{
+    eval_char_map_nufi_ham_lie_Hf_HB_HE_2x3v<real,order>(n,x,y,u,v,w,
+        coeffs_Ex,coeffs_Ey,coeffs_Ez,coeffs_Bx,coeffs_By,coeffs_Bz,conf);
+    return conf.f0_2x3v(x,y,u,v,w);
+}
+
+template <typename real, size_t order>
 real eval_f_nufi_ham_lie_Hf_HB_HE_2x3v(size_t n, real x, real y, real u, real v, real w,
     const std::vector<real>& coeffs_Ex, const std::vector<real>& coeffs_Ey, const std::vector<real>& coeffs_Ez, 
     const std::vector<real>& coeffs_Bx, const std::vector<real>& coeffs_By, const std::vector<real>& coeffs_Bz, 
