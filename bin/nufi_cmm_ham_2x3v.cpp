@@ -1,4 +1,5 @@
 #include <array>
+#include <algorithm>
 #include <cmath>
 #include <memory>
 #include <iostream>
@@ -34,8 +35,7 @@ const double vth = std::sqrt(0.02);    // Standard deviation of each velocity co
 const double T = vth*vth;  // m = 1
 const double Bpeak = std::sqrt(4*n0*T); // mu0 = 1; total Harris pressure = 2*n0*T
 const double drift = Bpeak/(2*n0*a);    // |jz| = 2*n0*drift = |d_y Bx|
-//const double perturbation = 0.01;
-const double perturbation = 0.0;
+const double perturbation = 0.01;
 
 inline double sheet(double y, double centre) noexcept
 {
@@ -106,50 +106,65 @@ const double wmin_i = -6*pair_double_harris::vth, wmax_i = 6*pair_double_harris:
 
 // Careful: Electrons and ions must have the same underlying spatial (x,y) grid!
 const size_t Nx = 32;
-const size_t Ny = 64;
+const size_t Ny = 128;
 const size_t Nu_e = 16;
 const size_t Nv_e = 16;
 const size_t Nw_e = 16;
 const size_t Nu_i = Nu_e;
 const size_t Nv_i = Nv_e;
 const size_t Nw_i = Nw_e;
-const size_t steps_per_1 = 20;
+const size_t steps_per_1 = 50;
 const double   dt = 1.0 / steps_per_1;
 const size_t Nt = 1000/dt;
 
 size_t nt_restart = 5;
-const size_t nx_cmm = 32, ny_cmm = 32;
-const size_t nu_cmm = 16, nv_cmm = 16, nw_cmm = 16;
+const size_t nx_cmm = 32, ny_cmm = 128;
+const size_t nu_cmm = 8, nv_cmm = 8, nw_cmm = 8;
 
-// Short-time backward characteristic submap: z_old = z + displacement(z).
-// Spatial displacements are stored using a periodic spline. Keeping an
-// unwrapped x/y coordinate avoids discontinuities across the periodic box.
+// CMM restarts: retain independent short-time maps Psi(z) = z + eps(z).
+// Store their five sampled displacement components on the same 5D grid.
 struct cmm_submap_2x3v
 {
-    std::array<std::unique_ptr<restart::cubic_interpolant_2x3v>,5> displacement;
+    std::array<restart::cubic_interpolant_2x3v,5> displacement;
+
+    explicit cmm_submap_2x3v(const config_t<double>& conf)
+    {
+        for(auto& interp : displacement){
+            interp = restart::cubic_interpolant_2x3v(
+                xmin,xmax,ymin,ymax,conf.u_min,conf.u_max,conf.v_min,conf.v_max,
+                conf.w_min,conf.w_max,nx_cmm,ny_cmm,nu_cmm,nv_cmm,nw_cmm,false);
+            interp.copy_mat.reset();
+        }
+    }
 };
 
-std::vector<std::unique_ptr<cmm_submap_2x3v>> cmm_maps_electron;
-std::vector<std::unique_ptr<cmm_submap_2x3v>> cmm_maps_ion;
+std::vector<cmm_submap_2x3v> cmm_maps_electron;
+std::vector<cmm_submap_2x3v> cmm_maps_ion;
 
-void apply_cmm_submap(const cmm_submap_2x3v& map,
+void apply_cmm_submap(cmm_submap_2x3v& map,
                       double& x, double& y, double& u, double& v, double& w)
 {
-    // Evaluate all displacements at the SAME point before updating it.
-    const double dx = map.displacement[0]->cubic_interpolation_5d_streaming(x,y,u,v,w);
-    const double dy = map.displacement[1]->cubic_interpolation_5d_streaming(x,y,u,v,w);
-    const double du = map.displacement[2]->cubic_interpolation_5d_streaming(x,y,u,v,w);
-    const double dv = map.displacement[3]->cubic_interpolation_5d_streaming(x,y,u,v,w);
-    const double dw = map.displacement[4]->cubic_interpolation_5d_streaming(x,y,u,v,w);
+    // The interpolation box is finite; use continuous constant extension
+    // rather than the distribution interpolant's zero-outside convention.
+    const auto& grid = map.displacement[0];
+    const double uc = std::clamp(u,grid.umin,grid.umax);
+    const double vc = std::clamp(v,grid.vmin,grid.vmax);
+    const double wc = std::clamp(w,grid.wmin,grid.wmax);
+    // Evaluate all five components at the same (clamped) point.
+    const double dx = map.displacement[0].cubic_interpolation_5d_streaming(x,y,uc,vc,wc);
+    const double dy = map.displacement[1].cubic_interpolation_5d_streaming(x,y,uc,vc,wc);
+    const double du = map.displacement[2].cubic_interpolation_5d_streaming(x,y,uc,vc,wc);
+    const double dv = map.displacement[3].cubic_interpolation_5d_streaming(x,y,uc,vc,wc);
+    const double dw = map.displacement[4].cubic_interpolation_5d_streaming(x,y,uc,vc,wc);
     x += dx; y += dy; u += du; v += dv; w += dw;
 }
 
-void apply_cmm_history(const std::vector<std::unique_ptr<cmm_submap_2x3v>>& maps,
+void apply_cmm_history(std::vector<cmm_submap_2x3v>& maps,
                        double& x, double& y, double& u, double& v, double& w)
 {
-    // Newest map first, then progressively older maps back to t=0.
-    for (auto it = maps.rbegin(); it != maps.rend(); ++it)
-        apply_cmm_submap(**it,x,y,u,v,w);
+    // Newest short-time backward map first, then the older submaps.
+    for(auto it = maps.rbegin(); it != maps.rend(); ++it)
+        apply_cmm_submap(*it,x,y,u,v,w);
 }
 
 double eval_f_electron_with_cmm(double x, double y, double u, double v, double w)
@@ -165,30 +180,43 @@ double eval_f_ion_with_cmm(double x, double y, double u, double v, double w)
 }
 
 template<size_t order>
-std::unique_ptr<cmm_submap_2x3v> make_cmm_submap(
+void append_cmm_submap(
     size_t nt,
     const std::vector<double>& coeffs_Ex, const std::vector<double>& coeffs_Ey,
     const std::vector<double>& coeffs_Ez, const std::vector<double>& coeffs_Bx,
     const std::vector<double>& coeffs_By, const std::vector<double>& coeffs_Bz,
-    const config_t<double>& conf)
+    const config_t<double>& conf, std::vector<cmm_submap_2x3v>& maps)
 {
-    auto map = std::make_unique<cmm_submap_2x3v>();
-    for (size_t component = 0; component < 5; ++component) {
-        map->displacement[component] = std::make_unique<restart::cubic_interpolant_2x3v>(
-            xmin,xmax,ymin,ymax,conf.u_min,conf.u_max,conf.v_min,conf.v_max,
-            conf.w_min,conf.w_max,nx_cmm,ny_cmm,nu_cmm,nv_cmm,nw_cmm,true);
+    maps.emplace_back(conf);
+    auto& m = maps.back();
+    const double dx = (xmax-xmin)/nx_cmm, dy = (ymax-ymin)/ny_cmm;
+    const double du = (conf.u_max-conf.u_min)/nu_cmm;
+    const double dv = (conf.v_max-conf.v_min)/nv_cmm;
+    const double dw = (conf.w_max-conf.w_min)/nw_cmm;
 
-        auto displacement = [&](double x, double y, double u, double v, double w) {
-            const std::array<double,5> z0 = {x,y,u,v,w};
-            redux_2x3v::eval_char_map_nufi_ham_lie_Hf_HB_HE_2x3v<double,order>(
-                nt,x,y,u,v,w,coeffs_Ex,coeffs_Ey,coeffs_Ez,
-                coeffs_Bx,coeffs_By,coeffs_Bz,conf);
-            const std::array<double,5> z1 = {x,y,u,v,w};
-            return z1[component]-z0[component];
-        };
-        map->displacement[component]->restart_f(displacement);
+    #pragma omp parallel for collapse(5)
+    for(size_t ix = 0; ix <= nx_cmm; ix++)
+    for(size_t iy = 0; iy <= ny_cmm; iy++)
+    for(size_t iu = 0; iu <= nu_cmm; iu++)
+    for(size_t iv = 0; iv <= nv_cmm; iv++)
+    for(size_t iw = 0; iw <= nw_cmm; iw++){
+        const double x0 = xmin + ix*dx, y0 = ymin + iy*dy;
+        const double u0 = conf.u_min + iu*du, v0 = conf.v_min + iv*dv;
+        const double w0 = conf.w_min + iw*dw;
+        double x = x0, y = y0, u = u0, v = v0, w = w0;
+
+        redux_2x3v::eval_char_map_nufi_ham_lie_Hf_HB_HE_2x3v<double,order>(
+            nt,x,y,u,v,w,coeffs_Ex,coeffs_Ey,coeffs_Ez,
+            coeffs_Bx,coeffs_By,coeffs_Bz,conf);
+
+        const size_t row = ix + (nx_cmm+1)*iy;
+        const size_t col = iu + (nu_cmm+1)*(iv + (nv_cmm+1)*iw);
+        m.displacement[0].restart_matrix(row,col) = x-x0;
+        m.displacement[1].restart_matrix(row,col) = y-y0;
+        m.displacement[2].restart_matrix(row,col) = u-u0;
+        m.displacement[3].restart_matrix(row,col) = v-v0;
+        m.displacement[4].restart_matrix(row,col) = w-w0;
     }
-    return map;
 }
 
 template<typename real, size_t order>
@@ -569,6 +597,8 @@ void periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned(size
 
     cmm_maps_electron.clear();
     cmm_maps_ion.clear();
+    cmm_maps_electron.reserve(Nt/nt_restart);
+    cmm_maps_ion.reserve(Nt/nt_restart);
     std::cout << "CMM short-time submaps, grid " << nx_cmm << "x" << ny_cmm << "x"
               << nu_cmm << "x" << nv_cmm << "x" << nw_cmm << std::endl;
 
@@ -969,7 +999,6 @@ void periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned(size
         
         // Statistics.
         bool comp_kin_energy = true;
-        //bool comp_kin_energy = (n % steps_per_1 == 0);
         if(comp_kin_energy){
             kinetic_energy_and_entropy_2x3v<double,order>(nt_r_curr, kin_energy_entropy_file, coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz, conf_electron, conf_ion, kinetic_energy, entropy,true,n,Nx,Ny,Nu_e,Nv_e,Nw_e,Nu_i,Nv_i,Nw_i,false);
         }
@@ -983,10 +1012,10 @@ void periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned(size
             timer.reset();
             std::cout << "Restart simulation. " << std::endl;
 
-            cmm_maps_electron.push_back(make_cmm_submap<order>(nt_r_curr,
-                coeffs_Ex,coeffs_Ey,coeffs_Ez,coeffs_Bx,coeffs_By,coeffs_Bz,conf_electron));
-            cmm_maps_ion.push_back(make_cmm_submap<order>(nt_r_curr,
-                coeffs_Ex,coeffs_Ey,coeffs_Ez,coeffs_Bx,coeffs_By,coeffs_Bz,conf_ion));
+            append_cmm_submap<order>(nt_r_curr, coeffs_Ex,coeffs_Ey,coeffs_Ez,
+                coeffs_Bx,coeffs_By,coeffs_Bz,conf_electron,cmm_maps_electron);
+            append_cmm_submap<order>(nt_r_curr, coeffs_Ex,coeffs_Ey,coeffs_Ez,
+                coeffs_Bx,coeffs_By,coeffs_Bz,conf_ion,cmm_maps_ion);
 
             double timer_fill_restart_matrix = timer.elapsed();
             timer.reset();

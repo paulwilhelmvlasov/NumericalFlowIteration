@@ -1716,12 +1716,14 @@ class cubic_interpolant_2x3v
                         double buf_y[4];
 
                         for (int ky = -1; ky <= 2; ++ky) {
-                            const size_t iyc = periodic_index(iy + ky, ny_r + 1);
+                            //const size_t iyc = periodic_index(iy + ky, ny_r + 1);
+                            const size_t iyc = periodic_index(iy + ky, ny_r);
 
                             double px[4];
 
                             for (int kx = -1; kx <= 2; ++kx) {
-                                const size_t ixc = periodic_index(ix + kx, nx_r + 1);
+                                //const size_t ixc = periodic_index(ix + kx, nx_r + 1);
+                                const size_t ixc = periodic_index(ix + kx, nx_r);
 
                                 px[kx + 1] = restart_value_2x3v(
                                     ixc, iyc, iuc, ivc, iwc
