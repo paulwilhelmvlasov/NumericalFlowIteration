@@ -106,7 +106,7 @@ const double wmin_i = -6*pair_double_harris::vth, wmax_i = 6*pair_double_harris:
 
 
 // Careful: Electrons and ions must have the same underlying spatial (x,y) grid!
-const size_t Nx = 32;
+const size_t Nx = 64;
 const size_t Ny = 128;
 const size_t Nu_e = 16;
 const size_t Nv_e = 16;
@@ -114,13 +114,13 @@ const size_t Nw_e = 16;
 const size_t Nu_i = Nu_e;
 const size_t Nv_i = Nv_e;
 const size_t Nw_i = Nw_e;
-const size_t steps_per_1 = 50;
+const size_t steps_per_1 = 20;
 const double   dt = 1.0 / steps_per_1;
 const size_t Nt = 1000/dt;
 
-size_t nt_restart = 5;
-const size_t nx_cmm = 32, ny_cmm = 128;
-const size_t nu_cmm = 8, nv_cmm = 8, nw_cmm = 8;
+size_t nt_restart = 100;
+const size_t nx_cmm = 16, ny_cmm = 128;
+const size_t nu_cmm = 16, nv_cmm = 16, nw_cmm = 16;
 
 // CMM restarts: retain independent short-time maps Psi(z) = z + eps(z).
 // Store their five sampled displacement components on the same 5D grid.
