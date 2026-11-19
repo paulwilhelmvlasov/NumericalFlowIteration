@@ -437,7 +437,7 @@ bool gauss_clean = false;
 bool with_filter = false;
 
 size_t nt_restart = Nt + 1;
-//size_t nt_restart = 10;
+//size_t nt_restart = 5;
 
 const size_t nx_r = Nx;
 const size_t ny_r = Ny;
@@ -1631,8 +1631,8 @@ void periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned(size
 
     // Init restart matrices.
     std::cout << "Initialize restart matrices." << std::endl;
-    interpolant_electron = restart::cubic_interpolant_2x3v(xmin,xmax,ymin,ymax,umin_e,umax_e,vmin_e,vmax_e,wmin_e,wmax_e,nx_r,ny_r,nu_e_r,nv_e_r,nw_e_r,true);
-    interpolant_ion = restart::cubic_interpolant_2x3v(xmin,xmax,ymin,ymax,umin_i,umax_i,vmin_i,vmax_i,wmin_i,wmax_i,nx_r,ny_r,nu_i_r,nv_i_r,nw_i_r,true);
+    interpolant_electron = restart::cubic_interpolant_2x3v(xmin,xmax,ymin,ymax,umin_e,umax_e,vmin_e,vmax_e,wmin_e,wmax_e,nx_r,ny_r,nu_e_r,nv_e_r,nw_e_r,false);
+    interpolant_ion = restart::cubic_interpolant_2x3v(xmin,xmax,ymin,ymax,umin_i,umax_i,vmin_i,vmax_i,wmin_i,wmax_i,nx_r,ny_r,nu_i_r,nv_i_r,nw_i_r,false);
 
     // Compute E(0) and B(0).
     std::cout << "Compute E(0) and B(0)." << std::endl;
@@ -2159,7 +2159,8 @@ void periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned(size
         write_coeffs_to_disk<order>(nt_r_curr,coeff_str,coeffs_Ex,coeffs_Ey,coeffs_Ez,coeffs_Bx,coeffs_By,coeffs_Bz);
         
         // Statistics.
-        bool comp_kin_energy = (n % steps_per_1 == 0);
+        bool comp_kin_energy = true;
+        //bool comp_kin_energy = (n % steps_per_1 == 0);
         bool plot_f = false; //(n % (2*steps_per_1) == 0);
         if(comp_kin_energy){
             if(plot_f){
