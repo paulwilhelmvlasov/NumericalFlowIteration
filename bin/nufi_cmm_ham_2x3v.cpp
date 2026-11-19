@@ -999,7 +999,7 @@ void periodically_restarted_nufi_maxwell_lie_exact_fourier_integral_aligned(size
         write_coeffs_to_disk<order>(nt_r_curr,coeff_str,coeffs_Ex,coeffs_Ey,coeffs_Ez,coeffs_Bx,coeffs_By,coeffs_Bz);
         
         // Statistics.
-        bool comp_kin_energy = true;
+        bool comp_kin_energy = (n % (5*steps_per_1) == 0);
         if(comp_kin_energy){
             kinetic_energy_and_entropy_2x3v<double,order>(nt_r_curr, kin_energy_entropy_file, coeffs_Ex, coeffs_Ey, coeffs_Ez, coeffs_Bx, coeffs_By, coeffs_Bz, conf_electron, conf_ion, kinetic_energy, entropy,true,n,Nx,Ny,Nu_e,Nv_e,Nw_e,Nu_i,Nv_i,Nw_i,false);
         }
