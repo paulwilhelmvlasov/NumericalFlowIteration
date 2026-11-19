@@ -74,7 +74,8 @@ arma::Col<real> E0(real x, real y, real z)
 template<typename real>
 arma::Col<real> B0(real x, real y, real z)
 {
-    const real kx = 4*M_PI/Lx;
+    //const real kx = 4*M_PI/Lx; // Matching paper
+    const real kx = 2*M_PI/Lx; // Matching ECSIM
     const real ky = 2*M_PI/Ly;
     const real bx = Bpeak*(std::tanh((y-0.25*Ly)/a) - std::tanh((y-0.75*Ly)/a) - 1)
                   + perturbation*Bpeak*(ky/kx)*std::cos(kx*x)*std::cos(ky*y);
