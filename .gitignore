@@ -9,6 +9,7 @@
 bin/*
 !bin/*.cpp
 !bin/makefile.am
+!bin/deprecated_bin/*.cpp
 dergeraet/.deps
 dergeraet/.libs
 dergeraet/autoconfig.hpp

@@ -9,6 +9,8 @@
  * Distributed under the GNU General Public License, version 3 or later.
  */
 
+// I think this was the final version, which was actually conservative in mass and momentum...
+
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -478,6 +480,7 @@ void apply_restart(size_t& nt, size_t n, double* coeffs, config_t<double>& conf,
         [&](double x, double v) { return periodic::eval_f<double,order>(nt,x,v,coeffs,conf); });
     restart_state = std::move(next);
     const auto& s = restart_state;
+    
     log << std::setprecision(16) << n*dt << ' '
         << s.Msource-conf.Lx << ' ' << s.Jsource << ' '
         << s.M1before-conf.Lx << ' ' << s.J1before << ' '
@@ -489,6 +492,7 @@ void apply_restart(size_t& nt, size_t n, double* coeffs, config_t<double>& conf,
         << s.relative_error << ' ' << s.moment_free_defect << ' '
         << s.Mtrap-s.M << ' ' << s.symmetry << ' ' << s.symmetry1 << ' '
         << s.symmetry2 << '\n';
+
     std::cout << std::setprecision(9) << "t=" << n*dt
               << " source(M-M0)=" << s.Msource-conf.Lx
               << " f1(M-M0)=" << s.M1-conf.Lx
